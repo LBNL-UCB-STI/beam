@@ -117,8 +117,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val numOfThreads = if (Runtime.getRuntime().availableProcessors() <= 2)  {
     1
   }
-  else {
-    Runtime.getRuntime().availableProcessors() - 2
+  else { if (Runtime.getRuntime().availableProcessors() >= 18) 16
+    else Runtime.getRuntime().availableProcessors() - 2
   }
 
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -130,7 +130,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   var firstMsgTime: Option[ZonedDateTime] = None
 
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
-  log.info("Num of avaiable processors: {}", Runtime.getRuntime().availableProcessors())
+  log.info("Num of avaiable processors: {}. Will use: {}", Runtime.getRuntime().availableProcessors(), numOfThreads)
 
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
