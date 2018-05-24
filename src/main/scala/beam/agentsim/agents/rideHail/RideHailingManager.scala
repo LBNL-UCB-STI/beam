@@ -168,6 +168,7 @@ class RideHailingManager(
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
         repositioningVehicles.remove(vehicleId)
+        log.debug("checked in resource: " + vehicleId)
       })
 
 
@@ -372,7 +373,7 @@ class RideHailingManager(
                 val rideHailAgentInterruptId = nextRideHailAgentInterruptId
                 repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
                 rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
-                //log.info("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
+                log.debug("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
                 repositioningVehicles.add(vehicleId)
 
               } else {
@@ -443,98 +444,13 @@ class RideHailingManager(
 
 
     case InterruptedWhileIdle(interruptId,vehicleId,tick) =>
-     // log.info("InterruptedWhileIdle - vehicle: " + vehicleId)
-      val rideHailAgent =getRideHailAgent(vehicleId)
+      handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick)
 
-
-      if (repositioningPassengerSchedule.contains(vehicleId)){
-        val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
-
-        if (reservationPassengerSchedule.contains(vehicleId)){
-          val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-
-          if (interruptId==interruptIdReposition){
-            repositioningPassengerSchedule.remove(vehicleId)
-           // log.info("InterruptedWhileIdle - ignoring reposition: " + vehicleId)
-          }
-        } else {
-          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
-          rideHailAgent ! Resume()
-          //log.info("InterruptedWhileIdle - reposition: " + vehicleId)
-        }
-      }
-
-
-      if (reservationPassengerSchedule.contains(vehicleId)) {
-        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
-
-        if (interruptId == interruptIdReservation) {
-          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
-          rideHailAgent ! modifyPassengerSchedule
-          rideHailAgent ! Resume()
-          //log.info("InterruptedWhileIdle - reservation: " + vehicleId)
-        }
-      }
+    case InterruptedAt(interruptId,interruptedPassengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
+      handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick)
 
 
 
-
-
-
-/*
-      getIdleVehicles().get(vehicleId) match {
-        case Some(rideHailAgentLocation)=>
-          val rideHailAgent = rideHailAgentLocation.rideHailAgent
-          //println("InterruptedWhileIdle:" + vehicleId)
-          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get._2
-          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
-          rideHailAgent ! Resume()
-        case None =>
-          if (repositioningVehicles.contains(vehicleId)){
-            log.info("InterruptedWhileIdle: " + vehicleId + " not available anymore - no further message sent to RideHailAgent (avoiding interference with overwriting protocol)")
-            repositioningVehicles.remove(vehicleId)
-            repositioningPassengerSchedule.remove(vehicleId)
-          }
-
-      }
-*/
-    case InterruptedAt(interruptId,passengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
-      log.info("InterruptedAt - vehicle: " + vehicleId)
-      val rideHailAgent =getRideHailAgent(vehicleId)
-
-
-      if (repositioningPassengerSchedule.contains(vehicleId)){
-        val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
-
-        if (reservationPassengerSchedule.contains(vehicleId)){
-          val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-
-          if (interruptId==interruptIdReposition){
-            repositioningPassengerSchedule.remove(vehicleId)
-            updateIdleVehicleLocation(vehicleId,passengerSchedule.get.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
-           // log.info("InterruptedAt - ignoring reposition: " + vehicleId)
-          }
-        } else {
-          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
-          rideHailAgent ! Resume()
-          //log.info("InterruptedAt - reposition: " + vehicleId)
-        }
-      }
-
-
-
-
-      if (reservationPassengerSchedule.contains(vehicleId)) {
-        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
-
-        if (interruptId == interruptIdReservation) {
-          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
-          rideHailAgent ! StopDriving()
-          rideHailAgent ! modifyPassengerSchedule
-          rideHailAgent ! Resume()
-          //log.info("InterruptedAt - reservation: " + vehicleId)
-        }
-      }
 
 
 
@@ -575,13 +491,68 @@ class RideHailingManager(
   }
 
 
+  private def handleInterrupt( interruptType:String, interruptId: Id[Interrupt],interruptedPassengerSchedule: Option[PassengerSchedule],vehicleId:Id[Vehicle], tick: Double): Unit ={
+    log.debug(interruptType + " - vehicle: " + vehicleId)
+    val rideHailAgent =getRideHailAgent(vehicleId)
+
+        if (repositioningPassengerSchedule.contains(vehicleId)){
+          val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
+
+          if (reservationPassengerSchedule.contains(vehicleId)){
+            val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
+
+            if (interruptId==interruptIdReposition){
+              //repositioningPassengerSchedule.remove(vehicleId)
+
+              interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
+
+             // interruptedPassengerSchedule match {
+             //   case Some(interruptedPassengerSchedule) =>
+             //     updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick)
+             // }
+
+              log.debug(interruptType + " - ignoring reposition: " + vehicleId)
+            }
+          } else {
+            //repositioningPassengerSchedule.remove(vehicleId)
+            rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
+            rideHailAgent ! Resume()
+
+            log.debug(interruptType + " - reposition: " + vehicleId)
+          }
+        }
+
+
+
+
+        if (reservationPassengerSchedule.contains(vehicleId)) {
+          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
+
+          if (interruptId == interruptIdReservation) {
+            val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
+
+            interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
+
+
+            rideHailAgent ! modifyPassengerSchedule
+            rideHailAgent ! Resume()
+            log.debug(interruptType + " - reservation: " + vehicleId)
+          }
+        }
+
+
+
+    }
+
+
+
   private def getRideHailAgent(vehicleId:Id[Vehicle]):ActorRef={
     getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get).rideHailAgent
   }
 
 
   private def isVehicleRepositioning(vehicleId:Id[Vehicle]):Boolean={
-    repositioningVehicles.contains(vehicleId)
+    repositioningPassengerSchedule.contains(vehicleId)
   }
 
 // contains both idling and repositioning vehicles
@@ -838,7 +809,7 @@ class RideHailingManager(
 
       //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
    //closestRideHailingAgentLocation.rideHailAgent ! Resume()
-    //log.info("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
+    log.debug("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
