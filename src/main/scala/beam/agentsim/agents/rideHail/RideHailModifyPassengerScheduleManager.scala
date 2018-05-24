@@ -1,14 +1,16 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.agents.rideHail.InterruptMessageStatus.InterruptMessageStatus
-import beam.agentsim.agents.rideHail.InterruptOrigin.InterruptOrigin
-import beam.agentsim.agents.rideHail.RideHailingAgent.Interrupt
+import akka.actor.ActorRef
+import akka.event.LoggingAdapter
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
+import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, ModifyPassengerSchedule, Resume}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.{concurrent, mutable}
 
-class RideHailModifyPassengerScheduleManager() {
+class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
 
   val modifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   val vehicleInterruptIds = mutable.Map[Id[Vehicle], mutable.Set[RideHailModifyPassengerScheduleStatus]]()
@@ -45,16 +47,50 @@ class RideHailModifyPassengerScheduleManager() {
     }
   }
 
-}
 
-object InterruptMessageStatus extends Enumeration {
-  type InterruptMessageStatus = Value
-  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT, EXECUTED = Value
-}
+  def handleInterrupt( interruptType:String, interruptId: Id[Interrupt],interruptedPassengerSchedule: Option[PassengerSchedule],vehicleId:Id[Vehicle], tick: Double, rideHailAgent:ActorRef): Unit ={
+    log.debug(interruptType + " - vehicle: " + vehicleId)
 
-object InterruptOrigin extends Enumeration {
-  type InterruptOrigin = Value
-  val RESERVATION, REPOSITION = Value
-}
 
-class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin, var status: InterruptMessageStatus=InterruptMessageStatus.INTERRUPT_SENT)
+    /*
+    val rideHailAgent =getRideHailAgent(vehicleId)
+    if (repositioningPassengerSchedule.contains(vehicleId)){
+      val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
+      if (reservationPassengerSchedule.contains(vehicleId)){
+        val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
+        interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
+        log.debug(interruptType + " - ignoring reposition: " + vehicleId)
+      } else {
+        interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
+        rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
+        rideHailAgent ! Resume()
+        log.debug(interruptType + " - reposition: " + vehicleId)
+      }
+    }
+
+    if (reservationPassengerSchedule.contains(vehicleId)) {
+      val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
+      if (interruptId == interruptIdReservation) {
+        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
+        interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
+        rideHailAgent ! modifyPassengerSchedule
+        rideHailAgent ! Resume()
+        log.debug(interruptType + " - reservation: " + vehicleId)
+      } else {
+        log.error(interruptType + " - reservation: " + vehicleId + " interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
+      }
+    }
+  }
+  */
+
+}}
+
+  object InterruptMessageStatus extends Enumeration {
+    val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT, EXECUTED = Value
+  }
+
+  object InterruptOrigin extends Enumeration {
+    val RESERVATION, REPOSITION = Value
+  }
+
+  class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, var status: InterruptMessageStatus.Value=InterruptMessageStatus.INTERRUPT_SENT){  }

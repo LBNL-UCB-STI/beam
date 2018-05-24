@@ -95,7 +95,7 @@ class RideHailingManager(
   val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
   val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
-  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager()
+  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log)
 
 
   private val repositionDoneOnce: Boolean = false
@@ -451,10 +451,10 @@ class RideHailingManager(
 
 
     case InterruptedWhileIdle(interruptId,vehicleId,tick) =>
-      handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick)
+      modifyPassengerScheduleManager.handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick,getRideHailAgent(vehicleId))
 
     case InterruptedAt(interruptId,interruptedPassengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
-      handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick)
+      modifyPassengerScheduleManager.handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick,getRideHailAgent(vehicleId))
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
@@ -464,7 +464,7 @@ class RideHailingManager(
 
   }
 
-
+// TODO: move to modifyPassengerScheduleManager?
   private def handleInterrupt( interruptType:String, interruptId: Id[Interrupt],interruptedPassengerSchedule: Option[PassengerSchedule],vehicleId:Id[Vehicle], tick: Double): Unit ={
     log.debug(interruptType + " - vehicle: " + vehicleId)
     val rideHailAgent =getRideHailAgent(vehicleId)
