@@ -229,6 +229,8 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
        //log.debug("RideHailModifyPassengerScheduleManager- sendInterruptMessage: " + rideHailModifyPassengerScheduleStatus)
        sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
      } else {
+       modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
+        removeWithInterruptId(rideHailAgentInterruptId)
        log.debug("RideHailModifyPassengerScheduleManager- messageBuffered: " + rideHailModifyPassengerScheduleStatus)
      }
 
