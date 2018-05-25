@@ -102,6 +102,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case Some(currentLeg) =>
 
           if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
+            print(data.passengerSchedule.schedule(currentLeg).riders.toString())
             DebugLib.emptyFunctionForSettingBreakPoint()
           }
 

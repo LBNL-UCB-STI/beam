@@ -69,6 +69,8 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   private def sendModifyPassengerScheduleMessage(selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus],  stopDriving:Boolean): Unit ={
     selectedForModifyPassengerSchedule.foreach{selected =>
+
+      log.debug("sendModifyPassengerScheduleMessage: "+ selectedForModifyPassengerSchedule)
       if (stopDriving){
         sendMessage(selected.rideHailAgent, StopDriving())
       }
@@ -111,6 +113,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
           if (withVehicleIds.isEmpty){
             log.error("withVehicleIds.isEmpty: " + vehicleId)
+            log.error("modifyPassengerScheduleStatus: " + modifyPassengerScheduleStatus)
             log.error("interruptIdToModifyPassengerScheduleStatus: " + interruptIdToModifyPassengerScheduleStatus.get(interruptId))
 
           }
@@ -198,13 +201,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
-    //log.debug("RideHailModifyPassengerScheduleManager- repositionVehicle request: " + vehicleId)
+    log.debug("RideHailModifyPassengerScheduleManager- repositionVehicle request: " + vehicleId)
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning+=1
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule),tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
   def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef,inquiryId: Option[Id[RideHailingInquiry]]):Unit={
-    //log.debug("RideHailModifyPassengerScheduleManager- reserveVehicle request: " + vehicleId)
+    log.debug("RideHailModifyPassengerScheduleManager- reserveVehicle request: " + vehicleId)
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,inquiryId),tick,vehicleId,rideHailAgent,InterruptOrigin.RESERVATION)
   }
 
