@@ -94,7 +94,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
           //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
           val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
-            matSimTransitVehicle, None, TransitVehicle)
+            matSimTransitVehicle, None, TransitVehicle,None,None) // TODO: implement fuel level later as needed
           services.vehicles += (transitVehId -> vehicle)
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
@@ -283,6 +283,14 @@ object BeamRouter {
   case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
 
   case class UpdateTravelTime(travelTime: TravelTime)
+
+  case class R5Network(transportNetwork:  TransportNetwork)
+
+  case object GetTravelTime
+
+  case class MATSimNetwork(network: Network)
+
+  case object GetMatSimNetwork
 
   /**
     * It is use to represent a request object

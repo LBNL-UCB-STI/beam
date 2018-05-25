@@ -190,9 +190,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       vehicles.put(vehicleId, beamVehicle)
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(Id  .create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
@@ -256,8 +256,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       })
 
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car)
-      val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car)
+      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car,None,None)
+      val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car,None,None)
 
       vehicles.put(bus.getId, bus)
       vehicles.put(tram.getId, tram)
