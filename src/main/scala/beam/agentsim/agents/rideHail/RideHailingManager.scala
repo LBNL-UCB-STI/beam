@@ -332,6 +332,7 @@ class RideHailingManager(
       maybeTravelTime = Some(travelTime)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
+      log.debug("RepositioningTimeout("+tick +") - START repositioning waive")
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
@@ -402,7 +403,8 @@ class RideHailingManager(
 
       }
 
-
+      //log.debug("RepositioningTimeout("+tick +") - END repositioning waive")
+      //modifyPassengerScheduleManager.endWaiveOfRepositioningRequests()
 
 
 

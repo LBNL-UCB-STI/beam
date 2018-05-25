@@ -55,32 +55,6 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     }
   }
 
-  private def removeWithVehicleId(vehicleId:Id[Vehicle], time:Long) ={
-    var rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
-    val deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
-    log.debug("BEFORE checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + rideHailModifyPassengerScheduleStatusSet)
-    rideHailModifyPassengerScheduleStatusSet.foreach{
-      rideHailModifyPassengerScheduleStatus =>
-
-        if (rideHailModifyPassengerScheduleStatus.tick<time){
-          if (rideHailModifyPassengerScheduleStatus.status==InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT){
-            interruptIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.interruptId)
-            deleteItems+=rideHailModifyPassengerScheduleStatus
-          }
-        }
-
-    }
-
-    vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
-
-    rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
-
-    if (!rideHailModifyPassengerScheduleStatusSet.isEmpty){
-      sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
-    }
-
-    log.debug("AFTER checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + getWithVehicleIds(vehicleId))
-  }
 
   private def sendInterruptMessage( passengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit ={
     passengerScheduleStatus.status=InterruptMessageStatus.INTERRUPT_SENT
@@ -159,6 +133,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
   //val buffer mutable.ListBuffer
 
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit ={
+    if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning!=0){
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
 
     val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
@@ -166,18 +145,21 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId, Vector(timerMessage))
   }
 
+ // def endWaiveOfRepositioningRequests={
+ //   log.debug(end)
+  //}
+
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
       scheduler ! nextCompleteNoticeRideHailAllocationTimeout
     }
 
-
-
-  def modifyPassengerScheduleAckReceivedForRepositioning(triggers: Seq[BeamAgentScheduler.ScheduleTrigger]): Unit ={
+  def modifyPassengerScheduleAckReceivedForRepositioning(triggersToSchedule: Seq[BeamAgentScheduler.ScheduleTrigger]): Unit ={
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning-=1
 
-   // if (){
-
-    //}
+    if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0){
+      val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
+      scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
+    }
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
@@ -208,7 +190,29 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
    }
 
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
-    removeWithVehicleId(vehicleId,availableIn.get.time)
+    var rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
+    val deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
+    log.debug("BEFORE checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + rideHailModifyPassengerScheduleStatusSet)
+    rideHailModifyPassengerScheduleStatusSet.foreach{
+      rideHailModifyPassengerScheduleStatus =>
+
+        if (rideHailModifyPassengerScheduleStatus.tick<availableIn.get.time){
+          if (rideHailModifyPassengerScheduleStatus.status==InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT){
+            interruptIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.interruptId)
+            deleteItems+=rideHailModifyPassengerScheduleStatus
+          }
+        }
+    }
+
+    vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
+
+    rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
+
+    if (!rideHailModifyPassengerScheduleStatusSet.isEmpty){
+      sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
+    }
+
+    log.debug("AFTER checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + getWithVehicleIds(vehicleId))
   }
 
 
