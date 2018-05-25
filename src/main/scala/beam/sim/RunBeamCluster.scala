@@ -1,17 +1,12 @@
 package beam.sim
 
-import java.nio.file.InvalidPathException
-
-import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.RouteFrontend
-import beam.utils.BeamConfigUtils
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
-import kamon.zipkin.ZipkinReporter
-
-import scala.collection.JavaConverters._
 
 object RunBeamCluster extends BeamHelper with App {
   print(
@@ -63,5 +58,30 @@ object RunBeamCluster extends BeamHelper with App {
     settings = ClusterSingletonProxySettings(system).withRole("compute")),
     name = "statsServiceProxy")
 
+
+  private val replayer = system.actorOf(DeadLetterReplayer.props())
+  system.eventStream.subscribe(replayer, classOf[DeadLetter])
+
   logger.info("Exiting BEAM")
+}
+
+class DeadLetterReplayer extends Actor with ActorLogging {
+  override def receive: Receive = {
+    case d:DeadLetter =>
+      d.message match {
+        case r: RoutingResponse =>
+          log.info(s"DeadLetter with '{}'. Resend {} => {}", r, d.recipient.path, d.sender.path)
+          d.recipient.tell(d.message, sender)
+        case _ =>
+          log.error(s"DeadLetter. Don't know what to do with: $d")
+      }
+    case other =>
+      log.error(s"Don't know what to do with: $other")
+  }
+}
+
+object DeadLetterReplayer {
+  def props(): Props = {
+    Props(new DeadLetterReplayer())
+  }
 }

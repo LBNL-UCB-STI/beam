@@ -137,12 +137,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
 
   override final def receive: Receive = {
-    case d:DeadLetter =>
-      d.message match {
-        case r: RoutingResponse =>
-          log.info(s"DeadLetter with '{}'. Resend {} => {}", r, d.recipient.path, d.sender.path)
-          d.recipient.tell(d.message, sender)
-      }
     case "tick"   => {
       if (firstMsgTime.isDefined) {
         val seconds = ChronoUnit.SECONDS.between(firstMsgTime.get, ZonedDateTime.now(ZoneOffset.UTC))

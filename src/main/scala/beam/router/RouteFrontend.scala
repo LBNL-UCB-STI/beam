@@ -1,8 +1,8 @@
 package beam.router
 
-import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import akka.routing.{Broadcast, FromConfig}
-import beam.router.BeamRouter.{InitTransit_v2, RoutingResponse, TransitInited}
+import beam.router.BeamRouter.{InitTransit_v2, TransitInited}
 import beam.router.r5.R5RoutingWorker_v2
 import com.typesafe.config.Config
 
@@ -20,12 +20,6 @@ class RouteFrontend(config: Config) extends Actor with ActorLogging{
   log.info("{} inited. workerRouter => {}", getNameAndHashCode, workerRouter)
 
   def receive = {
-    case d:DeadLetter =>
-      d.message match {
-        case r: RoutingResponse =>
-          log.info(s"DeadLetter with '{}'. Resend {} => {}", r, d.recipient.path, d.sender.path)
-          d.recipient.tell(d.message, sender)
-      }
     // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
     case transitInited: TransitInited =>
       log.info("{} Sending Broadcast", getNameAndHashCode)
