@@ -146,37 +146,6 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
         messages
     }
 
-    /*
-    val rideHailAgent =getRideHailAgent(vehicleId)
-    if (repositioningPassengerSchedule.contains(vehicleId)){
-      val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
-      if (reservationPassengerSchedule.contains(vehicleId)){
-        val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-        interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
-        log.debug(interruptType + " - ignoring reposition: " + vehicleId)
-      } else {
-        interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
-        rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
-        rideHailAgent ! Resume()
-        log.debug(interruptType + " - reposition: " + vehicleId)
-      }
-    }
-
-    if (reservationPassengerSchedule.contains(vehicleId)) {
-      val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
-      if (interruptId == interruptIdReservation) {
-        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
-        interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
-        rideHailAgent ! modifyPassengerSchedule
-        rideHailAgent ! Resume()
-        log.debug(interruptType + " - reservation: " + vehicleId)
-      } else {
-        log.error(interruptType + " - reservation: " + vehicleId + " interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
-      }
-    }
-  }
-  */
-
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):ListBuffer[_]={
