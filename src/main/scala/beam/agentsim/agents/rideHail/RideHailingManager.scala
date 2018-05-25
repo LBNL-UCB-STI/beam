@@ -41,13 +41,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
-
-
-
-
-
-
-
+import scala.concurrent.duration._
 
 
 class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRef,val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with ActorLogging with HasServices {
@@ -89,7 +83,22 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     ReservationResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
 
+  val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(scala.concurrent.ExecutionContext.Implicits.global)
+
+
   override def receive: Receive = {
+    case "tick" =>
+      log.info("rideHailingManager Full time (ms): {}",
+          RoutingRequestResponseStats.fullTimeStat)
+      log.info("rideHailingManager RoutingRequest travel time (ms): {}",
+          RoutingRequestResponseStats.requestTravelTimeStat)
+      log.info("rideHailingManager RoutingResponse travel time (ms): {}",
+          RoutingRequestResponseStats.responseTravelTimeStat)
+      log.info("rideHailingManager Route calc time (ms): {}",
+        RoutingRequestResponseStats.routeCalcTime)
+
+      log.info(s"Sending ${RoutingRequestSenderCounter.rate} per seconds of RoutingRequest")
+
     case NotifyIterationEnds() =>
 
       surgePricingManager.incrementIteration()
@@ -112,7 +121,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         sender ! CheckInSuccess
       }     )
 
-    case RepositionResponse(rnd1, rnd2, _, _) =>
+    case RepositionResponse(rnd1, rnd2, r1, r2) =>
+      RoutingRequestResponseStats.add(r1)
+      RoutingRequestResponseStats.add(r2)
       updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
       updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
