@@ -768,6 +768,7 @@ class RideHailingManager(
 
     //reservationPassengerSchedule.put(closestRideHailingAgentLocation.vehicleId,(rideHailAgentInterruptId, ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))))
 
+    log.debug("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
     modifyPassengerScheduleManager.reserveVehicle(passengerSchedule,passengerSchedule.schedule.head._1.startTime,closestRideHailingAgentLocation.vehicleId,closestRideHailingAgentLocation.rideHailAgent,Some(inquiryId))
 
    // modifyPassengerScheduleManager.add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,closestRideHailingAgentLocation.vehicleId,passengerSchedule,InterruptOrigin.RESERVATION))
@@ -775,7 +776,7 @@ class RideHailingManager(
 
     //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
    //closestRideHailingAgentLocation.rideHailAgent ! Resume()
-    log.debug("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
+
   }
 
 

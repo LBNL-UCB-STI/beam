@@ -57,7 +57,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
 
   private def sendInterruptMessage( passengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit ={
+    if (!interruptIdToModifyPassengerScheduleStatus.contains(passengerScheduleStatus.interruptId)){
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+
     passengerScheduleStatus.status=InterruptMessageStatus.INTERRUPT_SENT
+    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     sendMessage(passengerScheduleStatus.rideHailAgent, Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick))
   }
 
@@ -180,13 +186,17 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
      val rideHailModifyPassengerScheduleStatus = new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId, vehicleId, modifyPassengerSchedule, interruptOrigin, tick, rideHailAgent, interruptMessageStatus)
 
      val withVehicleIdStats=getWithVehicleIds(vehicleId)
-     if (getWithVehicleIds(vehicleId).filter(_.interruptOrigin==InterruptOrigin.RESERVATION).isEmpty){
+     val processInterrupt=getWithVehicleIds(vehicleId).filter(_.interruptOrigin==InterruptOrigin.RESERVATION).isEmpty
+     add(rideHailModifyPassengerScheduleStatus)
+     if (processInterrupt){
        //log.debug("RideHailModifyPassengerScheduleManager- sendInterruptMessage: " + rideHailModifyPassengerScheduleStatus)
        sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
      } else {
        log.debug("RideHailModifyPassengerScheduleManager- messageBuffered: " + rideHailModifyPassengerScheduleStatus)
      }
-     add(rideHailModifyPassengerScheduleStatus)
+
+
+
    }
 
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
@@ -196,12 +206,12 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     rideHailModifyPassengerScheduleStatusSet.foreach{
       rideHailModifyPassengerScheduleStatus =>
 
-        if (rideHailModifyPassengerScheduleStatus.tick<availableIn.get.time){
+        //if (rideHailModifyPassengerScheduleStatus.tick<=availableIn.get.time){
           if (rideHailModifyPassengerScheduleStatus.status==InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT){
             interruptIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.interruptId)
             deleteItems+=rideHailModifyPassengerScheduleStatus
           }
-        }
+        //}
     }
 
     vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
