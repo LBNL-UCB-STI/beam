@@ -94,7 +94,7 @@ class RideHailingManager(
   val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
   val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
-  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self)
+  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
 
   private val repositionDoneOnce: Boolean = false
@@ -282,7 +282,7 @@ class RideHailingManager(
                 // TODO if there is any issue related to bufferedReserveRideMessages, look at this closer (e.g. make two data structures, one for those
                 // before timout and one after
                 if (handleRideHailInquirySubmitted.size == 0) {
-                  sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+                  modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 }
 
               case _ =>
@@ -315,8 +315,10 @@ class RideHailingManager(
     case modifyPassengerScheduleAck@ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule, vehicleId) =>
       log.debug("modifyPassengerScheduleAck received: " + modifyPassengerScheduleAck)
       if (inquiryIDOption.isEmpty) {
-        val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
-        scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
+        modifyPassengerScheduleManager.modifyPassengerScheduleAckReceivedForRepositioning(triggersToSchedule)
+
+       // val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
+       // scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
       } else {
         completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]), triggersToSchedule)
       }
@@ -330,15 +332,16 @@ class RideHailingManager(
       maybeTravelTime = Some(travelTime)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
-      prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
+
+      modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
       if (repositionDoneOnce) {
-        sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+        modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       } else {
         val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
         if (repositionVehicles.isEmpty) {
-          sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+          modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
         }
 
         for (repositionVehicle <- repositionVehicles) {
@@ -388,7 +391,7 @@ class RideHailingManager(
                 repositioningVehicles.add(vehicleId)
 
               } else {
-                sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+                modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 //println("NO repositioning done")
               }
             }
@@ -535,17 +538,11 @@ class RideHailingManager(
   }
 
 
-  private def prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick: Double, triggerId: Long): Unit = {
-    val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
-    val timerMessage = ScheduleTrigger(timerTrigger, self)
-    nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId, Vector(timerMessage))
 
 
-  }
-
-  private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
-    scheduler ! nextCompleteNoticeRideHailAllocationTimeout
-  }
+ // private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
+ //   scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+ // }
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
 

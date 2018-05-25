@@ -4,9 +4,11 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, InterruptedAt, ModifyPassengerSchedule, Resume}
-import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingInquiry
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailAllocationManagerTimeout, RideHailingInquiry}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.utils.DebugLib
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
@@ -15,7 +17,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable.ListBuffer
 import scala.collection.{concurrent, mutable}
 
-class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailingManager: ActorRef) {
+class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailingManager: ActorRef, val rideHailAllocationManagerTimeoutInSeconds:Double,val scheduler: ActorRef) {
 
   val interruptIdToModifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   val vehicleIdToModifyPassengerScheduleStatus = mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
@@ -151,8 +153,36 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   }
 
+
+  var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
+  var numberOfOutStandingmodifyPassengerScheduleAckForRepositioning:Int = 0
+  //val buffer mutable.ListBuffer
+
+  def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit ={
+    assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
+
+    val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
+    val timerMessage = ScheduleTrigger(timerTrigger, rideHailingManager)
+    nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId, Vector(timerMessage))
+  }
+
+  def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
+      scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+    }
+
+
+
+  def modifyPassengerScheduleAckReceivedForRepositioning(triggers: Seq[BeamAgentScheduler.ScheduleTrigger]): Unit ={
+    numberOfOutStandingmodifyPassengerScheduleAckForRepositioning-=1
+
+   // if (){
+
+    //}
+  }
+
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
     //log.debug("RideHailModifyPassengerScheduleManager- repositionVehicle request: " + vehicleId)
+    numberOfOutStandingmodifyPassengerScheduleAckForRepositioning+=1
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule),tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
@@ -180,6 +210,10 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
     removeWithVehicleId(vehicleId,availableIn.get.time)
   }
+
+
+
+
 
 }
 
