@@ -175,8 +175,6 @@ class RideHailingManager(
         repositioningVehicles.remove(vehicleId)
         log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + availableIn.get.time + ")")
         modifyPassengerScheduleManager.checkInResource(vehicleId, availableIn)
-
-
       })
 
 
