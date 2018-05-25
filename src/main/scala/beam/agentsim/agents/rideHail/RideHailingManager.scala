@@ -94,7 +94,7 @@ class RideHailingManager(
   val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
   val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
-  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log)
+  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self())
 
 
   private val repositionDoneOnce: Boolean = false
@@ -173,9 +173,10 @@ class RideHailingManager(
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
         repositioningVehicles.remove(vehicleId)
+        log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + availableIn.get.time + ")")
         modifyPassengerScheduleManager.checkInResource(vehicleId, availableIn)
 
-        log.debug("checked in resource: " + vehicleId)
+
       })
 
 
@@ -312,6 +313,7 @@ class RideHailingManager(
 
 
     case modifyPassengerScheduleAck@ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule, vehicleId) =>
+      log.debug("modifyPassengerScheduleAck received: " + modifyPassengerScheduleAck)
       if (inquiryIDOption.isEmpty) {
         val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
         scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
@@ -377,10 +379,12 @@ class RideHailingManager(
 
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
+
+                log.debug("RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
                  sendMessagesToRideHailVehicle(vehicleId, modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,tick,vehicleId,rideHailAgent))
                 //repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
 
-                log.debug("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
+
                 repositioningVehicles.add(vehicleId)
 
               } else {
@@ -777,7 +781,10 @@ class RideHailingManager(
 
   private def sendMessagesToRideHailVehicle(vehicleId:Id[Vehicle], messages: ListBuffer[_]): Unit ={
     var rideHailingAgent=getRideHailAgent(vehicleId)
-    messages.foreach(message => rideHailingAgent ! message)
+    messages.foreach{message =>
+      rideHailingAgent ! message
+      log.debug("sendMessages:" + message.toString)
+    }
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
