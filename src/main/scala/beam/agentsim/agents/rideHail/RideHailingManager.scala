@@ -341,6 +341,8 @@ class RideHailingManager(
 
         if (repositionVehicles.isEmpty) {
           modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+        } else {
+          modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
         }
 
         for (repositionVehicle <- repositionVehicles) {

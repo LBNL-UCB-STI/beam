@@ -167,6 +167,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
   var numberOfOutStandingmodifyPassengerScheduleAckForRepositioning:Int = 0
   //val buffer mutable.ListBuffer
 
+
+  def setNumberOfRepositioningsToProcess(awaitAcks:Int): Unit ={
+    numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=awaitAcks
+  }
+
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit ={
     if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning!=0){
       DebugLib.emptyFunctionForSettingBreakPoint()
@@ -202,7 +207,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
     log.debug("RideHailModifyPassengerScheduleManager- repositionVehicle request: " + vehicleId)
-    numberOfOutStandingmodifyPassengerScheduleAckForRepositioning+=1
+    //numberOfOutStandingmodifyPassengerScheduleAckForRepositioning+=1
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule),tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
