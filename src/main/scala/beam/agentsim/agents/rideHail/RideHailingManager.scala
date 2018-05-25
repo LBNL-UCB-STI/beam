@@ -45,6 +45,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.collection.{concurrent, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -172,6 +173,8 @@ class RideHailingManager(
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
         repositioningVehicles.remove(vehicleId)
+        modifyPassengerScheduleManager.checkInResource(vehicleId, availableIn)
+
         log.debug("checked in resource: " + vehicleId)
       })
 
@@ -374,7 +377,7 @@ class RideHailingManager(
 
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
-                modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,tick,vehicleId,rideHailAgent)
+                 sendMessagesToRideHailVehicle(vehicleId, modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,tick,vehicleId,rideHailAgent))
                 //repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
 
                 log.debug("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
@@ -448,10 +451,10 @@ class RideHailingManager(
 
 
     case InterruptedWhileIdle(interruptId,vehicleId,tick) =>
-      modifyPassengerScheduleManager.handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick)
+      sendMessagesToRideHailVehicle(vehicleId, modifyPassengerScheduleManager.handleInterrupt(InterruptedWhileIdle.getClass,interruptId,None,vehicleId,tick))
 
     case InterruptedAt(interruptId,interruptedPassengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
-      modifyPassengerScheduleManager.handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick)
+      sendMessagesToRideHailVehicle(vehicleId, modifyPassengerScheduleManager.handleInterrupt(InterruptedAt.getClass,interruptId,Some(interruptedPassengerSchedule),vehicleId,tick))
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
@@ -762,7 +765,7 @@ class RideHailingManager(
 
     //reservationPassengerSchedule.put(closestRideHailingAgentLocation.vehicleId,(rideHailAgentInterruptId, ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))))
 
-    modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,passengerSchedule.schedule.head._1.startTime,closestRideHailingAgentLocation.vehicleId,closestRideHailingAgentLocation.rideHailAgent)
+    sendMessagesToRideHailVehicle(closestRideHailingAgentLocation.vehicleId, modifyPassengerScheduleManager.reserveVehicle(passengerSchedule,passengerSchedule.schedule.head._1.startTime,closestRideHailingAgentLocation.vehicleId,closestRideHailingAgentLocation.rideHailAgent,Some(inquiryId)))
 
    // modifyPassengerScheduleManager.add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,closestRideHailingAgentLocation.vehicleId,passengerSchedule,InterruptOrigin.RESERVATION))
 
@@ -770,6 +773,11 @@ class RideHailingManager(
     //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
    //closestRideHailingAgentLocation.rideHailAgent ! Resume()
     log.debug("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
+  }
+
+  private def sendMessagesToRideHailVehicle(vehicleId:Id[Vehicle], messages: ListBuffer[_]): Unit ={
+    var rideHailingAgent=getRideHailAgent(vehicleId)
+    messages.foreach(message => rideHailingAgent ! message)
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
