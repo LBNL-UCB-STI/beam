@@ -282,7 +282,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             legends.add( legend + "_min");
         }
-        Collections.sort(legends);
+        //Collections.sort(legends);
         return legends;
     }
 
