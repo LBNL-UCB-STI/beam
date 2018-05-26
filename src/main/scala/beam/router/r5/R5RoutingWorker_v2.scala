@@ -146,11 +146,11 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         }
       }
     }
-    case InitTransit_v2(scheduler) =>
+    case InitTransit_v2(scheduler, id) =>
       val start = System.currentTimeMillis()
       transitSchedule = initTransit(scheduler)
       val stop = System.currentTimeMillis()
-      log.info(s"{} TransitInited in ${stop - start} ms. transitSchedule[{}] keys: {}", getNameAndHashCode,
+      log.info(s"{} TransitInited[$id] in ${stop - start} ms. transitSchedule[{}] keys: {}", getNameAndHashCode,
         transitSchedule.hashCode(), transitSchedule.keys.size)
       sender() ! Success("inited")
 

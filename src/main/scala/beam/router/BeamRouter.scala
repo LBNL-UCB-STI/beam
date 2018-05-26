@@ -65,7 +65,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         context.actorSelection(RootActorPath(address) / servicePathElements).resolveOne(10.seconds)
           .flatMap { serviceActor: ActorRef =>
             log.info("Sending InitTransit_v2  {}",  serviceActor)
-            serviceActor ? InitTransit_v2(scheduler)
+            serviceActor ? InitTransit_v2(scheduler, UUID.randomUUID())
           }
       }).map { _ =>
         Success("success")
@@ -115,7 +115,7 @@ object BeamRouter {
 
   case class InitTransit(scheduler: ActorRef)
 
-  case class InitTransit_v2(scheduler: ActorRef)
+  case class InitTransit_v2(scheduler: ActorRef, id: UUID)
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
