@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.metrics.Metrics
 import beam.utils.DateUtils
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import glokka.Registry
@@ -66,6 +67,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   def startNewIteration = {
     clearAll
     iterationNumber += 1
+    Metrics.iterationNumber = iterationNumber
   }
 }
 

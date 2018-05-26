@@ -8,15 +8,15 @@ import kamon.util.Latency
 
 trait MetricsSupport {
 
-  def countOccurrence(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.counter(name).increment()
+  def countOccurrence(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.counter(name, defaultTags).increment()
 
-  def increment(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name).increment()
+  def increment(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name, defaultTags).increment()
 
-  def decrement(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name).decrement()
+  def decrement(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name, defaultTags).decrement()
 
-  def latency[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) Latency.measure(Kamon.metrics.histogram(name))(thunk) else thunk
+  def latency[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) Latency.measure(Kamon.metrics.histogram(name, defaultTags))(thunk) else thunk
 
-  def record(name: String, level: MetricLevel, nanoTime: Long, tags: Map[String, String] = Map()) = if (isRightLevel(level)) Kamon.metrics.histogram(name, tags).record(nanoTime)
+  def record(name: String, level: MetricLevel, nanoTime: Long, tags: Map[String, String] = Map.empty) = if (isRightLevel(level)) Kamon.metrics.histogram(name, defaultTags ++ tags).record(nanoTime)
 
   def latencyIfNonNull[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) {
     val resultWithTime = measure(thunk)
@@ -26,19 +26,19 @@ trait MetricsSupport {
     resultWithTime._1
   } else thunk
 
-  def startMeasuringIteration(itNum: Int) = startMeasuring("iteration", ShortLevel, Map("it-num"->(""+itNum)))
+  def startMeasuringIteration(itNum: Int) = startMeasuring("iteration", ShortLevel)
 
   def stopMeasuringIteration() = stopMeasuring()
 
   def startMeasuring(name: String, level: MetricLevel): Unit = startMeasuring(name, level, Map.empty)
 
-  def startMeasuring(name: String, level: MetricLevel, tags: Map[String, String]) = if (isRightLevel(level)) Metrics.setCurrentContext(Kamon.tracer.newContext(name, None, tags))
+  def startMeasuring(name: String, level: MetricLevel, tags: Map[String, String]) = if (isRightLevel(level)) Metrics.setCurrentContext(Kamon.tracer.newContext(name, None, defaultTags ++ tags))
 
   def stopMeasuring() = if(Metrics.currentContext != null && !Metrics.currentContext.isClosed) Metrics.currentContext.finish()
 
 
   def startSegment(name: String, categry: String) = if(Metrics.currentContext != null && !Metrics.currentContext.isClosed && !currentSegments.contains(name+":"+categry))
-    currentSegments += (name+":"+categry -> Metrics.currentContext.startSegment(name, categry, "kamon"))
+    currentSegments += (name+":"+categry -> Metrics.currentContext.startSegment(name, categry, "kamon", defaultTags))
 
   def endSegment(name: String, categry: String) = currentSegments.remove(name+":"+categry) match {
     case Some(segment) =>

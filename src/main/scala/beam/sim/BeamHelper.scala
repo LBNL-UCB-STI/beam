@@ -120,6 +120,7 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
+    runName = beamConfig.beam.agentsim.simulationName
     if (isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)

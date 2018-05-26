@@ -46,8 +46,7 @@ public class RideHailingRevenueAnalysis implements ControlerListener, IterationE
 
         writeRideHailingRevenueCsv(data);
 
-        String runName = Paths.get(outputDirectoryHiearchy.getOutputPath()).toFile().getName();
-        rideHailRevenueAnalytics(data, runName);
+        rideHailRevenueAnalytics(data);
     }
 
     private void createGraph(ArrayBuffer<?> data) {
