@@ -384,13 +384,7 @@ class RideHailingManager(
                 // TODO: extract creation of route to separate method?
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
-
-                log.debug("RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
-
                 self ! RepositionVehicleRequest(passengerSchedule,tick,vehicleId,rideHailAgent)
-
-
-
 
               } else {
                 self ! ReduceAwaitingRepositioningAckMessagesByOne
@@ -466,11 +460,13 @@ class RideHailingManager(
 
     case RepositionVehicleRequest(passengerSchedule,tick,vehicleId,rideHailAgent) =>
 
+
       repositioningVehicles.add(vehicleId)
 
       // TODO: send following to a new case, which handles it
       // -> code for sending message could be prepared in modifyPassengerScheduleManager
       // e.g. create case class
+      log.debug("RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: " + vehicleId )
       modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,tick,vehicleId,rideHailAgent)
     //repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
 

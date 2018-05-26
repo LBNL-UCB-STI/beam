@@ -193,19 +193,22 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
-      scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+   // DebugLib.stopSystemAndReportInconsistency("probably not implemented correctly yet:")
+    scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+    log.debug("sending ACK to scheduler for next repositionTimeout")
     }
 
   def modifyPassengerScheduleAckReceivedForRepositioning(triggersToSchedule: Seq[BeamAgentScheduler.ScheduleTrigger]): Unit ={
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning-=1
 
-    if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0){
-      val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
-      scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
-      log.debug("sending ACK to scheduler for next repositionTimeout")
-    }
+    log.debug("new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning="+numberOfOutStandingmodifyPassengerScheduleAckForRepositioning)
 
-    log.debug("numberOfOutStandingmodifyPassengerScheduleAckForRepositioning="+numberOfOutStandingmodifyPassengerScheduleAckForRepositioning)
+    val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
+    nextCompleteNoticeRideHailAllocationTimeout=CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
+
+    if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0){
+      sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+    }
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
