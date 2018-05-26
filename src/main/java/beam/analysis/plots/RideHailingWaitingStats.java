@@ -24,7 +24,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "Waiting Time (min)";
+    private static final String yAxisTitle = "waiting times (category frequency)";
     private static final String fileName = "RideHailWaitingStats";
 
     private double lastMaximumTime = 0;
