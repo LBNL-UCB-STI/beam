@@ -117,8 +117,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val numOfThreads = if (Runtime.getRuntime().availableProcessors() <= 2)  {
     1
   }
-  else { if (Runtime.getRuntime().availableProcessors() >= 18) 16
-    else Runtime.getRuntime().availableProcessors() - 2
+  else {
+    Runtime.getRuntime().availableProcessors() - 2
   }
 
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
