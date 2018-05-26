@@ -22,7 +22,7 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
     if (rideHailingManager.getIdleVehicles().size >= 2) {
       val origin=rideHailingManager.getIdleVehicles().values.toVector
       val destination=scala.util.Random.shuffle(origin)
-      for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)
+      (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
     } else {
       Vector()
     }
