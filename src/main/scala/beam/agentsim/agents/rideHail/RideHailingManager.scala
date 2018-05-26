@@ -393,11 +393,13 @@ class RideHailingManager(
 
 
               } else {
-                modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+                self ! ReduceAwaitingRepositioningAckMessagesByOne
                 //println("NO repositioning done")
               }
             }
 
+          } else {
+            modifyPassengerScheduleManager.modifyPassengerScheduleAckReceivedForRepositioning(Vector())
           }
         }
 
@@ -458,6 +460,9 @@ class RideHailingManager(
 
 
     }
+
+    case ReduceAwaitingRepositioningAckMessagesByOne =>
+      modifyPassengerScheduleManager.modifyPassengerScheduleAckReceivedForRepositioning(Vector())
 
     case RepositionVehicleRequest(passengerSchedule,tick,vehicleId,rideHailAgent) =>
 

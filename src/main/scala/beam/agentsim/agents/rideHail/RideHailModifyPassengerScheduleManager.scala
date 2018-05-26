@@ -202,7 +202,10 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0){
       val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
       scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
+      log.debug("sending ACK to scheduler for next repositionTimeout")
     }
+
+    log.debug("numberOfOutStandingmodifyPassengerScheduleAckForRepositioning="+numberOfOutStandingmodifyPassengerScheduleAckForRepositioning)
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef):Unit={
@@ -292,6 +295,9 @@ case class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt],
 
 
 case class RepositionVehicleRequest(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)
+
+
+case object ReduceAwaitingRepositioningAckMessagesByOne
 
 object RideHailModifyPassengerScheduleManager {
   def nextRideHailAgentInterruptId: Id[Interrupt] = {
