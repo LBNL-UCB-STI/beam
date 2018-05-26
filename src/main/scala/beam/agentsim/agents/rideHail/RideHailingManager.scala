@@ -913,6 +913,7 @@ object RideHailingManager {
 
   val INITIAL_RIDEHAIL_LOCATION_HOME = "HOME"
   val INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
+  val INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])

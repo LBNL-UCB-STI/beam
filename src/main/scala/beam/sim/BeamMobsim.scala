@@ -140,6 +140,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand.nextDouble()
             val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand.nextDouble()
             new Coord(x, y)
+          case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER  =>
+            val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx)/2
+            val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny)/2
+            new Coord(x, y)
           case unknown =>
             log.error(s"unknown rideHailing.initialLocation $unknown")
             null
