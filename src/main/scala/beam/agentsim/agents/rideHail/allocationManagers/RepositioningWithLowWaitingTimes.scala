@@ -23,7 +23,8 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
       val iter = rideHailingManager.getIdleVehicles().iterator
       val (vehicleIdA, vehicleLocationA) = iter.next()
       val (vehicleIdB, vehicleLocationB) = iter.next()
-      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc),(vehicleIdB, vehicleLocationA.currentLocation.loc))
+     // Vector((vehicleIdA, vehicleLocationB.currentLocation.loc),(vehicleIdB, vehicleLocationA.currentLocation.loc))
+      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
     } else {
       Vector()
     }
