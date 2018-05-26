@@ -113,11 +113,11 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
-        int index = 0;
+
         for (int hour = 0; hour <= maxHour; hour++) {
             Map<Double, Integer> hourData = hourModeFrequency.get(hour);
-            timeRangeOccurrencePerHour[index] = (hourData == null || hourData.get(category) == null) ? 0 : hourData.get(category);
-            index++;
+            timeRangeOccurrencePerHour[hour] = (hourData == null || hourData.get(category) == null) ? 0 : hourData.get(category);
+
         }
         return timeRangeOccurrencePerHour;
     }
@@ -132,9 +132,9 @@ public class RideHailingWaitingStats implements IGraphStats {
         int maxHour = hoursList.get(hoursList.size() - 1);
 
         List<Double> categories = getCategories();
-        double[][] dataset = new double[categories.size() - 1][maxHour + 1];
+        double[][] dataset = new double[categories.size()][maxHour + 1];
 
-        for (int i = 1; i < categories.size() - 1; i++) {
+        for (int i = 0; i < categories.size(); i++) {
             dataset[i] = getHoursDataPerTimeRange(categories.get(i), maxHour, hourModeFrequency);
         }
         return dataset;
@@ -181,7 +181,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             Collections.sort(categories);
 
-            for (int j = 1; j < categories.size(); j++){
+            for (int j = 0; j < categories.size(); j++){
 
                 Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
@@ -246,21 +246,23 @@ public class RideHailingWaitingStats implements IGraphStats {
         double upperBound = lastMaximumTime;
         double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
 
-        listOfBounds.add(0.0);
-        listOfBounds.add(lastMaximumTime);
+        //listOfBounds.add(0.0);
 
         for(double x = bound; x < upperBound; x += bound){
             listOfBounds.add(x);
         }
+        listOfBounds.add(lastMaximumTime);
 
+
+        Collections.sort(listOfBounds);
         return listOfBounds;
     }
 
-    private Double getCategory(double time, List<Double> listOfBounds) {
-        int i = 1;
+    private Double getCategory(double time, List<Double> categories) {
+        int i = 0;
         Double categoryUpperBound = null;
-        while (i <= listOfBounds.size()) {
-            categoryUpperBound = listOfBounds.get(i);
+        while (i < categories.size()) {
+            categoryUpperBound = categories.get(i);
             if (time <= categoryUpperBound) {
 
                 break;
@@ -270,12 +272,12 @@ public class RideHailingWaitingStats implements IGraphStats {
         return categoryUpperBound;
     }
 
-    private List<String> getLegends(List<Double> bounds){
+    private List<String> getLegends(List<Double> categories){
 
         List<String> legends = new ArrayList<>();
-        for(int i = 1; i<bounds.size(); i++){
+        for(int i = 0; i<categories.size(); i++){
 
-            Double category = bounds.get(i);
+            Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
 
             legends.add( legend + "_min");
