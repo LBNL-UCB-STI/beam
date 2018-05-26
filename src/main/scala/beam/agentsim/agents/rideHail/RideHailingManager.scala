@@ -170,7 +170,10 @@ class RideHailingManager(
     case CheckInResource(vehicleId: Id[Vehicle], availableIn: Option[SpaceTime]) =>
       resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).orElse(beamServices.vehicles.get(vehicleId)).get.driver.foreach(driver => {
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, availableIn.get)
-        makeAvailable(rideHailingAgentLocation)
+        if (modifyPassengerScheduleManager.containsPendingReservations(vehicleId)) {
+          // we still might have some ongoing resrvation in going on
+          makeAvailable(rideHailingAgentLocation)
+        }
         sender ! CheckInSuccess
         repositioningVehicles.remove(vehicleId)
         log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + availableIn.get.time + ")")

@@ -169,13 +169,19 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
 
   def setNumberOfRepositioningsToProcess(awaitAcks:Int): Unit ={
+    log.debug("RideHailAllocationManagerTimeout.setNumberOfRepositioningsToProcess to: " + awaitAcks)
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=awaitAcks
   }
 
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit ={
     if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning!=0){
+
+    //  vehicleIdToModifyPassengerScheduleStatus.foreach(x => log.debug(x._1 + " -> " +  x._2.foreach(y => y)))
+
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
+
+    vehicleIdToModifyPassengerScheduleStatus.foreach(x => log.debug(x._1 + " -> " +  (if (x._2.size>0) (x._2.foreach(y => y)))))
 
 
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
@@ -229,7 +235,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
      val rideHailModifyPassengerScheduleStatus = new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId, vehicleId, modifyPassengerSchedule, interruptOrigin, tick, rideHailAgent, interruptMessageStatus)
 
      val withVehicleIdStats=getWithVehicleIds(vehicleId)
-     val processInterrupt=getWithVehicleIds(vehicleId).filter(_.interruptOrigin==InterruptOrigin.RESERVATION).isEmpty
+     val processInterrupt=containsPendingReservations(vehicleId)
      add(rideHailModifyPassengerScheduleStatus)
 
 
@@ -252,9 +258,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
    }
 
+  def containsPendingReservations(vehicleId:Id[Vehicle]): Boolean ={
+    getWithVehicleIds(vehicleId).filter(_.interruptOrigin==InterruptOrigin.RESERVATION).isEmpty
+  }
+
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
     var rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
-    val deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
+    var deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
     log.debug("BEFORE checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + rideHailModifyPassengerScheduleStatusSet)
     rideHailModifyPassengerScheduleStatusSet.foreach{
       rideHailModifyPassengerScheduleStatus =>
@@ -265,6 +275,12 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
             deleteItems+=rideHailModifyPassengerScheduleStatus
           }
         //}
+    }
+
+    if (deleteItems.size>1){
+      // this means that multiple MODIFY_PASSENGER_SCHEDULE_SENT outstanding and we need to keep them in order, as otherwise
+      // a
+      deleteItems= deleteItems.splitAt(1)._1
     }
 
     vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
