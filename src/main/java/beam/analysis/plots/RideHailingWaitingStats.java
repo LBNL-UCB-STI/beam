@@ -76,7 +76,6 @@ public class RideHailingWaitingStats implements IGraphStats {
     public void createGraph(IterationEndsEvent event) throws IOException {
 
         List<Double> listOfBounds = getCategories();
-        Collections.sort(listOfBounds);
         Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
 
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(hourModeFrequency);
@@ -179,7 +178,6 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             List<Double> categories = getCategories();
 
-            Collections.sort(categories);
 
             for (int j = 0; j < categories.size(); j++){
 
