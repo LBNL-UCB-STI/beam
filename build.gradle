@@ -469,6 +469,7 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
+    jvmArgs = ["-Xmx${myAvailableRam}"]
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{
