@@ -2,11 +2,20 @@ package beam.sim
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+import akka.serialization.SerializationExtension
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.RouteFrontend
+import beam.utils.{RoutingRequestResponseStats, RoutingRequestSenderCounter, Statistics}
+import com.esotericsoftware.kryo.serializers.DefaultSerializers.KryoSerializableSerializer
+import com.romix.akka.serialization.kryo.{KryoSerialization, KryoSerializationExtension}
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
+
+import scala.collection.mutable
+import scala.util.{Failure, Success}
+import scala.concurrent.duration._
+
 
 object RunBeamCluster extends BeamHelper with App {
   print(
@@ -66,11 +75,25 @@ object RunBeamCluster extends BeamHelper with App {
 }
 
 class DeadLetterReplayer extends Actor with ActorLogging {
+  val sr = SerializationExtension(context.system)
+
+  private val msgSize: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+
+  val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(scala.concurrent.ExecutionContext.Implicits.global)
+
   override def receive: Receive = {
+    case "tick" =>
+      log.info("Message size in resend(bytes): {}", Statistics(msgSize))
+
     case d:DeadLetter =>
       d.message match {
         case r: RoutingResponse =>
-          log.info(s"DeadLetter with '{}'. Resend {} => {}", r, d.recipient.path, d.sender.path)
+          sr.serialize(d.message.asInstanceOf[AnyRef]) match {
+            case Success(arr) =>
+              msgSize += arr.length.toDouble
+            case Failure(t) =>
+              log.error(t, "could not serialize")
+          }
           d.recipient.tell(d.message, sender)
         case _ =>
           log.error(s"DeadLetter. Don't know what to do with: $d")

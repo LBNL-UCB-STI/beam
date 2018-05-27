@@ -166,7 +166,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       } else {
         numberRepeats = 0
       }
-      if (numReps > 4) {
+      if (numReps > 2) {
         val reason = s"Clearing out ${awaitingResponse.get(awaitingResponse.keySet().first()).size()} stuck agents and proceeding with schedule"
         log.error(reason)
         awaitingResponse.get(awaitingResponse.keySet().first()).forEach({ x =>
