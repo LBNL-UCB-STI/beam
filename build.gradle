@@ -471,7 +471,7 @@ run {
 
 task execute(type:JavaExec) {
     jvmArgs = ["-Xmx${myAvailableRam}", "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
-               "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "–XX:+UseG1GC"]
+               "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "-XX:+UseG1GC"]
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{
