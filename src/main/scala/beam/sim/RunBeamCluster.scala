@@ -75,25 +75,15 @@ object RunBeamCluster extends BeamHelper with App {
 }
 
 class DeadLetterReplayer extends Actor with ActorLogging {
-  val sr = SerializationExtension(context.system)
+//  val sr = SerializationExtension(context.system)
+//
+//  private val msgSize: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
-  private val msgSize: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
-
-  val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(scala.concurrent.ExecutionContext.Implicits.global)
 
   override def receive: Receive = {
-    case "tick" =>
-      log.info("Message size in resend(bytes): {}", Statistics(msgSize))
-
     case d:DeadLetter =>
       d.message match {
         case r: RoutingResponse =>
-          sr.serialize(d.message.asInstanceOf[AnyRef]) match {
-            case Success(arr) =>
-              msgSize += arr.length.toDouble
-            case Failure(t) =>
-              log.error(t, "could not serialize")
-          }
           d.recipient.tell(d.message, sender)
         case _ =>
           log.error(s"DeadLetter. Don't know what to do with: $d")
