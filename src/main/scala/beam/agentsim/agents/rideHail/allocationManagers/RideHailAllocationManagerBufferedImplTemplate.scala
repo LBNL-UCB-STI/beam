@@ -14,7 +14,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
     val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
 
     rideHailingAgentLocation match {
-      case Some((agentLocation, _)) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
+      case Some(agentLocation) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
       case None => None
     }
 

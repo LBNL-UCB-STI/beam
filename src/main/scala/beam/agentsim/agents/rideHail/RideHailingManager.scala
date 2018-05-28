@@ -203,34 +203,33 @@ class RideHailingManager(
 
       val vehicleAllocation = rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest)
 
-      vehicleAllocation match {
+      val rideHailLocation = vehicleAllocation match {
         case Some(allocation) =>
           // TODO (RW): Test following code with stanford class
           val rideHailAgent = resources.get(agentsim.vehicleId2BeamVehicleId(allocation.vehicleId)).orElse(beamServices.vehicles.get(allocation.vehicleId)).get.driver.head
           val rideHailingAgentLocation = RideHailingAgentLocation(rideHailAgent, allocation.vehicleId, allocation.availableAt)
           val distance = CoordUtils.calcProjectedEuclideanDistance(customerPickUp, rideHailingAgentLocation.currentLocation.loc)
-          rideHailLocationAndShortDistance = Some(rideHailingAgentLocation, distance)
+          Some(rideHailingAgentLocation)
 
 
         case None =>
           // use default allocation manager
-          rideHailLocationAndShortDistance = getClosestIdleRideHailingAgent(customerPickUp, radiusInMeters)
+          getClosestIdleRideHailingAgent(customerPickUp, radiusInMeters)
       }
 
-      handleRideHailInquiry(inquiryId, personId, customerPickUp, departAt, destination, rideHailLocationAndShortDistance, Some(customerAgent))
+      handleRideHailInquiry(inquiryId, personId, customerPickUp, departAt, destination, rideHailLocation, Some(customerAgent))
 
     case R5Network(network) =>
       this.transportNetwork = Some(network)
 
     case RoutingResponses(customerAgent,
-    inquiryId,
-    personId,
-    customerPickUp,
-    departAt,
-    rideHailingLocation,
-    shortDistanceToRideHailingAgent,
-    rideHailingAgent2CustomerResponse,
-    rideHailing2DestinationResponse) =>
+                          inquiryId,
+                          personId,
+                          customerPickUp,
+                          departAt,
+                          rideHailingLocation,
+                          rideHailingAgent2CustomerResponse,
+                          rideHailing2DestinationResponse) =>
       val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTimeInSecs)
 
       // TODO: Find better way of doing this error checking than sentry value
@@ -266,8 +265,8 @@ class RideHailingManager(
         (customerTripPlan.totalTravelTimeInSecs, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,
           rideHailing2DestinationResponseMod)
         pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
-        log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
-          s"$shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
+        log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId, " +
+          s"timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
 
 
         customerAgent match {
@@ -772,7 +771,7 @@ class RideHailingManager(
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
-      .last, vehiclePersonId, Vector()))))
+      .last, vehiclePersonId, Vector())),RIDE_HAIL))
 
     //val rideHailAgentInterruptId = nextRideHailAgentInterruptId
 
@@ -812,8 +811,7 @@ class RideHailingManager(
   }
 
 
-  def getClosestIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[(RideHailingAgentLocation,
-    Double)] = {
+  def getClosestIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[RideHailingAgentLocation] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
     val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
@@ -822,11 +820,11 @@ class RideHailingManager(
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2)
+    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2).map(_._1)
   }
 
   def getClosestIdleRideHailingAgent(pickupLocation: Coord,
-                                     radius: Double): Option[(RideHailingAgentLocation, Double)] = {
+                                     radius: Double): Option[RideHailingAgentLocation] = {
     getClosestIdleVehiclesWithinRadius(pickupLocation, radius).headOption
   }
 
@@ -848,11 +846,11 @@ class RideHailingManager(
         // We have an agent nearby, but it's not the one we originally wanted
         case _ =>
           customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-          (UnknownRideHailReservationError))
+          (UnknownRideHailReservationError),RIDE_HAIL)
       }
     } else {
       sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-      (UnknownInquiryIdError))
+      (UnknownInquiryIdError),RIDE_HAIL)
     }
   }
 
@@ -870,10 +868,10 @@ class RideHailingManager(
   }
 
 
-  private def handleRideHailInquiry(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent],
-                                    customerPickUp: Location, departAt: BeamTime, destination: Location, rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation, Double)], customerAgent: Option[ActorRef]): Unit = {
-    rideHailLocationAndShortDistance match {
-      case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
+  private def handleRideHailInquiry(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent], customerPickUp: Location,
+                                    departAt: BeamTime, destination: Location, rideHailLocation: Option[RideHailingAgentLocation], customerAgent: Option[ActorRef]): Unit = {
+    rideHailLocation match {
+      case Some(rideHailingLocation) =>
         if (!rideHailResourceAllocationManager.isBufferedRideHailAllocationMode) {
           // only lock vehicle in immediate processing mode, in buffered processing mode we lock vehicle only when batch queries are beeing processing
           lockedVehicles += rideHailingLocation.vehicleId
@@ -889,7 +887,7 @@ class RideHailingManager(
           rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
         } {
           // TODO: could we just call the code, instead of sending the message here?
-          self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp, departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
+          self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp, departAt, rideHailingLocation, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
         }
       case None =>
         // no rides to hail
@@ -951,7 +949,6 @@ object RideHailingManager {
                                       customerPickUp: Location,
                                       departAt: BeamTime,
                                       rideHailingLocation: RideHailingAgentLocation,
-                                      shortDistanceToRideHailingAgent: Double,
                                       rideHailingAgent2CustomerResponse: RoutingResponse,
                                       rideHailing2DestinationResponse: RoutingResponse)
 
