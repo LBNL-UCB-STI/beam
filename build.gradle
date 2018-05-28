@@ -448,7 +448,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') 
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}",
                              "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
-                             "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log"]
+                             "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "–XX:+UseG1GC"]
 run {
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
@@ -471,7 +471,7 @@ run {
 
 task execute(type:JavaExec) {
     jvmArgs = ["-Xmx${myAvailableRam}", "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
-               "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log"]
+               "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "–XX:+UseG1GC"]
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{
