@@ -332,8 +332,11 @@ class RideHailingManager(
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
 
+    case DebugRideHailManagerDuringExecution =>
+      modifyPassengerScheduleManager.printState()
+
+
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
-      log.debug("RepositioningTimeout("+tick +") - START repositioning waive")
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
@@ -564,7 +567,7 @@ class RideHailingManager(
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
 
-    val travelPlanOpt = Option(pendingInquiries.asMap.remove(inquiryId))
+    val travelPlanOpt = Option(pendingInquiries.asMap.get(inquiryId))
     val customerAgent = sender()
     /**
       * 1. customerAgent ! ReserveRideConfirmation(availableRideHailingAgentSpatialIndex, customerId, travelProposal)
@@ -969,6 +972,8 @@ object RideHailingManager {
   case object RideUnavailableAck
 
   case object RideAvailableAck
+
+  case object DebugRideHailManagerDuringExecution
 
   case class RepositionResponse(rnd1: RideHailingAgentLocation,
                                 rnd2: RideHailingManager.RideHailingAgentLocation,
