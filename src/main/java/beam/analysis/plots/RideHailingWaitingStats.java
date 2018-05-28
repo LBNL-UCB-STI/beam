@@ -24,7 +24,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "waiting times (category frequency)";
+    private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
 
     private double lastMaximumTime = 0;
@@ -76,7 +76,6 @@ public class RideHailingWaitingStats implements IGraphStats {
     public void createGraph(IterationEndsEvent event) throws IOException {
 
         List<Double> listOfBounds = getCategories();
-        Collections.sort(listOfBounds);
         Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
 
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(hourModeFrequency);
@@ -179,7 +178,6 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             List<Double> categories = getCategories();
 
-            Collections.sort(categories);
 
             for (int j = 0; j < categories.size(); j++){
 
@@ -251,10 +249,12 @@ public class RideHailingWaitingStats implements IGraphStats {
         for(double x = bound; x < upperBound; x += bound){
             listOfBounds.add(x);
         }
-        listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
 
+        if(!listOfBounds.isEmpty()) {
+            listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
+            Collections.sort(listOfBounds);
+        }
 
-        Collections.sort(listOfBounds);
         return listOfBounds;
     }
 
@@ -282,7 +282,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             legends.add( legend + "_min");
         }
-        Collections.sort(legends);
+        //Collections.sort(legends);
         return legends;
     }
 
