@@ -1,7 +1,7 @@
 package beam.experiment
 
 import java.io._
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
@@ -54,7 +54,7 @@ object ExperimentGenerator extends App {
     Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
 
-  private val projectRoot = {
+  val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
       Paths.get(System.getenv("BEAM_ROOT"))
     } else {
@@ -67,7 +67,7 @@ object ExperimentGenerator extends App {
   if (argsMap.get(ExperimentsParamName).isEmpty) {
     throw new IllegalArgumentException(s"$ExperimentsParamName param is missing")
   }
-  private val experimentFile = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
+  val experimentFile: Path = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
   if (!Files.exists(experimentFile)) {
     throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
   }
