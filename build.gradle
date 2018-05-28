@@ -446,7 +446,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') 
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails"]
 
 run {
     if (project.hasProperty("appArgs")) {
@@ -469,7 +469,7 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
-    jvmArgs = ["-Xmx${myAvailableRam}"]
+    jvmArgs = ["-Xmx${myAvailableRam}", "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails"]
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{
