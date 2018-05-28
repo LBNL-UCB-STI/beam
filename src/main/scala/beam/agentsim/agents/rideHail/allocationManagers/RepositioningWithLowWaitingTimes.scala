@@ -20,10 +20,9 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailingManager.getIdleVehicles().size >= 2) {
-      val iter = rideHailingManager.getIdleVehicles().iterator
-      val (vehicleIdA, vehicleLocationA) = iter.next()
-      val (vehicleIdB, vehicleLocationB) = iter.next()
-      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
+      val origin=rideHailingManager.getIdleVehicles().values.toVector
+      val destination=scala.util.Random.shuffle(origin)
+      (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
     } else {
       Vector()
     }

@@ -20,7 +20,8 @@ class RideHailAllocationRepositioningWithLowWaitingTimesSpec extends FlatSpec wi
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
         .withValue("beam.agentsim.agents.rideHailing.allocationManager",ConfigValueFactory.fromAnyRef("REPOSITIONING_LOW_WAITING_TIMES"))
-
+      .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable"))
+      .withValue("beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(0.1))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()

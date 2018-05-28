@@ -15,6 +15,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -100,6 +101,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case Event(StopDriving(), LiterallyDrivingData(data, legEndingAt)) =>
       data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
+
+          if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
+            log.debug("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
+          }
           assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
           data.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
