@@ -21,6 +21,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   val interruptIdToModifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   val vehicleIdToModifyPassengerScheduleStatus = mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
+  val resourcesNotCheckedIn=mutable.Set[Id[Vehicle]]()
 
   private def add(rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit = {
     interruptIdToModifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId, rideHailModifyPassengerScheduleStatus)
@@ -61,19 +62,32 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
+    resourcesNotCheckedIn += passengerScheduleStatus.vehicleId
 
     passengerScheduleStatus.status=InterruptMessageStatus.INTERRUPT_SENT
     log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     sendMessage(passengerScheduleStatus.rideHailAgent, Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick))
   }
 
+  private def printVehicleVariables(status: RideHailModifyPassengerScheduleStatus): Unit ={
+    log.debug("vehicleId status - vehicleId(" +  status.vehicleId + ")")
+    log.debug("vehicleIdToModifyPassengerScheduleStatus: " +  status.vehicleId + ")")
+    vehicleIdToModifyPassengerScheduleStatus.get(status.vehicleId)
+
+    val resourcesNotCheckedIn=mutable.Set[Id[Vehicle]]()
+  }
+
   private def sendModifyPassengerScheduleMessage(selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus],  stopDriving:Boolean): Unit ={
     selectedForModifyPassengerSchedule.foreach{selected =>
 
       log.debug("sendModifyPassengerScheduleMessage: "+ selectedForModifyPassengerSchedule)
+
+
       if (stopDriving){
         sendMessage(selected.rideHailAgent, StopDriving())
       }
+
+      resourcesNotCheckedIn += selected.vehicleId
       sendMessage(selected.rideHailAgent,selected.modifyPassengerSchedule)
       sendMessage(selected.rideHailAgent,Resume())
       selected.status=InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
@@ -173,16 +187,19 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=awaitAcks
   }
 
+  def printState(): Unit ={
+    vehicleIdToModifyPassengerScheduleStatus.foreach(x => log.debug(x._1 + " -> " +  x._2))
+    resourcesNotCheckedIn.foreach(x=>log.debug("resource not checked in:" + x.toString + "-> getWithVehicleIds(" + getWithVehicleIds(x).size + "):" + getWithVehicleIds(x)))
+    interruptIdToModifyPassengerScheduleStatus.foreach(x=>log.debug(x._1 + " -> " +  x._2))
+  }
+
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit ={
-    if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning!=0){
+    log.debug("RepositioningTimeout("+tick +") - START repositioning waive - triggerId(" +triggerId+")"  )
 
-    //  vehicleIdToModifyPassengerScheduleStatus.foreach(x => log.debug(x._1 + " -> " +  x._2.foreach(y => y)))
+    printState()
 
-      DebugLib.emptyFunctionForSettingBreakPoint()
-    }
 
-    vehicleIdToModifyPassengerScheduleStatus.foreach(x => log.debug(x._1 + " -> " +  (if (x._2.size>0) (x._2.foreach(y => y)))))
-
+    assert((vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.filter(x=>x.size!=0)).size==resourcesNotCheckedIn.filter(x=>getWithVehicleIds(x).size!=0).size)
 
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
 
@@ -200,8 +217,17 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
    // DebugLib.stopSystemAndReportInconsistency("probably not implemented correctly yet:")
+
+    if (nextCompleteNoticeRideHailAllocationTimeout.id==33519){
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+    log.debug("sending ACK to scheduler for next repositionTimeout (" + nextCompleteNoticeRideHailAllocationTimeout.id + ")")
     scheduler ! nextCompleteNoticeRideHailAllocationTimeout
-    log.debug("sending ACK to scheduler for next repositionTimeout")
+
+    printState()
+
+
     }
 
   def modifyPassengerScheduleAckReceivedForRepositioning(triggersToSchedule: Seq[BeamAgentScheduler.ScheduleTrigger]): Unit ={
@@ -271,7 +297,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
         //if (rideHailModifyPassengerScheduleStatus.tick<=availableIn.get.time){
           if (rideHailModifyPassengerScheduleStatus.status==InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT){
-            interruptIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.interruptId)
+           // interruptIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.interruptId)
             deleteItems+=rideHailModifyPassengerScheduleStatus
           }
         //}
@@ -281,6 +307,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
       // this means that multiple MODIFY_PASSENGER_SCHEDULE_SENT outstanding and we need to keep them in order, as otherwise
       // a
       deleteItems= deleteItems.splitAt(1)._1
+
+    }
+
+    if (availableIn.get.time>0){
+      interruptIdToModifyPassengerScheduleStatus.remove(deleteItems.head.interruptId)
     }
 
     vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
@@ -288,6 +319,9 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
 
 
+    if (rideHailModifyPassengerScheduleStatusSet.size==0){
+      resourcesNotCheckedIn.remove(vehicleId)
+    }
     // only something new, if all undefined (no pending query)
     if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.filter(_.status==InterruptMessageStatus.UNDEFINED).size==rideHailModifyPassengerScheduleStatusSet.size){
       sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
