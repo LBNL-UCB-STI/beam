@@ -766,7 +766,11 @@ class RideHailingManager(
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2).map(_._1)
+    val result = distances2RideHailingAgents.filter(x => availableRideHailVehicles.contains(x._1.vehicleId)).sortBy(_._2).map(_._1)
+    if(result.isEmpty){
+      val i = 0
+    }
+    result
   }
 
   def getClosestIdleRideHailingAgent(pickupLocation: Coord,
@@ -776,8 +780,7 @@ class RideHailingManager(
 
 
   private def handleReservationRequest(request: RideHailingRequest) = {
-    val requestId = request.copy(requestType = RideHailingInquiry).hashCode()
-    Option(travelProposalCache.getIfPresent(requestId.toString)) match {
+    Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
         handleReservation(request, sender(), travelProposal)
       case None =>

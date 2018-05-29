@@ -181,7 +181,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,restOfCurrentTrip,_,_,_,_,_,true)) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      log.debug("at {} replanned to leg {}", tick, restOfCurrentTrip.head)
+      logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -198,12 +198,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), reservedMode), data: BasePersonData) =>
 //      handleFailedReservation
-      log.warning("at {} replanning leg {} because {}", _currentTick, data.restOfCurrentTrip.head, firstErrorResponse.errorCode)
+      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
       goto(ChoosingMode) using ChoosesModeData(data)
     case Event(RideHailingResponse(_, _, None,triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailingResponse(_, _, Some(error), _), data: BasePersonData) =>
-      log.warning("at {} replanning leg {} because {}", _currentTick, data.restOfCurrentTrip.head, error.errorCode)
+      logWarn(s"replanning because ${error.errorCode}")
       goto(ChoosingMode) using ChoosesModeData(data,rideHailingResult = Some(RideHailingResponse.dummyWithError(error)))
   }
 
@@ -306,8 +306,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
       legSegment.head.isRideHail
-      rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id), nextLeg.beamLeg.travelPath.startPoint.loc,
-        departAt, legSegment.last.beamLeg.travelPath.endPoint.loc)
+      rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
+        departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
