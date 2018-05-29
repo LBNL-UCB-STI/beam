@@ -30,7 +30,7 @@ class RideHailAllocationRepositioningWithLowWaitingTimesSpec extends FlatSpec wi
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
+    val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     scenario.setNetwork(networkCoordinator.network)
     val iterationCounter = mock[IterationEndsListener]

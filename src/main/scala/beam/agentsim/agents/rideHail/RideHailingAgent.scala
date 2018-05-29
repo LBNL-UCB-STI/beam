@@ -43,9 +43,9 @@ object RideHailingAgent {
   case object Idle extends BeamAgentState
   case object IdleInterrupted extends BeamAgentState
 
-  case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
+  case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Int] = None)
 
-  case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
+  case class ModifyPassengerScheduleAck(msgId: Option[Int] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Double)
   case class Resume()

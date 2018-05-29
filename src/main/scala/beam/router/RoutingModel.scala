@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingRequest
 import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
