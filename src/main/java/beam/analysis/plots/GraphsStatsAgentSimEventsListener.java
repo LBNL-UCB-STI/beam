@@ -39,6 +39,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
+    private IGraphStats rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats();
+
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -58,6 +60,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.resetStats();
+        rideHailingWaitingSingleStats.resetStats();
     }
 
     @Override
@@ -65,6 +68,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
             rideHailingWaitingStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             fuelUsageStats.processStats(event);
@@ -75,6 +79,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
             rideHailingWaitingStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
         }
     }
 
@@ -85,6 +90,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.createGraph(event);
+        rideHailingWaitingSingleStats.createGraph(event);
     }
 
      // helper methods
