@@ -11,7 +11,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry}
+import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -297,8 +297,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
-      rideHailingManager ! ReserveRide(Id.create("dummyInquiryId",classOf[RideHailingInquiry]), VehiclePersonId(bodyId, id),
-        nextLeg.beamLeg.travelPath.startPoint.loc, departAt, legSegment.last.beamLeg.travelPath.endPoint.loc)
+      rideHailingManager ! RideHailingRequest(ReserveRide, Id.create("dummyInquiryId",classOf[RideHailingRequest]),
+        VehiclePersonId(bodyId, id), nextLeg.beamLeg.travelPath.startPoint.loc, departAt,
+        legSegment.last.beamLeg.travelPath.endPoint.loc)
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()

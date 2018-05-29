@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, InterruptedAt, ModifyPassengerSchedule, Resume}
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailAllocationManagerTimeout, RideHailingInquiry}
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailAllocationManagerTimeout, RideHailingInquiry, RideHailingRequest}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -223,7 +223,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule),tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
-  def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef,inquiryId: Option[Id[RideHailingInquiry]]):Unit={
+  def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef,inquiryId: Option[Id[RideHailingRequest]]):Unit={
     log.debug("RideHailModifyPassengerScheduleManager- reserveVehicle request: " + vehicleId)
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,inquiryId),tick,vehicleId,rideHailAgent,InterruptOrigin.RESERVATION)
   }
