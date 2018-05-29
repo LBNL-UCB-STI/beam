@@ -10,6 +10,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
+import beam.utils.DebugLib
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -127,6 +128,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
     }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
+    // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailingManager")).isEmpty){
+      // DebugLib.emptyFunctionForSettingBreakPoint()
+     // }
+
       newTriggers.foreach {
         scheduleTrigger
       }
@@ -155,6 +160,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case Monitor =>
       log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+      awaitingResponse.values().forEach(x=>log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
       var numReps = 0L
@@ -184,6 +190,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private def doSimStep(newNow: Double): Unit = {
     if (newNow <= stopTick) {
       nowInSeconds = newNow
+
+     // println("doSimStep:" + newNow)
 
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse.keySet().first() + 1 < maxWindow) {
         while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
