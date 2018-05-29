@@ -48,6 +48,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   override final def receive: Receive = {
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
+    case GetTravelTime =>
+      maybeTravelTime match {
+        case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
+        case None => sender ! R5Network(transportNetwork)
+      }
+    case GetMatSimNetwork =>
+      sender ! MATSimNetwork(network)
     case request: RoutingRequest =>
 
       val eventualResponse = Future {
@@ -94,8 +101,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       var nt = ""
       if(request.transitModes.isEmpty) nt = "non"
 
-      latency(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
-      latency("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
+      record(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
+      record("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
     }
     plan
   }

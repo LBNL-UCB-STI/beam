@@ -31,7 +31,7 @@ object RoutingModel {
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
     lazy val requiresReservationConfirmation: Boolean = tripClassifier!= WALK && legs.exists(!_.asDriver)
 
-    val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
+    val totalTravelTimeInSecs: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
@@ -70,8 +70,8 @@ object RoutingModel {
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
-    override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    override def toString(): String = {
+      s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 
@@ -92,7 +92,7 @@ object RoutingModel {
                      travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
-    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
+    override def toString: String = s"BeamLeg($mode @ $startTime,dur:$duration,path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {

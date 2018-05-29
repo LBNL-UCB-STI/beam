@@ -1,8 +1,11 @@
 package beam.sim
 
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -15,6 +18,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.sim.metrics.MetricsSupport
 import beam.utils.DebugLib
 import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
@@ -27,15 +31,16 @@ import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListen
 import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.mutable
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val transportNetwork: TransportNetwork,
                         private val beamServices: BeamServices,
                         private val eventsManager: EventsManager,
                         private val scenario: Scenario,
-                       ) extends StartupListener with IterationEndsListener with ShutdownListener with LazyLogging {
+                       ) extends StartupListener with IterationEndsListener with ShutdownListener with LazyLogging with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -86,15 +91,27 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
-    agentSimToPhysSimPlanConverter.startPhysSim(event)
-    createGraphsFromEvents.createGraphs(event)
-    modalityStyleStats.processData(scenario.getPopulation(), event)
-    modalityStyleStats.buildModalityStyleGraph()
-    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
+    if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
-    tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
-    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+    val outputGraphsFuture = Future {
+      modalityStyleStats.processData(scenario.getPopulation(), event)
+      modalityStyleStats.buildModalityStyleGraph()
+      createGraphsFromEvents.createGraphs(event)
+      PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
+      tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
+    }
+
+    val physsimFuture = Future {
+      agentSimToPhysSimPlanConverter.startPhysSim(event)
+    }
+
+    // executing code blocks parallel
+    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)),Duration.Inf)
+
+    if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+    stopMeasuringIteration()
+    //    Tracer.currentContext.finish()
+    logger.info("Ending Iteration")
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -102,7 +119,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     Await.result(actorSystem.terminate(), Duration.Inf)
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)
-    val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp"/*, "modestats.txt", "modestats.png"*/)
+    val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp" /*, "modestats.txt", "modestats.png"*/)
 
     outputFilesToDelete.foreach(deleteOutputFile)
 
