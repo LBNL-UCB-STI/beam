@@ -2,7 +2,7 @@ package beam.calibration
 
 import java.io.File
 
-import beam.experiment.{ExperimentDef, ExperimentGenerator}
+import beam.experiment.ExperimentGenerator
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
@@ -20,12 +20,13 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
   }
 
   val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-experiment/experiment.yml"
+  val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
+
+  implicit val testExperimentData: SigoptExperimentData =  SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile)
 
   "BeamSigoptTuner" must {
     "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
-      val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
-      val testExperimentDef: ExperimentDef = ExperimentGenerator.loadExperimentDefs(beamExperimentFile)
-      val header = testExperimentDef.header
+      val header = testExperimentData.experimentDef.header
       header.title equals "Example-Experiment"
       header.beamTemplateConfPath equals "test/input/beamville/beam.conf"
     }
@@ -45,28 +46,24 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
         transitCapacityParams.getBounds.getMin equals 0.001
       }
       }
-
-
+    }
       "create a config based on assignments" taggedAs Periodic in {
         wrapWithTestExperiment { experiment =>
 
         }
       }
-    }
+
   }
 
   private def wrapWithTestExperiment(experimentFunc: Experiment => AnyVal): Unit = {
-    val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
-    val testExperimentDef = ExperimentGenerator.loadExperimentDefs(beamExperimentFile)
+
     Try {
-      BeamSigoptTuner.createExperiment(SigoptExperimentData(testExperimentDef,beamExperimentFile))
+      BeamSigoptTuner.createExperiment
     } match {
       case Success(e) => experimentFunc(e)
       case Failure(t) => t.printStackTrace()
     }
   }
-
-
 
 
 }

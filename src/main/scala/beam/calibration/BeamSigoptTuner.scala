@@ -39,7 +39,7 @@ object BeamSigoptTuner {
     * @throws SigoptException If the experiment cannot be created, this exception is thrown.
     */
   @throws[SigoptException]
-  def createOrFetchExperiment(experimentData: SigoptExperimentData): Experiment = {
+  def createOrFetchExperiment(implicit experimentData: SigoptExperimentData): Experiment = {
     val client = new Client(Sigopt.clientToken)
     val header = experimentData.experimentDef.getHeader
     val experimentId = header.getTitle
@@ -87,7 +87,7 @@ object BeamSigoptTuner {
   }
 
   @throws[SigoptException]
-  def createExperiment(experimentData: SigoptExperimentData): Experiment = {
+  def createExperiment(implicit experimentData: SigoptExperimentData): Experiment = {
     val header = experimentData.experimentDef.getHeader
     val experimentId = header.getTitle
     val factors = JavaConverters.asScalaIterator(experimentData.experimentDef.getFactors.iterator()).seq
@@ -97,7 +97,7 @@ object BeamSigoptTuner {
   }
 
 
-  def createConfigBasedOnAssignments(assignments: Assignments, experimentData: SigoptExperimentData, runName: String): Config = {
+  def createConfigBasedOnAssignments(assignments: Assignments, runName: String)(implicit experimentData: SigoptExperimentData): Config = {
     // Build base config from file
     val baseConfig = ConfigFactory.parseFile(Paths.get(experimentData.experimentDef.getHeader.getBeamTemplateConfPath).toFile)
 

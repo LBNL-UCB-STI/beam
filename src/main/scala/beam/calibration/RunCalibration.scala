@@ -24,12 +24,13 @@ object RunCalibration extends App with BeamHelper {
 
   val experimentDef = ExperimentGenerator.loadExperimentDefs(experimentPath.toFile)
 
-  private val experimentData: SigoptExperimentData = SigoptExperimentData(experimentDef, experimentPath.toFile)
+  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentDef, experimentPath.toFile)
+
   private val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentData)
 
   (1 to 20).foreach { i =>
     val suggestion = experiment.suggestions.create.call
-    val newRun = runBeamWithConfig(BeamSigoptTuner.createConfigBasedOnAssignments(suggestion.getAssignments, experimentData, suggestion.getId))
+    val newRun = runBeamWithConfig(BeamSigoptTuner.createConfigBasedOnAssignments(suggestion.getAssignments, suggestion.getId))
 
 
   }
