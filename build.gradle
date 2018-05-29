@@ -446,11 +446,12 @@ def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') 
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-Xms${myAvailableRam / 2}",
                              "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
                              "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "-XX:+UseG1GC",
-                            "-XX:MaxGCPauseMillis=500", "-XX:G1HeapRegionSize=32m", "-XX:G1ReservePercent=10",
-                             "-XX:ParallelGCThreads=20",  "-XX:ConcGCThreads=8", "-XX:InitiatingHeapOccupancyPercent=70"]
+                            "-XX:MaxGCPauseMillis=500", "-XX:G1HeapRegionSize=32m", "-XX:+ParallelRefProcEnabled",
+                             "-XX:+UseStringDeduplication", "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20",
+                             "-XX:+UnlockDiagnosticVMOptions", "-XX:G1SummarizeRSetStatsPeriod=1"]
 run {
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
