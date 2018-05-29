@@ -12,7 +12,7 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.rideHail.RideHailingManager
-import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest}
+import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -186,22 +186,25 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       goto(ProcessingNextLegOrStartActivity)
   }
 
+  def handleSuccessfulReservation(triggersToSchedule: Vector[ScheduleTrigger], data: BasePersonData) = {
+    val (_, triggerId) = releaseTickAndTriggerId()
+    log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+    scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+    goto(Waiting) using data
+  }
+
   when(WaitingForReservationConfirmation){
-    case Event(ReservationResponse(_, Right(response),reservedMode), data: BasePersonData) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
-      val triggers = response.triggersToSchedule
-      log.debug("scheduling triggers from reservation responses: {}", triggers)
-      scheduler ! CompletionNotice(triggerId,triggers)
-      goto(Waiting) using data
+    case Event(ReservationResponse(_, Right(response),_), data: BasePersonData) =>
+      handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), reservedMode), data: BasePersonData) =>
+//      handleFailedReservation
       log.warning("at {} replanning leg {} because {}", _currentTick, data.restOfCurrentTrip.head, firstErrorResponse.errorCode)
-      val choosesModeData = reservedMode match {
-        case RIDE_HAIL =>
-          ChoosesModeData(data,rideHailingResult = Some(dummyRideHailResponse().copy(error = Some(firstErrorResponse))))
-        case mode if mode.isTransit() =>
-          ChoosesModeData(data)
-      }
-      goto(ChoosingMode) using choosesModeData
+      goto(ChoosingMode) using ChoosesModeData(data)
+    case Event(RideHailingResponse(_, _, None,triggersToSchedule), data: BasePersonData) =>
+      handleSuccessfulReservation(triggersToSchedule, data)
+    case Event(RideHailingResponse(_, _, Some(error), _), data: BasePersonData) =>
+      log.warning("at {} replanning leg {} because {}", _currentTick, data.restOfCurrentTrip.head, error.errorCode)
+      goto(ChoosingMode) using ChoosesModeData(data,rideHailingResult = Some(RideHailingResponse.dummyWithError(error)))
   }
 
   when(Waiting) {
@@ -296,7 +299,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       )
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.beamLeg.mode.isTransit() =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
-      val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
+      val resRequest = ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import akka.actor.ActorRef
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -34,7 +35,7 @@ object PassengerSchedule {
   def apply(): PassengerSchedule = new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(Ordering.by(x=>(x.startTime,x.duration))))
 }
 
-case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
+case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person], personRef: Option[ActorRef] = None)
 
 case class Manifest(riders: Set[VehiclePersonId]=Set.empty, boarders: Set[Id[Vehicle]]=Set.empty, alighters: Set[Id[Vehicle]]=Set.empty) {
   override def toString: String = {
