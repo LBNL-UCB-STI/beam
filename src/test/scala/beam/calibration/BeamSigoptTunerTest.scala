@@ -5,8 +5,11 @@ import java.io.File
 import beam.experiment.{ExperimentDef, ExperimentGenerator}
 import beam.tags.Periodic
 import com.sigopt.Sigopt
-import com.sigopt.exception.{APIConnectionError, SigoptException}
+import com.sigopt.exception.APIConnectionError
+import com.sigopt.model.Experiment
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
+import scala.util.{Failure, Success, Try}
 
 class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -28,11 +31,7 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
     }
 
     "create an experiment in the SigOpt API" taggedAs Periodic in {
-      val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
-      val testExperimentDef = ExperimentGenerator.loadExperimentDefs(beamExperimentFile)
-      try {
-        val experiment = BeamSigoptTuner.createExperiment(testExperimentDef)
-        System.out.println("Created experiment: https://sigopt.com/experiment/" + experiment.getId)
+      wrapWithTestExperiment { experiment => {
         val expParams = experiment.getParameters
         // First is the rideHailParams
         val rideHailParams = expParams.iterator.next
@@ -44,13 +43,28 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
         transitCapacityParams.getName equals "beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation"
         transitCapacityParams.getBounds.getMax equals 0.1
         transitCapacityParams.getBounds.getMin equals 0.001
-      } catch {
-        case e: SigoptException =>
-          e.printStackTrace()
+      }
+      }
+
+
+      "create a config based on assignments" taggedAs Periodic in {
+        wrapWithTestExperiment { experiment =>
+
+        }
       }
     }
   }
 
+  private def wrapWithTestExperiment(experimentFunc: Experiment => AnyVal): Unit = {
+    val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
+    val testExperimentDef = ExperimentGenerator.loadExperimentDefs(beamExperimentFile)
+    Try {
+      BeamSigoptTuner.createExperiment(SigoptExperimentData(testExperimentDef,beamExperimentFile))
+    } match {
+      case Success(e) => experimentFunc(e)
+      case Failure(t) => t.printStackTrace()
+    }
+  }
 
 
 

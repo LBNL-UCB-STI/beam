@@ -1,29 +1,20 @@
 package beam.calibration
 
 import java.io.File
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import beam.experiment._
 import com.google.common.collect.Lists
 import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 import scala.collection.JavaConverters
 
+case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: File){
 
-
-object BeamSigoptTuner extends App {
-
-  import Bounded._
-
-  // Fields //
-
-  private val EXPERIMENTS_TAG = "experiments"
-  private val CLIENT_ID_TAG = "client_token"
-
-  val projectRoot: Path = {
+  lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
       Paths.get(System.getenv("BEAM_ROOT"))
     } else {
@@ -31,31 +22,14 @@ object BeamSigoptTuner extends App {
     }
   }
 
-  val argsMap = parseArgs(args)
 
-  Sigopt.clientToken = argsMap(CLIENT_ID_TAG)
+}
 
-  val experimentPath: Path = new File(argsMap(EXPERIMENTS_TAG)).toPath.toAbsolutePath
+object BeamSigoptTuner {
 
-  if (!Files.exists(experimentPath)) {
-    throw new IllegalArgumentException(s"$EXPERIMENTS_TAG file is missing: $experimentPath")
-  }
+  import Bounded._
 
-  val experimentDef = ExperimentGenerator.loadExperimentDefs(experimentPath.toFile)
-
-  private val experiment: Experiment = createOrFetchExperiment(experimentPath)
-
-  // METHODS //
-
-  def parseArgs(args: Array[String]) = {
-    args.sliding(2,1).toList.collect{
-      case Array("--experiments", filePath:String) if filePath.trim.nonEmpty => (EXPERIMENTS_TAG, filePath)
-      case Array("--client_token", clientId: String) if clientId.trim().nonEmpty =>
-        (CLIENT_ID_TAG, clientId)
-      case arg@_ =>
-        throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
-  }
+  // Fields //
 
   /**
     * Creates a new Sigopt [[Experiment]] based on the [[ExperimentDef]] model or else
@@ -65,15 +39,13 @@ object BeamSigoptTuner extends App {
     * @throws SigoptException If the experiment cannot be created, this exception is thrown.
     */
   @throws[SigoptException]
-  def createOrFetchExperiment(experimentPath: Path): Experiment = {
-
+  def createOrFetchExperiment(experimentData: SigoptExperimentData): Experiment = {
     val client = new Client(Sigopt.clientToken)
-    val header = experimentDef.getHeader
+    val header = experimentData.experimentDef.getHeader
     val experimentId = header.getTitle
     val optExperiment = client.experiments.list.call.getData.stream.filter((experiment: Experiment) => experiment.getId == experimentId).findFirst
-    optExperiment.orElse(createExperiment(experimentDef))
+    optExperiment.orElse(createExperiment(experimentData))
   }
-
 
 
   /**
@@ -110,51 +82,51 @@ object BeamSigoptTuner extends App {
         throw new RuntimeException("Type error!")
     }
 
-  parameter.build()
+    parameter.build()
 
   }
 
   @throws[SigoptException]
-  def createExperiment(beamExperiment: ExperimentDef): Experiment = {
-    val header = beamExperiment.getHeader
+  def createExperiment(experimentData: SigoptExperimentData): Experiment = {
+    val header = experimentData.experimentDef.getHeader
     val experimentId = header.getTitle
-    val factors = JavaConverters.asScalaIterator(beamExperiment.getFactors.iterator()).seq
+    val factors = JavaConverters.asScalaIterator(experimentData.experimentDef.getFactors.iterator()).seq
     val parameters = Lists.newArrayList(JavaConverters.asJavaIterator(factors.map(factorToParameter)))
-
     Experiment.create.data(new Experiment.Builder().name(experimentId).parameters(parameters).build).call
 
   }
 
 
-  def createConfigBasedOnAssignments(assignments: Assignments)= {
-
+  def createConfigBasedOnAssignments(assignments: Assignments, experimentData: SigoptExperimentData, runName: String): Config = {
     // Build base config from file
-    val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
+    val baseConfig = ConfigFactory.parseFile(Paths.get(experimentData.experimentDef.getHeader.getBeamTemplateConfPath).toFile)
 
-    val runName = new StringBuilder
+    val configParams = JavaConverters.iterableAsScalaIterable(assignments.entrySet()).seq.map { e => e.getKey -> e.getValue }.toMap
 
-    val configParams = JavaConverters.iterableAsScalaIterable(assignments.entrySet()).seq.map{e=>e.getKey->e.getValue}.toMap
+    val experimentBaseDir = experimentData.experimentPath.getParent
 
-    val experimentBaseDir = experimentPath.getParent
+    val runDirectory = experimentData.projectRoot.relativize(Paths.get(experimentBaseDir.toString, "runs", runName))
 
-    val runDirectory = projectRoot.relativize(Paths.get(experimentBaseDir.toFile.toString, "runs", runName.toString))
+    val beamConfPath = experimentData.projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
 
-    val beamConfPath = projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
+    val beamOutputDir: Path = experimentData.projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
 
-    val beamOutputDir = projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
-
-    val runConfig = ( Map(
+    (Map(
       "beam.agentsim.simulationName" -> "output",
       "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
-      "beam.inputDirectory" -> experimentDef.getTemplateConfigParentDirAsString
-    )++ configParams).foldLeft(baseConfig){
-      case(prevConfig, (paramName, paramValue)) =>
+      "beam.inputDirectory" -> experimentData.experimentDef.getTemplateConfigParentDirAsString
+    ) ++ configParams).foldLeft(baseConfig) {
+      case (prevConfig, (paramName, paramValue)) =>
         val configValue = ConfigValueFactory.fromAnyRef(paramValue)
         prevConfig.withValue(paramName, configValue)
     }
   }
 
-  def getLevel(levelName: String, levels: java.util.List[Level]): Level = JavaConverters.collectionAsScalaIterable(levels).find(l =>{l.name.equals(levelName)}).orNull
+  private def getLevel(levelName: String, levels: java.util.List[Level]): Level = JavaConverters.collectionAsScalaIterable(levels).find(l => {
+    l.name.equals(levelName)
+  }).orNull
+
+
 }
 
