@@ -233,7 +233,7 @@ trait ChoosesMode {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), Some(rideHail2TransitAccessResult), _,Some(rideHail2TransitEgressResult),_,_,_), _, _, _) =>
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
-      val combinedItinerariesForChoice = rideHailingResult.travelProposal.get.responseRideHailing2Dest.itineraries ++
+      val combinedItinerariesForChoice = if(rideHailingResult.travelProposal.isDefined){rideHailingResult.travelProposal.get.responseRideHailing2Dest.itineraries}else{Vector()} ++
         routingResponse.itineraries ++ rideHail2TransitIinerary.toVector
     //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
       val filteredItinerariesForChoice = personData.currentTourMode match {

@@ -201,7 +201,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
     assert((vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.filter(x=>x.size!=0)).size==resourcesNotCheckedIn.filter(x=>getWithVehicleIds(x).size!=0).size)
 
-    assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
+    assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning<=0)
 
     val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailingManager)
