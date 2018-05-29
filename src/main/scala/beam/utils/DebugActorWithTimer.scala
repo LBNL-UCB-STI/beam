@@ -12,7 +12,7 @@ class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) 
     case Tick ⇒
       log.info(DebugLib.gcAndGetMemoryLogMessage("Memory use after GC: "))
       rideHailManager ! DebugRideHailManagerDuringExecution
-      //scheduler ! Monitor
+      scheduler ! Monitor
   }
 
 
