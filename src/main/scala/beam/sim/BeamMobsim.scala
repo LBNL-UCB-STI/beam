@@ -118,9 +118,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val rideHailingManager = context.actorOf(RideHailingManager.props(beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager), "RideHailingManager")
       context.watch(rideHailingManager)
 
-      if(beamServices.beamConfig.beam.debug.debugActorTimerInterval > 0){
+      if(beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0){
         debugActorWithTimerActorRef =   context.actorOf(Props(classOf[DebugActorWithTimer],rideHailingManager,scheduler))
-        debugActorWithTimerCancellable=prepareMemoryLoggingTimerActor(beamServices.beamConfig.beam.debug.debugActorTimerInterval,context.system,debugActorWithTimerActorRef)
+        debugActorWithTimerCancellable=prepareMemoryLoggingTimerActor(beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec,context.system,debugActorWithTimerActorRef)
       }
 
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
@@ -217,7 +217,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           context.stop(rideHailingManager)
           context.stop(scheduler)
           context.stop(errorListener)
-          if(beamServices.beamConfig.beam.debug.debugActorTimerInterval > 0) {
+          if(beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
             debugActorWithTimerCancellable.cancel()
             context.stop(debugActorWithTimerActorRef)
           }
