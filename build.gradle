@@ -446,7 +446,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') 
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-Xms${myAvailableRam / 2}",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-Xms64g",
                              "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
                              "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_stat.log", "-XX:+UseG1GC",
                             "-XX:MaxGCPauseMillis=500", "-XX:G1HeapRegionSize=32m", "-XX:+ParallelRefProcEnabled",
