@@ -79,7 +79,10 @@ trait ChoosesMode {
       choosesModeData.personData.currentTourMode match {
         case Some(RIDE_HAIL) =>
           rideHailingResult = None
+          rideHail2TransitAccessResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
+          rideHail2TransitEgressResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
         case Some(RIDE_HAIL_TRANSIT) =>
+          rideHailingResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
           rideHail2TransitAccessResult = None
           rideHail2TransitEgressResult = None
         case None =>
@@ -153,6 +156,8 @@ trait ChoosesMode {
         case Some(RIDE_HAIL) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
+        case Some(RIDE_HAIL_TRANSIT) =>
+          makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(m) => logDebug(s"$m: other then expected")
       }
       val newPersonData = choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles, rideHailingResult = rideHailingResult,
