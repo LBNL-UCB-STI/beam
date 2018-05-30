@@ -281,6 +281,10 @@ public class DeadHeadingStats implements IGraphStats {
                 || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
                 || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)
                 ) {
+
+            if(i == 0){
+                return "repositioning";
+            }
             return Integer.toString(i-1);
         } else {
             if(i == 0) {
