@@ -12,6 +12,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private static Set<String> modesChosen = new TreeSet<>();
@@ -28,6 +29,12 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "aggregated-mode-choice");
+        hourModeFrequency.values().stream().flatMap(x-> x.entrySet().stream()).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,(a,b)-> a+b)).forEach((mode, count) -> {
+            countOccurrenceJava(mode, count, ShortLevel(), tags);
+        });
+
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if(modesFrequencyDataset!=null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
@@ -47,11 +54,13 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
         double count = 0;
         double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+
         for(int i =0 ;i < modeOccurrencePerHour.length;i++){
             count=  count+modeOccurrencePerHour[i];
         }
         return (int)count;
     }
+
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour,int hour){
         double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
         return (int)Math.ceil(modeOccurrencePerHour[hour]);
@@ -66,7 +75,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "mode-choice");
         tags.put("hour", ""+hour);
-        countOccurrenceJava(mode, ShortLevel(), tags);
+        countOccurrenceJava(mode, 1, ShortLevel(), tags);
         modesChosen.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
@@ -117,6 +126,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         double [][] dataset= buildModesFrequencyDataset();
         if(dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+
         return categoryDataset;
     }
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
