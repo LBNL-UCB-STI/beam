@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse, RideHailingRequest, RideHailingResponse}
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -158,7 +158,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailingRequest]
-      personActor ! RideHailingResponse(RideHailingInquiryResponse, inquiry.requestId, None, None)
+      personActor ! RideHailingResponse(inquiry, None, None)
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
