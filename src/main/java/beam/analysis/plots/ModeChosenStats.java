@@ -52,19 +52,15 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
-        double count = 0;
         double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
-
-        for(int i =0 ;i < modeOccurrencePerHour.length;i++){
-            count=  count+modeOccurrencePerHour[i];
-        }
-        return (int)count;
+        return (int)Arrays.stream(modeOccurrencePerHour).sum();
     }
 
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour,int hour){
         double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
         return (int)Math.ceil(modeOccurrencePerHour[hour]);
     }
+
     public List<Integer> getSortedHourModeFrequencyList(){
         return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
     }
