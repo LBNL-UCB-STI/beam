@@ -96,7 +96,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
   }
 
   def handleInterrupt(interruptType: Class[_], interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double): Unit = {
-    log.debug("RideHailModifyPassengerScheduleManager.handleInterrupt: "  + interruptType.getSimpleName + " -> " + vehicleId)
+    log.debug("RideHailModifyPassengerScheduleManager.handleInterrupt: "  + interruptType.getSimpleName + " -> " + vehicleId + "; tick(" + tick + ")")
     interruptIdToModifyPassengerScheduleStatus.get(interruptId) match {
       case Some(modifyPassengerScheduleStatus) =>
         assert(vehicleId==modifyPassengerScheduleStatus.vehicleId)
@@ -135,6 +135,12 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
             // detected race condition with reservation interrupt: if message comming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
             // its way - wait on that and count this reposition as completed.
             modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
+
+            interruptIdToModifyPassengerScheduleStatus.remove(interruptId)
+
+            vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).get.filterNot(x=>x.interruptId==interruptId) )
+            //vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).get.remove(modifyPassengerScheduleStatus))
+
 
           } else {
             // process reservation interrupt confirmation
