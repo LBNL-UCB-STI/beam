@@ -282,8 +282,10 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
       deleteItems= deleteItems.splitAt(1)._1
     }
 
-    if (availableIn.get.time>0){
-      interruptIdToModifyPassengerScheduleStatus.remove(deleteItems.head.interruptId)
+    deleteItems.foreach{ x=>
+      if (availableIn.get.time>0) {
+      interruptIdToModifyPassengerScheduleStatus.remove(x.interruptId)
+      }
     }
 
     vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,rideHailModifyPassengerScheduleStatusSet diff deleteItems)
