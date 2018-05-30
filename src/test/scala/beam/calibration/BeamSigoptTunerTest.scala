@@ -49,19 +49,17 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
       }
       }
     }
-      "create a config based on assignments" taggedAs Periodic in {
+      "create an experiment and run for 3 iterations" taggedAs Periodic in {
         wrapWithTestExperiment { implicit experimentData =>
-          val suggestion = experimentData.experiment.suggestions.create.call
           val runner = ExperimentRunner()
-          val newRunConfig = runner.createConfigBasedOnSuggestion(suggestion)
-
+          runner.runExperiment(10)
         }
       }
 
   }
 
   private def wrapWithTestExperiment(experimentDataFunc: SigoptExperimentData => Any): Unit = {
-    Try {SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile)} match {
+    Try {SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile, development = true)} match {
       case Success(e) => experimentDataFunc(e)
       case Failure(t) => t.printStackTrace()
     }

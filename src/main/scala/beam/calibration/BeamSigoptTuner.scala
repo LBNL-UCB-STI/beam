@@ -12,7 +12,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.collection.JavaConverters
 
-case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: File){
+case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: File, development: Boolean = false){
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -24,12 +24,12 @@ case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: Fi
 
   val baseConfig: Config = ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
 
-  val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef)
+  val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef, development)
 }
 
 object SigoptExperimentData {
 
-  def apply(experimentLoc: String): SigoptExperimentData = {
+  def apply(experimentLoc: String, development: Boolean): SigoptExperimentData = {
 
     val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath
 
@@ -37,7 +37,7 @@ object SigoptExperimentData {
       throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
     }
 
-    SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(experimentPath.toFile), experimentPath.toFile)
+    SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(experimentPath.toFile), experimentPath.toFile, development)
   }
 }
 
@@ -55,11 +55,12 @@ object BeamSigoptTuner {
     * @throws SigoptException If the experiment cannot be created, this exception is thrown.
     */
   @throws[SigoptException]
-  def createOrFetchExperiment(experimentDef: ExperimentDef): Experiment = {
+  def createOrFetchExperiment(experimentDef: ExperimentDef, development:Boolean = false): Experiment = {
     val client = new Client(Sigopt.clientToken)
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
-    val optExperiment = client.experiments.list.call.getData.stream.filter((experiment: Experiment) => experiment.getId == experimentId).findFirst
+    val experimentList= Experiment.list().call().getData
+    val optExperiment = experimentList.stream.filter((experiment: Experiment) => experiment.getName == experimentId & experiment.getDevelopment == development).findFirst
     optExperiment.orElse(createExperiment(experimentDef))
   }
 
@@ -112,14 +113,9 @@ object BeamSigoptTuner {
 
   }
 
-
-
   private def getLevel(levelName: String, levels: java.util.List[Level]): Level = JavaConverters.collectionAsScalaIterable(levels).find(l => {
     l.name.equals(levelName)
   }).orNull
-
-
-
 
 }
 

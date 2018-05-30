@@ -11,6 +11,8 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
+import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.events.handler.BasicEventHandler;
 import java.io.IOException;
 import java.util.*;
@@ -19,7 +21,7 @@ import java.util.*;
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, ShutdownListener {
 
     private static final int SECONDS_IN_HOUR = 3600;
     public static final String CAR = "car";
@@ -100,5 +102,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         List<String> graphNamesList = new ArrayList<>(stringSet);
         Collections.sort(graphNamesList);
         return graphNamesList;
+    }
+
+    @Override
+    public void notifyShutdown(ShutdownEvent event) {
+
     }
 }

@@ -9,6 +9,5 @@ public interface IGraphStats {
      void processStats(Event event);
      void createGraph(IterationEndsEvent event) throws IOException;
      void createGraph(IterationEndsEvent event,String graphType) throws IOException;
-
      void resetStats();
 }

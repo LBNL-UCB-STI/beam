@@ -1,9 +1,11 @@
 package beam.calibration.impl.example
 
 import java.net.URI
+import java.nio.file.Paths
 
+import beam.analysis.plots.ModeChosenStats
 import beam.calibration.api.ObjectiveFunction
-import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction.{ModeChoiceStats, mergeMap}
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
@@ -14,21 +16,31 @@ import scala.util.Try
 
 
 class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends ObjectiveFunction {
+  import cats.instances.all._
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 
-  override def evaluateFromRun(runDataFileLoc: String): Double = {
+  override def evaluateFromRun(runDataFileDir: String): Double = {
     val benchmarkData = if(benchmarkDataFileLoc.contains("http://")){
-      getStatsFromMTC(new URI(runDataFileLoc))
+      getStatsFromMTC(new URI(runDataFileDir))
     }else{
       getStatsFromFile(benchmarkDataFileLoc)
     }
-    val runData = getStatsFromFile(runDataFileLoc)
+    val runData = getStatsFromFile(Paths.get(runDataFileDir,ModeChosenStats.MODE_CHOICE_CSV_FILE_NAME).toAbsolutePath.toString)
     compareStats(benchmarkData,runData)
   }
 
-  def compareStats(benchmarkData:Map[String,Double],runData: Map[String,Double]): Double={
-    benchmarkData.map{case(mode,share)=> runData(mode)-share }.sum
+  /**
+    * Computes RMSE between run data and benchmark data on a mode-to-mode basis.
+    *
+    * @param benchmarkData target values of mode shares
+    * @param runData output values of mode shares given current suggestion.
+    * @return the '''negative''' RMSE value (since we '''maximize''' the objective).
+    */
+  def compareStats(benchmarkData:Map[String,Double], runData: Map[String,Double]): Double={
+    val merged: Map[String, Double] = mergeMap(benchmarkData,runData.mapValues(x => -x))
+    val norm = Math.sqrt(merged.values.map(Math.pow(_,2)).sum/merged.size)
+    - norm
   }
 
   def getStatsFromFile(fileLoc: String): Map[String, Double] = {
@@ -64,9 +76,22 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends Objectiv
 }
 
 object ModeChoiceObjectiveFunction {
+  import cats.Semigroup
+  import cats.syntax.semigroup._
+
 
   case class ModeChoiceStats(year: String, source: String, region: String, share: Double, mode: String, data_type: String)
 
+
+  // The below combinator type parametricity on Maps permits generic merging on keys.
+
+  def optionCombine[A: Semigroup](a: A, opt: Option[A]): A =
+    opt.map(a |+| _).getOrElse(a)
+
+  def mergeMap[K, V: Semigroup](lhs: Map[K, V], rhs: Map[K, V]): Map[K, V] =
+    lhs.foldLeft(rhs) {
+      case (acc, (k, v)) => acc.updated(k, optionCombine(v, acc.get(k)))
+    }
 
 }
 

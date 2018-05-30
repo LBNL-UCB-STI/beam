@@ -2,34 +2,30 @@ package beam.calibration
 
 import beam.sim.BeamHelper
 import com.sigopt.Sigopt
+import com.sigopt.exception.APIConnectionError
 
 object RunCalibration extends App with BeamHelper {
 
   private val EXPERIMENTS_TAG = "experiments"
-  private val CLIENT_ID_TAG = "client_token"
 
   val argsMap = parseArgs(args)
 
-  Sigopt.clientToken = argsMap(CLIENT_ID_TAG)
+  if (System.getenv("SIGOPT_DEV_ID") != null) Sigopt.clientToken = System.getenv("SIGOPT_CLIENT_ID")
+  else throw new APIConnectionError("Correct developer client token must be present in environment as SIGOPT_CLIENT_ID")
 
   private val experimentLoc = argsMap(EXPERIMENTS_TAG)
 
-  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentLoc)
+  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentLoc, development = false)
   
   private val experimentRunner: ExperimentRunner = ExperimentRunner()
-  
-  (1 to 20).foreach { i =>
-    val newRunConfig = experimentRunner
-  }
 
+  experimentRunner.runExperiment(20)
 
   // METHODS //
 
   def parseArgs(args: Array[String]) = {
     args.sliding(2, 1).toList.collect {
       case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (EXPERIMENTS_TAG, filePath)
-      case Array("--client_token", clientId: String) if clientId.trim().nonEmpty =>
-        (CLIENT_ID_TAG, clientId)
       case arg@_ =>
         throw new IllegalArgumentException(arg.mkString(" "))
     }.toMap
