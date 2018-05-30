@@ -51,16 +51,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
+      if(data.currentVehicle.head.toString.startsWith("ride")){
+        val i = 0
+      }
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           // If no manager is set, we ignore
           data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
             case Some(currentLeg) =>
               beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
-
-
               beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
-
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>

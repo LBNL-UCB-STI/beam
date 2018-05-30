@@ -97,7 +97,7 @@ trait ChoosesMode {
       }
 
       def makeRideHailRequest(): Unit = {
-        rideHailingManager ! RideHailingRequest(RideHailingInquiry, VehiclePersonId(bodyId, id),
+        rideHailingManager ! RideHailingRequest(RideHailingInquiry, VehiclePersonId(bodyId, id, Some(self)),
           currentActivity(choosesModeData.personData).getCoord, departTime, nextAct.getCoord)
       }
 
@@ -170,7 +170,11 @@ trait ChoosesMode {
         //TODO replace hard code number here with parameter
         val accessId = if(accessSegment.map(_.travelPath.distanceInM).sum > 0){makeRideHailRequestFromBeamLeg(accessSegment)}else{None}
         val egressId = if(egressSegment.map(_.travelPath.distanceInM).sum > 0){makeRideHailRequestFromBeamLeg(egressSegment)}else{None}
-        choosesModeData.copy(routingResponse = Some(theRouterResult), rideHail2TransitAccessInquiryId = accessId, rideHail2TransitEgressInquiryId = egressId)
+        choosesModeData.copy(routingResponse = Some(theRouterResult),
+          rideHail2TransitAccessInquiryId = accessId, rideHail2TransitEgressInquiryId = egressId,
+          rideHail2TransitAccessResult = if(accessId.isEmpty){Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))}else{None},
+          rideHail2TransitEgressResult = if(egressId.isEmpty){Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))}else{None}
+        )
       }else{
         choosesModeData.copy(routingResponse = Some(theRouterResult),
           rideHail2TransitAccessResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)),
@@ -199,7 +203,7 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc), DiscreteTime(legs.head.startTime.toInt),
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc))
     rideHailingManager ! inquiry
-    Some(inquiry.hashCode())
+    Some(inquiry.requestId)
   }
 
   case object FinishingModeChoice extends BeamAgentState
@@ -302,10 +306,6 @@ trait ChoosesMode {
       availablePersonalStreetVehicles.foreach { veh =>
         context.parent ! ReleaseVehicleReservation(id, veh.id)
         context.parent ! CheckInResource(veh.id, None)
-      }
-      if (chosenTrip.tripClassifier != RIDE_HAIL && data.rideHailingResult.get.travelProposal.nonEmpty) {
-        rideHailingManager ! ReleaseVehicleReservation(id, data.rideHailingResult.get.travelProposal.head
-          .rideHailingAgentLocation.vehicleId)
       }
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)), self)))
       goto(WaitingForDeparture) using data.personData.copy(

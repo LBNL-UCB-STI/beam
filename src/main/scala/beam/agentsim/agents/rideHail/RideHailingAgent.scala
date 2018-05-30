@@ -112,8 +112,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case Event(Resume(), _) =>
       stash()
       stay()
-
-
   }
 
   val myUnhandled: StateFunction =  {

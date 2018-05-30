@@ -14,7 +14,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
-import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds}
+import beam.agentsim.agents.rideHail.RideHailingManager.NotifyIterationEnds
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -22,12 +22,13 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.QuadTreeBounds
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.utils.{DebugLib, DebugActorWithTimer, Tick}
+import beam.utils.{DebugActorWithTimer, DebugLib, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -148,18 +149,17 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny)/2
             new Coord(x, y)
           case unknown =>
-            log.error(s"unknown rideHailing.initialLocation $unknown")
+            log.error(s"unknown rideHail.initialLocation $unknown")
             null
         }
 
-        val rideHailingName = s"rideHailingAgent-${person.getId}"
+        val rideHailingName = s"rideHailAgent-${person.getId}"
         val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-        val rideHailVehicleId = Id.createVehicleId(s"rideHailVehicle-person=${person.getId}") // XXXX: for now identifier will just be initial location (assumed unique)
+        val rideHailVehicleId = Id.createVehicleId(s"rideHailVehicle-${person.getId}")
         val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
-        val rideHailingAgentPersonId: Id[RideHailingAgent] = Id.createPersonId(rideHailingName)
+        val rideHailingAgentPersonId: Id[RideHailingAgent] = Id.create(rideHailingName,classOf[RideHailingAgent])
         val information = Option(rideHailVehicle.getType.getEngineInformation)
-        val vehicleAttribute = Option(
-          scenario.getVehicles.getVehicleAttributes)
+        val vehicleAttribute = Option(scenario.getVehicles.getVehicleAttributes)
         val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
           information
             .map(_.getGasConsumption)
