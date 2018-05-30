@@ -253,7 +253,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
      } else {
        modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
         removeWithInterruptId(rideHailAgentInterruptId)
-       log.debug("RideHailModifyPassengerScheduleManager- messageBuffered: " + rideHailModifyPassengerScheduleStatus)
+       log.debug("RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: " + rideHailModifyPassengerScheduleStatus)
      }
    }
 
