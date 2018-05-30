@@ -27,8 +27,9 @@ public class ModeChosenStats implements IGraphStats{
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if(modesFrequencyDataset!=null)
+        if(modesFrequencyDataset!=null) {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        }
     }
 
     @Override

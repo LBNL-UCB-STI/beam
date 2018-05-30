@@ -1,12 +1,7 @@
 package beam.calibration
 
-import java.io.File
-import java.nio.file.{Files, Path}
-
-import beam.experiment.ExperimentGenerator
 import beam.sim.BeamHelper
 import com.sigopt.Sigopt
-import com.sigopt.model.Experiment
 
 object RunCalibration extends App with BeamHelper {
 
@@ -14,25 +9,17 @@ object RunCalibration extends App with BeamHelper {
   private val CLIENT_ID_TAG = "client_token"
 
   val argsMap = parseArgs(args)
+
   Sigopt.clientToken = argsMap(CLIENT_ID_TAG)
 
-  val experimentPath: Path = new File(argsMap(EXPERIMENTS_TAG)).toPath.toAbsolutePath
+  private val experimentLoc = argsMap(EXPERIMENTS_TAG)
 
-  if (!Files.exists(experimentPath)) {
-    throw new IllegalArgumentException(s"$EXPERIMENTS_TAG file is missing: $experimentPath")
-  }
-
-  val experimentDef = ExperimentGenerator.loadExperimentDefs(experimentPath.toFile)
-
-  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentDef, experimentPath.toFile)
-
-  private val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentData)
-
+  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentLoc)
+  
+  private val experimentRunner: ExperimentRunner = ExperimentRunner()
+  
   (1 to 20).foreach { i =>
-    val suggestion = experiment.suggestions.create.call
-    val newRun = runBeamWithConfig(BeamSigoptTuner.createConfigBasedOnAssignments(suggestion.getAssignments, suggestion.getId))
-
-
+    val newRunConfig = experimentRunner
   }
 
 

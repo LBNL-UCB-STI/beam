@@ -6,7 +6,6 @@ import beam.experiment.ExperimentGenerator
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
-import com.sigopt.model.Experiment
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.util.{Failure, Success, Try}
@@ -22,18 +21,21 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
   val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-experiment/experiment.yml"
   val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 
-  implicit val testExperimentData: SigoptExperimentData =  SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile)
+
 
   "BeamSigoptTuner" must {
     "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
-      val header = testExperimentData.experimentDef.header
-      header.title equals "Example-Experiment"
-      header.beamTemplateConfPath equals "test/input/beamville/beam.conf"
+
+     wrapWithTestExperiment { experimentData =>
+        val header = experimentData.experimentDef.header
+        header.title equals "Example-Experiment"
+        header.beamTemplateConfPath equals "test/input/beamville/beam.conf"
+      }
     }
 
     "create an experiment in the SigOpt API" taggedAs Periodic in {
-      wrapWithTestExperiment { experiment => {
-        val expParams = experiment.getParameters
+      wrapWithTestExperiment { experimentData => {
+        val expParams = experimentData.experiment.getParameters
         // First is the rideHailParams
         val rideHailParams = expParams.iterator.next
         rideHailParams.getName equals "beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation"
@@ -48,19 +50,19 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
       }
     }
       "create a config based on assignments" taggedAs Periodic in {
-        wrapWithTestExperiment { experiment =>
+        wrapWithTestExperiment { implicit experimentData =>
+          val suggestion = experimentData.experiment.suggestions.create.call
+          val runner = ExperimentRunner()
+          val newRunConfig = runner.createConfigBasedOnSuggestion(suggestion)
 
         }
       }
 
   }
 
-  private def wrapWithTestExperiment(experimentFunc: Experiment => AnyVal): Unit = {
-
-    Try {
-      BeamSigoptTuner.createExperiment
-    } match {
-      case Success(e) => experimentFunc(e)
+  private def wrapWithTestExperiment(experimentDataFunc: SigoptExperimentData => Any): Unit = {
+    Try {SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile)} match {
+      case Success(e) => experimentDataFunc(e)
       case Failure(t) => t.printStackTrace()
     }
   }

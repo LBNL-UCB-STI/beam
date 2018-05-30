@@ -15,7 +15,7 @@ object BeamVehicleUtils {
     new BeamVehicle(
       BicycleVehicle.powerTrainForBicycle,
       BicycleVehicle.createMatsimVehicle(id),
-      None, BicycleVehicle
+      None, BicycleVehicle, None, None
     )
   }
 
@@ -28,7 +28,7 @@ object BeamVehicleUtils {
 
     val powerTrain = Powertrain.PowertrainFromMilesPerGallon(information
       .map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon))
-    new BeamVehicle(powerTrain, matsimVehicle, vehicleAttribute, CarVehicle)
+    new BeamVehicle(powerTrain, matsimVehicle, vehicleAttribute, CarVehicle, None, None)
   }
 
   //TODO: Identify the vehicles by type in xml
