@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import static beam.sim.metrics.Metrics.ShortLevel;
+import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -11,7 +13,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import java.io.IOException;
 import java.util.*;
 
-public class ModeChosenStats implements IGraphStats{
+public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Mode Choice Histogram";
@@ -61,6 +63,10 @@ public class ModeChosenStats implements IGraphStats{
     private void processModeChoice(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "mode-choice");
+        tags.put("hour", ""+hour);
+        countOccurrenceJava(mode, ShortLevel(), tags);
         modesChosen.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
