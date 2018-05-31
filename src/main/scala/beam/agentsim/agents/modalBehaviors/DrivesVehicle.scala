@@ -132,9 +132,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(WaitingToDrive) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-      data.passengerSchedule.schedule(newLeg).riders.foreach { personVehicle =>
-        scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
-      }
+      val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule.schedule(newLeg).riders.map{ personVehicle =>
+        ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
+      }.toVector
       eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
@@ -142,7 +142,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
-      goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+      goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
     case Event(Interrupt(_,_), _) =>
       stash()
       stay
@@ -165,22 +165,25 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case Event(req: ReservationRequest, data) =>
       val legs = data.passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).keys.toSeq
       val legsInThePast = data.passengerSchedule.schedule.take(data.currentLegPassengerScheduleIndex).from(req.departFrom).to(req.arriveAt).keys.toSeq
-      if (legsInThePast.nonEmpty) log.debug("Legs in the past: {}", legsInThePast)
-      legsInThePast.foreach(leg => {
-        scheduler ! ScheduleTrigger(NotifyLegStartTrigger(leg.startTime, leg), sender())
-        scheduler ! ScheduleTrigger(NotifyLegEndTrigger(leg.endTime, leg), sender())
-      })
-
-      data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
+      if (legsInThePast.nonEmpty) log.warning("Legs in the past: {} -- {}", legsInThePast,req)
+      val triggersToSchedule = legsInThePast.flatMap(leg => Vector(
+        ScheduleTrigger(NotifyLegStartTrigger(leg.startTime, leg), sender()),
+        ScheduleTrigger(NotifyLegEndTrigger(leg.endTime, leg), sender()))
+      ).toVector
+      val triggersToSchedule2 = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
           if (stateName == Driving && legs.contains(currentLeg)) {
-            scheduler ! ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender())
+            Vector(ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender()))
+          }else{
+            Vector()
           }
         case None =>
           log.warning("Driver did not find a leg at currentLegPassengerScheduleIndex.")
+          Vector()
       }
       stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying
-        ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)),TRANSIT)
+        ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId,
+          triggersToSchedule ++ triggersToSchedule2)),TRANSIT)
 
     case Event(RemovePassengerFromTrip(id), data) =>
       stay() using data.withPassengerSchedule(PassengerSchedule(data.passengerSchedule.schedule ++ data.passengerSchedule.schedule.collect {

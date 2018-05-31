@@ -38,7 +38,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
-    case (PerformingActivity | Waiting | WaitingForReservationConfirmation) -> ChoosingMode =>
+    case (PerformingActivity | Waiting | WaitingForReservationConfirmation | ProcessingNextLegOrStartActivity) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
         case Some(CAR | BIKE | DRIVE_TRANSIT)  =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
@@ -219,12 +219,14 @@ trait ChoosesMode {
       val tncAccessLeg = rideHail2TransitAccessResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.dropRight(1)
       // Replacing walk access leg with TNC changes the travel time.
       val differenceInAccessDuration = walkTransitTrip.legs.head.beamLeg.duration - tncAccessLeg.last.beamLeg.duration
-      if(differenceInAccessDuration < 0){
-        // Travel time increases in rare cases due to sloppiness in occasionally using the link as a proxy for the point location
+      if(differenceInAccessDuration < 600){
+        // Even if your VOT is $60/hour, the minimum fare for an Uber is ~$5 for short trips and this equates to 5 min of time
+        // So we filter out all options that don't save more than 5 minutes on walking, this helps us keep a healthy
+        // buffer as well to limit the number of people who miss thier bus due to longer than expected wait times.
         None
       }else{
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-        val startTimeBufferForWaiting = math.max(60.0,rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
+        val startTimeBufferForWaiting = math.min(differenceInAccessDuration,math.max(600.0,rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5)) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
         val accessAndTransit = tncAccessLeg.map(leg => leg.copy(leg.beamLeg.updateStartTime(leg.beamLeg.startTime + differenceInAccessDuration - startTimeBufferForWaiting.longValue()))) ++ walkTransitTrip.legs.tail
         val fullTrip = if(rideHail2TransitEgressResult.error.isEmpty){
           accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.tail

@@ -515,8 +515,6 @@ class RideHailingManager(
     getIdleVehicles().get(vehicleId).get
   }
 
-
-
   private def updateIdleVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
     val vehicleCoord=getVehicleCoordinate(beamLeg,tick)
 
@@ -524,9 +522,6 @@ class RideHailingManager(
 
     getIdleVehicles().put(vehicleId,rideHailingAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
   }
-
-
-
 
  // private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
  //   scheduler ! nextCompleteNoticeRideHailAllocationTimeout
