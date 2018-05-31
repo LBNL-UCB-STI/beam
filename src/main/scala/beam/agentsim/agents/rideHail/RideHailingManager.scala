@@ -361,46 +361,6 @@ class RideHailingManager(
         }
       }
 
-      //log.debug("RepositioningTimeout("+tick +") - END repositioning waive")
-      //modifyPassengerScheduleManager.endWaiveOfRepositioningRequests()
-      /*
-          if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode && bufferedReserveRideMessages.values.size>0){
-
-            var map: Map[Id[RideHailingInquiry], VehicleAllocationRequest] = Map[Id[RideHailingInquiry], VehicleAllocationRequest]()
-           bufferedReserveRideMessages.values.foreach{ reserveRide =>
-             map += (reserveRide.requestId -> VehicleAllocationRequest( reserveRide.pickUpLocation,reserveRide.departAt,reserveRide.destination))
-            }
-
-            var resultMap =rideHailResourceAllocationManager .allocateVehiclesInBatch(map)
-            for (ReserveRide(requestId, vehiclePersonId, customerPickUp, departAt, destination) <- bufferedReserveRideMessages.values) {
-
-              resultMap(requestId).vehicleAllocation match {
-                case Some(vehicleAllocation) =>
-                  if (!handleRideHailInquirySubmitted.contains(requestId)){
-                    val rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
-                    val rideHailingAgentLocation=RideHailingAgentLocation(rideHailAgent, vehicleAllocation.vehicleId, vehicleAllocation.availableAt)
-                    val distance=CoordUtils.calcProjectedEuclideanDistance(customerPickUp,rideHailingAgentLocation.currentLocation.loc)
-                    val rideHailLocationAndShortDistance = Some(rideHailingAgentLocation,distance)
-
-                    handleRideHailInquirySubmitted += requestId
-                    requestRoutesToCustomerAndDestination(requestId, vehiclePersonId.personId, customerPickUp, departAt, destination,rideHailLocationAndShortDistance,None)
-                  }
-
-                case None =>
-                // TODO: how to handle case, if no car availalbe????? -> check
-              }
-
-            }
-              // TODO (RW) to make the following call compatible with default code, we need to probably manipulate
-
-          //
-            } else {
-            sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
-            }
-      */
-      // TODO (RW) add repositioning code here
-
-      // beamServices.schedulerRef ! TriggerUtils.completed(triggerId,Vector(timerMessage))
     }
 
     case ReduceAwaitingRepositioningAckMessagesByOne =>
