@@ -37,7 +37,7 @@ object SigoptExperimentData {
       throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
     }
 
-    SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(experimentPath.toFile), experimentPath.toFile, benchmarkFileLoc, development)
+    SigoptExperimentData(BeamSigoptTuner.loadExperimentDef(experimentPath.toFile), experimentPath.toFile, benchmarkFileLoc, development)
   }
 }
 
@@ -72,6 +72,13 @@ object BeamSigoptTuner {
     val parameters = Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
     Experiment.create.data(new Experiment.Builder().name(experimentId).parameters(parameters).build).call
 
+  }
+
+  def loadExperimentDef(experimentFileLoc: File):ExperimentDef={
+    val experiment = ExperimentGenerator.loadExperimentDefs(experimentFileLoc)
+    ExperimentGenerator.validateExperimentConfig(experiment)
+
+    experiment
   }
 
 
