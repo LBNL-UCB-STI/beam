@@ -12,7 +12,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.collection.JavaConverters
 
-case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: File, development: Boolean = false){
+case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: File, benchmarkFileLoc: String, development: Boolean = false){
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -29,7 +29,7 @@ case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: Fi
 
 object SigoptExperimentData {
 
-  def apply(experimentLoc: String, development: Boolean): SigoptExperimentData = {
+  def apply(experimentLoc: String, benchmarkFileLoc: String, development: Boolean): SigoptExperimentData = {
 
     val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath
 
@@ -37,7 +37,7 @@ object SigoptExperimentData {
       throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
     }
 
-    SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(experimentPath.toFile), experimentPath.toFile, development)
+    SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(experimentPath.toFile), experimentPath.toFile, benchmarkFileLoc, development)
   }
 }
 

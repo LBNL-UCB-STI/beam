@@ -7,15 +7,17 @@ import beam.sim.BeamHelper
 import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 
-import scala.collection.JavaConverters
+import scala.collection.{JavaConverters, mutable}
 
 
 
 case class ExperimentRunner(implicit  experimentData: SigoptExperimentData) extends BeamHelper {
 
   def runExperiment(numberOfIterations: Int): Unit = {
-    // TODO: Make this part of experiment data
-    val benchmarkData = Paths.get("test/input/beamville/example-experiment/benchmarkTest.csv").toAbsolutePath
+
+    val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+
+    // TODO: Make objective function part of experiment definition
     val f = new ModeChoiceObjectiveFunction(benchmarkData.toString)
 
     (0 to numberOfIterations).foreach{_ =>
@@ -30,19 +32,23 @@ case class ExperimentRunner(implicit  experimentData: SigoptExperimentData) exte
 
   def createConfigBasedOnSuggestion(suggestion: Suggestion)(implicit experimentData: SigoptExperimentData): Config = {
     val assignments = suggestion.getAssignments
-    val runName = suggestion.getId
-    val configParams = JavaConverters.iterableAsScalaIterable(assignments.entrySet()).seq.map { e => e.getKey -> e.getValue }.toMap
+
+    val experimentName: String = suggestion.getExperiment
+
+    val suggestionId: String = suggestion.getId
+
+    val configParams: mutable.Map[String, Object] = JavaConverters.mapAsScalaMap(experimentData.experimentDef.defaultParams) ++ JavaConverters.iterableAsScalaIterable(assignments.entrySet()).seq.map { e => e.getKey -> e.getValue }.toMap
 
     val experimentBaseDir = Paths.get(experimentData.experimentPath.getParent).toAbsolutePath
 
-    val runDirectory = experimentData.projectRoot.relativize(Paths.get(experimentBaseDir.toString, "runs", runName))
+    val runDirectory = experimentData.projectRoot.relativize(Paths.get(experimentBaseDir.toString, "experiments", experimentName, "suggestions"))
 
     val beamConfPath = experimentData.projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf").toAbsolutePath)
 
-    val beamOutputDir: Path = experimentData.projectRoot.relativize(Paths.get(runDirectory.toString, "output").toAbsolutePath)
+    val beamOutputDir: Path = experimentData.projectRoot.relativize(Paths.get(runDirectory.toString, suggestionId).toAbsolutePath)
 
     (Map(
-      "beam.agentsim.simulationName" -> "output",
+      "beam.agentsim.simulationName" -> s"$suggestionId",
       "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
       "beam.inputDirectory" -> experimentData.experimentDef.getTemplateConfigParentDirAsString
