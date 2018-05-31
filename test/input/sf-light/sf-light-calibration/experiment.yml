@@ -79,3 +79,21 @@ factors:
     - name: High
       params:
         mnl_car_intercept: 1.0
+
+  - title: transitCapacity
+    levels:
+    - name: Low
+      params:
+        beam.agentsim.tuning.transitCapacity: 0.01
+    - name: High
+      params:
+        beam.agentsim.tuning.transitCapacity: 0.1
+
+  - title: ridehailNumber
+    levels:
+    - name: Low
+      params:
+        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+    - name: High
+      params:
+        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
