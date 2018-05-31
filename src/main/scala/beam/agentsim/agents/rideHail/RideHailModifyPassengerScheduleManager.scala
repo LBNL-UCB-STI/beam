@@ -73,7 +73,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     selectedForModifyPassengerSchedule.foreach { selected =>
       log.debug("sendModifyPassengerScheduleMessage: " + selectedForModifyPassengerSchedule)
       if (stopDriving) {
-        sendMessage(selected.rideHailAgent, StopDriving())
+        sendMessage(selected.rideHailAgent, StopDriving(selected.tick))
       }
       resourcesNotCheckedIn_onlyForDebugging += selected.vehicleId
       sendMessage(selected.rideHailAgent, selected.modifyPassengerSchedule)

@@ -35,7 +35,7 @@ object DrivesVehicle {
 
   case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 
-  case class StopDriving()
+  case class StopDriving(tick: Double)
 
   case class AddFuel(fuelInJoules: Double)
   case object GetBeamVehicleFuelLevel
@@ -100,21 +100,29 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   when(DrivingInterrupted) {
-    case Event(StopDriving(), LiterallyDrivingData(data, legEndingAt)) =>
+    case Event(StopDriving(tick), LiterallyDrivingData(data, legEndingAt)) =>
       data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
 
           if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
             log.debug("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
+            log.debug("DrivingInterrupted.StopDriving with leg: " + data.passengerSchedule.schedule(currentLeg))
+            DebugLib.emptyFunctionForSettingBreakPoint()
           }
           assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
           data.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
               // If no manager is set, we ignore
+
+              // TODO: can we update the current leg based on the stop time?
+              // as this kind of stop happens seldomly, we might try to send a query to any entity which has access to the network, e.g. router or RideHailManager?
               beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (currentLeg.travelPath.endPoint) ) )
+
+              eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent (new PathTraversalEvent (legEndingAt, currentVehicleUnderControl,
                 beamServices.vehicles (currentVehicleUnderControl).getType,
                 data.passengerSchedule.schedule (currentLeg).riders.size, currentLeg,beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)) )
+
             case None =>
               log.error("Current Vehicle is not available.")
           }

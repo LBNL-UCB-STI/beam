@@ -408,15 +408,6 @@ class RideHailingManager(
     getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get)
   }
 
-
-  private def updateIdleVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
-    val vehicleCoord=getVehicleCoordinate(beamLeg,tick)
-
-    val rideHailingAgentLocation=getRideHailAgentLocation(vehicleId)
-
-    getIdleVehicles().put(vehicleId,rideHailingAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
-  }
-
   //TODO requires proposal in cache
   private def findClosestRideHailingAgents(requestId: Int, customerPickUp: Location) = {
     val travelPlanOpt = Option(travelProposalCache.asMap.remove(requestId))
@@ -476,53 +467,6 @@ class RideHailingManager(
       }
     }
   }
-
-
-
-
-
-
-
-  private def getVehicleCoordinate(beamLeg:BeamLeg, stopTime:Double): Coord ={
-    // TODO: implement following solution following along links
-    /*
-    var currentTime=beamLeg.startTime
-     var resultCoord=beamLeg.travelPath.endPoint.loc
-    if (stopTime<beamLeg.endTime) {
-      for (linkId <- beamLeg.travelPath.linkIds) {
-        val linkEndTime=currentTime + getTravelTimeEstimate(currentTime, linkId)
-        breakable {
-          if (stopTime < linkEndTime) {
-              resultCoord=getLinkCoord(linkId)
-            break
-          }
-        }
-      }
-    }
-    */
-
-    val pctTravelled=(stopTime-beamLeg.startTime)/(beamLeg.endTime-beamLeg.startTime)
-    val directionCoordVector=getDirectionCoordVector(beamLeg.travelPath.startPoint.loc,beamLeg.travelPath.endPoint.loc)
-    getCoord(beamLeg.travelPath.startPoint.loc,scaleDirectionVector(directionCoordVector,pctTravelled))
-  }
-
-  // TODO: move to some utility class,   e.g. geo
-  private def getDirectionCoordVector(startCoord:Coord, endCoord:Coord): Coord ={
-    new Coord(endCoord.getX()-startCoord.getX(),endCoord.getY()-startCoord.getY())
-  }
-
-  private def getCoord(startCoord:Coord,directionCoordVector:Coord): Coord ={
-    new Coord(startCoord.getX()+directionCoordVector.getX(),startCoord.getY()+directionCoordVector.getY())
-  }
-
-  private def scaleDirectionVector(directionCoordVector:Coord, scalingFactor:Double):Coord={
-    new Coord(directionCoordVector.getX()*scalingFactor,directionCoordVector.getY()*scalingFactor)
-  }
-
-
-
-
-
 
   private def makeAvailable(agentLocation: RideHailingAgentLocation) = {
     availableRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
