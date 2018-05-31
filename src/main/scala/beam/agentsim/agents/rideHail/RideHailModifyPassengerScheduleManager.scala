@@ -251,6 +251,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
         }
     }
 
+    // ====remove correct status message===
     if (deleteItems.size > 1) {
       // this means that multiple MODIFY_PASSENGER_SCHEDULE_SENT outstanding and we need to keep them in order
       deleteItems = deleteItems.splitAt(1)._1
@@ -269,7 +270,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     if (rideHailModifyPassengerScheduleStatusSet.size == 0) {
       resourcesNotCheckedIn_onlyForDebugging.remove(vehicleId)
     }
+
+
+
     // only something new, if all undefined (no pending query)
+    // TODO: double check if the following code will ever be executed as we are not buffering anymore resp. is it really needed and not handled somewhere else
     if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.filter(_.status == InterruptMessageStatus.UNDEFINED).size == rideHailModifyPassengerScheduleStatusSet.size) {
       sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
     }
