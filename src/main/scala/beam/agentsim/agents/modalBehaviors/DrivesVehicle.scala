@@ -4,6 +4,7 @@ import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.rideHail.RideHailUtils
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -100,7 +101,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   when(DrivingInterrupted) {
-    case Event(StopDriving(tick), LiterallyDrivingData(data, legEndingAt)) =>
+    case Event(StopDriving(stopTick), LiterallyDrivingData(data, legEndingAt)) =>
       data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
 
@@ -116,10 +117,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
               // TODO: can we update the current leg based on the stop time?
               // as this kind of stop happens seldomly, we might try to send a query to any entity which has access to the network, e.g. router or RideHailManager?
+
+              //val a = beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
+
+              //val updatedBeamLeg=RideHailUtils.getUpdatedBeamLegAfterStopDriving(currentLeg,stopTick,transportNetwork,beamServices)
+
+
               beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (currentLeg.travelPath.endPoint) ) )
 
-              eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-              eventsManager.processEvent (new PathTraversalEvent (legEndingAt, currentVehicleUnderControl,
+              eventsManager.processEvent(new VehicleLeavesTrafficEvent(stopTick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
+              eventsManager.processEvent (new PathTraversalEvent (stopTick, currentVehicleUnderControl,
                 beamServices.vehicles (currentVehicleUnderControl).getType,
                 data.passengerSchedule.schedule (currentLeg).riders.size, currentLeg,beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)) )
 
