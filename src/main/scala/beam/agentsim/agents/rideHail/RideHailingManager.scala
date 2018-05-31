@@ -92,10 +92,6 @@ class RideHailingManager(
       new DefaultRideHailResourceAllocationManager()
   }
 
-  // TODO: remove following (replace by RideHailModifyPassengerScheduleManager)
-  val repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
-  val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
-  val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
   val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
@@ -166,7 +162,6 @@ class RideHailingManager(
           // we still might have some ongoing resrvation in going on
           makeAvailable(rideHailingAgentLocation)
         }
-        repositioningVehicles.remove(vehicleId)
         modifyPassengerScheduleManager.checkInResource(vehicleId, Some(whenWhere))
         driver ! GetBeamVehicleFuelLevel
       })
@@ -194,7 +189,6 @@ class RideHailingManager(
           makeAvailable(rideHailingAgentLocation)
         }
         sender ! CheckInSuccess
-        repositioningVehicles.remove(vehicleId)
         log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + whenWhere.get.time + ")")
         modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere)
         driver ! GetBeamVehicleFuelLevel
@@ -413,7 +407,6 @@ class RideHailingManager(
       modifyPassengerScheduleManager.modifyPassengerScheduleAckReceivedForRepositioning(Vector())
 
     case RepositionVehicleRequest(passengerSchedule,tick,vehicleId,rideHailAgent) =>
-      repositioningVehicles.add(vehicleId)
 
       // TODO: send following to a new case, which handles it
       // -> code for sending message could be prepared in modifyPassengerScheduleManager
@@ -467,21 +460,6 @@ class RideHailingManager(
   private def getRideHailAgentLocation(vehicleId:Id[Vehicle]):RideHailingAgentLocation={
     getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get)
   }
-
-
-  private def isVehicleRepositioning(vehicleId:Id[Vehicle]):Boolean={
-    repositioningPassengerSchedule.contains(vehicleId)
-  }
-
-// contains both idling and repositioning vehicles
-  private def getNotInUseVehicleLocation(vehicleId:Id[Vehicle],tick:Double): RideHailingAgentLocation ={
-    if (isVehicleRepositioning(vehicleId)){
-      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule.get(vehicleId).get._2.get.schedule.head._1,tick)
-    }
-
-    getIdleVehicles().get(vehicleId).get
-  }
-
 
 
   private def updateIdleVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
