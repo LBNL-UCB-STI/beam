@@ -137,6 +137,8 @@ public class DeadHeadingStats implements IGraphStats {
 
                         updateDeadHeadingTNCMap(length2, hour, _num_passengers2);
 
+                        updateDeadHeadingTNCMap(length,hour,_num_passengers);
+
                         vehicleData.remove(hour);
                     }else if(vehicleHourData.size() > 1){
 
