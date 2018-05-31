@@ -308,8 +308,6 @@ class RideHailingManager(
           if (getIdleVehicles().contains(vehicleId)) {
             val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
 
-           // println("RHM: tick(" + tick + ")" + vehicleId + " - " + rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
-
             val rideHailAgent = rideHailAgentLocation.agentRef
 
             val rideHailingVehicleAtOrigin = StreetVehicle(rideHailAgentLocation.vehicleId, SpaceTime(
@@ -342,7 +340,6 @@ class RideHailingManager(
 
               } else {
                 self ! ReduceAwaitingRepositioningAckMessagesByOne
-                //println("NO repositioning done")
               }
             }
 
