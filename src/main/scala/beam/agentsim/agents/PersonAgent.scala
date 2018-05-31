@@ -9,17 +9,15 @@ import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
-import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.rideHail.RideHailingManager
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{RIDE_HAIL, TRANSIT}
+import beam.router.Modes.BeamMode.{TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel._
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
@@ -187,7 +185,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   def handleSuccessfulReservation(triggersToSchedule: Vector[ScheduleTrigger], data: BasePersonData) = {
-    val (_, triggerId) = releaseTickAndTriggerId()
+    val (tick, triggerId) = releaseTickAndTriggerId()
     log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
     scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     goto(Waiting) using data
@@ -197,7 +195,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(ReservationResponse(_, Right(response),_), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), reservedMode), data: BasePersonData) =>
-//      handleFailedReservation
       logWarn(s"replanning because ${firstErrorResponse.errorCode}")
       goto(ChoosingMode) using ChoosesModeData(data)
     case Event(RideHailingResponse(_, _, None,triggersToSchedule), data: BasePersonData) =>
@@ -297,6 +294,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           currentVehicle
         }
       )
+    case Event(StateTimeout, data@BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.beamLeg.startTime < _currentTick.get =>
+      // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
+      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our ride hail portion.
+      logWarn(s"Missed transit pickup during a ride_hail_transit trip, late by ${_currentTick.get - nextLeg.beamLeg.startTime} sec")
+      goto(ChoosingMode) using ChoosesModeData(personData = data.copy(currentTourMode = Some(WALK_TRANSIT)))
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.beamLeg.mode.isTransit() =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
