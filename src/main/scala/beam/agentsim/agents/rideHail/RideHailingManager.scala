@@ -83,7 +83,7 @@ class RideHailingManager(
     case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
       new DefaultRideHailResourceAllocationManager()
     case RideHailResourceAllocationManager.STANFORD_V1 =>
-      new StanfordRideHailAllocationManagerV1(this)
+      new StanfordRideHailAllocationManagerV1(this,rideHailNetworkApi)
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
       new RideHailAllocationManagerBufferedImplTemplate(this)
     case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
@@ -95,9 +95,6 @@ class RideHailingManager(
 
   val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
-
-  private var maybeTravelTime: Option[TravelTime] = None
-
   private var bufferedReserveRideMessages = mutable.Map[String, RideHailingRequest]()
 
   private val handleRideHailInquirySubmitted = mutable.Set[String]()
@@ -107,8 +104,7 @@ class RideHailingManager(
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
 
-  var transportNetwork: Option[TransportNetwork] = None
-  var matsimNetwork: Option[Network] = None
+  var rideHailNetworkApi:RideHailNetworkAPI=new RideHailNetworkAPI()
 
 
   //TODO improve search to take into account time when available
@@ -175,7 +171,7 @@ class RideHailingManager(
       log.info("received Finish message")
 
     case MATSimNetwork(network) =>
-      matsimNetwork = Some(network)
+      rideHailNetworkApi.setMATSimNetwork(network)
 
     case CheckInResource(vehicleId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehicleId, whenWhere.get, isAvailable = true)
@@ -202,7 +198,7 @@ class RideHailingManager(
       }
 
     case R5Network(network) =>
-      this.transportNetwork = Some(network)
+      rideHailNetworkApi.setR5Network(network)
 
     case RoutingResponses(request, rideHailingLocation, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
       val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
@@ -289,7 +285,7 @@ class RideHailingManager(
       }
 
     case UpdateTravelTime(travelTime) =>
-      maybeTravelTime = Some(travelTime)
+      rideHailNetworkApi.setTravelTime(travelTime)
 
     case DebugRideHailManagerDuringExecution =>
       modifyPassengerScheduleManager.printState()
@@ -484,51 +480,11 @@ class RideHailingManager(
     }
   }
 
-  def getTravelTimeEstimate(time: Double, linkId: Int): Double = {
-    maybeTravelTime match {
-      case Some(matsimTravelTime) =>
-        matsimTravelTime.getLinkTravelTime(matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)), time, null, null).toLong
-      case None =>
-        val edge = transportNetwork.get.streetLayer.edgeStore.getCursor(linkId)
-        (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(StreetMode.CAR.toString))).toLong
-    }
-  }
-
-  def getClosestLink(coord: Coord): Option[Link] = {
-    matsimNetwork match {
-      case Some(network) => Some(NetworkUtils.getNearestLink(network, coord));
-      case None => None
-    }
-  }
-
-  def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
-    getLinks() match {
-      case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
-      case None => None
-    }
-  }
 
 
-  def getFromLinkIds(linkId: Int): Vector[Int] = {
-    convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
-  }
 
-  def getToLinkIds(linkId: Int): Vector[Int] = {
-    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
-  }
 
-  def convertLinkIdsToVector(set: util.Set[Id[Link]]): Vector[Int] = {
 
-    val iterator = set.iterator
-    var linkIdVector: Vector[Int] = Vector()
-    while (iterator.hasNext) {
-      val linkId: Id[Link] = iterator.next()
-      val _linkId = linkId.toString.toInt
-      linkIdVector = linkIdVector :+ _linkId
-    }
-
-    linkIdVector
-  }
 
   private def getVehicleCoordinate(beamLeg:BeamLeg, stopTime:Double): Coord ={
     // TODO: implement following solution following along links
@@ -566,30 +522,10 @@ class RideHailingManager(
     new Coord(directionCoordVector.getX()*scalingFactor,directionCoordVector.getY()*scalingFactor)
   }
 
-  private def getMATSimLink(linkId: Int): Link = {
-    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId))
-  }
-
-  def getLinkCoord(linkId: Int): Coord = {
-    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getCoord
-  }
-
-  def getFromNodeCoordinate(linkId: Int): Coord = {
-    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getFromNode.getCoord
-  }
-
-  def getToNodeCoordinate(linkId: Int): Coord = {
-    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getToNode.getCoord
-  }
 
 
-  // TODO: make integers
-  def getLinks(): Option[util.Map[Id[Link], _ <: Link]] = {
-    matsimNetwork match {
-      case Some(network) => Some(network.getLinks)
-      case None => None
-    }
-  }
+
+
 
   private def makeAvailable(agentLocation: RideHailingAgentLocation) = {
     availableRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
