@@ -424,13 +424,6 @@ class RideHailingManager(
     getIdleVehicles().put(vehicleId,rideHailingAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
   }
 
-
-
-
- // private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
- //   scheduler ! nextCompleteNoticeRideHailAllocationTimeout
- // }
-
   //TODO requires proposal in cache
   private def findClosestRideHailingAgents(requestId: Int, customerPickUp: Location) = {
     val travelPlanOpt = Option(travelProposalCache.asMap.remove(requestId))
