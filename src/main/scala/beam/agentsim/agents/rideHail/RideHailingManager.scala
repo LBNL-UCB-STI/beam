@@ -459,39 +459,6 @@ class RideHailingManager(
     }
   }
 
-// TODO: move to modifyPassengerScheduleManager?
-  private def handleInterrupt( interruptType:String, interruptId: Id[Interrupt],interruptedPassengerSchedule: Option[PassengerSchedule],vehicleId:Id[Vehicle], tick: Double): Unit ={
-    log.debug(interruptType + " - vehicle: " + vehicleId)
-    val rideHailAgent =getRideHailAgent(vehicleId)
-        if (repositioningPassengerSchedule.contains(vehicleId)){
-          val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
-          if (reservationPassengerSchedule.contains(vehicleId)){
-            val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-              interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
-              log.debug(interruptType + " - ignoring reposition: " + vehicleId)
-          } else {
-            interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
-            rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
-            rideHailAgent ! Resume()
-            log.debug(interruptType + " - reposition: " + vehicleId)
-          }
-        }
-
-        if (reservationPassengerSchedule.contains(vehicleId)) {
-          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
-          if (interruptId == interruptIdReservation) {
-            val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
-            interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
-            rideHailAgent ! modifyPassengerSchedule
-            rideHailAgent ! Resume()
-            log.debug(interruptType + " - reservation: " + vehicleId)
-          } else {
-            log.error(interruptType + " - reservation: " + vehicleId + " interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
-          }
-        }
-    }
-
-
 
   private def getRideHailAgent(vehicleId:Id[Vehicle]):ActorRef={
     getRideHailAgentLocation(vehicleId).agentRef
