@@ -96,8 +96,6 @@ class RideHailingManager(
   val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
 
-  private val repositionDoneOnce: Boolean = false
-
   private var maybeTravelTime: Option[TravelTime] = None
 
   private var bufferedReserveRideMessages = mutable.Map[String, RideHailingRequest]()
@@ -299,9 +297,6 @@ class RideHailingManager(
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
-      if (repositionDoneOnce) {
-        modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
-      } else {
         val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
         if (repositionVehicles.isEmpty) {
@@ -359,7 +354,6 @@ class RideHailingManager(
             modifyPassengerScheduleManager.modifyPassengerScheduleAckReceivedForRepositioning(Vector())
           }
         }
-      }
 
     }
 
