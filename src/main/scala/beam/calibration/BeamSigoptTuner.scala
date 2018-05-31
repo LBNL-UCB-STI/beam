@@ -69,47 +69,51 @@ object BeamSigoptTuner {
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
     val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
-    val parameters = Lists.newArrayList(JavaConverters.asJavaIterator(factors.map(factorToParameter)))
+    val parameters = Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
     Experiment.create.data(new Experiment.Builder().name(experimentId).parameters(parameters).build).call
 
   }
 
 
   /**
-    * Converts a [[Factor factor]] to a SigOpt [[Parameter parameters]]
+    * Converts a [[Factor factor]] to a [[List]] of SigOpt [[Parameter parameters]]
     * assuming that there are [[Level levels]] with High and Low names.
     *
     * The type of the parameter values is equivalent to the first key of the `High`
     * [[Level level]] `param`.
     *
     * @param factor [[Factor]] to convert
-    * @return The factor as a SigOpt [[Parameter parameter]]
+    * @return The factor as a [[List]] of SigOpt [[Parameter parameters]]
     */
-  def factorToParameter(factor: Factor): Parameter = {
+  def factorToParameters(factor: Factor): List[Parameter] = {
 
     val levels = factor.levels
 
     val highLevel = getLevel("High", levels)
 
-    val paramName: String = highLevel.params.keySet().iterator().next()
+    val paramNames: Vector[String] = JavaConverters.asScalaIterator(highLevel.params.keySet().iterator()).toVector
 
-    val maxValue = highLevel.params.get(paramName)
-    val lowLevel = getLevel("Low", levels)
-    val minValue = lowLevel.params.get(paramName)
+    paramNames.map {paramName=>
 
-    val parameter = new Parameter.Builder().name(paramName)
+      val maxValue = highLevel.params.get(paramName)
+      val lowLevel = getLevel("Low", levels)
+      val minValue = lowLevel.params.get(paramName)
 
-    // Build bounds
-    maxValue match {
-      case _: Double =>
-        parameter.bounds(getBounds(minValue.asInstanceOf[Double], maxValue.asInstanceOf[Double])).`type`("double")
-      case _: Int =>
-        parameter.`type`("int").bounds(getBounds(minValue.asInstanceOf[Int], maxValue.asInstanceOf[Int]))
-      case _ =>
-        throw new RuntimeException("Type error!")
-    }
+      val parameter = new Parameter.Builder().name(paramName)
 
-    parameter.build()
+      // Build bounds
+      maxValue match {
+        case _: Double =>
+          parameter.bounds(getBounds(minValue.asInstanceOf[Double], maxValue.asInstanceOf[Double])).`type`("double")
+        case _: Int =>
+          parameter.`type`("int").bounds(getBounds(minValue.asInstanceOf[Int], maxValue.asInstanceOf[Int]))
+        case _ =>
+          throw new RuntimeException("Type error!")
+      }
+      parameter.build()
+    }.toList
+
+
 
   }
 

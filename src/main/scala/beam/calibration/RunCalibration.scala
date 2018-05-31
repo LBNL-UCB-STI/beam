@@ -26,7 +26,7 @@ object RunCalibration extends App with BeamHelper {
   // METHODS //
 
   def parseArgs(args: Array[String]) = {
-    args.sliding(2, 1).toList.collect {
+    args.sliding(2, 2).toList.collect {
       case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (EXPERIMENTS_TAG, filePath)
       case Array("--benchmark", filePath: String) if filePath.trim.nonEmpty => (BENCHMARK_EXPERIMENTS_TAG, filePath)
       case arg@_ =>

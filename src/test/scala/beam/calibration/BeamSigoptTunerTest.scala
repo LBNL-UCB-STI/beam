@@ -18,8 +18,8 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
     else throw new APIConnectionError("Correct developer client token must be present in environment as SIGOPT_DEV_ID")
   }
 
-  val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-experiment/experiment.yml"
-  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-experiment/benchmarkTest.csv"
+  val TEST_BEAM_EXPERIMENT_LOC = "test/input/sf-light/sf-light-calibration/experiment.yml"
+  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/sf-light/sf-light-calibration/benchmarkTest.csv"
 
   val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 

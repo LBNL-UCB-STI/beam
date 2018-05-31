@@ -20,7 +20,7 @@ case class ExperimentRunner(implicit  experimentData: SigoptExperimentData) exte
     // TODO: Make objective function part of experiment definition
     val f = new ModeChoiceObjectiveFunction(benchmarkData.toString)
 
-    (0 to numberOfIterations).foreach{_ =>
+    (0 to numberOfIterations).foreach{ _ =>
       val suggestion = experimentData.experiment.suggestions.create.call
       val modedConfig = createConfigBasedOnSuggestion(suggestion)
       val (matsimConfig, outputDir) = runBeamWithConfig(modedConfig.resolve())

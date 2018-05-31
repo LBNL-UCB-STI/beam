@@ -33,3 +33,5 @@ native/
 .Rapp.history 
 beam-gui/build
 /test/input/beamville/example-experiment/experiments/
+/test/input/beamville/example-calibration/experiments/
+/test/input/sf-light/sf-light-calibration/experiments/
