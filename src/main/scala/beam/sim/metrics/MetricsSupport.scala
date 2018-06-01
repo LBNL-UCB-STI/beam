@@ -4,11 +4,15 @@ import beam.sim.metrics.Metrics._
 import kamon.Kamon
 import kamon.metric.instrument.Histogram
 import kamon.util.Latency
-
+import scala.collection.JavaConverters._
 
 trait MetricsSupport {
 
-  def countOccurrence(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.counter(name, defaultTags).increment()
+//  def countOccurrence(name: String, level: MetricLevel, tags: Map[String, String] = Map.empty): Unit = if (isRightLevel(level)) Kamon.metrics.counter(name, defaultTags ++ tags).increment()
+
+  def countOccurrence(name: String, times: Long = 1, level: MetricLevel, tags: Map[String, String] = Map.empty): Unit = if (isRightLevel(level)) Kamon.metrics.counter(name, defaultTags ++ tags).increment(times)
+
+  def countOccurrenceJava(name: String, times: Long = 1, level: MetricLevel, tags: java.util.Map[String, String] = new java.util.HashMap()): Unit = countOccurrence(name, times, level, tags.asScala.toMap)
 
   def increment(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name, defaultTags).increment()
 

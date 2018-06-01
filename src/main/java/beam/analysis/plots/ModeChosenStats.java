@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.metrics.MetricsSupport;
 import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -12,8 +13,9 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
-public class ModeChosenStats implements IGraphStats {
+import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats implements IGraphStats, MetricsSupport{
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String GRAPH_TITLE = "Mode Choice Histogram";
@@ -29,6 +31,12 @@ public class ModeChosenStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "aggregated-mode-choice");
+        hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
+
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null) {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
@@ -104,13 +112,10 @@ public class ModeChosenStats implements IGraphStats {
         modesChosen.clear();
     }
 
-    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double count = 0;
-        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        for (int i = 0; i < modeOccurrencePerHour.length; i++) {
-            count = count + modeOccurrencePerHour[i];
-        }
-        return (int) count;
+    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
+        double [] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+
+        return (int)Arrays.stream(modeOccurrencePerHour).sum();
     }
 
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, int hour) {
@@ -125,6 +130,10 @@ public class ModeChosenStats implements IGraphStats {
     private void processModeChoice(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "mode-choice");
+        tags.put("hour", "" + (hour + 1));
+        countOccurrenceJava(mode, 1, ShortLevel(), tags);
         modesChosen.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
@@ -177,12 +186,13 @@ public class ModeChosenStats implements IGraphStats {
         double[][] dataset = buildModesFrequencyDataset();
         if (dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+
         return categoryDataset;
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, GRAPH_TITLE, X_AXIS_TITLE, Y_AXIS_TITLE, MODE_CHOICE_GRAPH_FILE_NAME, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,GRAPH_TITLE, X_AXIS_TITLE, Y_AXIS_TITLE, MODE_CHOICE_GRAPH_FILE_NAME,legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);

@@ -25,18 +25,7 @@ class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with Inte
         .filter(_.isDefined)
         .map(_.get)
 
-//      val z1 = tc.drop(1)
-//      val z2 = tc.dropRight(1)
-//      val zip = z2 zip z1
-//
-//      println(tc)
-//      println(z1)
-//      println(z2)
-//      println(zip)
-
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
-
-
 }
