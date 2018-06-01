@@ -6,6 +6,7 @@ import java.nio.file.Paths
 import beam.analysis.plots.ModeChosenStats
 import beam.calibration.api.ObjectiveFunction
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
+import beam.utils.FileUtils
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
@@ -37,17 +38,18 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends Objectiv
     * @return the '''negative''' RMSPE value (since we '''maximize''' the objective).
     */
   def compareStats(benchmarkData: Map[String, Double], runData: Map[String, Double]): Double = {
-    -Math.sqrt(runData.map({ case (k, y_hat) =>
+    val res = -Math.sqrt(runData.map({ case (k, y_hat) =>
       val y = benchmarkData(k)
       Math.pow((y - y_hat) / y, 2)
     }).sum / runData.size)
+    res
   }
 
   def getStatsFromFile(fileLoc: String): Map[String, Double] = {
-    Source.fromFile(fileLoc).getLines().drop(1).map {
-      _.split(",")
-    }.map(arr =>
-      arr(0) -> arr(1).toDouble).toMap
+    FileUtils.using( Source.fromFile(fileLoc)) { source =>
+      source.getLines().drop(1).map { _.split(",") }.map(arr =>
+        arr(0) -> arr(1).toDouble).toMap
+    }
   }
 
   def getStatsFromMTC(mtcBenchmarkEndPoint: URI): Map[String, Double] = {

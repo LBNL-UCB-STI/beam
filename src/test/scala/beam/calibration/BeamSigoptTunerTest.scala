@@ -23,7 +23,6 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
 
   val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 
-
   "BeamSigoptTuner" must {
     "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
 
