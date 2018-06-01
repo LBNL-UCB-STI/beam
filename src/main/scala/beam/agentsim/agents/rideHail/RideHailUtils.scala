@@ -3,7 +3,7 @@ package beam.agentsim.agents.rideHail
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.BeamServices
-import beam.utils.DebugLib
+import beam.utils.{DebugLib, GeoUtils}
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
@@ -35,7 +35,7 @@ object RideHailUtils {
 
         breakable {
           if (distanceOfNewPath < duration) {
-            resultCoord = getR5EdgeCoord(linkId, transportNetwork)
+            resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
             break
           } else {
             updatedLinkIds = linkIds
@@ -62,12 +62,6 @@ object RideHailUtils {
     DebugLib.emptyFunctionForSettingBreakPoint()
     val newLeg = originalBeamLeg.copy(duration = updatedDuration, travelPath = updatedTravelPath)
     newLeg
-  }
-
-  // TODO: move to geoutils?
-  private def getR5EdgeCoord(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
-    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
-    new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
   }
 
   private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
