@@ -92,20 +92,49 @@ public class DeadHeadingStats implements IGraphStats {
     Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
 
     private void processDeadHeading(Event event) {
+
+        // Process Event for "tnc_passenger_per_trip.png" graph
+        processEventForTncDeadheadingDistanceGraph(event);
+
+
+        // Process Event for "tnc_deadheading_distance.png" graph
+        processEventForTncPassengerPerTripGraph(event);
+    }
+
+    private void processEventForTncPassengerPerTripGraph(Event event){
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
         Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
         boolean validCase = isValidCase(graphName, _num_passengers);
+
+        // Process Event for "tnc_passenger_per_trip.png" graph
         if (validCase) {
 
+            /* Determine
+             1. The repositioning event
+             2. The deadheading event
+             3. The passenger > 0 event
+             4. Put the three types of events into the three categories repositioning, 0 and 1 category
+             5. Display them on the graph
+            */
             updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
         }
+    }
 
+    private void processEventForTncDeadheadingDistanceGraph(Event event){
+
+        int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
+        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
+        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
+
+
+        ////////////
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-
 
             /*
             Check if for this vehicle_id we have data.
