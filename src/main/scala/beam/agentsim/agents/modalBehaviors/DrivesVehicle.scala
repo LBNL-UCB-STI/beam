@@ -6,6 +6,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.rideHail.RideHailUtils
 import beam.agentsim.agents.rideHail.RideHailingAgent._
+import beam.agentsim.agents.rideHail.RideHailingManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -106,11 +107,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case Some(currentLeg) =>
 
           if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
-            log.debug("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
-            log.debug("DrivingInterrupted.StopDriving with leg: " + data.passengerSchedule.schedule(currentLeg))
+            log.error("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
+            log.error("DrivingInterrupted.StopDriving with leg: " + data.passengerSchedule)
             DebugLib.emptyFunctionForSettingBreakPoint()
+
           }
-          assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
+
+            assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
           data.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
               // If no manager is set, we ignore
@@ -141,6 +144,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case Event(Resume(), _) =>
       goto(Driving)
     case Event(TriggerWithId(EndLegTrigger(_), _), _) =>
+      stash()
+      stay
+    case Event(Interrupt(_,_), _) =>
       stash()
       stay
   }
