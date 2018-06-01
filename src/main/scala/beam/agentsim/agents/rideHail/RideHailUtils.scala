@@ -1,11 +1,12 @@
 package beam.agentsim.agents.rideHail
 
+import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.BeamServices
 import beam.utils.DebugLib
-import com.conveyal.r5.streets.EdgeStore
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.control.Breaks._
 
@@ -14,27 +15,42 @@ object RideHailUtils {
 def getUpdatedBeamLegAfterStopDriving(originalBeamLeg: BeamLeg, stopTime:Double, transportNetwork: TransportNetwork, beamServices: BeamServices): BeamLeg = {
 
   //beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
+  if (stopTime >= originalBeamLeg.endTime || stopTime < originalBeamLeg.startTime) return null//throw new Exception("Stop Time should always fall in leg duration.") // TODO: make custom exception
 
-  val pctTravelled=(stopTime-originalBeamLeg.startTime)/(originalBeamLeg.endTime-originalBeamLeg.startTime)
-  val distanceOfNewPath= originalBeamLeg.travelPath.distanceInM*pctTravelled
+  val pctTravelled = (stopTime - originalBeamLeg.startTime) / originalBeamLeg.duration
+  val distanceOfNewPath = originalBeamLeg.travelPath.distanceInM * pctTravelled
 
 
-val updatedLinkIds=originalBeamLeg.travelPath.linkIds
-  val updatedEndPoint=originalBeamLeg.travelPath.endPoint
-  val updatedDistanceInMeters=originalBeamLeg.travelPath.distanceInM
+  var updatedLinkIds: Vector[Int] = Vector(originalBeamLeg.travelPath.linkIds.head)
+  val updatedEndPoint = originalBeamLeg.travelPath.endPoint
+  val updatedDistanceInMeters = originalBeamLeg.travelPath.distanceInM
 
-  var distanceTravelled=0
-  var resultCoord=originalBeamLeg.travelPath.endPoint.loc
-  if (stopTime<originalBeamLeg.endTime) {
-    for (linkId <- originalBeamLeg.travelPath.linkIds) {
-      val linkEndTime=0//currentTime + getTravelTimeEstimate(currentTime, linkId)
+  var resultCoord = originalBeamLeg.travelPath.endPoint.loc
+
+  var linkIds = updatedLinkIds
+  if (stopTime < originalBeamLeg.endTime) {
+    for (linkId <- originalBeamLeg.travelPath.linkIds.tail) {
+      linkIds = linkIds :+ linkId
+      val duration = getDuration(originalBeamLeg.updateLinks(linkIds))
+
       breakable {
-        if (stopTime < linkEndTime) {
-          resultCoord=getR5EdgeCoord(linkId,transportNetwork)
+        if (distanceOfNewPath < duration) {
+          resultCoord = getR5EdgeCoord(linkId, transportNetwork)
           break
+        } else {
+          updatedLinkIds = linkIds
         }
       }
     }
+  }
+
+  def getDuration(leg: BeamLeg) = {
+    val travelTime = (time: Long, linkId: Int) => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(originalBeamLeg.mode.r5Mode.get.left.get.toString))).toLong
+    }
+
+    RoutingModel.traverseStreetLeg(leg, Id.createVehicleId(1), travelTime).map(e => e.getTime).max - leg.startTime
   }
 
 
@@ -44,7 +60,8 @@ val updatedLinkIds=originalBeamLeg.travelPath.linkIds
   //transportNetwork.streetLayer.edgeStore.get .getCursor(linkId).get
 
   DebugLib.emptyFunctionForSettingBreakPoint()
-  originalBeamLeg.copy(duration = updatedDuration,travelPath = updatedTravelPath)
+  val newLeg = originalBeamLeg.copy(duration = updatedDuration,travelPath = updatedTravelPath)
+  newLeg
 }
 
   // TODO: move to geoutils?
