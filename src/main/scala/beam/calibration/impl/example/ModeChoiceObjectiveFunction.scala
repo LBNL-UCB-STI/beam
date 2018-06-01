@@ -4,7 +4,7 @@ import java.net.URI
 import java.nio.file.Paths
 
 import beam.analysis.plots.ModeChosenStats
-import beam.calibration.api.ObjectiveFunction
+import beam.calibration.api.FileBasedObjectiveFunction
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
 import beam.utils.FileUtils
 import io.circe._
@@ -16,7 +16,7 @@ import scala.io.Source
 import scala.util.Try
 
 
-class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends ObjectiveFunction {
+class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends FileBasedObjectiveFunction(benchmarkDataFileLoc) {
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 
