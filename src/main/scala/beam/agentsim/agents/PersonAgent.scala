@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.rideHail.RideHailUtils
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -274,8 +275,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * of activity
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
+//  val r = scala.util.Random
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::_,currentVehicle,_,_,_,_,_)) if nextLeg.asDriver =>
+//      RideHailUtils.getUpdatedBeamLegAfterStopDriving(nextLeg.beamLeg, nextLeg.beamLeg.endTime-(700+r.nextInt(300)), transportNetwork, beamServices)
       val (tick, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
       goto(WaitingToDrive) using data.copy(
