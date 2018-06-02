@@ -240,10 +240,11 @@ trait ChoosesMode {
 
       val personalVehicleUsed = data.availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip).headOption
 
-      var availablePersonalStreetVehicles = data.availablePersonalStreetVehicles
-      if (personalVehicleUsed.nonEmpty) {
-        availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed.get)
+      val availablePersonalStreetVehicles = if (personalVehicleUsed.nonEmpty) {
+        data.availablePersonalStreetVehicles.filterNot(_.id == personalVehicleUsed.get)
       }
+      else data.availablePersonalStreetVehicles
+
       availablePersonalStreetVehicles.foreach { veh =>
         context.parent ! ReleaseVehicleReservation(id, veh.id)
         context.parent ! CheckInResource(veh.id, None)

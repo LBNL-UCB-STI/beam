@@ -1,12 +1,12 @@
 package beam.sim
 
 import javax.inject.Inject
-
 import beam.replanning.SwitchModalityStyle
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.controler.PrepareForSim
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
@@ -18,7 +18,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   private def keepOnlyActivities(): Unit = {
     scenario.getPopulation.getPersons.values().forEach(person => {
-      var cleanedPlans: Vector[Plan] = Vector()
+      val cleanedPlans: ArrayBuffer[Plan] = ArrayBuffer()
       person.getPlans.forEach(plan => {
         val cleanedPlan = scenario.getPopulation.getFactory.createPlan()
         plan.getPlanElements.forEach {
@@ -27,7 +27,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
           case _ => // don't care for legs just now
         }
         cleanedPlan.setScore(null)
-        cleanedPlans = cleanedPlans :+ cleanedPlan
+        cleanedPlans += cleanedPlan
       })
       person.setSelectedPlan(null)
       person.getPlans.clear()

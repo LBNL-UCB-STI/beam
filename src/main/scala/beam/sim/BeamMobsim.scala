@@ -14,7 +14,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
-import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds}
+import beam.agentsim.agents.rideHail.RideHailingManager.NotifyIterationEnds
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -27,7 +27,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.utils.{DebugLib, DebugActorWithTimer, Tick}
+import beam.utils.{DebugActorWithTimer, DebugLib, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -43,6 +43,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -52,9 +53,9 @@ import scala.concurrent.duration._
   * Created by sfeygin on 2/8/17.
   */
 class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging with MetricsSupport {
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var rideHailingAgents: Seq[ActorRef] = Nil
+  val rideHailingAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
   var debugActorWithTimerActorRef:ActorRef=_
   var debugActorWithTimerCancellable:Cancellable=_
@@ -87,7 +88,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   }
 
 
-  override def run() = {
+  override def run(): Unit = {
     logger.info("Starting Iteration")
     startMeasuringIteration(beamServices.iterationNumber)
 //    val iterationTrace = Kamon.tracer.newContext("iteration", Some("iteration"+beamServices.iterationNumber), Map("it-num"->(""+beamServices.iterationNumber)))
@@ -173,7 +174,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
         context.watch(rideHailingAgentRef)
         scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
-        rideHailingAgents :+= rideHailingAgentRef
+        rideHailingAgents += rideHailingAgentRef
       }
 
       log.info(s"Initialized ${beamServices.personRefs.size} people")
@@ -189,8 +190,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         import system.dispatcher
 
         val cancellable=system.scheduler.schedule(
-          0 milliseconds,
-          timeoutInSeconds*1000 milliseconds,
+          0.milliseconds,
+          (timeoutInSeconds*1000).milliseconds,
           memoryLoggingTimerActorRef,
           Tick)
 
@@ -199,7 +200,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
 
 
-      override def receive = {
+      override def receive: PartialFunction[Any, Unit] = {
 
         case CompletionNotice(_, _) =>
           log.info("Scheduler is finished.")
@@ -250,7 +251,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       private def cleanupRideHailingAgents(): Unit = {
         rideHailingAgents.foreach(_ ! Finish)
-        rideHailingAgents = Nil
+        rideHailingAgents.clear()
       }
 
       private def cleanupVehicle(): Unit = {
