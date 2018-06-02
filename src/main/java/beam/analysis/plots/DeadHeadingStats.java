@@ -90,6 +90,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
+    Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
 
     private void processDeadHeading(Event event) {
 
@@ -119,7 +120,75 @@ public class DeadHeadingStats implements IGraphStats {
              4. Put the three types of events into the three categories repositioning, 0 and 1 category
              5. Display them on the graph
             */
-            updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+            //updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+
+            if(_num_passengers > 0){
+                Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
+
+                if(vehicleData == null){
+                    updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+
+                }else{
+
+                    List<Event> vehicleHourData = vehicleData.get(hour);
+
+                    if(vehicleHourData == null) {
+
+                        updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+
+                    }else if(vehicleHourData.size() == 1){
+
+                        Event oldEvent = vehicleHourData.get(0);
+                        Integer _num_passengers2 = getPathTraversalEventNumOfPassengers(oldEvent);
+
+                        updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers2);
+
+
+
+                        updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+
+
+                        vehicleData.remove(hour);
+                    }else if(vehicleHourData.size() > 1){
+
+                        for(int i = 0; i < vehicleHourData.size() - 1; i++){
+
+                            Event oldEvent = vehicleHourData.get(i);
+                            Integer _num_passengers2 = getPathTraversalEventNumOfPassengers(oldEvent);
+
+                            updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers2);
+
+                        }
+
+                        Event oldEvent = vehicleHourData.get(vehicleHourData.size() - 1);
+                        Integer _num_passengers2 = getPathTraversalEventNumOfPassengers(oldEvent);
+
+                        updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers2);
+
+
+                        updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
+
+
+                        vehicleData.remove(hour);
+                    }
+                }
+            }else{
+
+                Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
+                if(vehicleData == null) {
+                    vehicleData = new HashMap<>();
+                }
+
+                List<Event> eventsList = vehicleData.get(hour);
+
+                if(eventsList == null){
+                    eventsList = new ArrayList<>();
+                }
+
+                eventsList.add(event);
+                vehicleData.put(hour, eventsList);
+                vehicleEventsCache.put(vehicle_id, vehicleData);
+            }
         }
     }
 
@@ -414,9 +483,13 @@ public class DeadHeadingStats implements IGraphStats {
         }
         double dataset[][] = null;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC) || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
-            dataset = new double[maxPassengers + 1][maxHour + 1];
-            for (int i = 0; i <= maxPassengers; i++) {
-                dataset[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i);
+
+            int dataSetLength = maxPassengers + 2;
+            dataset = new double[dataSetLength][maxHour + 1];
+            dataset[0] = getModeOccurrencePerHourAgainstMode(data, maxHour, -1);
+
+            for (int i = 1; i <= maxPassengers; i++) {
+                dataset[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i-1);
             }
         } else {
 
