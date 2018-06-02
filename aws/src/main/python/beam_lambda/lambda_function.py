@@ -60,6 +60,8 @@ runcmd:
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
+  - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
+  - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
   - s3p=""
   - for cf in $CONFIG
@@ -193,6 +195,8 @@ def deploy_handler(event):
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
     region = event.get('region', os.environ['REGION'])
     shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
+    sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
+    sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
 
     if instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
@@ -232,7 +236,7 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
