@@ -83,6 +83,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      log.debug(s"updating Passenger schedule - vehicleId($id): $updatedPassengerSchedule")
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
       goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule,vehicle.id)
     case Event(Resume(), _) =>
