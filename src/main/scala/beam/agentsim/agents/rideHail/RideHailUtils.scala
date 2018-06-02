@@ -15,7 +15,9 @@ object RideHailUtils {
   def getUpdatedBeamLegAfterStopDriving(originalBeamLeg: BeamLeg, stopTime: Double, transportNetwork: TransportNetwork, beamServices: BeamServices): BeamLeg = {
 
     //beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
-    if (stopTime >= originalBeamLeg.endTime || stopTime < originalBeamLeg.startTime) return null //throw new Exception("Stop Time should always fall in leg duration.") // TODO: make custom exception
+
+
+    if (stopTime < originalBeamLeg.startTime || stopTime >= originalBeamLeg.endTime) return originalBeamLeg //throw new Exception("Stop Time should always fall in leg duration.") // TODO: make custom exception
 
     val pctTravelled = (stopTime - originalBeamLeg.startTime) / originalBeamLeg.duration
     val distanceOfNewPath = originalBeamLeg.travelPath.distanceInM * pctTravelled
@@ -28,18 +30,16 @@ object RideHailUtils {
     var resultCoord = originalBeamLeg.travelPath.endPoint.loc
 
     var linkIds = updatedLinkIds
-    if (stopTime < originalBeamLeg.endTime) {
-      for (linkId <- originalBeamLeg.travelPath.linkIds.tail) {
-        linkIds = linkIds :+ linkId
-        val duration = getDuration(originalBeamLeg.updateLinks(linkIds))
+    for (linkId <- originalBeamLeg.travelPath.linkIds.tail) {
+      linkIds = linkIds :+ linkId
+      val duration = getDuration(originalBeamLeg.updateLinks(linkIds))
 
-        breakable {
-          if (distanceOfNewPath < duration) {
-            resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
-            break
-          } else {
-            updatedLinkIds = linkIds
-          }
+      breakable {
+        if (distanceOfNewPath < duration) {
+          resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
+          break
+        } else {
+          updatedLinkIds = linkIds
         }
       }
     }
