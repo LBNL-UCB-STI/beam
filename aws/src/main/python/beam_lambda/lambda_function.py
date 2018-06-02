@@ -51,11 +51,11 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - git fetch
   - echo "git checkout ..."
-  - GIT_LFS_SKIP_SMUDGE=1 git checkout $BRANCH
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - echo "git checkout -qf ..."
-  - GIT_LFS_SKIP_SMUDGE=1 git checkout -qf $COMMIT
-  - git pull
-  - git lfs pull
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+  - sudo git pull
+  - sudo git lfs pull
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
