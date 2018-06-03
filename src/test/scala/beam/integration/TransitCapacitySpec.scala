@@ -20,10 +20,7 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with BeamHelper wit
           .withValue("beam.agentsim.tuning.transitCapacity", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
-      val tc = modeChoice
-        .map(_.get("transit"))
-        .filter(_.isDefined)
-        .map(_.get)
+      val tc: Seq[Int] = modeChoice.flatMap(_.get("transit"))
 
       isOrdered(tc)((a, b) => a <= b) shouldBe true
     }

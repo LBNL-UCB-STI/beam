@@ -20,10 +20,7 @@ class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with Inte
           .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
-      val tc = modeChoice
-        .map(_.get("car"))
-        .filter(_.isDefined)
-        .map(_.get)
+      val tc: Seq[Int] = modeChoice.flatMap(_.get("car"))
 
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
