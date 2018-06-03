@@ -144,7 +144,7 @@ class RideHailingManager(
 
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[Id[RideHailingInquiry],
     ReservationResponse]()
-  private var lockedVehicles = Set[Id[Vehicle]]()
+  private val lockedVehicles = mutable.HashSet[Id[Vehicle]]()
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
