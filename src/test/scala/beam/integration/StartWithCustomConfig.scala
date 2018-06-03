@@ -21,5 +21,5 @@ class StartWithCustomConfig(val config: Config) extends
 
   val groupedCount = listValueTagEventFile
     .groupBy(s => s)
-    .map { case (k, v) => (k, v.size) }
+    .mapValues(_.size)
 }
