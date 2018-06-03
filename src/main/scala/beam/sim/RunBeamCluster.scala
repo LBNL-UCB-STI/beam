@@ -2,19 +2,11 @@ package beam.sim
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
-import akka.serialization.SerializationExtension
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.RouteFrontend
-import beam.utils.{RoutingRequestResponseStats, RoutingRequestSenderCounter, Statistics}
-import com.esotericsoftware.kryo.serializers.DefaultSerializers.KryoSerializableSerializer
-import com.romix.akka.serialization.kryo.{KryoSerialization, KryoSerializationExtension}
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
-
-import scala.collection.mutable
-import scala.util.{Failure, Success}
-import scala.concurrent.duration._
 
 
 object RunBeamCluster extends BeamHelper with App {

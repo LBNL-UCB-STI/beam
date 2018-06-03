@@ -37,10 +37,10 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
-
 import scala.concurrent.duration._
 
 
@@ -81,9 +81,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[Id[RideHailingInquiry],
     ReservationResponse]()
-  private var lockedVehicles = Set[Id[Vehicle]]()
+  private val lockedVehicles = mutable.HashSet[Id[Vehicle]]()
 
-  val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(scala.concurrent.ExecutionContext.Implicits.global)
+  // val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(scala.concurrent.ExecutionContext.Implicits.global)
 
 
   override def receive: Receive = {

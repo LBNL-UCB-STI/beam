@@ -13,6 +13,7 @@ object RoutingRequestResponseStats {
   private val routeCalcTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
   def add(resp: RoutingResponse): Unit = {
+    return;
     val fullTime = ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
     fullTimes.synchronized {
       fullTimes += fullTime

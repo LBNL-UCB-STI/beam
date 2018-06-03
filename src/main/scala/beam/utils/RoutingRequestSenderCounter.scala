@@ -12,7 +12,6 @@ object RoutingRequestSenderCounter {
   private val obj: Object = new Object
 
   def sent(): Unit = {
-    Kamon.counter("sending-routing-requests")
     obj.synchronized {
       if (startTime.isEmpty)
         startTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
