@@ -49,11 +49,7 @@ class ReadEventsBeam extends ReadEvents{
       eventType.forall(_.equals(event.getEventType)) &&
         mkeyValue.forall({ case (k, v) => attributes.get(k).exists(_.contains(v)) })
     }
-    filteredEvents
-      .map(_.getAttributes.asScala.get(tagToReturn))
-      .filter(_.isDefined)
-      .map(_.get)
-
+    filteredEvents.flatMap(_.getAttributes.asScala.get(tagToReturn))
   }
 
 
