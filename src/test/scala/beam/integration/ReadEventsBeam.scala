@@ -46,9 +46,8 @@ class ReadEventsBeam extends ReadEvents{
     val events = basicEventHandler.events
     val filteredEvents = events.filter { event =>
       val attributes = event.getAttributes.asScala
-      eventType.map(_.equals(event.getEventType)).getOrElse(true) &&
-        mkeyValue.map{case (key, value) => attributes.get(key).filter(_.contains(value)).isDefined}.getOrElse(true)
-
+      eventType.forall(_.equals(event.getEventType)) &&
+        mkeyValue.forall({ case (k, v) => attributes.get(k).exists(_.contains(v)) })
     }
     filteredEvents
       .map(_.getAttributes.asScala.get(tagToReturn))
