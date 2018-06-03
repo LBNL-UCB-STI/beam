@@ -70,7 +70,7 @@ class ReadEventsBeam extends ReadEvents{
         mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
-    filteredEvents.map( f =>(f.getAttributes.asScala(tagToReturn) ,f.getAttributes.asScala(tagTwoToReturn) ))
+    filteredEvents.map(f => (f.getAttributes.asScala(tagToReturn), f.getAttributes.asScala(tagTwoToReturn)))
   }
 
   def getLinesFrom(file: File): String = {
