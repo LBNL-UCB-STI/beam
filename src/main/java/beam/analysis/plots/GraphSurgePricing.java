@@ -528,24 +528,14 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
     private void writeRevenueCsv(double[] revenueDataSet) {
 
-        try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)));
-
-            for (int i = 0; i < numberOfTimeBins; i++) {
-                out.write("bin_" + i);
-                out.write(",");
-            }
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)))) {
+            out.write(binsHeaderCsv());
             out.newLine();
 
-            for (double revenue : revenueDataSet) {
-                out.write(revenue + "");
-                out.write(",");
-            }
+            toDoubleCsv(revenueDataSet);
             out.newLine();
 
             out.flush();
-            out.close();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
