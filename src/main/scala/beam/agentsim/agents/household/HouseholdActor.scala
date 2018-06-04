@@ -175,7 +175,7 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
+      case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere, passengerSchedule) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
