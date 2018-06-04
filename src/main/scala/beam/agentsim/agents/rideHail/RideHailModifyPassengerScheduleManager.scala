@@ -190,7 +190,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     if (!triggersToSchedule.isEmpty) {
       val vehicleId: Id[Vehicle] = Id.create(triggersToSchedule.head.agent.path.name.replace("rideHailAgent", "rideHailVehicle"), classOf[Vehicle])
       val vehicles = getWithVehicleIds(vehicleId)
-      assert(vehicles.size <= 2, "more rideHailVehicle interruptions in process than should be possible")
+      assert(vehicles.size <= 2, s"more rideHailVehicle interruptions in process than should be possible: $vehicleId")
 
       if (vehicles.size > 1 && !vehicles.filter(x => x.interruptOrigin == InterruptOrigin.RESERVATION).isEmpty) {
         // this means there is a race condition between a repositioning and reservation message and we should remove the reposition/not process it further
@@ -247,59 +247,72 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     getWithVehicleIds(vehicleId).filter(_.interruptOrigin == InterruptOrigin.RESERVATION).isEmpty
   }
 
-  def checkInResource(vehicleId: Id[Vehicle], availableIn: Option[SpaceTime]): Unit = {
-    var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
-    var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
-    log.debug("BEFORE checkin.removeWithVehicleId(" + rideHailModifyPassengerScheduleStatusSet.size + "):" + rideHailModifyPassengerScheduleStatusSet)
-    rideHailModifyPassengerScheduleStatusSet.foreach {
-      rideHailModifyPassengerScheduleStatus =>
-
-        if (rideHailModifyPassengerScheduleStatus.status == InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT) {
-          deleteItems += rideHailModifyPassengerScheduleStatus
-        }
-    }
-
-    // ====remove correct status message===
-    if (deleteItems.size > 1) {
-      // this means that multiple MODIFY_PASSENGER_SCHEDULE_SENT outstanding and we need to keep them in order
-      deleteItems = deleteItems.splitAt(1)._1
-    }
+  def checkInResource(vehicleId: Id[Vehicle], availableIn: Option[SpaceTime],passengerSchedule:Option[PassengerSchedule]): Unit = {
+    passengerSchedule match {
+      case Some (passengerSchedule) =>
 
 
-
-    deleteItems.foreach { status =>
-      if (availableIn.get.time > 0) {
-        val beamLeg=status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.head._1
-        val endTime=beamLeg.endTime
-
-        if (availableIn.get.time!=endTime && status.interruptOrigin==InterruptOrigin.RESERVATION){
-            // ignore, because this checkin is for a reposition and not the current Reservation
-          log.debug("checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn)
-
-          DebugLib.emptyFunctionForSettingBreakPoint()
-        } else {
-          interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
-
-          vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, rideHailModifyPassengerScheduleStatusSet diff deleteItems)
-          rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
-          if (rideHailModifyPassengerScheduleStatusSet.size == 0) {
-            resourcesNotCheckedIn_onlyForDebugging.remove(vehicleId)
-          }
+        var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
+        var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
+        log.debug(s"BEFORE checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
 
 
-          // only something new, if all undefined (no pending query)
-          // TODO: double check if the following code will ever be executed as we are not buffering anymore resp. is it really needed and not handled somewhere else
-          if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.filter(_.status == InterruptMessageStatus.UNDEFINED).size == rideHailModifyPassengerScheduleStatusSet.size) {
-            sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
+        rideHailModifyPassengerScheduleStatusSet.foreach{ status =>
+          if (status.modifyPassengerSchedule.updatedPassengerSchedule==passengerSchedule){
+            assert(status.status == InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT)
+            deleteItems += status
           }
         }
 
+        assert(deleteItems.size<=1,s"checkin: for $vehicleId the passenger schedule is ambigious and cannot be deleted")
 
-      }
+        // ====remove correct status message===
+        if (deleteItems.size > 1) {
+          // this means that multiple MODIFY_PASSENGER_SCHEDULE_SENT outstanding and we need to keep them in order
+          deleteItems = deleteItems.splitAt(1)._1
+        }
+
+        deleteItems.foreach { status =>
+          if (availableIn.get.time > 0) {
+            val beamLeg=status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.head._1
+            val endTime=beamLeg.endTime
+
+            if (availableIn.get.time!=endTime && status.interruptOrigin==InterruptOrigin.RESERVATION){
+              // ignore, because this checkin is for a reposition and not the current Reservation
+              log.debug("checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn)
+
+              DebugLib.emptyFunctionForSettingBreakPoint()
+            } else {
+              interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
+
+              vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, rideHailModifyPassengerScheduleStatusSet diff deleteItems)
+              rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
+              if (rideHailModifyPassengerScheduleStatusSet.size == 0) {
+                resourcesNotCheckedIn_onlyForDebugging.remove(vehicleId)
+              }
+
+
+              // only something new, if all undefined (no pending query)
+              // TODO: double check if the following code will ever be executed as we are not buffering anymore resp. is it really needed and not handled somewhere else
+              if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.filter(_.status == InterruptMessageStatus.UNDEFINED).size == rideHailModifyPassengerScheduleStatusSet.size) {
+                sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
+              }
+            }
+
+
+          }
+        }
+
+
+        log.debug(s"AFTER checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
+
+      case None =>
+        log.debug(s"checkin: $vehicleId with empty passenger schedule")
     }
 
 
-    log.debug("AFTER checkin.removeWithVehicleId(" + rideHailModifyPassengerScheduleStatusSet.size + "):" + getWithVehicleIds(vehicleId))
+
+
   }
 
 }

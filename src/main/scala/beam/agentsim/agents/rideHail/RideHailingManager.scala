@@ -147,7 +147,7 @@ class RideHailingManager(
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
-    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere) =>
+    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule) =>
       updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
 
       resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
@@ -156,7 +156,7 @@ class RideHailingManager(
           // we still might have some ongoing resrvation in going on
           makeAvailable(rideHailingAgentLocation)
         }
-        modifyPassengerScheduleManager.checkInResource(vehicleId, Some(whenWhere))
+        modifyPassengerScheduleManager.checkInResource(vehicleId, Some(whenWhere),Some(passengerSchedule))
         driver ! GetBeamVehicleFuelLevel
       })
 
@@ -184,7 +184,7 @@ class RideHailingManager(
         }
         sender ! CheckInSuccess
         log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + whenWhere.get.time + ")")
-        modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere)
+        modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere,None)
         driver ! GetBeamVehicleFuelLevel
       })
 

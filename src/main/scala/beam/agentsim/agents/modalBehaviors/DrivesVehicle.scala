@@ -61,7 +61,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           // If no manager is set, we ignore
           data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
             case Some(currentLeg) =>
-              beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
+              beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),data.passengerSchedule))
               beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -107,8 +107,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case Some(currentLeg) =>
 
           if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
-            log.error("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
-            log.error("DrivingInterrupted.StopDriving with leg: " + data.passengerSchedule)
+            log.error("DrivingInterrupted.StopDriving.Vehicle: " + data.currentVehicle.head)
+            log.error("DrivingInterrupted.StopDriving.PassengerSchedule: " + data.passengerSchedule)
+            //DebugLib.whileTrue()
             DebugLib.emptyFunctionForSettingBreakPoint()
 
           }
@@ -126,7 +127,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
               //val updatedBeamLeg=RideHailUtils.getUpdatedBeamLegAfterStopDriving(currentLeg,stopTick,transportNetwork,beamServices)
 
 
-              beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (currentLeg.travelPath.endPoint) ) )
+              beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (currentLeg.travelPath.endPoint) ,data.passengerSchedule) )
 
               eventsManager.processEvent(new VehicleLeavesTrafficEvent(stopTick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent (new PathTraversalEvent (stopTick, currentVehicleUnderControl,
