@@ -31,12 +31,29 @@ lambda {
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if (!project.hasProperty('runName')) {
+        if(!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
-        if (!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.configs') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
-            throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+        switch (project.findProperty('deployMode')) {
+            case 'config':
+                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                    throw new GradleException('beamConfigs is required to deploy config run.')
+                }
+                break
+            case 'experiment':
+                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                    throw new GradleException('beamExperiments is required to deploy experement.')
+                }
+                break
+            case 'execute':
+                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                    throw new GradleException('executeClass and executeArgs are required to deploy execute.')
+                }
+                break
+            default:
+                throw new GradleException('Please provide a valid deployMode.')
+                break
         }
     }
 
@@ -44,12 +61,11 @@ task deploy(type: AWSLambdaInvokeTask) {
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
-  "configs": "${
-        project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.configs') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
-    }",
-  "is_experiment": "${
-        !(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch() + '.configs'))
-    }",
+  "deploy_mode": "${project.findProperty('deployMode')}",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
+  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "execute_class": "${project.findProperty('executeClass')}",
+  "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
@@ -65,7 +81,8 @@ task deploy(type: AWSLambdaInvokeTask) {
     payload = pload
 
     doLast {
-        printResult(pload, invokeResult)
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
 
