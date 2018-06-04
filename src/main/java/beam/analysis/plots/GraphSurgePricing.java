@@ -210,13 +210,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             data = new HashMap<>();
             data.put(binNumber, 1);
         } else {
-
-            Integer frequency = data.get(binNumber);
-            if (frequency == null) {
-                data.put(binNumber, 1);
-            } else {
-                data.put(binNumber, frequency + 1);
-            }
+            data.merge(binNumber, 1, (a, b) -> a + b);
         }
 
         transformedBins.put(roundedPrice, data);
