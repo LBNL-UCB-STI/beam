@@ -176,10 +176,11 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       })
       val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
-      events.foreach {
+      events foreach {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
+        case _ => /* ignore */
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
       val filteredEventsByPerson = eventsByPerson.filter {
