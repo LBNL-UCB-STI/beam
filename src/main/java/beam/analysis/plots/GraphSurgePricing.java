@@ -404,21 +404,9 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     }
 
     private void writePriceSurgeCsv(double[][] dataset, List<String> categoriesList, boolean categorize) {
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingCsvFileName)))) {
 
-
-        String fileName = surgePricingCsvFileName;
-
-
-        try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
-            //BufferedWriter out = writer.getBufferedWriter();
-            out.write("Categories");
-            out.write(",");
-
-            for (int i = 0; i < dataset[0].length; i++) {
-                out.write("bin_" + i);
-                out.write(",");
-            }
+            out.write("Categories," + binsHeaderCsv());
             out.newLine();
 
             if (categorize) {
@@ -428,41 +416,25 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
                 for (int j = 0; j < categoriesList.size(); j++) {
                     double category = Double.parseDouble(categoriesList.get(j));
-                    String strFormat = "";
+                    String strFormat = category + "-";
                     if (diff == category) {
-                        strFormat = category + "-" + diff;
+                        strFormat += diff;
                     } else if (j + 1 == categoriesList.size()) {
-                        strFormat = category + "-" + (category + diff);
+                        strFormat += (category + diff);
                     } else {
-                        strFormat = category + "-" + categoriesList.get(j + 1);
+                        strFormat += categoriesList.get(j + 1);
                     }
-                    out.write(strFormat);
-                    out.write(",");
-
-                    for (int i = 0; i < dataset[j].length; i++) {
-                        out.write(dataset[j][i] + "");
-                        out.write(",");
-                    }
+                    out.write(strFormat + "," + toDoubleCsv(dataset[j]));
                     out.newLine();
                 }
             } else {
-
                 for (int j = 0; j < categoriesList.size(); j++) {
-                    double category = Double.parseDouble(categoriesList.get(j));
-
-                    out.write(categoriesList.get(j));
-                    out.write(",");
-
-                    for (int i = 0; i < dataset[j].length; i++) {
-                        out.write(dataset[j][i] + "");
-                        out.write(",");
-                    }
+                    out.write(categoriesList.get(j) + "," + toDoubleCsv(dataset[j]));
                     out.newLine();
                 }
             }
 
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
