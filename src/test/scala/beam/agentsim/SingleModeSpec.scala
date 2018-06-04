@@ -90,7 +90,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
     "let everybody walk when their plan says so" in {
       scenario.getPopulation.getPersons.values().forEach(person => {
         person.getSelectedPlan.getPlanElements.asScala.collect {
-          case (leg : Leg) =>
+          case leg: Leg =>
             leg.setMode("walk")
         }
       })
@@ -116,7 +116,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
     "let everybody take transit when their plan says so" in {
       scenario.getPopulation.getPersons.values().forEach(person => {
         person.getSelectedPlan.getPlanElements.asScala.collect {
-          case (leg : Leg) =>
+          case leg: Leg =>
             leg.setMode("walk_transit")
         }
       })
@@ -144,22 +144,22 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       // but not for individual legs except the first one.
       // We want to make sure that our car is returned home.
       scenario.getPopulation.getPersons.values().forEach(person => {
-        val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-          case (activity: Activity) if activity.getType == "Home" =>
+        val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.flatMap {
+          case activity: Activity if activity.getType == "Home" =>
             Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-          case (activity: Activity) =>
+          case activity: Activity =>
             Seq(activity)
-          case (leg: Leg) =>
+          case leg: Leg =>
             Nil
-        }.flatten
+        }
         if (newPlanElements.last.isInstanceOf[Leg]) {
           newPlanElements.remove(newPlanElements.size-1)
         }
         person.getSelectedPlan.getPlanElements.clear()
         newPlanElements.foreach {
-          case (activity: Activity) =>
+          case activity: Activity =>
             person.getSelectedPlan.addActivity(activity)
-          case (leg: Leg) =>
+          case leg: Leg =>
             person.getSelectedPlan.addLeg(leg)
         }
       })
@@ -176,10 +176,11 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       })
       val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
-      events.collect {
+      events foreach {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
+        case _ => /* ignore */
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
       val filteredEventsByPerson = eventsByPerson.filter {

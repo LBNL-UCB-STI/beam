@@ -19,20 +19,7 @@ class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with 
           .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
-      val tc = modeChoice
-        .map(_.get("ride_hailing"))
-        .filter(_.isDefined)
-        .map(_.get)
-
-      //      val z1 = tc.drop(1)
-      //      val z2 = tc.dropRight(1)
-      //      val zip = z2 zip z1
-
-      //      println("Transit")
-      //      println(tc)
-      //      println(z1)
-      //      println(z2)
-      //      println(zip)
+      val tc: Seq[Int] = modeChoice.flatMap(_.get("ride_hailing"))
 
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }

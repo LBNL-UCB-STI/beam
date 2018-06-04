@@ -20,11 +20,8 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
           .withValue("beam.agentsim.agents.rideHailing.defaultCostPerMile", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
-      val tc = modeChoice
-        .map(_.get("ride_hailing"))
-        .filter(_.isDefined)
-        .map(_.get)
-      
+      val tc: Seq[Int] = modeChoice.flatMap(_.get("ride_hailing"))
+
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
