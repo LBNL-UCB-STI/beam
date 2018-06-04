@@ -32,10 +32,10 @@ object RideHailUtils {
     var linkIds = updatedLinkIds
     for (linkId <- originalBeamLeg.travelPath.linkIds.tail) {
       linkIds = linkIds :+ linkId
-      val duration = getDuration(originalBeamLeg.updateLinks(linkIds))
+      val distance = getDistance(linkIds, transportNetwork)
 
       breakable {
-        if (distanceOfNewPath < duration) {
+        if (distanceOfNewPath < distance) {
           resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
           break
         } else {
@@ -44,14 +44,6 @@ object RideHailUtils {
       }
     }
 
-    def getDuration(leg: BeamLeg) = {
-      val travelTime = (time: Long, linkId: Int) => {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(originalBeamLeg.mode.r5Mode.get.left.get.toString))).toLong
-      }
-
-      RoutingModel.traverseStreetLeg(leg, Id.createVehicleId(1), travelTime).map(e => e.getTime).max - leg.startTime
-    }
 
 
     val updatedTravelPath = originalBeamLeg.travelPath.copy(linkIds = updatedLinkIds, endPoint = updatedEndPoint, distanceInM = updatedDistanceInMeters)
@@ -62,6 +54,22 @@ object RideHailUtils {
     DebugLib.emptyFunctionForSettingBreakPoint()
     val newLeg = originalBeamLeg.copy(duration = updatedDuration, travelPath = updatedTravelPath)
     newLeg
+  }
+
+  def getDistance(linkIds: Vector[Int], transportNetwork: TransportNetwork) = {
+    linkIds.map(linkId => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      edge.getLengthM
+    }).sum
+  }
+
+  private def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork) = {
+    val travelTime = (time: Long, linkId: Int) => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
+    }
+
+    RoutingModel.traverseStreetLeg(leg, Id.createVehicleId(1), travelTime).map(e => e.getTime).max - leg.startTime
   }
 
   private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
