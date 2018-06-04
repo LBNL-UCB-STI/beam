@@ -27,6 +27,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.IntStream.range;
 
 
 public class GraphSurgePricing implements ControlerListener, IterationEndsListener {
@@ -401,11 +403,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-
-    public Double getRoundedNumber(Double number) {
-        return Math.round(number * 100.0) / 100.0;
-    }
-
     private void writePriceSurgeCsv(double[][] dataset, List<String> categoriesList, boolean categorize) {
 
 
@@ -554,6 +551,17 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
+    private String toDoubleCsv(double[] numbers) {
+        return Arrays.stream(numbers).mapToObj(Double::toString).collect(joining(","));
+    }
+
+    private String binsHeaderCsv() {
+        return range(0, numberOfTimeBins).mapToObj(i -> "bin_" + i).collect(joining(","));
+    }
+
+    private Double getRoundedNumber(Double number) {
+        return Math.round(number * 100.0) / 100.0;
+    }
 
     private void drawHistogram(double[][] dataset, List<String> categoriesList, boolean categorize) {
 
