@@ -175,6 +175,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       if (numReps > 4) {
         val reason = s"Clearing out ${awaitingResponse.get(awaitingResponse.keySet().first()).size()} stuck agents and proceeding with schedule"
         log.error(reason)
+        // When debugging, use evaulate expression and this to see first stuck agent: awaitingResponse.asMap().firstEntry().getValue.iterator().next().agent.actorCell._actor
         awaitingResponse.get(awaitingResponse.keySet().first()).forEach({ x =>
           x.agent ! IllegalTriggerGoToError("Stuck Agent")
           currentTotalAwaitingResponse = 0

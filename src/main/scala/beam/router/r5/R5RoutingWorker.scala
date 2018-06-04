@@ -127,7 +127,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     profileRequest.fromTime = request.time.fromTime
     profileRequest.toTime = request.time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
-    profileRequest.directModes = util.EnumSet.of(request.directMode)
+    profileRequest.directModes = if(request.directMode==null){ util.EnumSet.noneOf(classOf[LegMode])}else{ util.EnumSet.of(request.directMode) }
     profileRequest.suboptimalMinutes = 0
     if (request.transitModes.nonEmpty) {
       profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
@@ -163,10 +163,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
        * add a vehicle-based trip on the egress portion of the trip (called "mainRouteToVehicle" as opposed to main route
        * to destination).
        *
-       * Note that we don't use the R5 egress concept to accomplish the mainRouteToVehicle pattern because
-       * we want to fix the location of the vehicle, not make it dynamic (this may change when we enable TNC's with transit).
-       * Also note that in both cases, these patterns are only the result of human travelers, we assume AI is fixed to
-       * a vehicle and therefore only needs the simplest of routes.
+       * Or we use the R5 egress concept to accomplish "mainRouteRideHailTransit" pattern we use DRIVE mode on both
+       * access and egress legs. For the other "mainRoute" patterns, we want to fix the location of the vehicle, not
+       * make it dynamic. Also note that in all cases, these patterns are only the result of human travelers, we assume
+       * AI is fixed to a vehicle and therefore only needs the simplest of routes.
        *
        * For the mainRouteFromVehicle pattern, the traveler is using a vehicle within the context of a
        * trip that could be multimodal (e.g. drive to transit) or unimodal (drive only). We don't assume the vehicle is
@@ -174,7 +174,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
        * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
        *
        */
-      val mainRouteFromVehicle = routingRequest.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK
+      // First classify the main route type
+      val mainRouteFromVehicle = routingRequest.streetVehiclesUseIntermodalUse == Access && isRouteForPerson && vehicle.mode != WALK
+      val mainRouteToVehicle = routingRequest.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
+      val mainRouteRideHailTransit = routingRequest.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
+
       val maybeWalkToVehicle: Option[BeamLeg] = if (mainRouteFromVehicle) {
         val time = routingRequest.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
@@ -203,11 +207,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         None
       }
       /*
-       * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesAsAccess == false, and then we
+       * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesUseIntermodalUse == Egress, and then we
        * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
        * after finding the main route from origin to vehicle.
        */
-      val mainRouteToVehicle = !routingRequest.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK
       val maybeUseVehicleOnEgress: Option[BeamLeg] = if (mainRouteToVehicle) {
         // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
         val estimateDurationToGetToVeh: Int = math.round(beamServices.geo.distInMeters(routingRequest.origin, vehicle.location.loc) / 5.8).intValue()
@@ -235,7 +238,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         None
       }
 
-      val theOrigin = if (mainRouteToVehicle) {
+      val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         routingRequest.origin
       } else {
         vehicle.location.loc
@@ -249,11 +252,21 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(theDestination), 10E3)
       val directMode = if (mainRouteToVehicle) {
         LegMode.WALK
+      } else if(mainRouteRideHailTransit) {
+        null
       } else {
         vehicle.mode.r5Mode.get.left.get
       }
-      val accessMode = directMode
-      val egressMode = LegMode.WALK
+      val accessMode = if(mainRouteRideHailTransit) {
+        LegMode.CAR
+      }else{
+        directMode
+      }
+      val egressMode = if(mainRouteRideHailTransit){
+        LegMode.CAR
+      }else{
+        LegMode.WALK
+      }
       val walkToVehicleDuration = maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0l).toInt
       val time = routingRequest.departureTime match {
         case time: DiscreteTime => WindowTime(time.atTime + walkToVehicleDuration, beamServices.beamConfig.beam.routing.r5.departureWindow)

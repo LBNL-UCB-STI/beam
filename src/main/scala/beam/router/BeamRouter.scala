@@ -31,6 +31,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.mobsim.qsim.pt.PassengerAccessEgress
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 
@@ -300,9 +301,15 @@ object BeamRouter {
     * @param departureTime          time in seconds from base midnight
     * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
-    * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
+    * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
+  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode],
+                            streetVehicles: Vector[StreetVehicle], streetVehiclesUseIntermodalUse: IntermodalUse = Access)
+
+  sealed trait IntermodalUse
+  case object Access extends IntermodalUse
+  case object Egress extends IntermodalUse
+  case object AccessAndEgress extends IntermodalUse
 
   /**
     * Message to respond a plan against a particular router request
