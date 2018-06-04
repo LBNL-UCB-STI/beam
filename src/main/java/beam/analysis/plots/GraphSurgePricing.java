@@ -470,57 +470,21 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
     private void writeTazCsv(Map<String, double[][]> dataset) {
 
-        try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)));
-
-            out.write("TazId");
-            out.write(",");
-
-            out.write("DataType");
-            out.write(",");
-
-
-            for (int i = 0; i < numberOfTimeBins; i++) {
-                out.write("bin_" + i);
-                out.write(",");
-            }
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)))) {
+            out.write("TazId,DataType," + binsHeaderCsv());
             out.newLine();
-
 
             for (String tazId : dataset.keySet()) {
                 double[][] data = dataset.get(tazId);
 
-                double[] prices = data[0];
-                double[] revenues = data[1];
-
-                out.write(tazId);
-                out.write(",");
-
-                out.write("pricelevel");
-                out.write(",");
-
-                for (int i = 0; i < numberOfTimeBins; i++) {
-                    out.write(prices[i] + "");
-                    out.write(",");
-                }
+                out.write(tazId + ",pricelevel," + toDoubleCsv(data[0]));
                 out.newLine();
 
-                out.write(tazId);
-                out.write(",");
-
-                out.write("revenue");
-                out.write(",");
-
-                for (int i = 0; i < numberOfTimeBins; i++) {
-                    out.write(revenues[i] + "");
-                    out.write(",");
-                }
+                out.write(tazId + ",revenue," + toDoubleCsv(data[1]));
                 out.newLine();
             }
 
             out.flush();
-            out.close();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
