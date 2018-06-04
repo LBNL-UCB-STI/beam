@@ -1,10 +1,17 @@
 package beam.agentsim.agents.rideHail
 
+import beam.agentsim.infrastructure.TAZTreeMap
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 
-class TNCWaitingTimesCollector(eventsManager: EventsManager) extends BasicEventHandler {
+import scala.util.Try
+
+  class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamConfig) extends BasicEventHandler {
+
+    val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+//    mTazTreeMap.get.getTAZ(1,1).tazId
 
   // TAZ level -> how to get as input here?
   // timeBins -> number OfTimeBins input
@@ -34,6 +41,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager) extends BasicEventH
   }
 
   override def handleEvent(event: Event): Unit = {
-
+print(event)
   }
 }
