@@ -270,10 +270,12 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
         val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, requestCreatedAt = rideHailingAgent2CustomerResponse.requestCreatedAt,
           requestReceivedAt = rideHailingAgent2CustomerResponse.requestReceivedAt, createdAt = rideHailingAgent2CustomerResponse.createdAt,
-          receivedAt = rideHailingAgent2CustomerResponse.receivedAt, requestId = rideHailingAgent2CustomerResponse.requestId)
+          receivedAt = rideHailingAgent2CustomerResponse.receivedAt, id = rideHailingAgent2CustomerResponse.id,
+          requestId = rideHailingAgent2CustomerResponse.requestId)
         val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest,  requestCreatedAt = rideHailing2DestinationResponse.requestCreatedAt,
           requestReceivedAt = rideHailing2DestinationResponse.requestReceivedAt, createdAt = rideHailing2DestinationResponse.createdAt,
-          receivedAt = rideHailing2DestinationResponse.receivedAt, requestId = rideHailing2DestinationResponse.requestId)
+          receivedAt = rideHailing2DestinationResponse.receivedAt,id = rideHailing2DestinationResponse.id,
+          requestId = rideHailing2DestinationResponse.requestId)
 
         val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration
         (customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,

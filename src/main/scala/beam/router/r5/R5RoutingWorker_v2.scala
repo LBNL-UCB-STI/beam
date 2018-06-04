@@ -167,7 +167,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           res.copy(routeCalcTimeMs = stop - start)
       }
       eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse pipeTo(sender)
+      eventualResponse.pipeTo(sender).map { x =>
+        logger.info("Sent RoutingResponse: {}", x.id)
+      }
 
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
@@ -184,11 +186,14 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       }
       val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
 
+      val id = UUID.randomUUID()
       // TODO FIX ME!
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
         requestCreatedAt = createdAt, requestReceivedAt = now, createdAt = ZonedDateTime.now(ZoneOffset.UTC),
+        id = id,
         requestId = UUID.fromString("00000000-0000-0000-0000-000000000000")
       )
+      logger.info("Sent RoutingResponse: {}", id)
   }
 
 
@@ -483,17 +488,21 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         RoutingResponse(embodiedTrips :+ dummyTrip,
           requestCreatedAt = routingRequest.createdAt,
           requestReceivedAt = routingRequest.receivedAt.get,
-          createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC),
+          id = UUID.randomUUID(),
+          requestId = routingRequest.id)
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
           requestReceivedAt = routingRequest.receivedAt.get,
-          createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC),
+          id = UUID.randomUUID(),
+          requestId = routingRequest.id)
       }
     } else {
       RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
         requestReceivedAt = routingRequest.receivedAt.get,
-        createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
+        createdAt = ZonedDateTime.now(ZoneOffset.UTC), id = UUID.randomUUID(), requestId = routingRequest.id)
     }
   }
 

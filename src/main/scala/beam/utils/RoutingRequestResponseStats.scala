@@ -3,16 +3,18 @@ package beam.utils
 import java.time.temporal.ChronoUnit
 
 import beam.router.BeamRouter.RoutingResponse
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
 
-object RoutingRequestResponseStats {
+object RoutingRequestResponseStats extends LazyLogging{
   private val fullTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
   private val requestTravelTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
   private val responseTravelTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
   private val routeCalcTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
   def add(resp: RoutingResponse): Unit = {
+    logger.info(s"Received RoutingResponse: ${resp.id}")
     return;
     val fullTime = ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
     fullTimes.synchronized {
