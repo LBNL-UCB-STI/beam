@@ -42,7 +42,15 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Created by sfeygin on 2/8/17.
   */
-class BeamMobsim @Inject()(val beamServices: BeamServices, val tazTreeMap: TAZTreeMap, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging {
+class BeamMobsim @Inject()(
+  val beamServices: BeamServices,
+  val tazTreeMap: TAZTreeMap,
+  val transportNetwork: TransportNetwork,
+  val scenario: Scenario,
+  val eventsManager: EventsManager,
+  val actorSystem: ActorSystem,
+  val rideHailSurgePricingManager:RideHailSurgePricingManager
+) extends Mobsim with LazyLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var rideHailingAgents: Seq[ActorRef] = Nil
