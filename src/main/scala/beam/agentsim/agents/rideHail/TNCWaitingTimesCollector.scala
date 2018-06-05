@@ -208,8 +208,9 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
     val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
-    if(mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail") && numPassengers > 0){
+    if(vehicleId.contains("rideHail") && vehicleId.contains("person=") && mode.equalsIgnoreCase("car") &&  numPassengers > 0){
       // This means its the rideHailing PathTraversal
+
 
       val personId: String = vehicleId.substring(vehicleId.lastIndexOf("="))
 
