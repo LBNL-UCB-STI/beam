@@ -32,10 +32,11 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
   val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt + 1
 
-  val rideHailModeChoice4Rides = mutable.Map[String, ModeChoiceEvent]()
   val rideHailModeChoice4Waiting = mutable.Map[String, ModeChoiceEvent]()
   val waitingTimeEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   val pathTraversedVehicles = mutable.Map[String, PathTraversalEvent]()
+
+  val rideHailModeChoiceAndPersonEntersEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
 
   val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
 
@@ -79,7 +80,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
       }
       case PersonEntersVehicleEvent.EVENT_TYPE => {
 
-        collectWaitingTimeEvents(event.asInstanceOf[PersonEntersVehicleEvent])
+        collectPersonEntersEvents(event.asInstanceOf[PersonEntersVehicleEvent])
       }
       case PathTraversalEvent.EVENT_TYPE => {
 
@@ -105,108 +106,91 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
       val personId = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       rideHailModeChoice4Waiting.put(personId, event)
-      rideHailModeChoice4Rides.put(personId, event)
     }
   }
 
-  def collectWaitingTimeEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
+  def collectPersonEntersEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
 
     val personId = personEntersVehicleEvent.getPersonId.toString
+    val vehicleId = personEntersVehicleEvent.getVehicleId.toString
 
-    rideHailModeChoice4Waiting.get(personId) match {
-      case Some(e) => {
+    if(vehicleId.contains("rideHail")) {
+      rideHailModeChoice4Waiting.get(personId) match {
+        case Some(e) => {
 
-        waitingTimeEvents.put(personId, (e, personEntersVehicleEvent))
+          rideHailModeChoiceAndPersonEntersEvents.put(vehicleId, (e, personEntersVehicleEvent))
 
-        rideHailModeChoice4Waiting.remove(personId)
+          rideHailModeChoice4Waiting.remove(personId)
+        }
+        case None =>
       }
-      case None =>
     }
   }
 
   def calculateStats(event: PathTraversalEvent): Unit = {
+
+    processPathTraversalEvent(event)
+
     val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
     val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
     val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
-      if (vehicleId.contains("person=") && numPassengers > 0) {
-        val personId = vehicleId.substring(vehicleId.lastIndexOf("=") + 1)
-
-        calculateWaitingTimeStats(personId, event)
-        calculateRideStats(personId, event)
-      }
 
       calculateIdlingVehiclesStats(vehicleId, event)
     }
   }
 
-  def calculateWaitingTimeStats(personId: String, event: PathTraversalEvent): Unit = {
+  def processPathTraversalEvent(event: PathTraversalEvent): Unit = {
 
-    waitingTimeEvents.get(personId) match {
-      case Some(el) => {
+    val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
-        val modeChoiceEvent = el._1
-        val personEntersVehicleEvent = el._2
+    if(numPassengers > 0) {
 
-        val startTime = modeChoiceEvent.getTime
-        val endTime = personEntersVehicleEvent.getTime
-        val waitingTime = endTime - startTime
+      rideHailModeChoiceAndPersonEntersEvents.get(vehicleId) match {
+        case Some(el) => {
 
-        val tazId = getTazId(event)
-        val binIndex = getTimeBin(startTime)
+          val modeChoiceEvent = el._1
+          val personEntersVehicleEvent = el._2
 
-        rideHailStats.get(tazId) match {
-          case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
-            val entry = entries(binIndex)
+          val startTime = modeChoiceEvent.getTime
+          val endTime = personEntersVehicleEvent.getTime
+          val waitingTime = endTime - startTime
 
-            if (entry == null) {
-              entries(binIndex) = RideHailStatsEntry(0, waitingTime, 0)
-            } else {
-              val _entry = entry.copy(sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
-              entries(binIndex) = _entry
+          val binIndex = getTimeBin(startTime)
+
+          val startX = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+          val startY = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+          val tazId = getTazId(startX, startY)
+
+          rideHailStats.get(tazId) match {
+            case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
+              val entry = entries(binIndex)
+
+              if (entry == null) {
+                entries(binIndex) = RideHailStatsEntry(1, waitingTime, 0)
+              } else {
+                val _entry = entry.copy(sumOfRequestedRides = entry.sumOfRequestedRides + 1,
+                  sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
+                entries(binIndex) = _entry
+              }
+            }
+            case None => {
+              val entry = RideHailStatsEntry(1, waitingTime, 0)
+              val buffer = ArrayBuffer[RideHailStatsEntry]()
+              buffer += entry
+              rideHailStats.put(tazId, buffer)
             }
           }
-        }
 
-        waitingTimeEvents.remove(personId)
+          rideHailModeChoiceAndPersonEntersEvents.remove(vehicleId)
+        }
+        case None =>
       }
-      case None =>
     }
   }
 
-  /*
-    Calculating sumOfRides
-    calculateRidesStats
-   */
-  def calculateRideStats(personId: String, pathTraversalEvent: PathTraversalEvent): Unit = {
-
-    rideHailModeChoice4Rides.get(personId) match {
-      case Some(modeChoiceEvent) => {
-
-        System.out.println("PathTraversal Found matching ModeChoice Event " + personId)
-
-        val tazId: String = getTazId(pathTraversalEvent)
-        val binIndex = getTimeBin(modeChoiceEvent.getTime)
-
-        rideHailStats.get(tazId) match {
-          case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
-            val entry = entries(binIndex)
-
-            if (entry == null) {
-              entries(binIndex) = RideHailStatsEntry(1, 0, 0)
-            } else {
-              val _entry = entry.copy(sumOfRequestedRides = entry.sumOfRequestedRides + 1)
-              entries(binIndex) = _entry
-            }
-          }
-        }
-
-        rideHailModeChoice4Rides.remove(personId)
-      }
-      case None => System.out.println("PathTraversal does not match any modechoice " + personId)
-    }
-  }
 
   def calculateIdlingVehiclesStats(vehicleId: String, currentEvent: PathTraversalEvent) = {
     pathTraversedVehicles.get(vehicleId) match {
