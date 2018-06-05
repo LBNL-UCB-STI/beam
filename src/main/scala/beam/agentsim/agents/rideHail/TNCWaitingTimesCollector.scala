@@ -3,7 +3,7 @@ package beam.agentsim.agents.rideHail
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.misc.Time
@@ -47,6 +47,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     // TODO: send message to actor with collected data
   }
 val eventTypes = mutable.Set[String]()
+  val rideHailingWaiting = new mutable.HashMap[String, ModeChoiceEvent]()
   override def handleEvent(event: Event): Unit = {
     eventTypes.add(event.getEventType)
 
@@ -55,14 +56,27 @@ val eventTypes = mutable.Set[String]()
       val mode = event.getAttributes().get("mode");
       if (mode.equalsIgnoreCase("ride_hailing")) {
         val modeChoiceEvent = event.asInstanceOf[ModeChoiceEvent]
-        val pId = modeChoiceEvent.getPersonId
+
+        val pId = modeChoiceEvent.getPersonId.toString
+        rideHailingWaiting.put(pId, modeChoiceEvent)
       }
     } else if (event.isInstanceOf[PathTraversalEvent]) {
       val pathTraversalEvent = event.asInstanceOf[PathTraversalEvent]
 
       val numPass = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-      if(numPass.equals("1")) {
-        val vehicleId = event.getAttributes().get("vehicleId");
+      if (numPass.equals("1")) {
+        val vehicleId = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+
+      }
+    } else if (event.isInstanceOf[PersonEntersVehicleEvent]) {
+
+      val personEntersVehicleEvent = event.asInstanceOf[PersonEntersVehicleEvent];
+      val personId = personEntersVehicleEvent.getPersonId().toString
+
+      if (rideHailingWaiting.contains(personId)) {
+        val modeChoiceEvent = rideHailingWaiting.get(personId).get
+        val waiting = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime()
+        //TODO: utilize waiting time
       }
     }
   }
