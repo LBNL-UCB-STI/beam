@@ -25,7 +25,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   // TAZ level -> how to get as input here?
   val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-  //    mTazTreeMap.get.getTAZ(1,1).tazId
 
 
   // timeBins -> number OfTimeBins input
@@ -137,8 +136,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
         val modeChoiceEvent = el._1
         val personEntersVehicleEvent = el._2
-
-
 
         val startTime = modeChoiceEvent.getTime
         val endTime = personEntersVehicleEvent.getTime
