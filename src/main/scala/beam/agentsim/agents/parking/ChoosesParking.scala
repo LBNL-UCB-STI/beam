@@ -1,29 +1,26 @@
 package beam.agentsim.agents.parking
 
+import scala.concurrent.duration.Duration
+
 import akka.actor.Stash
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.CheckInResource
+import beam.agentsim.agents._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, ParkEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.RoutingModel.{DiscreteTime, EmbodiedBeamTrip}
 import beam.sim.HasServices
-import tscfg.model.DURATION
-
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 
 //import scala.collection.JavaConverters._
 //import scala.concurrent.duration._
@@ -73,7 +70,7 @@ trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices wit
 
       stash()
       stay using data
-    case Event(StateTimeout, data@ChoosesParkingData(_)) =>
+    case Event(StateTimeout, data @ ReleasingParkingSpot(_)) =>
       parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
       beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
       goto(WaitingToDrive) using data.personData
