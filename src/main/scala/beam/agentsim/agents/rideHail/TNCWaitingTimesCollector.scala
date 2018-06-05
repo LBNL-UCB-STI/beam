@@ -34,8 +34,8 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   val rideHailModeChoice4Rides = mutable.Map[String, ModeChoiceEvent]()
   val rideHailModeChoice4Waiting = mutable.Map[String, ModeChoiceEvent]()
-
   val waitingTimeEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
+  val pathTraversedVehicles = mutable.Map[String, PathTraversalEvent]()
 
   val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
 
@@ -136,6 +136,8 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
         calculateWaitingTimeStats(personId, event)
         calculateRideStats(personId, event)
       }
+
+      calculateIdlingVehiclesStats(vehicleId, event)
     }
   }
 
@@ -206,7 +208,32 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     }
   }
 
-  private def getTazId(pathTraversalEvent: PathTraversalEvent) = {
+  def calculateIdlingVehiclesStats(vehicleId: String, currentEvent: PathTraversalEvent) = {
+    pathTraversedVehicles.get(vehicleId) match {
+      case Some(lastEvent) => {
+        pathTraversedVehicles.put(vehicleId, currentEvent)
+
+        val lastCoord = (lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble,
+          lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble)
+        val currentCoord = (currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble,
+          currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble)
+        if(lastCoord == currentCoord) {
+          val lastArrival = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+          val currentDeparture = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+
+          val idelFrom = getTimeBin(lastArrival)
+          val idelTo = getTimeBin(currentDeparture)
+
+          val vehicleIdleTime = currentDeparture - lastArrival
+
+        }
+      }
+      case None =>
+        pathTraversedVehicles.put(vehicleId, currentEvent)
+    }
+  }
+
+  private def getTazId(pathTraversalEvent: PathTraversalEvent): String = {
     val startX = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
 
