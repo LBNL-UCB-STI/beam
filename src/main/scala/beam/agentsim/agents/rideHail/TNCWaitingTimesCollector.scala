@@ -87,6 +87,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
       case PathTraversalEvent.EVENT_TYPE => {
 
         calculateRideStats(event.asInstanceOf[PathTraversalEvent])
+        calculateWaitingTimeStats(event.asInstanceOf[PathTraversalEvent])
       }
       case _ =>
     }
