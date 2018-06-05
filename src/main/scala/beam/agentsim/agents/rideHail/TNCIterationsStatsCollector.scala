@@ -41,7 +41,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   val vehicleIdlingStartTimeBins = mutable.Map[String, Int]()
 
 
-  val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
+  val rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
   //numberOfRides: -> passengers =1 (sum of rides)
   //customerWaitTime -> sum and average
@@ -142,7 +142,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
     val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
@@ -169,32 +168,29 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
           val binIndex = getTimeBin(startTime)
 
-          val startX = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
-          val startY = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
-          val tazId = getTazId(startX, startY)
+          val tazId = getTazId(event)
 
           rideHailStats.get(tazId) match {
-            case Some(buffer: ArrayBuffer[RideHailStatsEntry]) => {
-              val entry = buffer(binIndex)
+            case Some(entries: ArrayBuffer[Option[RideHailStatsEntry]]) => {
+              val entry = entries(binIndex)
 
-              if (entry == null) {
-                buffer(binIndex) = RideHailStatsEntry(1, waitingTime, 0)
-              } else {
-                val _entry = entry.copy(sumOfRequestedRides = entry.sumOfRequestedRides + 1,
-                  sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
-                buffer(binIndex) = _entry
+              entry match {
+                case Some(e) =>
+                  val _entry = e.copy(sumOfRequestedRides = e.sumOfRequestedRides + 1,
+                    sumOfWaitingtimes = e.sumOfWaitingtimes + waitingTime)
+                  entries(binIndex) = Some(_entry)
+                case None =>
+                  entries(binIndex) = Some(RideHailStatsEntry(1, waitingTime, 0))
               }
 
               updateIdlingStats(event, vehicleId, buffer)
             }
             case None => {
-              var buffer: mutable.ArrayBuffer[RideHailStatsEntry] = mutable.ArrayBuffer[RideHailStatsEntry]()
-              for(i <- 1 to numberOfTimeBins){
-                buffer += RideHailStatsEntry(0, 0, 0)
-              }
+              val buffer: mutable.ArrayBuffer[Option[RideHailStatsEntry]] = mutable.ArrayBuffer.fill(numberOfTimeBins)(None)
 
               val entry = RideHailStatsEntry(1, waitingTime, 0)
-              buffer(binIndex) = entry
+
+              buffer(binIndex) = Some(entry)
 
               updateIdlingStats(event, vehicleId, buffer)
 
@@ -261,8 +257,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
           val lastArrival = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
           val currentDeparture = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
-          val idelFrom = getTimeBin(lastArrival)
-          val idelTo = getTimeBin(currentDeparture)
+          val lastActive = getTimeBin(lastArrival)
+          val currentActive = getTimeBin(currentDeparture)
 
           val vehicleIdleTime = currentDeparture - lastArrival
 
