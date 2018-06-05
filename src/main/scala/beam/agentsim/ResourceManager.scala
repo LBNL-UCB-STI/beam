@@ -73,7 +73,7 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  case class NotifyResourceIdle(resourceId: Id[_], whenWhere: SpaceTime, passengerSchedule: PassengerSchedule)
+  case class NotifyResourceIdle(resourceId: Id[_], whenWhere: SpaceTime, passengerSchedule: PassengerSchedule, isLastleg:Boolean)
 
   case class AssignManager(managerRef: ActorRef)
 
