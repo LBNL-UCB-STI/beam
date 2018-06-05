@@ -130,45 +130,51 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   def calculateWaitingTimeStats(event: PathTraversalEvent): Unit = {
 
+    val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
     val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val personId = vehicleId.substring(vehicleId.lastIndexOf("=") + 1)
+    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
-    rideHailModeChoiceAndPersonEntersEvents.get(personId) match {
-      case Some(el) => {
-
-        val modeChoiceEvent = el._1
-        val personEntersVehicleEvent = el._2
+    if(vehicleId.contains("rideHail") && vehicleId.contains("person=") && mode.equalsIgnoreCase("car") &&  numPassengers > 0) {
 
 
+      val personId = vehicleId.substring(vehicleId.lastIndexOf("=") + 1)
 
-        val startTime = modeChoiceEvent.getTime
-        val endTime = personEntersVehicleEvent.getTime
-        val waitingTime = endTime - startTime
+      rideHailModeChoiceAndPersonEntersEvents.get(personId) match {
+        case Some(el) => {
 
-        val binIndex = getEventHour(startTime)
-
-        val startX = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
-        val startY = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+          val modeChoiceEvent = el._1
+          val personEntersVehicleEvent = el._2
 
 
-        val tazId = getTazId(startX, startY)
+          val startTime = modeChoiceEvent.getTime
+          val endTime = personEntersVehicleEvent.getTime
+          val waitingTime = endTime - startTime
 
-        rideHailStats.get(tazId) match {
-          case Some(entries) => {
-            val entry = entries(binIndex)
+          val binIndex = getEventHour(startTime)
 
-            if(entry == null){
-              entries(binIndex) = RideHailStatsEntry(0, waitingTime, 0)
-            }else{
-              val _entry = entry.copy(sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
-              entries(binIndex) = _entry
+          val startX = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+          val startY = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+
+
+          val tazId = getTazId(startX, startY)
+
+          rideHailStats.get(tazId) match {
+            case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
+              val entry = entries(binIndex)
+
+              if (entry == null) {
+                entries(binIndex) = RideHailStatsEntry(0, waitingTime, 0)
+              } else {
+                val _entry = entry.copy(sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
+                entries(binIndex) = _entry
+              }
             }
           }
-        }
 
-        rideHailModeChoiceAndPersonEntersEvents.remove(personId)
+          rideHailModeChoiceAndPersonEntersEvents.remove(personId)
+        }
+        case None =>
       }
-      case None =>
     }
   }
 
@@ -201,7 +207,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
           val tazId = getTazId(startX, startY)
 
           rideHailStats.get(tazId) match {
-            case Some(entries) => {
+            case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
               val entry = entries(binIndex)
 
               if(entry == null){
