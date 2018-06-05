@@ -39,8 +39,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
 
-
-
   //numberOfRides: -> passengers =1 (sum of rides)
   //customerWaitTime -> sum and average
 
@@ -220,6 +218,14 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
         case None => System.out.println("PathTraversal does not match any modechoice " + personId)
       }
     }
+  }
+
+  private def getTazId(pathTraversalEvent: PathTraversalEvent) = {
+    val startX = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+    val startY = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+
+    val tazId = getTazId(startX, startY)
+    tazId
   }
 
   private def getTazId(startX: Double, startY: Double): String = {
