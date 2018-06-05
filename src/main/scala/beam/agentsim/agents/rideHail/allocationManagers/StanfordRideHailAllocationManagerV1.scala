@@ -1,6 +1,6 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager
+import beam.agentsim.agents.rideHail.{RideHailNetworkAPI, RideHailingManager}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -17,7 +17,7 @@ TODO: changing previous allocation should work
 TODO: repositioning vehicles should be able to get duty any time
 
  */
-class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingManager, val rideHailNetworkApi: RideHailNetworkAPI) extends RideHailResourceAllocationManager {
   val isBufferedRideHailAllocationMode = false
 
 
@@ -90,15 +90,15 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
 
     // network operations
     val linkId = 5
-    rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailingManager.getLinks()
-    rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
-    rideHailingManager.getFreeFlowTravelTime(linkId)
-    val fromLinkIds = rideHailingManager.getFromLinkIds(linkId)
-    val toLinkIds = rideHailingManager.getToLinkIds(linkId)
-    val coord = rideHailingManager.getLinkCoord(linkId)
-    val fromCoord = rideHailingManager.getFromNodeCoordinate(linkId)
-    val toCoord = rideHailingManager.getToNodeCoordinate(linkId)
+    rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
+    val links = rideHailNetworkApi.getLinks()
+    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
+    rideHailNetworkApi.getFreeFlowTravelTime(linkId)
+    val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
+    val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)
+    val coord = rideHailNetworkApi.getLinkCoord(linkId)
+    val fromCoord = rideHailNetworkApi.getFromNodeCoordinate(linkId)
+    val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
 
     // RHM
     val rideHailAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters).get

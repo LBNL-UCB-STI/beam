@@ -185,7 +185,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       assert(rideHailingAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // I tell it to do nothing instead
-      rideHailingAgent ! StopDriving()
+      rideHailingAgent ! StopDriving(30000)
       assert(rideHailingAgent.stateName == IdleInterrupted)
 
       rideHailingAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
