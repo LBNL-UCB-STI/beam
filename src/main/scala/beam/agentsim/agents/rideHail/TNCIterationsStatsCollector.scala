@@ -78,6 +78,20 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
         )
       }
     }
+
+    rideHailStats.clear()
+    vehicleIdlingStartTimeBins.clear()
+
+    rideHailModeChoice4Waiting.clear()
+    waitingTimeEvents.clear()
+    pathTraversedVehicles.clear()
+
+    rideHailModeChoiceAndPersonEntersEvents.clear()
+
+    vehicleIdlingStartTimeBins.clear()
+
+
+
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -171,16 +185,16 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
           val tazId = getTazId(event)
 
           rideHailStats.get(tazId) match {
-            case Some(entries: ArrayBuffer[Option[RideHailStatsEntry]]) => {
-              val entry = entries(binIndex)
+            case Some(buffer: ArrayBuffer[Option[RideHailStatsEntry]]) => {
+              val entry = buffer(binIndex)
 
               entry match {
                 case Some(e) =>
                   val _entry = e.copy(sumOfRequestedRides = e.sumOfRequestedRides + 1,
                     sumOfWaitingtimes = e.sumOfWaitingtimes + waitingTime)
-                  entries(binIndex) = Some(_entry)
+                  buffer(binIndex) = Some(_entry)
                 case None =>
-                  entries(binIndex) = Some(RideHailStatsEntry(1, waitingTime, 0))
+                  buffer(binIndex) = Some(RideHailStatsEntry(1, waitingTime, 0))
               }
 
               updateIdlingStats(event, vehicleId, buffer)
@@ -205,7 +219,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     }
   }
 
-  def updateIdlingStats(event: PathTraversalEvent, vehicleId: String, buffer: ArrayBuffer[RideHailStatsEntry]) = {
+  def updateIdlingStats(event: PathTraversalEvent, vehicleId: String, buffer: ArrayBuffer[Option[RideHailStatsEntry]]) = {
     // Idling Times
     vehicleIdlingStartTimeBins.get(vehicleId) match {
       case Some(bi) => {
@@ -219,8 +233,17 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
         val startIdx = bi + 1
         for(i <- startIdx until idleEndTimeBinIndex){
 
-          val _e = buffer(i)
-          buffer(i) = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+          buffer(i) match {
+            case Some(_e) => {
+              val _entry = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+              buffer(i) = Some(_entry)
+            }
+            case None => {
+              val _entry = RideHailStatsEntry(0, 0, 1)
+              buffer(i) = Some(_entry)
+            }
+          }
+
         }
       }
       case None => {
@@ -234,8 +257,16 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
         val startIdx = 0
         for(i <- startIdx until idleEndTimeBinIndex){
 
-          val _e = buffer(i)
-          buffer(i) = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+          buffer(i) match {
+            case Some(_e) => {
+              val _entry = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+              buffer(i) = Some(_entry)
+            }
+            case None => {
+              val _entry = RideHailStatsEntry(0, 0, 1)
+              buffer(i) = Some(_entry)
+            }
+          }
         }
       }
     }
