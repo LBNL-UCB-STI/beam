@@ -38,6 +38,8 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   val rideHailModeChoiceAndPersonEntersEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
 
+
+
   val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
 
   //numberOfRides: -> passengers =1 (sum of rides)
@@ -66,7 +68,13 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
     rideHailStats.foreach {
       (rhs) => {
-        System.out.println(rhs._1 + " - " + rhs._2)
+        System.out.println(rhs._1)
+
+        rhs._2.foreach(
+          rhse => {
+            System.out.println(rhse)
+          }
+        )
       }
     }
   }
@@ -178,7 +186,12 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
             }
             case None => {
               val entry = RideHailStatsEntry(1, waitingTime, 0)
-              val buffer = ArrayBuffer[RideHailStatsEntry]()
+              var buffer: mutable.ArrayBuffer[RideHailStatsEntry] = mutable.ArrayBuffer[RideHailStatsEntry]()
+              for(i <- 1 to 24){
+                buffer += RideHailStatsEntry(0, 0, 0)
+              }
+
+
               buffer += entry
               rideHailStats.put(tazId, buffer)
             }
