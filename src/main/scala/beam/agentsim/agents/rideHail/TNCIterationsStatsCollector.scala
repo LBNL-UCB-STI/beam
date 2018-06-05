@@ -1,5 +1,6 @@
 package beam.agentsim.agents.rideHail
 
+import akka.actor.ActorRef
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
@@ -21,7 +22,7 @@ class RideHailStats(mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]){
   }
 }*/
 
-class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig) extends BasicEventHandler {
+class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, tncActor: ActorRef) extends BasicEventHandler {
 
   // TAZ level -> how to get as input here?
   val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
