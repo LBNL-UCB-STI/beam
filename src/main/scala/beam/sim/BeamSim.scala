@@ -87,7 +87,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    tncWaitingTimes = new TNCWaitingTimesCollector(eventsManager)
+    //tncWaitingTimes = new TNCWaitingTimesCollector(eventsManager,beamServices.beamConfig)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -98,7 +98,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-      tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
+      //tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
     }
 
     val physsimFuture = Future {
