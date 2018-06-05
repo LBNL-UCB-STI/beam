@@ -33,8 +33,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
   val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt + 1
 
-  val SECONDS_IN_HOUR = 3600
-
   val ridesEvents = mutable.Map[String, ModeChoiceEvent]()
   val rideHailWaiting = mutable.Map[String, ModeChoiceEvent]()
 
@@ -181,6 +179,6 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
   }
 
   private def getEventHour(time: Double): Int = {
-    (time / SECONDS_IN_HOUR).toInt
+    (time / timeBinSize).toInt
   }
 }
