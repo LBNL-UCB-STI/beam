@@ -1,5 +1,6 @@
 package beam.agentsim.agents.rideHail
 
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.events.Event
@@ -7,6 +8,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.misc.Time
 
+import scala.collection.mutable
 import scala.util.Try
 
 class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamConfig) extends BasicEventHandler {
@@ -44,8 +46,24 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
   def tellHistoryToRideHailIterationHistoryActor(): Unit = {
     // TODO: send message to actor with collected data
   }
-
+val eventTypes = mutable.Set[String]()
   override def handleEvent(event: Event): Unit = {
-    print(event)
+    eventTypes.add(event.getEventType)
+
+    if (event.isInstanceOf[ModeChoiceEvent]) {
+
+      val mode = event.getAttributes().get("mode");
+      if (mode.equalsIgnoreCase("ride_hailing")) {
+        val modeChoiceEvent = event.asInstanceOf[ModeChoiceEvent]
+        val pId = modeChoiceEvent.getPersonId
+      }
+    } else if (event.isInstanceOf[PathTraversalEvent]) {
+      val pathTraversalEvent = event.asInstanceOf[PathTraversalEvent]
+
+      val numPass = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
+      if(numPass.equals("1")) {
+        val vehicleId = event.getAttributes().get("vehicleId");
+      }
+    }
   }
 }
