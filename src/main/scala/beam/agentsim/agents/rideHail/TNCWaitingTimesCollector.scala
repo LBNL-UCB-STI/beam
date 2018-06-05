@@ -75,6 +75,14 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   def tellHistoryToRideHailIterationHistoryActor(): Unit = {
     // TODO: send message to actor with collected data
+
+    System.out.println("Inside tellHistoryToRideHailIterationHistoryActor")
+
+    rideHailStats.foreach{
+      (rhs) => {
+        System.out.println(rhs._1 + " - " + rhs._2)
+      }
+    }
   }
 
   /*
@@ -198,8 +206,9 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
     val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
     val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
-    if(mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")){
+    if(mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail") && numPassengers > 0){
       // This means its the rideHailing PathTraversal
 
       val personId: String = vehicleId.substring(vehicleId.lastIndexOf("="))
