@@ -240,14 +240,16 @@ trait ChoosesMode {
     if(rideHail2TransitAccessResult.error.isEmpty){
       val tncAccessLeg = rideHail2TransitAccessResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.dropRight(1)
       // Replacing drive access leg with TNC changes the travel time.
-      val differenceInAccessDuration = driveTransitTrip.legs.head.beamLeg.duration - tncAccessLeg.last.beamLeg.duration
-      if(differenceInAccessDuration < 600){
-        // We filter out all options that don't allow at least 10 minutes of time for unexpected waiting
+      val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get.toInt -
+        tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
+      if(extraWaitTimeBuffer < 300){
+        // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
         None
       }else{
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-        val startTimeBufferForWaiting = math.min(differenceInAccessDuration,math.max(600.0,rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5)) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
-        val accessAndTransit = tncAccessLeg.map(leg => leg.copy(leg.beamLeg.updateStartTime(leg.beamLeg.startTime + differenceInAccessDuration - startTimeBufferForWaiting.longValue()))) ++ driveTransitTrip.legs.tail
+        val startTimeAdjustment = driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
+        val startTimeBufferForWaiting = math.min(extraWaitTimeBuffer,math.max(300.0,rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5)) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
+        val accessAndTransit = tncAccessLeg.map(leg => leg.copy(leg.beamLeg.updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.longValue()))) ++ driveTransitTrip.legs.tail
         val fullTrip = if(rideHail2TransitEgressResult.error.isEmpty){
           accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.tail
         }else{
