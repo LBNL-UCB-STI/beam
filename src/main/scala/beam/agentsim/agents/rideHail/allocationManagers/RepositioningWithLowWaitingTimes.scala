@@ -26,14 +26,51 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
       -> go through all idle tncs
       -> if taxi
 
-    ->
 
+      -> find areas with taxis with long idle time
+        -> threshhold parameter min idle time and max share to reposition
+
+
+      -> ide now + idle for a longer time
+
+
+
+
+    -> 	Randomly sampling (This is what we implement first)
+		-> search radius: idle time in that area make as window (TAZ areas you can reach in 10min)
+		-> sum up the demand (number of requests + waiting time + idle time)
+			-> draw circle
+			-> negative weight
+			-> on TAZ
+			-> sum per TAZ and time slot.
+
+			=> talk at Matsim wrkshop: one without distribution, random, this method.
+				=> demonstrate
+
+
+				look at demand in 10min at the TAZ around me
+
+				probabilityOfServing(taz_i)=score(taz_i)/sumOfScores
+				-> score(taz_i)=alpha*demand+betta*waitingTimes
+
+=>
+
+
+
+rideHailStats
 
 
 
      */
 
+    tncIterationStats match {
+      case Some(tncIterationStats) =>
+        // iteration >0
+        //tncIterationStats.getRideHailStatsInfo()
 
+      case None =>
+        // iteration 0
+    }
 
 
     if (rideHailingManager.getIdleVehicles().size >= 2) {
