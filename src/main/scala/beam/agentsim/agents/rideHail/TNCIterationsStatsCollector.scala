@@ -70,7 +70,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     //println("Inside tellHistoryToRideHailIterationHistoryActor")
 
 
-    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats))
+    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec))
 
     rideHailStats.foreach {
       (rhs) => {
