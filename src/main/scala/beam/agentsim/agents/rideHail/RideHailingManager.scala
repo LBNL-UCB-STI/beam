@@ -138,6 +138,10 @@ class RideHailingManager(
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[String, RideHailingResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
 
+  //context.actorSelection("user/")
+  //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
+
+
   override def receive: Receive = {
     case NotifyIterationEnds() =>
       surgePricingManager.incrementIteration()
@@ -300,10 +304,6 @@ class RideHailingManager(
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
-
-      if (tick>40000){
-        DebugLib.emptyFunctionForSettingBreakPoint()
-      }
 
       if (repositionVehicles.isEmpty) {
         modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()

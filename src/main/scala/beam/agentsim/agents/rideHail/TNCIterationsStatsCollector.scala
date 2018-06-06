@@ -68,6 +68,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     System.out.println("Inside tellHistoryToRideHailIterationHistoryActor")
 
+
+    tncActor ! UpdateRideHailStats(rideHailStats)
+
     rideHailStats.foreach {
       (rhs) => {
         System.out.println(rhs._1)
@@ -318,3 +321,5 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     (time / timeBinSizeInSec).toInt
   }
 }
+
+case class UpdateRideHailStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])

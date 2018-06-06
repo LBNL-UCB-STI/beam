@@ -12,6 +12,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.vehicles.Vehicles
 
+import scala.collection.mutable.ArrayBuffer
+
 class HistoricWaitingTimes(){
 
 }
@@ -21,10 +23,20 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
   val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
 
+  //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
+  // TODO: put in RideHailStats class!
+  // create methods in that class, which I need for my programming
+
+
+  // TODO: how get a reference of RideHailIterationHistoryActor to the rideHailManager?
+
+
   def receive = {
     case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
     case GetWaitingTimes() =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
       sender() ! UpdateHistoricWaitingTimes(null)
+    case UpdateRideHailStats(rideHailStats) =>
+
     case _      =>  ???
   }
 }

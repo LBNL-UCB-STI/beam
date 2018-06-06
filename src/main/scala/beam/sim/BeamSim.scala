@@ -6,7 +6,7 @@ import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{ActorSystem, Identify}
+import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -48,8 +48,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+  private var rideHailIterationHistoryActor:ActorRef=_
 
-  private var tncWaitingTimes: TNCIterationsStatsCollector = _
+  private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
+  val rideHailIterationHistoryActorName="rideHailIterationHistoryActor"
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
@@ -87,8 +89,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    //tncWaitingTimes = new TNCIterationsStatsCollector()
-    actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices))
+    rideHailIterationHistoryActor =actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices),rideHailIterationHistoryActorName)
+    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices.beamConfig,rideHailIterationHistoryActor)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -99,7 +101,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-      //tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
+      tncIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActor()
     }
 
     val physsimFuture = Future {
