@@ -93,7 +93,7 @@ class RideHailingManager(
   }
 
 
-  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log, self, rideHailAllocationManagerTimeoutInSeconds, scheduler)
+  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log, self, rideHailAllocationManagerTimeoutInSeconds, scheduler, beamServices.beamConfig)
 
   private var bufferedReserveRideMessages = mutable.Map[String, RideHailingRequest]()
 
