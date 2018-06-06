@@ -29,13 +29,13 @@ class TNCIterationsStatsCollectorSpec extends WordSpecLike with Matchers with Be
   "A TNC Iterations Stats Collector " must {
     "collect " in {
       val events = EventsUtils.createEventsManager
-      val tncHandler = new TNCIterationsStatsCollector(events, BeamConfig(baseConf))
+      //val tncHandler = new TNCIterationsStatsCollector(events, BeamConfig(baseConf))
 
 
       val reader = new MatsimEventsReader(events)
       reader.readFile("test/input/beamville/test-data/beamville.events.xml")
 
-      tncHandler.rideHailStats
+      //tncHandler.rideHailStats
 
     }
   }

@@ -19,7 +19,7 @@ class HistoricWaitingTimes(){
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: BeamServices) extends Actor {
 
-  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self())
+  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
 
   def receive = {
     case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
