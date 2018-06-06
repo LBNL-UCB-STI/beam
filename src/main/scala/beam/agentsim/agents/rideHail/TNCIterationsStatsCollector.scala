@@ -101,7 +101,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     event.getEventType match {
       case ModeChoiceEvent.EVENT_TYPE => {
 
-        collectModeChoiceEvents(event.asInstanceOf[ModeChoiceEvent])
+        collectModeChoiceEvents(ModeChoiceEvent.apply(event))
       }
       case PersonEntersVehicleEvent.EVENT_TYPE => {
 
@@ -109,7 +109,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
       }
       case PathTraversalEvent.EVENT_TYPE => {
 
-        calculateStats(event.asInstanceOf[PathTraversalEvent])
+        calculateStats(PathTraversalEvent.apply(event))
       }
       case _ =>
     }
@@ -136,8 +136,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
   def collectPersonEntersEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
 
-    val personId = personEntersVehicleEvent.getPersonId.toString
-    val vehicleId = personEntersVehicleEvent.getVehicleId.toString
+    val personId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+    val vehicleId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if(vehicleId.contains("rideHail")) {
       rideHailModeChoice4Waiting.get(personId) match {
@@ -152,23 +152,23 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     }
   }
 
-  def calculateStats(event: PathTraversalEvent): Unit = {
+  def calculateStats(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    processPathTraversalEvent(event)
+    processPathTraversalEvent(pathTraversalEvent)
 
-    val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-    val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
+    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
-      calculateIdlingVehiclesStats(vehicleId, event)
+      calculateIdlingVehiclesStats(vehicleId, pathTraversalEvent)
     }
   }
 
-  def processPathTraversalEvent(event: PathTraversalEvent): Unit = {
+  def processPathTraversalEvent(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
+    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPassengers = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
     if(numPassengers > 0) {
 
@@ -184,7 +184,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
           val binIndex = getTimeBin(startTime)
 
-          val tazId = getTazId(event)
+          val tazId = getTazId(pathTraversalEvent)
 
           rideHailStats.get(tazId) match {
             case Some(buffer: ArrayBuffer[Option[RideHailStatsEntry]]) => {
@@ -199,7 +199,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
                   buffer(binIndex) = Some(RideHailStatsEntry(1, waitingTime, 0))
               }
 
-              updateIdlingStats(event, vehicleId, buffer)
+              updateIdlingStats(pathTraversalEvent, vehicleId, buffer)
             }
             case None => {
               val buffer: mutable.ArrayBuffer[Option[RideHailStatsEntry]] = mutable.ArrayBuffer.fill(numberOfTimeBins)(None)
@@ -208,7 +208,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
               buffer(binIndex) = Some(entry)
 
-              updateIdlingStats(event, vehicleId, buffer)
+              updateIdlingStats(pathTraversalEvent, vehicleId, buffer)
 
               rideHailStats.put(tazId, buffer)
             }
