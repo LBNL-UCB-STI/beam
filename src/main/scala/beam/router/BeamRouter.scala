@@ -304,7 +304,10 @@ object BeamRouter {
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode],
-                            streetVehicles: Vector[StreetVehicle], streetVehiclesUseIntermodalUse: IntermodalUse = Access)
+                            streetVehicles: Vector[StreetVehicle], streetVehiclesUseIntermodalUse: IntermodalUse = Access){
+    // We make requestId be independent of request type, all that matters is details of the customer
+    lazy val requestId = this.hashCode()
+  }
 
   sealed trait IntermodalUse
   case object Access extends IntermodalUse
@@ -316,7 +319,7 @@ object BeamRouter {
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
+  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestId: Option[Int] = None)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }

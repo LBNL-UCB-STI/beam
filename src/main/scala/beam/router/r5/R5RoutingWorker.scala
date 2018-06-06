@@ -59,7 +59,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          calcRoute(request)
+          calcRoute(request).copy(requestId = Some(request.requestId))
         }
       }
       eventualResponse.failed.foreach(log.error(_, ""))
