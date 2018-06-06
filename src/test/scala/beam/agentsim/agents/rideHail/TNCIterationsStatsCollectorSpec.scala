@@ -1,16 +1,10 @@
 package beam.agentsim.agents.rideHail
 
-import java.nio.file.Paths
-
-import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
-import beam.agentsim.agents.rideHail.TNCIterationsStatsCollector
-import beam.utils.BeamConfigUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.scalatest.{BeforeAndAfterAll, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class TNCIterationsStatsCollectorSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -26,17 +20,20 @@ class TNCIterationsStatsCollectorSpec extends WordSpecLike with Matchers with Be
     baseConf = testConfig(confPath).withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations-1))
     baseConf.getInt(LAST_ITER_CONF_PATH) should be (totalIterations-1)
   }
+
   "A TNC Iterations Stats Collector " must {
     "collect " in {
       val events = EventsUtils.createEventsManager
-      //val tncHandler = new TNCIterationsStatsCollector(events, BeamConfig(baseConf))
+      val tncHandler = new TNCIterationsStatsCollector(events, BeamConfig(baseConf), null)
 
 
       val reader = new MatsimEventsReader(events)
+
       reader.readFile("test/input/beamville/test-data/beamville.events.xml")
 
-      //tncHandler.rideHailStats
+      tncHandler.rideHailStats should not be empty
 
+      //TODO: add value assertions
     }
   }
 }
