@@ -117,6 +117,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
       private val rideHailingManager = context.actorOf(RideHailingManager.props(beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager), "RideHailingManager")
+
+
+
       context.watch(rideHailingManager)
 
       if(beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0){

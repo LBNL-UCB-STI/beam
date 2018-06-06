@@ -1,5 +1,7 @@
 package beam.agentsim.agents.rideHail
 
+import akka.actor.ActorRef
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
@@ -21,16 +23,16 @@ class RideHailStats(mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]){
   }
 }*/
 
-class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamConfig) extends BasicEventHandler {
+class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
 
   // TAZ level -> how to get as input here?
   val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
 
   // timeBins -> number OfTimeBins input
-  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
-  val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize
-  val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt + 1
+  val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
+  val timeBinSizeInSec = 3600 // beam.agentsim.agents.rideHailing.
+  val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec).toInt + 1
 
   val rideHailModeChoice4Waiting = mutable.Map[String, ModeChoiceEvent]()
   val waitingTimeEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
@@ -38,9 +40,10 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   val rideHailModeChoiceAndPersonEntersEvents = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
 
+  val vehicleIdlingStartTimeBins = mutable.Map[String, Int]()
 
 
-  val rideHailStats = mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]()
+  val rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
   //numberOfRides: -> passengers =1 (sum of rides)
   //customerWaitTime -> sum and average
@@ -61,22 +64,36 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     ???
   }
 
-  def tellHistoryToRideHailIterationHistoryActor(): Unit = {
+  def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     // TODO: send message to actor with collected data
 
-    System.out.println("Inside tellHistoryToRideHailIterationHistoryActor")
+    //println("Inside tellHistoryToRideHailIterationHistoryActor")
+
+
+    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats))
 
     rideHailStats.foreach {
       (rhs) => {
-        System.out.println(rhs._1)
+       // println(rhs._1)
 
         rhs._2.foreach(
           rhse => {
-            System.out.println(rhse)
+           // println(rhse)
           }
         )
       }
     }
+
+    //rideHailStats.clear()
+    vehicleIdlingStartTimeBins.clear()
+
+    rideHailModeChoice4Waiting.clear()
+    waitingTimeEvents.clear()
+    pathTraversedVehicles.clear()
+
+    rideHailModeChoiceAndPersonEntersEvents.clear()
+
+    vehicleIdlingStartTimeBins.clear()
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -84,7 +101,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     event.getEventType match {
       case ModeChoiceEvent.EVENT_TYPE => {
 
-        collectModeChoiceEvents(event.asInstanceOf[ModeChoiceEvent])
+        collectModeChoiceEvents(ModeChoiceEvent.apply(event))
       }
       case PersonEntersVehicleEvent.EVENT_TYPE => {
 
@@ -92,7 +109,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
       }
       case PathTraversalEvent.EVENT_TYPE => {
 
-        calculateStats(event.asInstanceOf[PathTraversalEvent])
+        calculateStats(PathTraversalEvent.apply(event))
       }
       case _ =>
     }
@@ -119,8 +136,8 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
   def collectPersonEntersEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
 
-    val personId = personEntersVehicleEvent.getPersonId.toString
-    val vehicleId = personEntersVehicleEvent.getVehicleId.toString
+    val personId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+    val vehicleId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if(vehicleId.contains("rideHail")) {
       rideHailModeChoice4Waiting.get(personId) match {
@@ -135,24 +152,23 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     }
   }
 
-  def calculateStats(event: PathTraversalEvent): Unit = {
+  def calculateStats(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    processPathTraversalEvent(event)
+    processPathTraversalEvent(pathTraversalEvent)
 
-    val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-    val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+    val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
+    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
-      calculateIdlingVehiclesStats(vehicleId, event)
+      calculateIdlingVehiclesStats(vehicleId, pathTraversalEvent)
     }
   }
 
-  def processPathTraversalEvent(event: PathTraversalEvent): Unit = {
+  def processPathTraversalEvent(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    val vehicleId = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
+    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPassengers = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toDouble
 
     if(numPassengers > 0) {
 
@@ -168,31 +184,32 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
 
           val binIndex = getTimeBin(startTime)
 
-          val startX = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
-          val startY = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
-          val tazId = getTazId(startX, startY)
+          val tazId = getTazId(pathTraversalEvent)
 
           rideHailStats.get(tazId) match {
-            case Some(entries: ArrayBuffer[RideHailStatsEntry]) => {
-              val entry = entries(binIndex)
+            case Some(buffer: ArrayBuffer[Option[RideHailStatsEntry]]) => {
+              val entry = buffer(binIndex)
 
-              if (entry == null) {
-                entries(binIndex) = RideHailStatsEntry(1, waitingTime, 0)
-              } else {
-                val _entry = entry.copy(sumOfRequestedRides = entry.sumOfRequestedRides + 1,
-                  sumOfWaitingtimes = entry.sumOfWaitingtimes + waitingTime)
-                entries(binIndex) = _entry
+              entry match {
+                case Some(e) =>
+                  val _entry = e.copy(sumOfRequestedRides = e.sumOfRequestedRides + 1,
+                    sumOfWaitingtimes = e.sumOfWaitingtimes + waitingTime)
+                  buffer(binIndex) = Some(_entry)
+                case None =>
+                  buffer(binIndex) = Some(RideHailStatsEntry(1, waitingTime, 0))
               }
+
+              updateIdlingStats(pathTraversalEvent, vehicleId, buffer)
             }
             case None => {
+              val buffer: mutable.ArrayBuffer[Option[RideHailStatsEntry]] = mutable.ArrayBuffer.fill(numberOfTimeBins)(None)
+
               val entry = RideHailStatsEntry(1, waitingTime, 0)
-              var buffer: mutable.ArrayBuffer[RideHailStatsEntry] = mutable.ArrayBuffer[RideHailStatsEntry]()
-              for(i <- 1 to 24){
-                buffer += RideHailStatsEntry(0, 0, 0)
-              }
 
+              buffer(binIndex) = Some(entry)
 
-              buffer += entry
+              updateIdlingStats(pathTraversalEvent, vehicleId, buffer)
+
               rideHailStats.put(tazId, buffer)
             }
           }
@@ -204,6 +221,59 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
     }
   }
 
+  def updateIdlingStats(event: PathTraversalEvent, vehicleId: String, buffer: ArrayBuffer[Option[RideHailStatsEntry]]) = {
+    // Idling Times
+    vehicleIdlingStartTimeBins.get(vehicleId) match {
+      case Some(bi) => {
+        val departureTime = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toDouble
+        val arrivalTime = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toDouble
+
+        val idleEndTimeBinIndex = getTimeBin(departureTime)
+        val idleStartTimeBinIndex = getTimeBin(arrivalTime)
+        vehicleIdlingStartTimeBins.put(vehicleId, idleStartTimeBinIndex)
+
+        val startIdx = bi + 1
+        for(i <- startIdx until idleEndTimeBinIndex){
+
+          buffer(i) match {
+            case Some(_e) => {
+              val _entry = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+              buffer(i) = Some(_entry)
+            }
+            case None => {
+              val _entry = RideHailStatsEntry(0, 0, 1)
+              buffer(i) = Some(_entry)
+            }
+          }
+
+        }
+      }
+      case None => {
+        val departureTime = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toDouble
+        val arrivalTime = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toDouble
+
+        val idleEndTimeBinIndex = getTimeBin(departureTime)
+        val idleStartTimeBinIndex = getTimeBin(arrivalTime)
+        vehicleIdlingStartTimeBins.put(vehicleId, idleStartTimeBinIndex)
+
+        val startIdx = 0
+        for(i <- startIdx until idleEndTimeBinIndex){
+
+          buffer(i) match {
+            case Some(_e) => {
+              val _entry = _e.copy(sumOfIdlingVehicles = _e.sumOfIdlingVehicles + 1)
+              buffer(i) = Some(_entry)
+            }
+            case None => {
+              val _entry = RideHailStatsEntry(0, 0, 1)
+              buffer(i) = Some(_entry)
+            }
+          }
+        }
+      }
+    }
+  }
+
 
   def calculateIdlingVehiclesStats(vehicleId: String, currentEvent: PathTraversalEvent) = {
     pathTraversedVehicles.get(vehicleId) match {
@@ -211,22 +281,25 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
         pathTraversedVehicles.put(vehicleId, currentEvent)
 
         val lastCoord = (lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble,
-          lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble)
+                          lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble)
         val currentCoord = (currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble,
-          currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble)
+                            currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble)
+
         if(lastCoord == currentCoord) {
+
           val lastArrival = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
           val currentDeparture = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
-          val idelFrom = getTimeBin(lastArrival)
-          val idelTo = getTimeBin(currentDeparture)
+          val lastActive = getTimeBin(lastArrival)
+          val currentActive = getTimeBin(currentDeparture)
 
           val vehicleIdleTime = currentDeparture - lastArrival
 
         }
       }
-      case None =>
+      case None => {
         pathTraversedVehicles.put(vehicleId, currentEvent)
+      }
     }
   }
 
@@ -243,6 +316,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager, beamConfig: BeamCon
   }
 
   private def getTimeBin(time: Double): Int = {
-    (time / timeBinSize).toInt
+    (time / timeBinSizeInSec).toInt
   }
 }
+

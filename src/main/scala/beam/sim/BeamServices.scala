@@ -38,6 +38,7 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
+  var rideHailIterationHistoryActor:ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
 
@@ -56,6 +57,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
+  var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
 

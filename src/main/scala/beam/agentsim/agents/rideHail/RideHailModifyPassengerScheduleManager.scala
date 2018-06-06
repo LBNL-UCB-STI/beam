@@ -9,13 +9,15 @@ import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.sim.config.BeamConfig
 import beam.utils.DebugLib
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.mutable
 
-class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailingManager: ActorRef, val rideHailAllocationManagerTimeoutInSeconds: Double, val scheduler: ActorRef) {
+class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailingManager: ActorRef, val rideHailAllocationManagerTimeoutInSeconds: Double, val scheduler: ActorRef, val beamConfig:BeamConfig) {
 
   val interruptIdToModifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   val vehicleIdToModifyPassengerScheduleStatus = mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
@@ -177,6 +179,16 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
     log.debug("sending ACK to scheduler for next repositionTimeout (" + nextCompleteNoticeRideHailAllocationTimeout.id + ")")
+
+    val rideHailAllocationManagerTimeout=nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter( x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout]).head.trigger
+
+    val badTriggers= nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter(x => x.trigger.tick<rideHailAllocationManagerTimeout.tick-beamConfig.beam.agentsim.agents.rideHailing.rideHailAllocationManagerTimeoutInSeconds)
+
+    if (!badTriggers.isEmpty){
+      log.error("trying to schedule trigger: " + badTriggers)
+      assert(false)
+    }
+
     scheduler ! nextCompleteNoticeRideHailAllocationTimeout
     printState()
   }

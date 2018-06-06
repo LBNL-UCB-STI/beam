@@ -13,6 +13,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StopDriving}
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, _}
 import beam.agentsim.agents.rideHail.allocationManagers._
@@ -49,7 +50,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{concurrent, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 // TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
@@ -93,7 +94,7 @@ class RideHailingManager(
   }
 
 
-  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log, self, rideHailAllocationManagerTimeoutInSeconds, scheduler)
+  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log, self, rideHailAllocationManagerTimeoutInSeconds, scheduler, beamServices.beamConfig)
 
   private var bufferedReserveRideMessages = mutable.Map[String, RideHailingRequest]()
 
@@ -137,6 +138,15 @@ class RideHailingManager(
   }
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[String, RideHailingResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
+
+  //context.actorSelection("user/")
+  //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
+  val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
+  val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
+  val tncIterationStats=Await.result(future, timeout.duration)
+
+
+  DebugLib.emptyFunctionForSettingBreakPoint()
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
@@ -300,10 +310,6 @@ class RideHailingManager(
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
-
-      if (tick>40000){
-        DebugLib.emptyFunctionForSettingBreakPoint()
-      }
 
       if (repositionVehicles.isEmpty) {
         modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
