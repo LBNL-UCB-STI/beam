@@ -31,7 +31,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
   // timeBins -> number OfTimeBins input
   val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
-  val timeBinSizeInSec = 3600 // beam.agentsim.agents.rideHailing.
+  val timeBinSizeInSec = beamConfig.beam.agentsim.agents.rideHailing.iterationStats.timeBinSizeInSec
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec).toInt + 1
 
   val rideHailModeChoice4Waiting = mutable.Map[String, ModeChoiceEvent]()

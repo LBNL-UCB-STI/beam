@@ -80,6 +80,15 @@ class RideHailingManager(
 
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHailing.allocationManager
 
+
+
+  val tncIterationStats:Option[TNCIterationStats]={
+    val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
+    val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
+    Await.result(future, timeout.duration).asInstanceOf[Option[TNCIterationStats]]
+  }
+
+
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
     case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
       new DefaultRideHailResourceAllocationManager()
@@ -88,9 +97,11 @@ class RideHailingManager(
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
       new RideHailAllocationManagerBufferedImplTemplate(this)
     case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-      new RepositioningWithLowWaitingTimes(this)
+      new RepositioningWithLowWaitingTimes(this,tncIterationStats)
+    case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
+      new RandomRepositioning(this)
     case _ =>
-      new DefaultRideHailResourceAllocationManager()
+      throw new IllegalStateException(s"unknonwn RideHailResourceAllocationManager: $allocationManager")
   }
 
 
@@ -141,9 +152,6 @@ class RideHailingManager(
 
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
-  val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
-  val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
-  val tncIterationStats=Await.result(future, timeout.duration)
 
 
   DebugLib.emptyFunctionForSettingBreakPoint()

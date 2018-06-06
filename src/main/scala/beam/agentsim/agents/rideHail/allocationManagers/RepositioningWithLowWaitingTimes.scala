@@ -1,11 +1,11 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager
+import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager,tncIterationStats:Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
@@ -19,6 +19,23 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+
+    /*
+
+    -> which tnc to reposition?
+      -> go through all idle tncs
+      -> if taxi
+
+    ->
+
+
+
+
+     */
+
+
+
+
     if (rideHailingManager.getIdleVehicles().size >= 2) {
       val origin=rideHailingManager.getIdleVehicles().values.toVector
       val destination=scala.util.Random.shuffle(origin)

@@ -5,7 +5,7 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class RandomRepositioning(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
