@@ -140,6 +140,8 @@ class RideHailingManager(
 
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
+  val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
+  rideHailIterationHistoryActor ! "Test Message 123"
 
 
   override def receive: Receive = {

@@ -37,6 +37,9 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
       sender() ! UpdateHistoricWaitingTimes(null)
     case UpdateRideHailStats(rideHailStats) =>
 
+    case message: String => {
+      System.out.println(self + " received message [" + message + "] FROM " + sender)
+    }
     case _      =>  ???
   }
 }
