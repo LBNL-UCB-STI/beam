@@ -23,7 +23,7 @@ class RideHailStats(mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]){
   }
 }*/
 
-class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, tncActor: ActorRef) extends BasicEventHandler {
+class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
 
   // TAZ level -> how to get as input here?
   val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
@@ -64,27 +64,27 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     ???
   }
 
-  def tellHistoryToRideHailIterationHistoryActor(): Unit = {
+  def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     // TODO: send message to actor with collected data
 
-    println("Inside tellHistoryToRideHailIterationHistoryActor")
+    //println("Inside tellHistoryToRideHailIterationHistoryActor")
 
 
-    tncActor ! UpdateRideHailStats(rideHailStats)
+    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats))
 
     rideHailStats.foreach {
       (rhs) => {
-        println(rhs._1)
+       // println(rhs._1)
 
         rhs._2.foreach(
           rhse => {
-            println(rhse)
+           // println(rhse)
           }
         )
       }
     }
 
-    rideHailStats.clear()
+    //rideHailStats.clear()
     vehicleIdlingStartTimeBins.clear()
 
     rideHailModeChoice4Waiting.clear()

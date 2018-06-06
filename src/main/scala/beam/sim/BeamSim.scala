@@ -51,7 +51,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
   private var rideHailIterationHistoryActor:ActorRef=_
 
-//  private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
+  private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName="rideHailIterationHistoryActor"
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -91,7 +91,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
     rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices),rideHailIterationHistoryActorName)
-//    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices.beamConfig,rideHailIterationHistoryActor)
+    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices.beamConfig,rideHailIterationHistoryActor)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -102,8 +102,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-      rideHailIterationHistoryActor ! CollectRideHailStats
-//      tncIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActor()
+     // rideHailIterationHistoryActor ! CollectRideHailStats
+      tncIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
     val physsimFuture = Future {

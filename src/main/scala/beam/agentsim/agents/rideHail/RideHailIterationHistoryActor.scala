@@ -3,6 +3,7 @@ package beam.agentsim.agents.rideHail
 import akka.actor.{Actor, Props}
 import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor._
 import beam.sim.BeamServices
+import beam.utils.DebugLib
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable
@@ -19,32 +20,38 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
   // TODO: how get a reference of RideHailIterationHistoryActor to the rideHailManager?
 
+  val rideHailIterationStatsHistory=scala.collection.mutable.ListBuffer[TNCIterationStats]()
+
 
   def receive = {
-    case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
+  //  case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
 
-    case CollectRideHailStats =>
-      tNCIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActor()
+  //  case CollectRideHailStats =>
+  //    tNCIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActorAndReset()
 
-    case GetRideHailStats() =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
-      sender() ! UpdateHistoricWaitingTimes(null)
+    case GetCurrentIterationRideHailStats =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
+      sender() ! rideHailIterationStatsHistory.lastOption
+      //sender() ! UpdateHistoricWaitingTimes(null)
 
-    case UpdateRideHailStats(rideHailStats) =>
+    case UpdateRideHailStats(stats) =>
+      rideHailIterationStatsHistory+=stats
+   // case message: String => {
+   //   println(self + " received message [" + message + "] FROM " + sender)
+    //}
 
-    case message: String => {
-      println(self + " received message [" + message + "] FROM " + sender)
-    }
+    case _      =>
 
-    case _      =>  ???
+      DebugLib.emptyFunctionForSettingBreakPoint()
+      // TODO: add logger!
   }
 }
 
 object RideHailIterationHistoryActor {
-  case class UpdateRideHailStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
+  case class UpdateRideHailStats(rideHailStats: TNCIterationStats)
 
   case class AddTNCHistoryData(tncIdleTimes: Set[WaitingEvent], passengerWaitingTimes:Set[WaitingEvent])
 
-  case class GetRideHailStats()
+  case object GetCurrentIterationRideHailStats
 
   case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
 
