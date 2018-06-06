@@ -30,7 +30,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
 
   // timeBins -> number OfTimeBins input
-  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
+  val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
   val timeBinSizeInSec = 3600 // beam.agentsim.agents.rideHailing.
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec).toInt + 1
 
@@ -67,18 +67,18 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   def tellHistoryToRideHailIterationHistoryActor(): Unit = {
     // TODO: send message to actor with collected data
 
-    System.out.println("Inside tellHistoryToRideHailIterationHistoryActor")
+    println("Inside tellHistoryToRideHailIterationHistoryActor")
 
 
     tncActor ! UpdateRideHailStats(rideHailStats)
 
     rideHailStats.foreach {
       (rhs) => {
-        System.out.println(rhs._1)
+        println(rhs._1)
 
         rhs._2.foreach(
           rhse => {
-            System.out.println(rhse)
+            println(rhse)
           }
         )
       }

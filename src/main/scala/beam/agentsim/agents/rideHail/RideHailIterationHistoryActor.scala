@@ -1,7 +1,7 @@
 package beam.agentsim.agents.rideHail
 
 import akka.actor.{Actor, Props}
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.{AddTNCHistoryData, GetRideHailStats, UpdateHistoricWaitingTimes, UpdateRideHailStats}
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor._
 import beam.sim.BeamServices
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -10,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: BeamServices) extends Actor {
 
-//  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
+  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
@@ -22,6 +22,9 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
   def receive = {
     case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
+
+    case CollectRideHailStats =>
+      tNCIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActor()
 
     case GetRideHailStats() =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
       sender() ! UpdateHistoricWaitingTimes(null)
@@ -46,6 +49,8 @@ object RideHailIterationHistoryActor {
   case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
 
   case class HistoricWaitingTimes()
+
+  case class CollectRideHailStats()
 
   def props(eventsManager: EventsManager, beamServices: BeamServices) = Props(new RideHailIterationHistoryActor(eventsManager, beamServices))
 }
