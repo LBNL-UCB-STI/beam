@@ -21,7 +21,7 @@ object RunBeam extends BeamHelper {
      """.stripMargin)
 
     val configFile: String = matchConfigFile(args)
-    runBeamWithConfigFile(Option(configFile))
+    runBeamWithConfigFile(configFile)
     logger.info("Exiting BEAM")
   }
 
