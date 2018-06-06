@@ -1,6 +1,7 @@
 package beam.agentsim.agents.rideHail
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
@@ -93,9 +94,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     rideHailModeChoiceAndPersonEntersEvents.clear()
 
     vehicleIdlingStartTimeBins.clear()
-
-
-
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -322,4 +320,3 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   }
 }
 
-case class UpdateRideHailStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])

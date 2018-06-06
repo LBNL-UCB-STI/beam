@@ -1,27 +1,16 @@
 package beam.agentsim.agents.rideHail
 
 import akka.actor.{Actor, Props}
-import beam.router.BeamRouter
-import beam.router.gtfs.FareCalculator
-import beam.router.osm.TollCalculator
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.{AddTNCHistoryData, GetRideHailStats, UpdateHistoricWaitingTimes, UpdateRideHailStats}
 import beam.sim.BeamServices
-import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.network.Network
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.vehicles.Vehicles
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
-class HistoricWaitingTimes(){
-
-}
-
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: BeamServices) extends Actor {
 
-  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
+//  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
@@ -33,24 +22,30 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
   def receive = {
     case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
-    case GetWaitingTimes() =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
+
+    case GetRideHailStats() =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
       sender() ! UpdateHistoricWaitingTimes(null)
+
     case UpdateRideHailStats(rideHailStats) =>
 
     case message: String => {
-      System.out.println(self + " received message [" + message + "] FROM " + sender)
+      println(self + " received message [" + message + "] FROM " + sender)
     }
+
     case _      =>  ???
   }
 }
 
 object RideHailIterationHistoryActor {
+  case class UpdateRideHailStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
+
+  case class AddTNCHistoryData(tncIdleTimes: Set[WaitingEvent], passengerWaitingTimes:Set[WaitingEvent])
+
+  case class GetRideHailStats()
+
+  case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
+
+  case class HistoricWaitingTimes()
+
   def props(eventsManager: EventsManager, beamServices: BeamServices) = Props(new RideHailIterationHistoryActor(eventsManager, beamServices))
 }
-case class AddTNCHistoryData(tncIdleTimes: Set[WaitingEvent], passengerWaitingTimes:Set[WaitingEvent])
-
-
-case class GetWaitingTimes()
-
-
-case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
