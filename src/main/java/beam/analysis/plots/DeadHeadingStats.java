@@ -47,8 +47,11 @@ public class DeadHeadingStats implements IGraphStats {
     @Override
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
         if (graphType.equalsIgnoreCase("TNC0")) {
+
+            processDeadHeadingDistanceRemainingRepositionings();
             createDeadHeadingDistanceGraph(event);
         } else {
+            processDeadHeadingPassengerPerTripRemainingRepositionings();
             createDeadHeadingPassengerPerTripGraph(event, graphType);
         }
     }
@@ -73,6 +76,43 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     // Deadheading Passenger Per Trip Graph
+    private void processDeadHeadingPassengerPerTripRemainingRepositionings(){
+
+        Set<String> vehicleIds = vehicleEventsCache.keySet();
+
+        for(String vid: vehicleIds) {
+            Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vid);
+
+            if (vehicleData != null) {
+                List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                Collections.sort(hourKeys);
+
+                int n = hourKeys.size();
+                for (int k = 0; k < n; k++) {
+
+                    int hourKey = hourKeys.get(k);
+                    List<Event> vehicleHourData = vehicleData.get(hourKey);
+
+                    int m = vehicleHourData.size();
+                    if (k == (n - 1)) {
+                        m = vehicleHourData.size() - 1;
+                    }
+
+                    for (int i = 0; i < m; i++) {
+
+                        Event oldEvent = vehicleHourData.get(i);
+
+                        String mode = oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+                        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vid);
+
+                        updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
+                    }
+                }
+            }
+        }
+
+        vehicleEventsCache.clear();
+    }
     private void processEventForTncPassengerPerTripGraph(Event event){
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
@@ -330,6 +370,44 @@ public class DeadHeadingStats implements IGraphStats {
 
 
     // Deadheading Distance Graph
+
+    private void processDeadHeadingDistanceRemainingRepositionings(){
+
+
+        Set<String> vehicleIds = vehicleEvents.keySet();
+
+        for(String vid : vehicleIds) {
+
+            Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vid);
+
+            if (vehicleData != null) {
+                List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                Collections.sort(hourKeys);
+
+                int n = hourKeys.size();
+                for (int k = 0; k < n; k++) {
+
+                    int hourKey = hourKeys.get(k);
+                    List<Event> vehicleHourData = vehicleData.get(hourKey);
+
+                    int m = vehicleHourData.size();
+                    if (k == (n - 1)) {
+                        m = vehicleHourData.size() - 1;
+                    }
+
+                    for (int i = 0; i < m; i++) {
+
+                        Event oldEvent = vehicleHourData.get(i);
+                        Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+
+                        updateDeadHeadingTNCMap(length2, hourKey, -1);
+                    }
+                }
+            }
+        }
+
+        vehicleEvents.clear();
+    }
     private void processEventForTncDeadheadingDistanceGraph(Event event){
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
