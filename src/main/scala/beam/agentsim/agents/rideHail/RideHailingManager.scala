@@ -317,6 +317,9 @@ class RideHailingManager(
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
+      log.debug(s"getIdleVehicles().size:${getIdleVehicles().size}")
+      getIdleVehicles().foreach( x => log.debug("getIdleVehicles():"+x._1.toString))
+
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
       if (repositionVehicles.isEmpty) {
