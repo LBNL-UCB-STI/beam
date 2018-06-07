@@ -48,7 +48,7 @@ trait ChoosesParking {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
-    case Driving -> ChoosingParkingSpot =>
+    case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
 
       //personData.currentVehicle.head

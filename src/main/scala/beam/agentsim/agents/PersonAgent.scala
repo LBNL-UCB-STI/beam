@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot}
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
@@ -93,6 +94,8 @@ object PersonAgent {
   case object PassengerScheduleEmpty extends Traveling
 
   case object PassengerScheduleEmptyInterrupted extends Traveling
+
+  case object ReadyToChooseParking extends Traveling
 
   case object Moving extends Traveling
 
@@ -255,6 +258,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           data.currentVehicle
         }
       )
+  }
+
+  when(ReadyToChooseParking, stateTimeout = Duration.Zero) {
+    case Event(StateTimeout, data) =>
+      goto(ChoosingParkingSpot) using ChoosesParkingData(data.asInstanceOf[BasePersonData])
   }
 
   onTransition {
