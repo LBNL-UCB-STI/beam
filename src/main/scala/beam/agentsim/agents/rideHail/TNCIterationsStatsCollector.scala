@@ -69,7 +69,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     // TODO: send message to actor with collected data
 
     //println("Inside tellHistoryToRideHailIterationHistoryActor")
-    updateStatsForIdlingVehicles
+    updateStatsForIdlingVehicles()
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
@@ -232,7 +232,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     vehicleActiveBins.put(tazId, tazVehs)
   }
 
-  private def updateStatsForIdlingVehicles = {
+  private def updateStatsForIdlingVehicles(): Unit = {
 
     rideHailStats.foreach(items => {
 
@@ -255,8 +255,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
     val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).size
     vehicleActiveBins.get(tazId) match {
-      case Some(vehs) =>
-        val noOfActiveVehicles = vehs.count(_._2.contains(binIndex))
+      case Some(vehBins) =>
+        val noOfActiveVehicles = vehBins.count(_._2.contains(binIndex))
         totalVehicles - noOfActiveVehicles
       case None =>
         totalVehicles
