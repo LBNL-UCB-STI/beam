@@ -69,4 +69,18 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public Id<Person> getPersonId() {
         return customerId;
     }
+
+    public static ReserveRideHailEvent apply(Event event) {
+        if (!(event instanceof ReserveRideHailEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            return new ReserveRideHailEvent(event.getTime(),
+                    Id.createPersonId(event.getAttributes().get(ATTRIBUTE_PERSON_ID)),
+                    Long.parseLong(event.getAttributes().get(ATTRIBUTE_DEPART_TIME)),
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_X)),
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_Y)),
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOFF_LOCATION_X)),
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOFF_LOCATION_Y))
+            );
+        }
+        return (ReserveRideHailEvent) event;
+    }
 }
