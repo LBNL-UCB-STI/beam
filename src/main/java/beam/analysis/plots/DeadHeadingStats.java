@@ -414,7 +414,7 @@ public class DeadHeadingStats implements IGraphStats {
                     double val =  hourData.get(outerLoopIndex) / METERS_IN_KM;
 //                    double val = hourData.get(outerLoopIndex);
                     //val = Math.round(val * 100) / 100;
-                    if(val < 1) val = 1;
+                    if(val > 0 && val < 1) val = 1;
                     modeOccurrencePerHour[index] = val;
 
                 }
