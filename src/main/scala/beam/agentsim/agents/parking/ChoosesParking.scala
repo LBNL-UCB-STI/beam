@@ -1,7 +1,9 @@
 package beam.agentsim.agents.parking
 
-import akka.actor.Stash
+import java.util.concurrent.TimeUnit
+
 import akka.pattern.{ask, pipe}
+import akka.util.Timeout
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -19,7 +21,6 @@ import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.HasServices
 import tscfg.model.DURATION
 
 import scala.concurrent.Future
@@ -33,25 +34,33 @@ import scala.concurrent.duration.Duration
   * BEAM
   */
 object ChoosesParking {
+  case class ChoosesParkingData(personData: BasePersonData) extends PersonData {
+    override def currentVehicle: VehicleStack = personData.currentVehicle
+    override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+    override def hasParkingBehaviors: Boolean = true
+    override def currentLegPassengerScheduleIndex: Int = -1
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
+  }
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
 }
-trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash  {
+trait ChoosesParking {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
-    case Driving -> ChoosingParkingSpot =>
-      val drivingData = stateData.asInstanceOf[LiterallyDrivingData]
+    case ReadyToChooseParking -> ChoosingParkingSpot =>
+      val personData = stateData.asInstanceOf[BasePersonData]
 
-      //drivingData.currentVehicle.head
+      //personData.currentVehicle.head
 
-      val firstLeg = drivingData.passengerSchedule.schedule.firstKey
-      val lastLeg = drivingData.passengerSchedule.schedule.lastKey
+      val firstLeg = personData.restOfCurrentTrip.head
+      val lastLeg = personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
       //TODO source value of time from appropriate place
-      parkingManager ! ParkingInquiry(id, beamServices.geo.wgs2Utm(lastLeg.travelPath.startPoint.loc),
-        beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), nextActivity(drivingData).right.get.getType,
-        17.0, NoNeed, lastLeg.endTime, nextActivity(drivingData).right.get.getEndTime - lastLeg.endTime.toDouble)
+      parkingManager ! ParkingInquiry(id, beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
+        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc), nextActivity(personData).right.get.getType,
+        17.0, NoNeed, lastLeg.beamLeg.endTime, nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble)
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
@@ -82,7 +91,7 @@ trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices wit
     case Event(ParkingInquiryResponse(stall), data@ChoosesParkingData(_)) =>
 
       val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val nextLeg = data.passengerSchedule.schedule.head._1
+      val nextLeg = data.passengerSchedule.schedule.keys.drop(data.personData.currentLegPassengerScheduleIndex).head
       beamServices.vehicles(data.currentVehicle.head).useParkingStall(stall)
 
       data.currentVehicle.head
@@ -102,7 +111,7 @@ trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices wit
         val vehId = data.currentVehicle.head
         eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId))
 
-        goto(WaitingToDrive) using data
+        goto(WaitingToDrive) using data.personData
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
         // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
@@ -129,7 +138,7 @@ trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices wit
       }
     case Event(responses: (RoutingResponse, RoutingResponse),data@ChoosesParkingData(_)) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val nextLeg = data.passengerSchedule.schedule.head._1
+      val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
 
       if(responses._1.itineraries.isEmpty){
