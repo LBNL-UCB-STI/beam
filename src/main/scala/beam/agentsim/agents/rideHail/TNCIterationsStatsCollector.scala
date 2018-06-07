@@ -15,7 +15,16 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 
-case class RideHailStatsEntry(sumOfRequestedRides: Double, sumOfWaitingtimes: Double, sumOfIdlingVehicles: Double)
+case class RideHailStatsEntry(sumOfRequestedRides: Double, sumOfWaitingtimes: Double, sumOfIdlingVehicles: Double){
+
+  def getAverage(other: RideHailStatsEntry): RideHailStatsEntry ={
+    RideHailStatsEntry((sumOfRequestedRides+other.sumOfRequestedRides)/2,(sumOfWaitingtimes+other.sumOfWaitingtimes)/2,(sumOfIdlingVehicles+other.sumOfIdlingVehicles)/2)
+  }
+
+}
+
+
+
 
 /*
 class RideHailStats(mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]){
@@ -70,7 +79,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
     //println("Inside tellHistoryToRideHailIterationHistoryActor")
 
 
-    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec))
+    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec,numberOfTimeBins))
 
     rideHailStats.foreach {
       (rhs) => {

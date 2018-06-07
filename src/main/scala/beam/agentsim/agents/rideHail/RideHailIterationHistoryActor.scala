@@ -20,24 +20,29 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
   // TODO: how get a reference of RideHailIterationHistoryActor to the rideHailManager?
 
-  val rideHailIterationStatsHistory=scala.collection.mutable.ListBuffer[TNCIterationStats]()
+  val rideHailIterationStatsHistory=scala.collection.mutable.ArrayBuffer[TNCIterationStats]()
 
+
+  def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] ={
+    if (rideHailIterationStatsHistory.size>=2){
+      val lastElement=rideHailIterationStatsHistory.last
+      val secondLastElement=rideHailIterationStatsHistory(rideHailIterationStatsHistory.size-1)
+      Some(TNCIterationStats.merge(lastElement,secondLastElement))
+    } else {
+      rideHailIterationStatsHistory.lastOption
+    }
+  }
 
   def receive = {
-  //  case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCIterationsStatsCollector
-
-  //  case CollectRideHailStats =>
-  //    tNCIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActorAndReset()
 
     case GetCurrentIterationRideHailStats =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
-      sender() ! rideHailIterationStatsHistory.lastOption
+      val stats=oszilationAdjustedTNCIterationStats()
+        stats.foreach(_.printMap())
+        sender() ! stats
       //sender() ! UpdateHistoricWaitingTimes(null)
 
     case UpdateRideHailStats(stats) =>
       rideHailIterationStatsHistory+=stats
-   // case message: String => {
-   //   println(self + " received message [" + message + "] FROM " + sender)
-    //}
 
     case _      =>
 
