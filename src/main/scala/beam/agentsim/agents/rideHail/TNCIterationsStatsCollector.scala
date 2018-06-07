@@ -52,7 +52,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   val vehicleIdlingStartTimeBins = mutable.Map[String, Int]()
 
 
-  val rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
+  var rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
   //numberOfRides: -> passengers =1 (sum of rides)
   //customerWaitTime -> sum and average
@@ -93,7 +93,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
       }
     }
 
-    //rideHailStats.clear()
+    rideHailStats= mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
     vehicleIdlingStartTimeBins.clear()
 
     rideHailModeChoice4Waiting.clear()

@@ -26,7 +26,7 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
   def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] ={
     if (rideHailIterationStatsHistory.size>=2){
       val lastElement=rideHailIterationStatsHistory.last
-      val secondLastElement=rideHailIterationStatsHistory(rideHailIterationStatsHistory.size-1)
+      val secondLastElement=rideHailIterationStatsHistory(rideHailIterationStatsHistory.size-2)
       Some(TNCIterationStats.merge(lastElement,secondLastElement))
     } else {
       rideHailIterationStatsHistory.lastOption
@@ -37,7 +37,7 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
 
     case GetCurrentIterationRideHailStats =>  //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
       val stats=oszilationAdjustedTNCIterationStats()
-        stats.foreach(_.printMap())
+      //  stats.foreach(_.printMap())
         sender() ! stats
       //sender() ! UpdateHistoricWaitingTimes(null)
 
