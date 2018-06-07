@@ -44,6 +44,11 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: 
     case UpdateRideHailStats(stats) =>
       rideHailIterationStatsHistory+=stats
 
+      // trimm array buffer as we just need 2 elements
+      if (rideHailIterationStatsHistory.size>2){
+        rideHailIterationStatsHistory.remove(0)
+      }
+
     case _      =>
 
       DebugLib.emptyFunctionForSettingBreakPoint()
