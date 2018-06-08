@@ -13,6 +13,7 @@ import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.rideHail.RideHailUtils
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.events.ReserveRideHailEvent
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
@@ -310,9 +311,15 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
-      legSegment.head.isRideHail
-      rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
+
+      val rideHailingRequest =  RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
+      rideHailingManager ! rideHailingRequest
+//      val (tick, triggerId) = releaseTickAndTriggerId()
+      if(departAt.atTime != _currentTick.get.toInt)
+        print(s"$departAt is different then current")
+
+      eventsManager.processEvent(new ReserveRideHailEvent(departAt.atTime, rideHailingRequest))
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()

@@ -11,7 +11,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.CollectRideHailStats
-import beam.agentsim.agents.rideHail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.agentsim.agents.rideHail.{RideHailDebugEventHandler, RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -92,6 +92,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices),rideHailIterationHistoryActorName)
     tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices.beamConfig,rideHailIterationHistoryActor)
+
+    new RideHailDebugEventHandler(eventsManager)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
