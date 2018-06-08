@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ReserveRideHail";
-    public final static String ATTRIBUTE_PERSON_ID = "customerId";
+    public final static String ATTRIBUTE_PERSON_ID = "person";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
     public final static String ATTRIBUTE_DEPART_TIME = "departTime";
     public final static String ATTRIBUTE_PICKUP_LOCATION_X = "originY";
