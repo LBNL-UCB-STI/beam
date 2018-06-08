@@ -12,6 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.sim.config.BeamConfig
 import beam.utils.DebugLib
 import com.eaio.uuid.UUIDGen
+import com.sun.media.imageioimpl.plugins.jpeg2000.DataEntryURLBox
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -242,7 +243,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     val rideHailModifyPassengerScheduleStatus = new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId, vehicleId, modifyPassengerSchedule, interruptOrigin, tick, rideHailAgent, interruptMessageStatus)
 
     val withVehicleIdStats = getWithVehicleIds(vehicleId)
-    val processInterrupt = containsPendingReservations(vehicleId)
+    val processInterrupt = noPendingReservations(vehicleId)
     add(rideHailModifyPassengerScheduleStatus)
 
     if (processInterrupt) {
@@ -255,7 +256,22 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     }
   }
 
-  def containsPendingReservations(vehicleId: Id[Vehicle]): Boolean = {
+  def isPendingReservationEnding(vehicleId: Id[Vehicle],passengerSchedule: PassengerSchedule): Boolean ={
+    var result=false
+    getWithVehicleIds(vehicleId).filter(_.interruptOrigin == InterruptOrigin.RESERVATION).headOption.foreach{ stats=>
+      result=stats.modifyPassengerSchedule.updatedPassengerSchedule==passengerSchedule
+    }
+
+    if (result){
+      val a=getWithVehicleIds(vehicleId).filter(_.interruptOrigin == InterruptOrigin.RESERVATION).head.modifyPassengerSchedule.updatedPassengerSchedule
+      val b=passengerSchedule
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+    result
+  }
+
+  def noPendingReservations(vehicleId: Id[Vehicle]): Boolean = {
     getWithVehicleIds(vehicleId).filter(_.interruptOrigin == InterruptOrigin.RESERVATION).isEmpty
   }
 
@@ -267,7 +283,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
         var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
         var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
         log.debug(s"BEFORE checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
-
+         val listSizeAtStart=rideHailModifyPassengerScheduleStatusSet.size
 
         rideHailModifyPassengerScheduleStatusSet.foreach{ status =>
           if (status.modifyPassengerSchedule.updatedPassengerSchedule==passengerSchedule){
@@ -286,10 +302,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
         deleteItems.foreach { status =>
           if (availableIn.get.time > 0) {
-            val beamLeg=status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.head._1
+            val beamLeg=status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.toVector.last._1
+            val passengerSchduleLastLeg=passengerSchedule.schedule.toVector.last._1
             val endTime=beamLeg.endTime
 
-            if (availableIn.get.time!=endTime && status.interruptOrigin==InterruptOrigin.RESERVATION){
+            if (beamLeg.endTime!=passengerSchduleLastLeg.endTime && status.interruptOrigin==InterruptOrigin.RESERVATION){
               // ignore, because this checkin is for a reposition and not the current Reservation
               log.debug("checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn)
 
@@ -315,6 +332,9 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
           }
         }
 
+        if (listSizeAtStart==rideHailModifyPassengerScheduleStatusSet.size){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
 
         log.debug(s"AFTER checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
 
