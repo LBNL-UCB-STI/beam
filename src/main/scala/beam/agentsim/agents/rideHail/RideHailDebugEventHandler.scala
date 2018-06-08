@@ -2,7 +2,7 @@ package beam.agentsim.agents.rideHail
 
 import beam.agentsim.events.PathTraversalEvent
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events._
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 
@@ -13,40 +13,99 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   eventsManager.addHandler(this)
 
-  private val vehicleEvents = mutable.Map[String, Event]()
+  //  private val rideHailEvents = mutable.Map[String, Event]()
+  private var rideHailEvents = mutable.ArrayBuffer[Event]()
 
   override def handleEvent(event: Event): Unit = {
-    vehiclesWithNoPassengers(event)
+
+    collectRideHailEvents(event)
+
   }
 
 
-  private def vehiclesWithNoPassengers(event: Event) = {
+  private def collectRideHailEvents(event: Event) = {
     // if peson enters ride hail vehicle then number of passengers >0 in ride hail vehicle
 
     event.getEventType match {
-      case PersonEntersVehicleEvent.EVENT_TYPE =>
+      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
 
+        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
         val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
-        if (vehicle.contains("rideHail"))
-          vehicleEvents.put(vehicle, event)
-      case PathTraversalEvent.EVENT_TYPE =>
-        val mode = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-        val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
-        if (vehicle.contains("rideHail")) {
-          if (numPassengers == 0) {
-            vehicleEvents.remove(vehicle)
-            logger.debug(s"RideHail: vehicle with no passenger where it already encountered PersonEntersVehicle $event")
-          }
+        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
+          rideHailEvents += event
 
-        }
+      case PathTraversalEvent.EVENT_TYPE =>
+
+        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+        if (vehicle.contains("rideHail"))
+          rideHailEvents += event
+
       case _ =>
+
     }
   }
 
   override def reset(iteration: Int): Unit = {
 
+    sortEvents()
 
+    testZeroPassengerCount()
   }
 
+  private def testZeroPassengerCount(): Unit = {
+
+    val vehicleEvents = mutable.Map[String, Event]()
+
+    rideHailEvents.foreach(event =>
+
+      event.getEventType match {
+
+        case PersonEntersVehicleEvent.EVENT_TYPE =>
+
+          val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+
+          vehicleEvents.put(vehicle, event)
+
+        case PathTraversalEvent.EVENT_TYPE if (vehicleEvents.size > 0) =>
+
+          val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+          val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+          val departure = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+
+          vehicleEvents.get(vehicle) match {
+
+            case Some(enterEvent) =>
+
+              val enteredVehicle = enterEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+
+              if (enteredVehicle == vehicle && departure == enterEvent.getTime&& numPassengers == 0 )
+                logger.debug(s"RideHail: vehicle with zero passenger - $event")
+
+            case None =>
+          }
+
+        case PersonLeavesVehicleEvent.EVENT_TYPE =>
+
+          val person = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON)
+          val vehicle = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE)
+
+          vehicleEvents.get(vehicle) match {
+
+            case Some(enterEvent) =>
+
+              val enteredPerson = enterEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+              if (enteredPerson == person)
+                vehicleEvents.remove(vehicle)
+          }
+        case _ =>
+
+      })
+
+    vehicleEvents.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event"))
+  }
+
+  private def sortEvents(): Unit = {
+
+    rideHailEvents = this.rideHailEvents.sortWith((e1, e2) => e1.getTime < e2.getTime)
+  }
 }
