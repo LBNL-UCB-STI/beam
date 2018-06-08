@@ -307,10 +307,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val resRequest = ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
-    case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>
+    case Event(StateTimeout, data@BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
       legSegment.head.isRideHail
+      logDebug(s"personAgent($id) - sending RideHailingRequest: $data")
       rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
       goto(WaitingForReservationConfirmation)
