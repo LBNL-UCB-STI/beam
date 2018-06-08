@@ -17,8 +17,8 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_DEPART_TIME = "departTime";
     public final static String ATTRIBUTE_PICKUP_LOCATION_X = "originY";
     public final static String ATTRIBUTE_PICKUP_LOCATION_Y = "originY";
-    public final static String ATTRIBUTE_DROPOFF_LOCATION_X = "destinationX";
-    public final static String ATTRIBUTE_DROPOFF_LOCATION_Y = "destinationY";
+    public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "destinationX";
+    public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "destinationY";
 
     private final Id<Person> customerId;
     private final long departTime;
@@ -54,8 +54,8 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_DEPART_TIME, Long.toString(departTime));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_X, Double.toString(originX));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_Y, Double.toString(originY));
-        attr.put(ATTRIBUTE_DROPOFF_LOCATION_X, Double.toString(destinationX));
-        attr.put(ATTRIBUTE_DROPOFF_LOCATION_Y, Double.toString(destinationY));
+        attr.put(ATTRIBUTE_DROPOUT_LOCATION_X, Double.toString(destinationX));
+        attr.put(ATTRIBUTE_DROPOUT_LOCATION_Y, Double.toString(destinationY));
 
         return attr;
     }
@@ -74,11 +74,12 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         if (!(event instanceof ReserveRideHailEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
             return new ReserveRideHailEvent(event.getTime(),
                     Id.createPersonId(event.getAttributes().get(ATTRIBUTE_PERSON_ID)),
+                    Id.createVehicleId(event.getAttributes().get(ATTRIBUTE_VEHICLE_ID)),
                     Long.parseLong(event.getAttributes().get(ATTRIBUTE_DEPART_TIME)),
                     Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_X)),
                     Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_Y)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOFF_LOCATION_X)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOFF_LOCATION_Y))
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOUT_LOCATION_X)),
+                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOUT_LOCATION_Y))
             );
         }
         return (ReserveRideHailEvent) event;
