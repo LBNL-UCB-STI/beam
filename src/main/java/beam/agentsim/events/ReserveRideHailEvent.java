@@ -5,6 +5,7 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.internal.HasPersonId;
+import org.matsim.vehicles.Vehicle;
 
 import java.util.Map;
 
@@ -14,6 +15,7 @@ import java.util.Map;
 public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ReserveRideHail";
     public final static String ATTRIBUTE_PERSON_ID = "customerId";
+    public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
     public final static String ATTRIBUTE_DEPART_TIME = "departTime";
     public final static String ATTRIBUTE_PICKUP_LOCATION_X = "originY";
     public final static String ATTRIBUTE_PICKUP_LOCATION_Y = "originY";
@@ -21,6 +23,7 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "destinationY";
 
     private final Id<Person> customerId;
+    private final Id<Vehicle> vehicleId;
     private final long departTime;
     private final double originX;
     private final double originY;
@@ -28,17 +31,23 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     private final double destinationY;
 
     public ReserveRideHailEvent(double time, RideHailingManager.RideHailingRequest rideHailingRequest) {
-        this(time, rideHailingRequest.customer().personId(), (long) rideHailingRequest.departAt().atTime(),
-                rideHailingRequest.pickUpLocation().getX(), rideHailingRequest.pickUpLocation().getX(),
-                rideHailingRequest.destination().getX(), rideHailingRequest.destination().getX());
+       this(time,
+               rideHailingRequest.customer().personId(),
+               rideHailingRequest.customer().vehicleId(),
+               (long) rideHailingRequest.departAt().atTime(),
+                rideHailingRequest.pickUpLocation().getX(),
+               rideHailingRequest.pickUpLocation().getX(),
+                rideHailingRequest.destination().getX(),
+               rideHailingRequest.destination().getX());
     }
 
 
-    public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, double originX,
+    public ReserveRideHailEvent(double time, Id<Person> personId, Id<Vehicle> vehicleId, long departTime, double originX,
                                 double originY, double destinationX, double destinationY) {
         super(time);
 
         this.customerId = personId;
+        this.vehicleId = vehicleId;
         this.departTime = departTime;
         this.originX = originX;
         this.originY = originY;
@@ -51,6 +60,7 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         Map<String, String> attr = super.getAttributes();
 
         attr.put(ATTRIBUTE_PERSON_ID, customerId.toString());
+        attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString());
         attr.put(ATTRIBUTE_DEPART_TIME, Long.toString(departTime));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_X, Double.toString(originX));
         attr.put(ATTRIBUTE_PICKUP_LOCATION_Y, Double.toString(originY));
