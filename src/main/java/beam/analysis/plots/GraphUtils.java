@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -7,13 +8,17 @@ import org.jfree.data.category.CategoryDataset;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 public class GraphUtils {
     private static final List<Color> colors = new ArrayList<>();
     private static final Color DEFAULT_BACK_GROUND = new Color(255, 255, 255);
+    /**
+     * Map < iteration number, ride hailing revenue>
+     */
+    public static Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
+
     static {
         colors.add(Color.GREEN);
         colors.add(Color.BLUE);
