@@ -20,7 +20,26 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
+    // TODO: location has to be fixed for random (same for all iterations)! -> confirm that not changing
+      //-> start with home or middle point, as fixed
+
+
+    //intial distribution according to demand (=home).
+
+
     /*
+
+    planning horzion of 20min
+
+repositioningTimer=5min
+bin size=5min
+look at TAZ for next 20min, which have highest number of idle vehicles Sum (over 4x5min slotes)
+  -> take top n% (repositioning rate)
+    -> only consider TAZs in distance 2miles
+    -> calculate attractionScore of TAZs and take top 5% (again for next 20min, sum).
+    -> assign according to weight probabilistically
+-> if need additional
+
 
     -> which tnc to reposition?
       -> go through all idle tncs

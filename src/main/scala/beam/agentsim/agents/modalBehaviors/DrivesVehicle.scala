@@ -64,6 +64,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           // If no manager is set, we ignore
           data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
             case Some(currentLeg) =>
+
+              if (isLastLeg && currentVehicleUnderControl.toString.contains("ride") && beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint).time!=data.passengerSchedule.schedule.toVector.last._1.endTime){
+                val endPoint=currentLeg.travelPath.endPoint
+                val geoEndPoint=beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)
+                DebugLib.emptyFunctionForSettingBreakPoint()
+              }
+
               beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),data.passengerSchedule,isLastLeg))
               beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
 
@@ -116,7 +123,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
             log.error("DrivingInterrupted.StopDriving.Vehicle: " + data.currentVehicle.head)
             log.error("DrivingInterrupted.StopDriving.PassengerSchedule: " + data.passengerSchedule)
-            DebugLib.whileTrue()
+           /// DebugLib.whileTrue()
             DebugLib.emptyFunctionForSettingBreakPoint()
 
           }

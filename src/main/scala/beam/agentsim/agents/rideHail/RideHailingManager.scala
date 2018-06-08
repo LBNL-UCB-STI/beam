@@ -166,13 +166,13 @@ class RideHailingManager(
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
     case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule, isLastleg) =>
-      updateLocationOfAgent(vehicleId, whenWhere, isAvailable = false)
+      updateLocationOfAgent(vehicleId, whenWhere, isAvailable = isAvailable(vehicleId))
 
       if (isLastleg) {
         //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
         resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
           val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
-          if (modifyPassengerScheduleManager.containsPendingReservations(vehicleId)) {
+          if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId,passengerSchedule)) {
             // we still might have some ongoing resrvation in going on
             makeAvailable(rideHailingAgentLocation)
           }
@@ -201,7 +201,7 @@ class RideHailingManager(
       if (whenWhere.get.time == 0) {
         resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
           val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere.get)
-          if (modifyPassengerScheduleManager.containsPendingReservations(vehicleId)) {
+          if (modifyPassengerScheduleManager.noPendingReservations(vehicleId)) {
             // we still might have some ongoing resrvation in going on
             makeAvailable(rideHailingAgentLocation)
           }
@@ -316,6 +316,9 @@ class RideHailingManager(
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
+
+      log.debug(s"getIdleVehicles().size:${getIdleVehicles().size}")
+      getIdleVehicles().foreach( x => log.debug("getIdleVehicles():"+x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
@@ -574,6 +577,7 @@ class RideHailingManager(
 
 
   private def handleReservationRequest(request: RideHailingRequest) = {
+    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailingAgentLocation.vehicleId) ||
