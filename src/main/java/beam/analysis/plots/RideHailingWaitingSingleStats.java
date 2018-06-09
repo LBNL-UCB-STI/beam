@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.utils.DebugLib;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -89,6 +90,11 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         double[][] data = new double[1][maxHour + 1];
         for(Integer key : hoursTimesMap.keySet()){
+
+            if (key>=data[0].length){
+                DebugLib.emptyFunctionForSettingBreakPoint();
+            }
+
             data[0][key] = hoursTimesMap.get(key);
         }
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("","",data);

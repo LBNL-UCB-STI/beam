@@ -20,6 +20,24 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
+    val idleVehicles=rideHailingManager.getIdleVehicles()
+    val fleetSize=1000 // TODO: get proper number here from rideHailManager
+    val timeHorizonToConsiderInSecondsForIdleVehicles=20*60
+    val percentageOfVehiclesToReposition=0.01;
+    val maxNumberOfVehiclesToReposition=fleetSize*percentageOfVehiclesToReposition
+
+val repositionCircleRadisInMeters=3000
+
+
+    val vehiclesToReposition=tncIterationStats.get.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
+
+    val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.get.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters)
+
+
+    //sortedTAZ.take(numberOfVehiclesToReposition)
+
+
+
     // TODO: location has to be fixed for random (same for all iterations)! -> confirm that not changing
       //-> start with home or middle point, as fixed
 
