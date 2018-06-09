@@ -98,6 +98,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               val enteredPerson = enterEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
               if (enteredPerson == person)
                 vehicleEvents.remove(vehicle)
+            case None =>
           }
         case _ =>
 
@@ -108,6 +109,26 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def sortEvents(): Unit = {
 
-    rideHailEvents = this.rideHailEvents.sortWith((e1, e2) => e1.getTime < e2.getTime)
+    rideHailEvents = this.rideHailEvents.sortWith((e1, e2) => {
+      if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
+
+        val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+        val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+
+
+
+        if(e1Depart != e2Depart) {
+          return e1Depart < e1Depart
+        } else {
+          val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+          val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+
+          return e1Arrival < e2Arrival
+        }
+
+      }
+
+      e1.getTime < e2.getTime
+    })
   }
 }
