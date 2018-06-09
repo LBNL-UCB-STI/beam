@@ -6,12 +6,13 @@ import java.nio.file.{Files, Path, Paths}
 import beam.router.osm.TollCalculator.{Charge, Toll}
 import com.conveyal.osmlib.OSMEntity.Tag
 import com.conveyal.osmlib.{OSM, Way}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Map
 
 
-class TollCalculator(val directory: String) {
+class TollCalculator(val directory: String) extends LazyLogging{
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
 
@@ -27,6 +28,8 @@ class TollCalculator(val directory: String) {
     stream.close()
     ways
   }
+
+  logger.info(s"Ways keys size: ${ways.keys.size}")
 
   def fromDirectory(directory: Path): Map[java.lang.Long, Toll] = {
     var ways: Map[java.lang.Long, Toll] = Map()
@@ -70,7 +73,14 @@ class TollCalculator(val directory: String) {
     ways
   }
 
+  var maxOsmIdsLen: Long = Long.MinValue
+
   def calcToll(osmIds: Seq[Long]): Double = {
+    if (osmIds.length > maxOsmIdsLen) {
+      maxOsmIdsLen = osmIds.length
+      logger.info(s"Max OsmIDS: ${maxOsmIdsLen}")
+    }
+    // TODO: Do we need faster lookup like hashset
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
     ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
   }
