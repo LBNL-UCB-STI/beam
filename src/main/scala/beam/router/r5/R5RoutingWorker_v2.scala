@@ -167,9 +167,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           res.copy(routeCalcTimeMs = stop - start)
       }
       eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse.pipeTo(sender).map { x =>
-        logger.info("Sent RoutingResponse: {}", x.id)
-      }
+      eventualResponse.pipeTo(sender)
 
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
@@ -193,7 +191,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         id = id,
         requestId = UUID.fromString("00000000-0000-0000-0000-000000000000")
       )
-      logger.info("Sent RoutingResponse: {}", id)
   }
 
 

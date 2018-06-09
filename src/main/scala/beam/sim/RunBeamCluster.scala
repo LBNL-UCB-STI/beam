@@ -77,7 +77,6 @@ class DeadLetterReplayer extends Actor with ActorLogging {
       d.message match {
         case r: RoutingResponse =>
           d.recipient.tell(d.message, sender)
-          log.info("Sent RoutingResponse: {}", r.id)
         case _ =>
           log.error(s"DeadLetter. Don't know what to do with: $d")
       }
