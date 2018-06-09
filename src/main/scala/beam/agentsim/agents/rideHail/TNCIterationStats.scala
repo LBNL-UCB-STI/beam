@@ -1,8 +1,12 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.infrastructure.TAZTreeMap
-import org.matsim.api.core.v01.Coord
+import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
+import beam.router.BeamRouter.Location
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.mobsim.jdeqsim.Vehicle
+import org.matsim.vehicles
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -12,11 +16,57 @@ case class TNCIterationStats(
   timeBinSizeInSec: Double,
   numberOfTimeBins:Int
 ) {
+  def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], repositionCircleRadisInMeters: Int): Vector[(Id[vehicles.Vehicle], Location)] = {
+
+    // for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
+      // 1.) find all TAZ in radius
+      // 2.) score them according to total waiting time
+    //   3.) take top 3 and assign according to weights more or less to them
+    // 4.)
+
+???
+  }
+
+
   def getRideHailStatsInfo(coord: Coord, time: Double): Option[RideHailStatsEntry] = {
     val tazId = tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
     val timeBin = (time / timeBinSizeInSec).toInt
     rideHailStats.get(tazId).flatMap(ab => ab(timeBin))
   }
+
+  // TODO: implement according to description
+  def getIdleTAZRankingForNextTimeSlots(startTime: Double,duration:Double): Vector[(TAZ,Double)] ={
+    // start at startTime and end at duration time bin
+
+    // add how many idle vehicles available
+    // sort according to score
+    ???
+  }
+
+
+  def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double, tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): Vector[RideHailingManager.RideHailingAgentLocation]={
+    // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
+    // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
+    // e.g. just go through 20min
+
+
+
+
+    // go through vehicles
+
+    // those vehicles, which are located in areas with high number of idling time in future from now, should be moved
+    // the longer the waiting time in future, the l
+
+    // just look at smaller repositionings
+
+
+  ???
+  }
+
+
+
+
+
 
   def getWithDifferentMap(differentMap:mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]): TNCIterationStats ={
     TNCIterationStats(differentMap,tazTreeMap,timeBinSizeInSec,numberOfTimeBins)
