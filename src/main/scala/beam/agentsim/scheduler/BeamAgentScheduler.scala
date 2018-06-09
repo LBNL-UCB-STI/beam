@@ -184,9 +184,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger.isInstanceOf[RideHailAllocationManagerTimeout]) {
             if (numReps==10){
               log.error("RideHailingManager is slow")
-            }
-
-            if (numReps==50){
+            } else if (numReps==50){
               throw new RuntimeException("RideHailingManager is extremly slow")
             }
           } else {
