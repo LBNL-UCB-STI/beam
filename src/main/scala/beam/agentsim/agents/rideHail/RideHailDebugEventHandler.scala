@@ -46,7 +46,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
   }
 
   override def reset(iteration: Int): Unit = {
-
+    //TODO: fix execution for last iteration
     sortEvents()
 
     testZeroPassengerCount()
@@ -109,23 +109,22 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def sortEvents(): Unit = {
 
-    rideHailEvents = this.rideHailEvents.sortWith((e1, e2) => {
+    rideHailEvents = rideHailEvents.sortWith((e1, e2) => {
       if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
 
         val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
         val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
-
-
         if(e1Depart != e2Depart) {
+
           return e1Depart < e1Depart
+
         } else {
           val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
           val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
 
           return e1Arrival < e2Arrival
         }
-
       }
 
       e1.getTime < e2.getTime
