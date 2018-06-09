@@ -84,14 +84,12 @@ case class TNCIterationStats(
     ???
   }
 
-  case class VehicleLocationScores(val vehicleId: Id[vehicles.Vehicle], val rideHailingAgentLocation: RideHailingManager.RideHailingAgentLocation, val score: Int)
 
-  case object VehicleLocationScores{
-    def vehicleLocationScoresOrder(vls: VehicleLocationScores) = { vls.score }
-  }
 
-  def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double,
-                                                    tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): List[RideHailingManager.RideHailingAgentLocation]={
+
+  def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle],
+                                                    RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double,
+                                                    tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): Vector[RideHailingManager.RideHailingAgentLocation]={
     // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
     // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
     // e.g. just go through 20min
@@ -111,7 +109,7 @@ case class TNCIterationStats(
     => this is result.
     */
 
-    val priorityQueue: mutable.PriorityQueue[VehicleLocationScores] = mutable.PriorityQueue[VehicleLocationScores]()
+    val priorityQueue: mutable.PriorityQueue[Vehiclelocationscores] = mutable.PriorityQueue[Vehiclelocationscores]()(VehiclelocationscoresOrdering)
 
     idleVehicles.foreach{
       case (vId, rhLoc) => {
@@ -124,24 +122,26 @@ case class TNCIterationStats(
           val rideHailStatsEntry = getRideHailStatsInfo(rhLoc.currentLocation.loc, t)
           rideHailStatsEntry match {
             case Some(r) => {
-              idleScore += r.sumOfIdlingVehicles
+              idleScore += r.sumOfIdlingVehicles.toInt
             }
             case _ =>
           }
         }
 
-        val o = VehicleLocationScores(vId, rhLoc, idleScore)
+        val o = Vehiclelocationscores(vId, rhLoc, idleScore)
         priorityQueue.enqueue(o)
 
       }
     }
 
 
-    (priorityQueue.take(10).map {
-      case (vls: VehicleLocationScores) => {
+    val listOfLocations = (priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).map {
+      case (vls: Vehiclelocationscores) => {
         vls.rideHailingAgentLocation
       }
-    }).toList
+    }).toVector
+
+    listOfLocations
 
     //
     // go through vehicles
@@ -213,4 +213,13 @@ object TNCIterationStats{
   }
 
 
+}
+
+case class Vehiclelocationscores(val vehicleId: Id[vehicles.Vehicle], val rideHailingAgentLocation: RideHailingManager.RideHailingAgentLocation, val score: Int)
+
+object VehiclelocationscoresOrdering extends Ordering[Vehiclelocationscores]{
+
+  def compare(vls1: Vehiclelocationscores, vls2: Vehiclelocationscores) = {
+    vls1.score.compare(vls2.score)
+  }
 }
