@@ -71,14 +71,14 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             case None => mutable.Set[PersonEntersVehicleEvent]()
           }
           // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
-          if(events.size > 0) {
+          if (events.size > 0) {
             logger.debug(s"RideHail: vehicle ${vehicle} already has person and another enters - $event")
           }
 
           events += currentEvent
           vehicleEvents.put(vehicle, events)
 
-        case PathTraversalEvent.EVENT_TYPE if (vehicleEvents.size > 0) =>
+        case PathTraversalEvent.EVENT_TYPE if vehicleEvents.size > 0 =>
 
           val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
           val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
@@ -88,7 +88,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
             case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
 
-                logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
+              logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
 
             // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
             case None if numPassengers > 0 =>
@@ -126,25 +126,58 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def sortEvents(): Unit = {
 
-    rideHailEvents = rideHailEvents.sortWith((e1, e2) => {
-      if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
+    rideHailEvents = rideHailEvents.sortWith(compareEventsV3)
+  }
 
-        val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-        val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+  private def compareEventsV1(e1: Event, e2: Event): Boolean = {
+    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
 
-        if(e1Depart != e2Depart) {
+      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
-          return e1Depart < e1Depart
+      if (e1Depart != e2Depart) {
 
-        } else {
-          val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-          val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+        return e1Depart < e1Depart
 
-          return e1Arrival < e2Arrival
-        }
+      } else {
+        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+
+        return e1Arrival < e2Arrival
       }
+    }
 
+    e1.getTime < e2.getTime
+  }
+
+  private def compareEventsV2(e1: Event, e2: Event): Boolean = {
+    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
+
+      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+
+      if (e1Depart != e2Depart) {
+
+        e1Depart < e1Depart
+
+      } else {
+        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+
+        e1Arrival < e2Arrival
+      }
+    } else {
       e1.getTime < e2.getTime
-    })
+    }
+  }
+
+  private def compareEventsV3(e1: Event, e2: Event): Boolean = {
+    val t1 = e1.getAttributes.getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}").toDouble
+    val t2 = e2.getAttributes.getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}").toDouble
+
+    if(t1 == t2)
+      e1.getTime < e2.getTime
+    else
+      t1 < t2
   }
 }
