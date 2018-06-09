@@ -14,7 +14,6 @@ object RoutingRequestResponseStats extends LazyLogging{
   private val routeCalcTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
   def add(resp: RoutingResponse): Unit = {
-    logger.info(s"Received RoutingResponse: ${resp.id}")
     return;
     val fullTime = ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
     fullTimes.synchronized {
