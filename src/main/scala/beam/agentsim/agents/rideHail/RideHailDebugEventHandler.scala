@@ -56,7 +56,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def testZeroPassengerCount(): Unit = {
 
-    val vehicleEvents = mutable.Map[String, Event]()
+    val vehicleEvents = mutable.Map[String, mutable.Set[PersonEntersVehicleEvent]]()
 
     rideHailEvents.foreach(event =>
 
@@ -64,9 +64,22 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
         case PersonEntersVehicleEvent.EVENT_TYPE =>
 
+          val currentEvent = event.asInstanceOf[PersonEntersVehicleEvent]
           val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
-          vehicleEvents.put(vehicle, event)
+
+          val events = vehicleEvents.get(vehicle) match {
+            case Some(es) =>
+              es
+            case None => mutable.Set[PersonEntersVehicleEvent]()
+          }
+
+          if(events.size > 0) {
+            logger.debug(s"RideHail: vehicle ${vehicle} already has person and another enters - $event")
+          }
+
+          events += currentEvent
+          vehicleEvents.put(vehicle, events)
 
         case PathTraversalEvent.EVENT_TYPE if (vehicleEvents.size > 0) =>
 
@@ -76,14 +89,15 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
           vehicleEvents.get(vehicle) match {
 
-            case Some(enterEvent) =>
+            case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
 
-              val enteredVehicle = enterEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+                logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
 
-              if (enteredVehicle == vehicle && departure == enterEvent.getTime&& numPassengers == 0 )
-                logger.debug(s"RideHail: vehicle with zero passenger - $event")
+            case None if numPassengers > 0 =>
 
-            case None =>
+              logger.debug(s"RideHail: vehicle $vehicle with $numPassengers passenger but no enterVehicle encountered - $event")
+
+            case _ =>
           }
 
         case PersonLeavesVehicleEvent.EVENT_TYPE =>
@@ -93,18 +107,23 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
           vehicleEvents.get(vehicle) match {
 
-            case Some(enterEvent) =>
+            case Some(enterEvents) =>
 
-              val enteredPerson = enterEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-              if (enteredPerson == person)
+              enterEvents --= enterEvents.filter(_.getPersonId.toString.equals(person))
+
+              if (enterEvents.size == 0)
                 vehicleEvents.remove(vehicle)
+
+              else
+                vehicleEvents.put(vehicle, enterEvents)
+
             case None =>
           }
         case _ =>
 
       })
 
-    vehicleEvents.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event"))
+    vehicleEvents.foreach(_._2.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. ${event}")))
   }
 
   private def sortEvents(): Unit = {
