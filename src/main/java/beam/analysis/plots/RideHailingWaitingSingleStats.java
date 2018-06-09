@@ -80,7 +80,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        double[][] data = new double[1][24];
+        double[][] data = new double[1][hoursTimesMap.keySet().size() + 1];
         for(Integer key : hoursTimesMap.keySet()){
             data[0][key] = hoursTimesMap.get(key);
         }
