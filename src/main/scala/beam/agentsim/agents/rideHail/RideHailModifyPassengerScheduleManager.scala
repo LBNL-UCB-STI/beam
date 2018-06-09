@@ -203,7 +203,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     if (!triggersToSchedule.isEmpty) {
       val vehicleId: Id[Vehicle] = Id.create(triggersToSchedule.head.agent.path.name.replace("rideHailAgent", "rideHailVehicle"), classOf[Vehicle])
       val vehicles = getWithVehicleIds(vehicleId)
-      assert(vehicles.size <= 2, s"more rideHailVehicle interruptions in process than should be possible: $vehicleId")
+      if(vehicles.size > 2) log.error(s"more rideHailVehicle interruptions in process than should be possible: $vehicleId -> double check, if obsolete now")
 
       if (vehicles.size > 1 && !vehicles.filter(x => x.interruptOrigin == InterruptOrigin.RESERVATION).isEmpty) {
         // this means there is a race condition between a repositioning and reservation message and we should remove the reposition/not process it further
