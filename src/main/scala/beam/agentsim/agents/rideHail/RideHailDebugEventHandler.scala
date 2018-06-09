@@ -71,14 +71,14 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             case None => mutable.Set[PersonEntersVehicleEvent]()
           }
           // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
-          if (events.size > 0) {
-            logger.debug(s"RideHail: vehicle ${vehicle} already has person and another enters - $event")
+          if (events.nonEmpty) {
+            logger.debug(s"RideHail: vehicle $vehicle already has person and another enters - $event")
           }
 
           events += currentEvent
           vehicleEvents.put(vehicle, events)
 
-        case PathTraversalEvent.EVENT_TYPE if vehicleEvents.size > 0 =>
+        case PathTraversalEvent.EVENT_TYPE if vehicleEvents.nonEmpty =>
 
           val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
           val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
@@ -107,9 +107,9 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
             case Some(enterEvents) =>
 
-              enterEvents --= enterEvents.filter(_.getPersonId.toString.equals(person))
+              enterEvents --= enterEvents.filter(e => e.getPersonId.toString.equals(person))
 
-              if (enterEvents.size == 0)
+              if (enterEvents.isEmpty)
                 vehicleEvents.remove(vehicle)
 
               else
@@ -121,7 +121,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
       })
 
-    vehicleEvents.foreach(_._2.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. ${event}")))
+    vehicleEvents.foreach(_._2.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")))
   }
 
   private def sortEvents(): Unit = {
