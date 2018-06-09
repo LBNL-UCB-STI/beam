@@ -1,21 +1,16 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
-import org.jfree.chart.ChartFactory;
+import beam.sim.BeamServices;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.Dataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.jfree.data.xy.XYDataset;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import scala.math.BigDecimal;
+import org.matsim.core.utils.misc.Time;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -36,11 +31,24 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
 
-    private int noOfBins = 24;
+    private double numberOfTimeBins;
+
+    //private int numberOfTimeBins;
+
 
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
+
+    RideHailingWaitingSingleStats(BeamServices beamServices){
+
+        //Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
+        double endTime = Time.parseTime(beamServices.beamConfig().matsim().modules().qsim().endTime());
+        double timeBinSize = beamServices.beamConfig().beam().agentsim().agents().rideHailing().iterationStats().timeBinSizeInSec();
+        numberOfTimeBins = Math.floor(endTime/timeBinSize);
+
+        System.out.println("endTime -> " + endTime + ", numberOfTimeBins -> " + numberOfTimeBins);
+    }
 
     @Override
     public void resetStats() {
@@ -144,13 +152,13 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
             String heading = "WaitingTime\\Hour";
-            for (int hours = 1; hours <= noOfBins; hours++) {
+            for (int hours = 1; hours <= numberOfTimeBins; hours++) {
                 heading += "," + hours;
             }
             out.write(heading);
             out.newLine();
             String line;
-            for (int i = 0; i < noOfBins; i++) {
+            for (int i = 0; i < numberOfTimeBins; i++) {
                 Double inner = hourModeFrequency.get(i);
                 line = (inner == null ) ? ",0" : "," + Math.round(inner*100.0)/100.0;
                 out.write(line);
