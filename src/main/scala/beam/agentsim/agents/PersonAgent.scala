@@ -312,14 +312,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
 
-      val rideHailingRequest =  RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
+      rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
-      rideHailingManager ! rideHailingRequest
-//      val (tick, triggerId) = releaseTickAndTriggerId()
-      if(departAt.atTime != _currentTick.get.toInt)
-        print(s"$departAt is different then current")
 
-      eventsManager.processEvent(new ReserveRideHailEvent(departAt.atTime, rideHailingRequest))
+      eventsManager.processEvent(new ReserveRideHailEvent(_currentTick.getOrElse(departAt.atTime), id, bodyId, departAt.atTime, nextLeg.beamLeg.travelPath.startPoint.loc, legSegment.last.beamLeg.travelPath.endPoint.loc))
+
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
