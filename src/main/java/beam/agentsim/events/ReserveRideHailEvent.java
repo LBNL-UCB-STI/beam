@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.agentsim.agents.rideHail.RideHailingManager;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -30,15 +30,15 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     private final double destinationX;
     private final double destinationY;
 
-    public ReserveRideHailEvent(double time, RideHailingManager.RideHailingRequest rideHailingRequest) {
+    public ReserveRideHailEvent(double time, Id<Person> personId, Id<Vehicle> vehicleId, long departTime, Coord pickUpLocation, Coord dropOutLocation) {
        this(time,
-               rideHailingRequest.customer().personId(),
-               rideHailingRequest.customer().vehicleId(),
-               (long) rideHailingRequest.departAt().atTime(),
-                rideHailingRequest.pickUpLocation().getX(),
-               rideHailingRequest.pickUpLocation().getX(),
-                rideHailingRequest.destination().getX(),
-               rideHailingRequest.destination().getX());
+               personId,
+               vehicleId,
+               departTime,
+               pickUpLocation.getX(),
+               pickUpLocation.getY(),
+               dropOutLocation.getX(),
+               dropOutLocation.getY());
     }
 
 
