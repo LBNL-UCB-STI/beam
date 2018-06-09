@@ -50,6 +50,8 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
     sortEvents()
 
     testZeroPassengerCount()
+
+    rideHailEvents.clear()
   }
 
   private def testZeroPassengerCount(): Unit = {
