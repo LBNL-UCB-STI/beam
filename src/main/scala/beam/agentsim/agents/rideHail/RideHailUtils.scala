@@ -1,9 +1,10 @@
 package beam.agentsim.agents.rideHail
 
+import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.BeamServices
-import beam.utils.{DebugLib, GeoUtils}
+import beam.utils.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
@@ -23,35 +24,33 @@ object RideHailUtils {
     val distanceOfNewPath = originalBeamLeg.travelPath.distanceInM * pctTravelled
 
 
-    var updatedLinkIds: Vector[Int] = Vector(originalBeamLeg.travelPath.linkIds.head)
-    val updatedEndPoint = originalBeamLeg.travelPath.endPoint
-    val updatedDistanceInMeters = originalBeamLeg.travelPath.distanceInM
+    var updatedLinkIds: Vector[Int] = Vector()
+
 
     var resultCoord = originalBeamLeg.travelPath.endPoint.loc
+    var updatedDistanceInMeters = distanceOfNewPath
 
     var linkIds = updatedLinkIds
-    for (linkId <- originalBeamLeg.travelPath.linkIds.tail) {
+    for (linkId <- originalBeamLeg.travelPath.linkIds) {
       linkIds = linkIds :+ linkId
       val distance = getDistance(linkIds, transportNetwork)
 
       breakable {
         if (distanceOfNewPath < distance) {
-          resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
           break
         } else {
+          resultCoord = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
+          updatedDistanceInMeters = distance
           updatedLinkIds = linkIds
         }
       }
     }
 
-
-
+//    val updatedEndPoint = originalBeamLeg.travelPath.endPoint.copy(resultCoord, stopTime.toLong)
+    val updatedEndPoint = SpaceTime(resultCoord, stopTime.toLong)
     val updatedTravelPath = originalBeamLeg.travelPath.copy(linkIds = updatedLinkIds, endPoint = updatedEndPoint, distanceInM = updatedDistanceInMeters)
     val updatedDuration = (stopTime - originalBeamLeg.startTime).toLong
 
-    //transportNetwork.streetLayer.edgeStore.get .getCursor(linkId).get
-
-    DebugLib.emptyFunctionForSettingBreakPoint()
     val newLeg = originalBeamLeg.copy(duration = updatedDuration, travelPath = updatedTravelPath)
     newLeg
   }

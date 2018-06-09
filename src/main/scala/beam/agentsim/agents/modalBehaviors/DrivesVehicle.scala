@@ -146,7 +146,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
               eventsManager.processEvent(new VehicleLeavesTrafficEvent(stopTick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent (new PathTraversalEvent (stopTick, currentVehicleUnderControl,
                 beamServices.vehicles (currentVehicleUnderControl).getType,
-                data.passengerSchedule.schedule (updatedBeamLeg).riders.size, updatedBeamLeg,beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)) )
+                data.passengerSchedule.schedule (currentLeg).riders.size, updatedBeamLeg,beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)) )
 
             case None =>
               log.error("Current Vehicle is not available.")
