@@ -5,6 +5,7 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.mobsim.jdeqsim.Vehicle
 import org.matsim.vehicles
+import org.matsim.vehicles.VehicleUtils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -83,59 +84,79 @@ case class TNCIterationStats(
     ???
   }
 
+  case class VehicleLocationScores(val vehicleId: Id[vehicles.Vehicle], val rideHailingAgentLocation: RideHailingManager.RideHailingAgentLocation, val score: Int)
 
-  def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double, tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): Vector[RideHailingManager.RideHailingAgentLocation]={
+  case object VehicleLocationScores{
+    def vehicleLocationScoresOrder(vls: VehicleLocationScores) = { vls.score }
+  }
+
+  def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double,
+                                                    tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): List[RideHailingManager.RideHailingAgentLocation]={
     // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
     // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
     // e.g. just go through 20min
 
 
     /*
-
-
-priorityQueue=(ordering by score, values are vehicles).
-
-
+    priorityQueue=(ordering by score, values are vehicles).
     for (vehicle <-idleVehicles){
-
     var idleScore=0
-
       for (t<-startTimeBin to timeHorizonToConsiderInSecondsForIdleVehicles_bin)
           val rideHailStatsEntry=getRideHailStatsInfo(t, vehicle.coor)
-
           idleScore+=rideHailStatsEntry.sumOfIdlingVehicles
-
-
-
       }
       priorityQueue.add(score, vehicle)
-
-
-
-
     }
-
     vehicles <- priorityQueue.takeHighestScores(maxNumberOfVehiclesToReposition)
     => this is result.
+    */
+
+    val priorityQueue: mutable.PriorityQueue[VehicleLocationScores] = mutable.PriorityQueue[VehicleLocationScores]()
+
+    idleVehicles.foreach{
+      case (vId, rhLoc) => {
+
+        val startTimeBin = getTimeBin(tick)
+        val endTimeBin = getTimeBin(timeHorizonToConsiderInSecondsForIdleVehicles)
+        var idleScore = 0
+        for(t <- startTimeBin to endTimeBin){
+
+          val rideHailStatsEntry = getRideHailStatsInfo(rhLoc.currentLocation.loc, t)
+          rideHailStatsEntry match {
+            case Some(r) => {
+              idleScore += r.sumOfIdlingVehicles
+            }
+            case _ =>
+          }
+        }
+
+        val o = VehicleLocationScores(vId, rhLoc, idleScore)
+        priorityQueue.enqueue(o)
+
+      }
+    }
 
 
-     */
+    (priorityQueue.take(10).map {
+      case (vls: VehicleLocationScores) => {
+        vls.rideHailingAgentLocation
+      }
+    }).toList
 
-
-
+    //
     // go through vehicles
-
     // those vehicles, which are located in areas with high number of idling time in future from now, should be moved
     // the longer the waiting time in future, the l
-
     // just look at smaller repositionings
 
 
-  ???
   }
 
 
 
+  private def getTimeBin(time: Double): Int = {
+    (time / timeBinSizeInSec).toInt
+  }
 
 
 
