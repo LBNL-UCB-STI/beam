@@ -36,6 +36,8 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
 
+    private int noOfBins = 24;
+
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
@@ -80,7 +82,12 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        double[][] data = new double[1][hoursTimesMap.keySet().size() + 1];
+
+        List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
+        Collections.sort(hours);
+        int maxHour = hours.get(hours.size() -1);
+
+        double[][] data = new double[1][maxHour + 1];
         for(Integer key : hoursTimesMap.keySet()){
             data[0][key] = hoursTimesMap.get(key);
         }
@@ -137,13 +144,13 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
             String heading = "WaitingTime\\Hour";
-            for (int hours = 1; hours <= 24; hours++) {
+            for (int hours = 1; hours <= noOfBins; hours++) {
                 heading += "," + hours;
             }
             out.write(heading);
             out.newLine();
             String line;
-            for (int i = 0; i < 24; i++) {
+            for (int i = 0; i < noOfBins; i++) {
                 Double inner = hourModeFrequency.get(i);
                 line = (inner == null ) ? ",0" : "," + Math.round(inner*100.0)/100.0;
                 out.write(line);
