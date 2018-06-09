@@ -86,7 +86,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig)
 
-    createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
+    createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario, beamServices)
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 

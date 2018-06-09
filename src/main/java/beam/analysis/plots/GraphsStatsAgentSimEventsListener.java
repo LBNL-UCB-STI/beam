@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
@@ -39,7 +40,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
-    private IGraphStats rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats();
+    private IGraphStats rideHailingWaitingSingleStats;
 
 
     // No Arg Constructor
@@ -47,10 +48,15 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     }
 
     // Constructor
-    public GraphsStatsAgentSimEventsListener(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario) {
+    public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
+                                             OutputDirectoryHierarchy controlerIO,
+                                             Scenario scenario, BeamServices beamServices) {
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+
+        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamServices);
+
     }
 
     @Override
