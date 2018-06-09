@@ -7,6 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.rideHail.RideHailingManager.RideHailAllocationManagerTimeout
 import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
@@ -25,6 +26,7 @@ object BeamAgentScheduler {
 
   /**
     * Message to start (or restart) the scheduler at the start of each iteration
+    *
     * @param iteration current iteration (to update internal state)
     */
   case class StartSchedule(iteration: Int) extends SchedulerMessage
@@ -56,15 +58,15 @@ object BeamAgentScheduler {
     // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
     //   smaller tick => then higher priority value => then lower triggerId
     def compare(that: ScheduledTrigger): Int =
-    that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
-      case 0 =>
-        priority compare that.priority match {
-          case 0 =>
-            that.triggerWithId.triggerId compare triggerWithId.triggerId
-          case c => c
-        }
-      case c => c
-    }
+      that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
+        case 0 =>
+          priority compare that.priority match {
+            case 0 =>
+              that.triggerWithId.triggerId compare triggerWithId.triggerId
+            case c => c
+          }
+        case c => c
+      }
   }
 
   def SchedulerProps(beamConfig: BeamConfig, stopTick: Double = 3600.0 * 24.0, maxWindow: Double = 1.0): Props = {
@@ -72,7 +74,7 @@ object BeamAgentScheduler {
   }
 }
 
-class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxWindow: Double) extends Actor with ActorLogging {
+class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWindow: Double) extends Actor with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -92,11 +94,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private var numberRepeats = 0
 
   // Event stream state and cleanup management
-  private var currentIter:Int = -1
+  private var currentIter: Int = -1
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask = if (beamConfig.beam.debug.debugEnabled) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.SECONDS), new FiniteDuration(3, TimeUnit.SECONDS), self, Monitor)) else None
-  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip*2, TimeUnit.SECONDS), new FiniteDuration(math.round(beamConfig.beam.debug.secondsToWaitForSkip/4.0), TimeUnit.SECONDS), self, SkipOverBadActors)) else None
+  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip * 2, TimeUnit.SECONDS), new FiniteDuration(math.round(beamConfig.beam.debug.secondsToWaitForSkip / 4.0), TimeUnit.SECONDS), self, SkipOverBadActors)) else None
 
   def increment(): Unit = {
     previousTotalAwaitingRespone += 1
@@ -128,9 +130,9 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
     }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
-    // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailingManager")).isEmpty){
+      // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailingManager")).isEmpty){
       // DebugLib.emptyFunctionForSettingBreakPoint()
-     // }
+      // }
 
       newTriggers.foreach {
         scheduleTrigger
@@ -160,7 +162,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case Monitor =>
       log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
-      awaitingResponse.values().forEach(x=>log.debug("awaitingResponse:" + x.toString))
+      awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
       var numReps = 0L
@@ -172,20 +174,37 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       } else {
         numberRepeats = 0
       }
+
       if (numReps > 4) {
-        val reason = s"Clearing out ${awaitingResponse.get(awaitingResponse.keySet().first()).size()} stuck agents and proceeding with schedule"
-        log.error(reason)
-        log.error("clearing agents: " + awaitingResponse.get(awaitingResponse.keySet().first()))
         // When debugging, use evaulate expression and this to see first stuck agent: awaitingResponse.asMap().firstEntry().getValue.iterator().next().agent.actorCell._actor
+        var numAgentsClearedOut=0
         awaitingResponse.get(awaitingResponse.keySet().first()).forEach({ x =>
-          x.agent ! IllegalTriggerGoToError("Stuck Agent")
-          currentTotalAwaitingResponse = 0
-          self ! CompletionNotice(x.triggerWithId.triggerId)
+          // the check makes sure that slow RideHailManager (repositioning) does not cause kill the rideHailManager actor
+          // however the numReps>50 ensures that we eventually
+          if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger.isInstanceOf[RideHailAllocationManagerTimeout]) {
+            if (numReps==10){
+              log.error("RideHailingManager is slow")
+            }
+
+            if (numReps==50){
+              throw new RuntimeException("RideHailingManager is extremly slow")
+            }
+          } else {
+            x.agent ! IllegalTriggerGoToError("Stuck Agent")
+            currentTotalAwaitingResponse = 0
+            self ! CompletionNotice(x.triggerWithId.triggerId)
+            numAgentsClearedOut+=numAgentsClearedOut
+            log.error("clearing agent: " + x)
+          }
         })
+
+        if (numAgentsClearedOut>0){
+          val reason = s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
+          log.error(reason)
+        }
       }
       previousTotalAwaitingRespone = currentTotalAwaitingResponse
       if (started) doSimStep(nowInSeconds)
-
   }
 
   @tailrec
@@ -193,7 +212,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
     if (newNow <= stopTick) {
       nowInSeconds = newNow
 
-     // println("doSimStep:" + newNow)
+      // println("doSimStep:" + newNow)
 
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse.keySet().first() + 1 < maxWindow) {
         while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
