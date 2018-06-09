@@ -566,11 +566,11 @@ public class DeadHeadingStats implements IGraphStats {
     // Utility Methods
     private String getFileName(String graphName,String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            return fileNameBase+"PassengersPerTrip."+extension;
+            return "passengerPerTrip_" + fileNameBase + "." + extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-            return fileNameBase+"DeadheadDistance."+extension;
+            return fileNameBase  + "TripDistance." + extension;
         } else {
-            return graphName+"PassengersPerTrip."+extension;
+            return "passengerPerTrip_" + graphName + "." + extension;
         }
     }
     private String getTitle(String graphName) {
@@ -611,10 +611,10 @@ public class DeadHeadingStats implements IGraphStats {
     }
     private static String getLegendText(String graphName, int i,int bucketSize) {
 
-        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)
-                || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
-                || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)
-                ) {
+        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)){
+            return Integer.toString(i);
+        }else if(graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
+                || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
 
             if(i == 0){
                 return "repositioning";
