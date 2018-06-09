@@ -24,6 +24,46 @@ case class TNCIterationStats(
     //   3.) take top 3 and assign according to weights more or less to them
     // 4.)
 
+
+    /*
+
+
+    add inpt to method: tick, timeHorizonToConsiderInSecondsForIdleVehicles
+
+    tazVehicleGroup= group vehicles by taz -> taz -> vehicles
+
+    for each taz in tazVehicleGroup.key{
+
+        for all tazInRadius(taz, repositionCircleRadisInMeters){
+
+                 add scores for bins tick to    timeHorizonToConsiderInSecondsForIdleVehicles.waitingTimes
+
+                 assign score to TAZ
+        }
+
+        scores = Vector((tazInRAdius,taz)
+
+
+
+
+
+
+        -> assing to each vehicle in tazVehicleGroup(taz) the top best vehicles.
+
+    }
+
+
+
+
+
+
+
+     */
+
+
+
+
+
 ???
   }
 
@@ -49,6 +89,37 @@ case class TNCIterationStats(
     // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
     // e.g. just go through 20min
 
+
+    /*
+
+
+priorityQueue=(ordering by score, values are vehicles).
+
+
+    for (vehicle <-idleVehicles){
+
+    var idleScore=0
+
+      for (t<-startTimeBin to timeHorizonToConsiderInSecondsForIdleVehicles_bin)
+          val rideHailStatsEntry=getRideHailStatsInfo(t, vehicle.coor)
+
+          idleScore+=rideHailStatsEntry.sumOfIdlingVehicles
+
+
+
+      }
+      priorityQueue.add(score, vehicle)
+
+
+
+
+    }
+
+    vehicles <- priorityQueue.takeHighestScores(maxNumberOfVehiclesToReposition)
+    => this is result.
+
+
+     */
 
 
 
