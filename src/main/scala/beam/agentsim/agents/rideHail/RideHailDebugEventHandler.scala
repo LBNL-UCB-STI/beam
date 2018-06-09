@@ -10,10 +10,8 @@ import scala.collection.mutable
 
 class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEventHandler with LazyLogging {
 
-
   eventsManager.addHandler(this)
 
-  //  private val rideHailEvents = mutable.Map[String, Event]()
   private var rideHailEvents = mutable.ArrayBuffer[Event]()
 
   override def handleEvent(event: Event): Unit = {
@@ -24,7 +22,6 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
 
   private def collectRideHailEvents(event: Event) = {
-    // if peson enters ride hail vehicle then number of passengers >0 in ride hail vehicle
 
     event.getEventType match {
       case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
@@ -73,7 +70,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               es
             case None => mutable.Set[PersonEntersVehicleEvent]()
           }
-
+          // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
           if(events.size > 0) {
             logger.debug(s"RideHail: vehicle ${vehicle} already has person and another enters - $event")
           }
@@ -88,11 +85,12 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
           val departure = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
           vehicleEvents.get(vehicle) match {
-
+            // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
             case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
 
                 logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
 
+            // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
             case None if numPassengers > 0 =>
 
               logger.debug(s"RideHail: vehicle $vehicle with $numPassengers passenger but no enterVehicle encountered - $event")
