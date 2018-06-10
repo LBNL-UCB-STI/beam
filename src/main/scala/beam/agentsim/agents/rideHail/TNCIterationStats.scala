@@ -10,7 +10,7 @@ import org.matsim.vehicles.VehicleUtils
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 case class TNCIterationStats(
   rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]],
@@ -18,63 +18,104 @@ case class TNCIterationStats(
   timeBinSizeInSec: Double,
   numberOfTimeBins:Int
 ) {
-  def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], repositionCircleRadisInMeters: Int): Vector[(Id[vehicles.Vehicle], Location)] = {
+  def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation],
+                               repositionCircleRadisInMeters: Int,
+                               tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int):
+                            Vector[(Id[vehicles.Vehicle], Location)] = {
 
-    // for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
-      // 1.) find all TAZ in radius
-      // 2.) score them according to total waiting time
-    //   3.) take top 3 and assign according to weights more or less to them
-    // 4.)
+    val tazVehicleMap: mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]] = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
 
+    // Vehicle Grouping in Taz
+    vehiclesToReposition.foreach {
+      case (rhaLoc) => {
+        rhaLoc.currentLocation.loc
 
-    /*
+        val vehicleTaz = tazTreeMap.getTAZ(rhaLoc.currentLocation.loc.getX(), rhaLoc.currentLocation.loc.getY())
 
-
-use tazTreeMap.getTAZInRadius(x,y,radius).
-
-
-//vehiclesToReposition: v1, v2, v3, v4, v5
-
-// taz1 -> v1,v2 (list)
-// taz2 -> v3,v4,v5 (list)
-
-    add inpt to method: tick, timeHorizonToConsiderInSecondsForIdleVehicles
-
-    tazVehicleGroup= group vehicles by taz -> taz -> vehicles
-
-    for each taz in tazVehicleGroup.key{
-
-        for all tazInRadius(taz, repositionCircleRadisInMeters){
-
-                 add scores for bins tick to    timeHorizonToConsiderInSecondsForIdleVehicles.waitingTimes
-
-                 assign score to TAZ
+        tazVehicleMap.get(vehicleTaz) match {
+          case Some(lov: ListBuffer[Id[vehicles.Vehicle]]) => {
+            lov += rhaLoc.vehicleId
+            tazVehicleMap.put(vehicleTaz, lov)
+          }
+          case None => {
+            val lov = ListBuffer[Id[vehicles.Vehicle]]()
+            lov += rhaLoc.vehicleId
+            tazVehicleMap.put(vehicleTaz, lov)
+          }
         }
-
-        scores = Vector((tazInRadius,score)    taz1 -> score1, taz2 -> score2, etc. (best scores are taz9, taz10) -> assign taz9.coord to v1 and taz10.coord to v2
-
-
-
-
-
-
-        -> assing to each vehicle in tazVehicleGroup(taz) the top best vehicles.
-
+      }
     }
 
+    var vehiclesWithLocations: Vector[(Id[vehicles.Vehicle], Location)] = Vector[(Id[vehicles.Vehicle], Location)]()
 
+    tazVehicleMap.foreach{
+      case(taz: TAZ, lov: ListBuffer[Id[vehicles.Vehicle]]) => {
 
+        val listOfTazInRadius: java.util.Collection[TAZ] = tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadisInMeters)
 
+        var tazPriorityQueue: mutable.PriorityQueue[TazWithScore] = mutable.PriorityQueue[TazWithScore]()(TazWithScoreOrdering)
 
+        listOfTazInRadius.forEach{
+          case(tazInRadius: TAZ) => {
 
+            val startTimeBin = getTimeBin(tick)
+            val endTimeBin = getTimeBin(timeHorizonToConsiderInSecondsForIdleVehicles)
 
+            var score = 0
+            for(t <- startTimeBin to endTimeBin){
+
+              val rhsi = getRideHailStatsInfo(tazInRadius.coord, t)
+              rhsi match {
+                case Some(r) => {
+                  score += r.sumOfWaitingtimes.toInt
+                }
+                case _ =>
+              }
+            }
+
+            tazPriorityQueue.enqueue(TazWithScore(tazInRadius, score))
+          }
+        }
+
+        var indexInlov = 0
+        tazPriorityQueue.take(lov.size).foreach{
+          case (tws) => {
+
+            if(indexInlov < lov.size) {
+
+              val tuple = (lov(indexInlov), tws.taz.coord)
+              vehiclesWithLocations = vehiclesWithLocations :+ tuple
+            }
+            indexInlov = indexInlov + 1
+          }
+        }
+        //
+      }
+    }
+    vehiclesWithLocations
+
+    // for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
+    // 1.) find all TAZ in radius
+    // 2.) score them according to total waiting time
+    //   3.) take top 3 and assign according to weights more or less to them
+    // 4.)
+    /*
+    use tazTreeMap.getTAZInRadius(x,y,radius).
+    //vehiclesToReposition: v1, v2, v3, v4, v5
+    // taz1 -> v1,v2 (list)
+    // taz2 -> v3,v4,v5 (list)
+        add inpt to method: tick, timeHorizonToConsiderInSecondsForIdleVehicles
+        tazVehicleGroup= group vehicles by taz -> taz -> vehicles
+        for each taz in tazVehicleGroup.key{
+            for all tazInRadius(taz, repositionCircleRadisInMeters){
+                     add scores for bins tick to    timeHorizonToConsiderInSecondsForIdleVehicles.waitingTimes
+                     assign score to TAZ
+            }
+            scores = Vector((tazInRadius,score)    taz1 -> score1, taz2 -> score2, etc. (best scores are taz9, taz10) -> assign taz9.coord to v1 and taz10.coord to v2
+            -> assing to each vehicle in tazVehicleGroup(taz) the top best vehicles.
+        }
      */
 
-
-
-
-
-???
   }
 
 
@@ -98,7 +139,8 @@ use tazTreeMap.getTAZInRadius(x,y,radius).
 
   def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle],
                                                     RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition: Double,
-                                                    tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int): Vector[RideHailingManager.RideHailingAgentLocation]={
+                                                    tick: Double, timeHorizonToConsiderInSecondsForIdleVehicles: Int):
+                                        Vector[RideHailingManager.RideHailingAgentLocation]={
     // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
     // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
     // e.g. just go through 20min
@@ -237,5 +279,14 @@ object VehiclelocationscoresOrdering extends Ordering[Vehiclelocationscores]{
 
   def compare(vls1: Vehiclelocationscores, vls2: Vehiclelocationscores) = {
     vls1.score.compare(vls2.score)
+  }
+}
+
+case class TazWithScore(val taz: TAZ, val score: Int)
+
+object TazWithScoreOrdering extends Ordering[TazWithScore]{
+
+  def compare(tws1: TazWithScore, tws2: TazWithScore) = {
+    tws1.score.compare(tws2.score)
   }
 }
