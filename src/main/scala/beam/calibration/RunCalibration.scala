@@ -4,6 +4,14 @@ import beam.sim.BeamHelper
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
 
+/**
+  * To run on t2.large w/ 16g (Max) RAM on AWS via Gradle build script, do the following:
+
+  <code>
+  gradle :deploy -PrunName=test-calibration -PinstanceType='t2.large' -PmaxRAM="16g" -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', 'test/input/sf-light/sf-light-calibration/experiment.yml', '--benchmark', 'test/input/sf-light/sf-light-calibration/benchmarkTest.csv','--num_iters', '3']"
+  </code>
+
+  */
 object RunCalibration extends App with BeamHelper {
 
   private val EXPERIMENTS_TAG = "experiments"
@@ -27,7 +35,7 @@ object RunCalibration extends App with BeamHelper {
 
   // METHODS //
 
-  def parseArgs(args: Array[String]) = {
+  def parseArgs(args: Array[String]): Map[String, String] = {
     args.sliding(2, 2).toList.collect {
       case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (EXPERIMENTS_TAG, filePath)
       case Array("--benchmark", filePath: String) if filePath.trim.nonEmpty => (BENCHMARK_EXPERIMENTS_TAG, filePath)
