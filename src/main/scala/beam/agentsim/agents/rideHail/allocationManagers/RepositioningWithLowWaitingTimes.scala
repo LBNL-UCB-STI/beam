@@ -101,9 +101,11 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
+        tncIterationStats.printMap()
+
         val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
 
-        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters)
+       // val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters)
 
 
       case None =>
@@ -111,13 +113,13 @@ rideHailStats
     }
 
 
-    if (rideHailingManager.getIdleVehicles().size >= 2) {
-      val origin=rideHailingManager.getIdleVehicles().values.toVector
-      val destination=scala.util.Random.shuffle(origin)
-      (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
-    } else {
+   // if (rideHailingManager.getIdleVehicles().size >= 2) {
+     // val origin=rideHailingManager.getIdleVehicles().values.toVector
+    //  val destination=scala.util.Random.shuffle(origin)
+     // (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
+   // } else {
       Vector()
-    }
+   // }
   }
 }
 

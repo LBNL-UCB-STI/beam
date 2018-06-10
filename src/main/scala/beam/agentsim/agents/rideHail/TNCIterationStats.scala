@@ -2,6 +2,7 @@ package beam.agentsim.agents.rideHail
 
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.mobsim.jdeqsim.Vehicle
 import org.matsim.vehicles
@@ -128,6 +129,10 @@ case class TNCIterationStats(
           }
         }
 
+        if (idleScore>0){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
+
         val o = Vehiclelocationscores(vId, rhLoc, idleScore)
         priorityQueue.enqueue(o)
 
@@ -140,6 +145,9 @@ case class TNCIterationStats(
         vls.rideHailingAgentLocation
       }
     }).toVector
+
+
+
 
     listOfLocations
 
