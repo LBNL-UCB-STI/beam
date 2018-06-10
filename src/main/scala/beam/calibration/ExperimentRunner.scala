@@ -16,25 +16,39 @@ object ObjectiveFunctionClassBuilder extends ReflectionUtils {
 
 case class ExperimentRunner(implicit experimentData: SigoptExperimentData) extends BeamHelper {
 
+  import beam.utils.ProfilingUtils.timed
+
   def runExperiment(numberOfIterations: Int): Unit = {
 
     val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
 
     val objectiveFunctionClassName = s"${ObjectiveFunctionClassBuilder.packageName}${experimentData.baseConfig.atKey("beam.calibration.objectiveFunction")}"
 
+
     val objectiveFunction: ObjectiveFunction = ObjectiveFunctionClassBuilder.concreteClassesOfType[ObjectiveFunction].collect {
       case clazz if ObjectiveFunctionClassBuilder.isExtends(clazz, classOf[FileBasedObjectiveFunction]) =>
             clazz.getConstructor(classOf[String]).newInstance(benchmarkData.toString)
     }.head
 
+    logger.info(s"Starting BEAM SigOpt optimization for ${experimentData.experiment.getName} with ID ${experimentData.experiment.getId}")
 
+    (0 to numberOfIterations).foreach { iter =>
+      logger.info(logExpHelper(s"\nStarting iteration, $iter of $numberOfIterations"))
 
-    (0 to numberOfIterations).foreach { _ =>
       val suggestion = experimentData.experiment.suggestions.create.call
+      logger.info(logExpHelper(s"Received new suggestion (ID: ${suggestion.getId}) ."))
+
       val modedConfig = createConfigBasedOnSuggestion(suggestion)
-      val (matsimConfig, outputDir) = runBeamWithConfig(modedConfig.resolve())
+      logger.info(logExpHelper(s"Created new config based on suggestion ${suggestion.getId}, starting BEAM..."))
+
+      val ((matsimConfig, outputDir), execTimeInMillis) = timed {runBeamWithConfig(modedConfig.resolve())}
+      logger.info(logExpHelper(s"BEAM run completed for suggestion ${suggestion.getId} in ${execTimeInMillis/1000} seconds"))
+
       val obs = new Observation.Builder().suggestion(suggestion.getId).value(objectiveFunction.evaluateFromRun(outputDir)).build()
+      logger.info(logExpHelper(s"Uploading new observation (value: ${obs.getValue})."))
+
       experimentData.experiment.observations().create(obs).call()
+      logger.info(logExpHelper(s"Iteration $iter completed\n"))
     }
 
   }
@@ -66,6 +80,10 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
         val configValue = ConfigValueFactory.fromAnyRef(paramValue)
         prevConfig.withValue(paramName, configValue)
     }
+  }
+
+  def logExpHelper(msg: String): String ={
+    s"[ExpID: ${experimentData.experiment.getId}] $msg"
   }
 
 }
