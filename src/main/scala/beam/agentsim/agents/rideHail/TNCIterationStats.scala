@@ -57,8 +57,8 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
             val score = (startTimeBin to endTimeBin).map(
               getRideHailStatsInfo(tazInRadius.tazId, _) match {
-                case Some(rideHailStats) =>
-                  rideHailStats.sumOfWaitingTimes
+                case Some(statsEntry) =>
+                  statsEntry.sumOfWaitingTimes
 
                 case _ =>
                   0
