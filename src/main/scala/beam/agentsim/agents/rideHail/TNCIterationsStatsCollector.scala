@@ -37,14 +37,14 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
   // timeBins -> number OfTimeBins input
   private val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
-  private val timeBinSizeInSec = beamConfig.beam.agentsim.agents.rideHailing.iterationStats.timeBinSizeInSec
+  private val timeBinSizeInSec = rideHailingConfig.iterationStats.timeBinSizeInSec
   private val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec).toInt + 1
 
   private val rideHailModeChoiceEvents = mutable.Map[String, ModeChoiceEvent]()
   private val rideHailEventsTuples = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val vehicleActiveBins = mutable.Map[String, mutable.Map[String, mutable.Set[Int]]]()
 
-  var rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
+  var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
 
   //numberOfRides: -> passengers =1 (sum of rides)
   //customerWaitTime -> sum and average
@@ -73,17 +73,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    rideHailStats.foreach {
-      (rhs) => {
-       // println(rhs._1)
-
-        rhs._2.foreach(
-          rhse => {
-           // println(rhse)
-          }
-        )
-      }
-    }
+    //    printStats()
 
     rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
@@ -97,18 +87,19 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   override def handleEvent(event: Event): Unit = {
 
     event.getEventType match {
-      case ModeChoiceEvent.EVENT_TYPE => {
+
+      case ModeChoiceEvent.EVENT_TYPE =>
 
         collectModeChoiceEvents(ModeChoiceEvent.apply(event))
-      }
-      case PersonEntersVehicleEvent.EVENT_TYPE => {
+
+      case PersonEntersVehicleEvent.EVENT_TYPE =>
 
         collectPersonEntersEvents(event.asInstanceOf[PersonEntersVehicleEvent])
-      }
-      case PathTraversalEvent.EVENT_TYPE => {
+
+      case PathTraversalEvent.EVENT_TYPE =>
 
         calculateStats(PathTraversalEvent.apply(event))
-      }
+
       case _ =>
     }
   }
@@ -127,24 +118,23 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     if (mode.equals("ride_hailing")) {
 
-      val personId = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
+      val personId = event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       rideHailModeChoiceEvents.put(personId, event)
     }
   }
 
   private def collectPersonEntersEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
 
-    val personId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-    val vehicleId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+    val personId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+    val vehicleId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
       rideHailModeChoiceEvents.get(personId) match {
-        case Some(modeChoiceEvent) => {
+        case Some(modeChoiceEvent) =>
 
           rideHailEventsTuples.put(vehicleId, (modeChoiceEvent, personEntersVehicleEvent))
 
           rideHailModeChoiceEvents.remove(personId)
-        }
         case None =>
       }
     }
@@ -170,7 +160,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
 
     rideHailEventsTuples.get(vehicleId) match {
-      case Some(events) => {
+      case Some(events) =>
 
         val modeChoiceEvent = events._1
         val personEntersVehicleEvent = events._2
@@ -189,9 +179,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
         tazBins(binIndex) = tazBins(binIndex) match {
           case Some(entry) =>
-            val sumOfWaitingTimes = if(numPassengers > 0) entry.sumOfWaitingtimes + waitingTime else entry.sumOfWaitingtimes
+            val sumOfWaitingTimes = if (numPassengers > 0) entry.sumOfWaitingtimes + waitingTime else entry.sumOfWaitingtimes
             val numOfRequestedRides = entry.sumOfRequestedRides + 1
-           Some(entry.copy(sumOfRequestedRides = numOfRequestedRides,
+            Some(entry.copy(sumOfRequestedRides = numOfRequestedRides,
               sumOfWaitingtimes = sumOfWaitingTimes))
           case None =>
             Some(RideHailStatsEntry(1, waitingTime, 0))
@@ -200,7 +190,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
         rideHailStats.put(tazId, tazBins)
 
         rideHailEventsTuples.remove(vehicleId)
-      }
+
       case None =>
     }
   }
@@ -234,12 +224,12 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
   private def updateStatsForIdlingVehicles(): Unit = {
 
-    rideHailStats.foreach(items => {
+    rideHailStats.foreach { items =>
 
       val tazId = items._1
       val bins = items._2
 
-      bins.zipWithIndex.foreach(bin => {
+      bins.zipWithIndex.foreach { bin =>
 
         val binIndex = bin._2
         val noOfIdlingVehicles = getNoOfIdlingVehicle(tazId, binIndex)
@@ -248,8 +238,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
           case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
           case None => Some(RideHailStatsEntry(0, 0, noOfIdlingVehicles))
         }
-      })
-    })
+      }
+    }
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
@@ -286,5 +276,11 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   private def getTimeBin(time: Double): Int = {
     (time / timeBinSizeInSec).toInt
   }
-}
 
+  private def printStats(): Unit = {
+    rideHailStats.foreach { rhs =>
+      println(rhs._1)
+      rhs._2.foreach(println)
+    }
+  }
+}
