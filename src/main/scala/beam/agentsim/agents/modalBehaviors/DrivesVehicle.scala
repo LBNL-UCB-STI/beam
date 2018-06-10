@@ -138,7 +138,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
               //val a = beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
 
-              val updatedBeamLeg=RideHailUtils.getUpdatedBeamLegAfterStopDriving(currentLeg,stopTick,transportNetwork,beamServices)
+              val updatedBeamLeg=RideHailUtils.getUpdatedBeamLegAfterStopDriving(currentLeg,stopTick,transportNetwork)
 
 
               beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (updatedBeamLeg.travelPath.endPoint) ,data.passengerSchedule,isLastLeg) )
