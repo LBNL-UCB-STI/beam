@@ -30,13 +30,13 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
             clazz.getConstructor(classOf[String]).newInstance(benchmarkData.toString)
     }.head
 
-    logger.info(s"Starting BEAM SigOpt optimization for ${experimentData.experiment.getName} with ID ${experimentData.experiment.getId}")
+    logger.info(s"Starting BEAM SigOpt optimization for ${experimentData.experiment.getName} with ID ${experimentData.experiment.getId}\n")
 
     (0 to numberOfIterations).foreach { iter =>
-      logger.info(logExpHelper(s"\nStarting iteration, $iter of $numberOfIterations"))
+      logger.info(logExpHelper(s"Starting iteration, $iter of $numberOfIterations"))
 
       val suggestion = experimentData.experiment.suggestions.create.call
-      logger.info(logExpHelper(s"Received new suggestion (ID: ${suggestion.getId}) ."))
+      logger.info(logExpHelper(s"Received new suggestion (ID: ${suggestion.getId})."))
 
       val modedConfig = createConfigBasedOnSuggestion(suggestion)
       logger.info(logExpHelper(s"Created new config based on suggestion ${suggestion.getId}, starting BEAM..."))
