@@ -42,9 +42,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         }
     }
 
-    var vehiclesWithLocations = Vector[(Id[vehicles.Vehicle], Location)]()
-
-    tazVehicleMap.foreach {
+    tazVehicleMap.map {
       case (taz: TAZ, lov: ListBuffer[Id[vehicles.Vehicle]]) =>
 
         val listOfTazInRadius = tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
@@ -57,35 +55,26 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
             val startTimeBin = getTimeBin(tick)
             val endTimeBin = getTimeBin(timeHorizonToConsiderForIdleVehiclesInSec)
 
-            var score = 0
+            val score = (startTimeBin to endTimeBin).map (
+                getRideHailStatsInfo(tazInRadius.tazId,_) match {
+                  case Some(rideHailStats) =>
+                    rideHailStats.sumOfWaitingtimes
 
-            for (t <- startTimeBin to endTimeBin) {
-
-              getRideHailStatsInfo(tazInRadius.coord, t) match {
-                case Some(r) =>
-                  score += r.sumOfWaitingtimes.toInt
-
-                case _ =>
-              }
-            }
+                  case _ =>
+                    0
+                }
+            ).sum.toInt
 
             tazPriorityQueue.enqueue(TazScore(tazInRadius, score))
         }
 
-        var indexInlov = 0
-        tazPriorityQueue.take(lov.size).foreach {
-
-          case (tws) =>
-
-            if (indexInlov < lov.size) {
-
-              val tuple = (lov(indexInlov), tws.taz.coord)
-              vehiclesWithLocations = vehiclesWithLocations :+ tuple
-            }
-            indexInlov = indexInlov + 1
+        tazPriorityQueue.take(lov.size).zipWithIndex.map { tws =>
+          val index = tws._2
+          val tazScore = tws._1
+          (lov(index), tazScore.taz.coord)
         }
-    }
-    vehiclesWithLocations
+    }.flatten.toVector
+
 
     // for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
     // 1.) find all TAZ in radius
@@ -112,10 +101,15 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   }
 
 
-  def getRideHailStatsInfo(coord: Coord, time: Double): Option[RideHailStatsEntry] = {
-    val tazId = tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
-    val timeBin = (time / timeBinSizeInSec).toInt
-    rideHailStats.get(tazId).flatMap(ab => ab(timeBin))
+  def getRideHailStatsInfo(coord: Coord, timeBin: Int): Option[RideHailStatsEntry] = {
+    val tazId = tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
+
+    getRideHailStatsInfo(tazId, timeBin)
+  }
+
+  def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
+
+    rideHailStats.get(tazId.toString).flatMap(ab => ab(timeBin))
   }
 
   // TODO: implement according to description
@@ -158,23 +152,22 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
         val startTimeBin = getTimeBin(tick)
         val endTimeBin = getTimeBin(timeHorizonToConsiderForIdleVehiclesInSec)
-        var idleScore = 0
-        for (t <- startTimeBin to endTimeBin) {
 
-          val rideHailStatsEntry = getRideHailStatsInfo(rhLoc.currentLocation.loc, t)
-          rideHailStatsEntry match {
-            case Some(r) =>
-              idleScore += r.sumOfIdlingVehicles.toInt
+        val idleScore = (startTimeBin to endTimeBin).map (
+          getRideHailStatsInfo(rhLoc.currentLocation.loc,_) match {
+            case Some(rideHailStats) =>
+              rideHailStats.sumOfWaitingtimes
+
             case _ =>
+              0
           }
-        }
+        ).sum.toInt
 
         if (idleScore > 0) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        val o = VehicleLocationScores(vId, rhLoc, idleScore)
-        priorityQueue.enqueue(o)
+        priorityQueue.enqueue(VehicleLocationScores(vId, rhLoc, idleScore))
     }
 
     val listOfLocations = priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).map {
