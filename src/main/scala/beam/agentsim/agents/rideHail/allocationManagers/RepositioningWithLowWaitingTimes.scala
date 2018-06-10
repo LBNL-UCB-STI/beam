@@ -2,6 +2,8 @@ package beam.agentsim.agents.rideHail.allocationManagers
 
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
+import beam.sim.config.BeamConfig.Beam.Debug
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -101,11 +103,19 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
-//        tncIterationStats.printMap()
+        tncIterationStats.printMap()
 
         val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
 
         val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
+
+        if (!vehiclesToReposition.isEmpty){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
+
+        if (!whichTAZToRepositionTo.isEmpty){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
 
 
       case None =>
