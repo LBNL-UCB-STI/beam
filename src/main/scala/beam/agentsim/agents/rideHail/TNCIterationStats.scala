@@ -30,6 +30,14 @@ case class TNCIterationStats(
     /*
 
 
+use tazTreeMap.getTAZInRadius(x,y,radius).
+
+
+//vehiclesToReposition: v1, v2, v3, v4, v5
+
+// taz1 -> v1,v2 (list)
+// taz2 -> v3,v4,v5 (list)
+
     add inpt to method: tick, timeHorizonToConsiderInSecondsForIdleVehicles
 
     tazVehicleGroup= group vehicles by taz -> taz -> vehicles
@@ -43,7 +51,7 @@ case class TNCIterationStats(
                  assign score to TAZ
         }
 
-        scores = Vector((tazInRAdius,taz)
+        scores = Vector((tazInRadius,score)    taz1 -> score1, taz2 -> score2, etc. (best scores are taz9, taz10) -> assign taz9.coord to v1 and taz10.coord to v2
 
 
 
