@@ -101,7 +101,7 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
-        tncIterationStats.printMap()
+//        tncIterationStats.printMap()
 
         val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
 
