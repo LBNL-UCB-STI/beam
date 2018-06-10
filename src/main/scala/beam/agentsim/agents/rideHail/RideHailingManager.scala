@@ -71,14 +71,14 @@ class RideHailingManager(
 
   private val vehicleFuelLevel: mutable.Map[Id[Vehicle], Double] = mutable.Map[Id[Vehicle], Double]()
 
-  private val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
+  private val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute)
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
 
   private val rideHailAllocationManagerTimeoutInSeconds = {
-    beamServices.beamConfig.beam.agentsim.agents.rideHailing.rideHailAllocationManagerTimeoutInSeconds
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds
   }
 
-  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHailing.allocationManager
+  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager
 
 
 
@@ -143,7 +143,7 @@ class RideHailingManager(
     */
   lazy val travelProposalCache: Cache[String, TravelProposal] = {
     CacheBuilder.newBuilder()
-      .maximumSize((10 * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong)
+      .maximumSize((10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong)
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
   }

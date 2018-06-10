@@ -17,7 +17,7 @@ header:
 defaultParams:
     ### ---- beam-template.conf param replacement ---####
     beam.agentsim.tuning.transitCapacity: 0.05
-    beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+    beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
 
 # Factors
 
@@ -38,10 +38,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
     - name: Base
       params:
-        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
     - name: High
       params:
-        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1

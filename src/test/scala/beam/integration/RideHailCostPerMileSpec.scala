@@ -17,7 +17,7 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
       val modeChoice = inputCostPerMile.map(tc => new StartWithCustomConfig(
         baseConfig
           .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
-          .withValue("beam.agentsim.agents.rideHailing.defaultCostPerMile", ConfigValueFactory.fromAnyRef(tc))
+          .withValue("beam.agentsim.agents.rideHail.defaultCostPerMile", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
       val tc = modeChoice

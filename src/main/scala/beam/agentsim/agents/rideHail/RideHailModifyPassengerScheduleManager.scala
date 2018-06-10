@@ -183,7 +183,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
     val rideHailAllocationManagerTimeout=nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter( x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout]).head.trigger
 
-    val badTriggers= nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter(x => x.trigger.tick<rideHailAllocationManagerTimeout.tick-beamConfig.beam.agentsim.agents.rideHailing.rideHailAllocationManagerTimeoutInSeconds)
+    val badTriggers= nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter(x => x.trigger.tick<rideHailAllocationManagerTimeout.tick-beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds)
 
     if (!badTriggers.isEmpty){
       log.error("trying to schedule trigger: " + badTriggers)

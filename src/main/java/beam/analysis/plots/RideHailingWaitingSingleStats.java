@@ -43,7 +43,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     RideHailingWaitingSingleStats(BeamServices beamServices){
 
         endTime = Time.parseTime(beamServices.beamConfig().matsim().modules().qsim().endTime());
-        timeBinSizeInSec = beamServices.beamConfig().beam().agentsim().agents().rideHailing().iterationStats().timeBinSizeInSec();
+        timeBinSizeInSec = beamServices.beamConfig().beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime/timeBinSizeInSec);
     }

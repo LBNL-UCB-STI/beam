@@ -39,7 +39,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 
-class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
+class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
   """
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true

@@ -19,9 +19,9 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
   it should "be able to run for 1 iteration without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-        .withValue("beam.agentsim.agents.rideHailing.allocationManager",ConfigValueFactory.fromAnyRef("RANDOM_REPOSITIONING"))
+        .withValue("beam.agentsim.agents.rideHail.allocationManager",ConfigValueFactory.fromAnyRef("RANDOM_REPOSITIONING"))
       .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable"))
-      .withValue("beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(0.1))
+      .withValue("beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(0.1))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()

@@ -30,7 +30,7 @@ object BeamConfig {
     object Agentsim {
       case class Agents(
         modalBehaviors : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
-        rideHailing    : BeamConfig.Beam.Agentsim.Agents.RideHailing
+        rideHail    : BeamConfig.Beam.Agentsim.Agents.RideHail
       )
       object Agents {
         case class ModalBehaviors(
@@ -49,7 +49,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class MulitnomialLogit(
             params : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params
           )
@@ -82,14 +82,14 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
                 params = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(c.getConfig("params"))
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(
               lccm             = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm(c.getConfig("lccm")),
@@ -98,8 +98,8 @@ object BeamConfig {
             )
           }
         }
-              
-        case class RideHailing(
+
+        case class RideHail(
           allocationManager                         : java.lang.String,
           defaultCostPerMile                        : scala.Double,
           defaultCostPerMinute                      : scala.Double,
@@ -109,18 +109,18 @@ object BeamConfig {
           rideHailAllocationManagerTimeoutInSeconds : scala.Int,
           surgePricing                              : BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing
         )
-        object RideHailing {
+        object RideHail {
           case class IterationStats(
             timeBinSizeInSec : scala.Double
           )
           object IterationStats {
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing.IterationStats = {
-              BeamConfig.Beam.Agentsim.Agents.RideHailing.IterationStats(
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats = {
+              BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats(
                 timeBinSizeInSec = if(c.hasPathOrNull("timeBinSizeInSec")) c.getDouble("timeBinSizeInSec") else 3600.0
               )
             }
           }
-                
+
           case class SurgePricing(
             minimumSurgeLevel       : scala.Double,
             numberOfCategories      : scala.Int,
@@ -129,8 +129,8 @@ object BeamConfig {
             timeBinSize             : scala.Int
           )
           object SurgePricing {
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing = {
-              BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing(
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing = {
+              BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 minimumSurgeLevel       = if(c.hasPathOrNull("minimumSurgeLevel")) c.getDouble("minimumSurgeLevel") else 0.1,
                 numberOfCategories      = if(c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
                 priceAdjustmentStrategy = if(c.hasPathOrNull("priceAdjustmentStrategy")) c.getString("priceAdjustmentStrategy") else "KEEP_PRICE_LEVEL_FIXED_AT_ONE",
@@ -139,25 +139,25 @@ object BeamConfig {
               )
             }
           }
-                
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing = {
-            BeamConfig.Beam.Agentsim.Agents.RideHailing(
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail = {
+            BeamConfig.Beam.Agentsim.Agents.RideHail(
               allocationManager                         = if(c.hasPathOrNull("allocationManager")) c.getString("allocationManager") else "DEFAULT_MANAGER",
               defaultCostPerMile                        = if(c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 1.25,
               defaultCostPerMinute                      = if(c.hasPathOrNull("defaultCostPerMinute")) c.getDouble("defaultCostPerMinute") else 0.75,
               initialLocation                           = if(c.hasPathOrNull("initialLocation")) c.getString("initialLocation") else "HOME",
-              iterationStats                            = BeamConfig.Beam.Agentsim.Agents.RideHailing.IterationStats(c.getConfig("iterationStats")),
+              iterationStats                            = BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats(c.getConfig("iterationStats")),
               numDriversAsFractionOfPopulation          = if(c.hasPathOrNull("numDriversAsFractionOfPopulation")) c.getDouble("numDriversAsFractionOfPopulation") else 0.5,
               rideHailAllocationManagerTimeoutInSeconds = if(c.hasPathOrNull("rideHailAllocationManagerTimeoutInSeconds")) c.getInt("rideHailAllocationManagerTimeoutInSeconds") else 120,
-              surgePricing                              = BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing(c.getConfig("surgePricing"))
+              surgePricing                              = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(c.getConfig("surgePricing"))
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
             modalBehaviors = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(c.getConfig("modalBehaviors")),
-            rideHailing    = BeamConfig.Beam.Agentsim.Agents.RideHailing(c.getConfig("rideHailing"))
+            rideHail    = BeamConfig.Beam.Agentsim.Agents.RideHail(c.getConfig("rideHail"))
           )
         }
       }
