@@ -30,6 +30,11 @@ object RideHailUtils {
     var resultCoord = originalBeamLeg.travelPath.endPoint.loc
     var updatedDistanceInMeters = distanceOfNewPath
 
+
+    val debug=originalBeamLeg.travelPath.linkIds.map(x=>
+      (x,getDistance(Vector(x), transportNetwork))
+    )
+
     var linkIds = updatedLinkIds
     for (linkId <- originalBeamLeg.travelPath.linkIds) {
       linkIds = linkIds :+ linkId
