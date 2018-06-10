@@ -320,7 +320,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
 
-      eventsManager.processEvent(new ReserveRideHailEvent(_currentTick.getOrElse(departAt.atTime), id, bodyId, departAt.atTime, nextLeg.beamLeg.travelPath.startPoint.loc, legSegment.last.beamLeg.travelPath.endPoint.loc))
+      eventsManager.processEvent(new ReserveRideHailEvent(_currentTick.getOrElse(departAt.atTime), id, departAt.atTime, nextLeg.beamLeg.travelPath.startPoint.loc, legSegment.last.beamLeg.travelPath.endPoint.loc))
 
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _)) =>
