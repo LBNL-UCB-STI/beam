@@ -29,10 +29,6 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
 val repositionCircleRadisInMeters=3000
 
 
-    val vehiclesToReposition=tncIterationStats.get.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
-
-    val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.get.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters)
-
 
     //sortedTAZ.take(numberOfVehiclesToReposition)
 
@@ -104,6 +100,11 @@ rideHailStats
       case Some(tncIterationStats) =>
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
+
+        val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
+
+        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters)
+
 
       case None =>
         // iteration 0
