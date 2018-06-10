@@ -15,19 +15,25 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 
-case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingtimes: Long, sumOfIdlingVehicles: Long) {
+/**
+  * numberOfRides: -> passengers =1 (sum of rides)
+  * customerWaitTime -> sum and average
+  *
+  * idleTimes = count in each bin according to how much time remaining
+  * agent arrives in a time 1000 and leaves at time 2000
+  * bin Size=100 -> count as idle in 10 bins (from 1000 to 2000)
+  * idleTime[TAZId,binNumber] // bin 10, 11, 12,...19 we do +1
+  *
+  * @param sumOfRequestedRides
+  * @param sumOfWaitingTimes
+  * @param sumOfIdlingVehicles
+  */
+case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long, sumOfIdlingVehicles: Long) {
 
-  def getAverage(other: RideHailStatsEntry): RideHailStatsEntry = {
-    RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingtimes + other.sumOfWaitingtimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2)
+  def average(other: RideHailStatsEntry): RideHailStatsEntry = {
+    RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingTimes + other.sumOfWaitingTimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2)
   }
 }
-
-
-/*
-class RideHailStats(mutable.Map[String, ArrayBuffer[RideHailStatsEntry]]){
-  def getRideHailingStats(coord: Coord, time: Double): RideHailStatsEntry = {
-  }
-}*/
 
 class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
 
@@ -45,15 +51,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   private val vehicleActiveBins = mutable.Map[String, mutable.Map[String, mutable.Set[Int]]]()
 
   var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
-
-  //numberOfRides: -> passengers =1 (sum of rides)
-  //customerWaitTime -> sum and average
-
-  //idleTimes = count in each bin according to how much time remaining
-  // agent arrives in a time 1000 and leaves at time 2000
-  // bin Size=100 -> count as idle in 10 bins (from 1000 to 2000)
-  //idleTime[TAZId,binNumber] // bin 10, 11, 12,...19 we do +1
-
 
   eventsManager.addHandler(this)
 
@@ -179,10 +176,10 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
         tazBins(binIndex) = tazBins(binIndex) match {
           case Some(entry) =>
-            val sumOfWaitingTimes = if (numPassengers > 0) entry.sumOfWaitingtimes + waitingTime else entry.sumOfWaitingtimes
+            val sumOfWaitingTimes = if (numPassengers > 0) entry.sumOfWaitingTimes + waitingTime else entry.sumOfWaitingTimes
             val numOfRequestedRides = entry.sumOfRequestedRides + 1
             Some(entry.copy(sumOfRequestedRides = numOfRequestedRides,
-              sumOfWaitingtimes = sumOfWaitingTimes))
+              sumOfWaitingTimes = sumOfWaitingTimes))
           case None =>
             Some(RideHailStatsEntry(1, waitingTime, 0))
         }
@@ -194,7 +191,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
       case None =>
     }
   }
-
 
   private def collectActiveVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
 

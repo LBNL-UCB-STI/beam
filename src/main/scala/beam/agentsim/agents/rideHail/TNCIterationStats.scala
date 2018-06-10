@@ -55,14 +55,14 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
             val startTimeBin = getTimeBin(tick)
             val endTimeBin = getTimeBin(timeHorizonToConsiderForIdleVehiclesInSec)
 
-            val score = (startTimeBin to endTimeBin).map (
-                getRideHailStatsInfo(tazInRadius.tazId,_) match {
-                  case Some(rideHailStats) =>
-                    rideHailStats.sumOfWaitingtimes
+            val score = (startTimeBin to endTimeBin).map(
+              getRideHailStatsInfo(tazInRadius.tazId, _) match {
+                case Some(rideHailStats) =>
+                  rideHailStats.sumOfWaitingTimes
 
-                  case _ =>
-                    0
-                }
+                case _ =>
+                  0
+              }
             ).sum.toInt
 
             tazPriorityQueue.enqueue(TazScore(tazInRadius, score))
@@ -153,10 +153,10 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         val startTimeBin = getTimeBin(tick)
         val endTimeBin = getTimeBin(timeHorizonToConsiderForIdleVehiclesInSec)
 
-        val idleScore = (startTimeBin to endTimeBin).map (
-          getRideHailStatsInfo(rhLoc.currentLocation.loc,_) match {
+        val idleScore = (startTimeBin to endTimeBin).map(
+          getRideHailStatsInfo(rhLoc.currentLocation.loc, _) match {
             case Some(statsEntry) =>
-              statsEntry.sumOfWaitingtimes
+              statsEntry.sumOfWaitingTimes
 
             case _ =>
               0
@@ -225,7 +225,7 @@ object TNCIterationStats {
           bufferB(i) match {
 
             case Some(rideHailStatsEntryB) =>
-              result += Some(rideHailStatsEntryA.getAverage(rideHailStatsEntryB))
+              result += Some(rideHailStatsEntryA.average(rideHailStatsEntryB))
 
             case None =>
               result += Some(rideHailStatsEntryA)
