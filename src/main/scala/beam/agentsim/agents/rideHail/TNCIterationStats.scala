@@ -155,8 +155,8 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
         val idleScore = (startTimeBin to endTimeBin).map (
           getRideHailStatsInfo(rhLoc.currentLocation.loc,_) match {
-            case Some(rideHailStats) =>
-              rideHailStats.sumOfWaitingtimes
+            case Some(statsEntry) =>
+              statsEntry.sumOfWaitingtimes
 
             case _ =>
               0
