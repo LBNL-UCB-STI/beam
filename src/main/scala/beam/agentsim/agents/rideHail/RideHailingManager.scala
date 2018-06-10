@@ -435,6 +435,7 @@ class RideHailingManager(
     getIdleVehicles().getOrElse(vehicleId, inServiceRideHailVehicles.get(vehicleId).get)
   }
 
+  /*
   //TODO requires proposal in cache
   private def findClosestRideHailingAgents(requestId: Int, customerPickUp: Location) = {
     val travelPlanOpt = Option(travelProposalCache.asMap.remove(requestId))
@@ -449,6 +450,7 @@ class RideHailingManager(
       .itineraries.head.vehiclesInTrip.head))
     (travelPlanOpt, closestRHA)
   }
+  */
 
   private def sendRoutingRequests(personId: Id[PersonAgent], customerPickUp: Location, departAt: BeamTime,
                                   destination: Location, rideHailingLocation: RideHailingAgentLocation): (Future[Any], Future[Any]) = {
