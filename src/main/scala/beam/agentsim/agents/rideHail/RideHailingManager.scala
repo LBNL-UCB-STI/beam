@@ -289,7 +289,7 @@ class RideHailingManager(
 
     case reserveRide@RideHailingRequest(ReserveRide, vehiclePersonId, customerPickUp, departAt, destination) =>
       if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode) {
-        val requestId = reserveRide.copy(requestType = RideHailingInquiry).hashCode()
+        val requestId = reserveRide.requestId
         bufferedReserveRideMessages += (requestId.toString -> reserveRide)
         //System.out.println("")
       } else {
@@ -531,12 +531,12 @@ class RideHailingManager(
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     val tripLegs = travelProposal.responseRideHailing2Dest.itineraries.head.legs.map(_.beamLeg)
-    pendingModifyPassengerScheduleAcks.put(request.hashCode().toString, RideHailingResponse(request, Some(travelProposal)))
+    pendingModifyPassengerScheduleAcks.put(request.requestId.toString, RideHailingResponse(request, Some(travelProposal)))
 
     log.info(s"Reserving vehicle: ${travelProposal.rideHailingAgentLocation.vehicleId} customer: ${request.customer.personId} request: ${request.requestId}")
 
     modifyPassengerScheduleManager.reserveVehicle(passengerSchedule, passengerSchedule.schedule.head._1.startTime,
-      travelProposal.rideHailingAgentLocation, Some(request.hashCode()))
+      travelProposal.rideHailingAgentLocation, Some(request.requestId))
   }
 
   private def completeReservation(requestId: Int, triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
