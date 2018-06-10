@@ -22,7 +22,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
     public final static String ATTRIBUTE_ARRIVAL_TIME = "arrival_time";
-    public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
+    public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
     public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
     public final static String ATTRIBUTE_START_COORDINATE_X = "start.x";

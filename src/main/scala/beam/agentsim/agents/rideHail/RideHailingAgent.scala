@@ -99,7 +99,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
       log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty): $ev")
       val (tick, triggerId) = releaseTickAndTriggerId()
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
     case ev@Event(Interrupt(_,_), data) =>
@@ -111,7 +110,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   when(PassengerScheduleEmptyInterrupted) {
     case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
       log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
     case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")

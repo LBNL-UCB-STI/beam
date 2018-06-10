@@ -165,21 +165,20 @@ class RideHailingManager(
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
-    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule, isLastleg) =>
+    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule) =>
       updateLocationOfAgent(vehicleId, whenWhere, isAvailable = isAvailable(vehicleId))
 
-      if (isLastleg) {
-        //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
-        resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
-          val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
-          if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId,passengerSchedule)) {
-            // we still might have some ongoing resrvation in going on
-            makeAvailable(rideHailingAgentLocation)
-          }
-          modifyPassengerScheduleManager.checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
-          driver ! GetBeamVehicleFuelLevel
-        })
-      }
+      //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
+      resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
+        val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
+        if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId,passengerSchedule)) {
+          log.info(s"Making available: $vehicleId")
+          // we still might have some ongoing resrvation in going on
+          makeAvailable(rideHailingAgentLocation)
+        }
+        modifyPassengerScheduleManager.checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
+        driver ! GetBeamVehicleFuelLevel
+      })
 
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
@@ -203,6 +202,7 @@ class RideHailingManager(
           val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere.get)
           if (modifyPassengerScheduleManager.noPendingReservations(vehicleId)) {
             // we still might have some ongoing resrvation in going on
+            log.info(s"Checking in: $vehicleId")
             makeAvailable(rideHailingAgentLocation)
           }
           sender ! CheckInSuccess
@@ -533,18 +533,16 @@ class RideHailingManager(
     val tripLegs = travelProposal.responseRideHailing2Dest.itineraries.head.legs.map(_.beamLeg)
     pendingModifyPassengerScheduleAcks.put(request.hashCode().toString, RideHailingResponse(request, Some(travelProposal)))
 
-
-    log.debug("reserving vehicle: " + travelProposal.rideHailingAgentLocation.vehicleId)
+    log.info(s"Reserving vehicle: ${travelProposal.rideHailingAgentLocation.vehicleId} customer: ${request.customer.personId} request: ${request.requestId}")
 
     modifyPassengerScheduleManager.reserveVehicle(passengerSchedule, passengerSchedule.schedule.head._1.startTime,
       travelProposal.rideHailingAgentLocation, Some(request.hashCode()))
-
   }
 
   private def completeReservation(requestId: Int, triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
-        log.debug(s"Completed reservation for $requestId")
+        log.info(s"Completing reservation for $requestId")
         unlockVehicle(response.travelProposal.get.rideHailingAgentLocation.vehicleId)
         response.request.customer.personRef.get ! response.copy(triggersToSchedule = triggersToSchedule.toVector)
       case None =>

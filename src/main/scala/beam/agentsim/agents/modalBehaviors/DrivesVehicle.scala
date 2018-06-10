@@ -71,7 +71,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
                 DebugLib.emptyFunctionForSettingBreakPoint()
               }
 
-              beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),data.passengerSchedule,isLastLeg))
+              if(isLastLeg)beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),data.passengerSchedule))
               beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -140,8 +140,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
               val updatedBeamLeg=RideHailUtils.getUpdatedBeamLegAfterStopDriving(currentLeg,stopTick,transportNetwork)
 
-
-              beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (updatedBeamLeg.travelPath.endPoint) ,data.passengerSchedule,isLastLeg) )
+              if(isLastLeg)beamServices.vehicles (currentVehicleUnderControl).manager.foreach (_ ! NotifyResourceIdle (currentVehicleUnderControl, beamServices.geo.wgs2Utm (updatedBeamLeg.travelPath.endPoint) ,data.passengerSchedule) )
 
               eventsManager.processEvent(new VehicleLeavesTrafficEvent(stopTick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent (new PathTraversalEvent (stopTick, currentVehicleUnderControl,

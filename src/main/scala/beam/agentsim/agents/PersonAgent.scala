@@ -380,7 +380,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyResourceIdle(_, _,_,_), _) =>
+    case Event(NotifyResourceIdle(_, _,_), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
