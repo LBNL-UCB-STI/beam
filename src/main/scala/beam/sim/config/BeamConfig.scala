@@ -104,10 +104,10 @@ object BeamConfig {
           defaultCostPerMile                        : scala.Double,
           defaultCostPerMinute                      : scala.Double,
           initialLocation                           : java.lang.String,
-          iterationStats                            : BeamConfig.Beam.Agentsim.Agents.RideHailing.IterationStats,
+          iterationStats                            : BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           numDriversAsFractionOfPopulation          : scala.Double,
           rideHailAllocationManagerTimeoutInSeconds : scala.Int,
-          surgePricing                              : BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing
+          surgePricing                              : BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
         )
         object RideHail {
           case class IterationStats(
