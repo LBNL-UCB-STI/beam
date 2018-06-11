@@ -48,6 +48,8 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
   var maxSurgePricingLevel: Double = 0
+  var surgePricingLevelCount: Int = 0
+  var totalSurgePricingLevel: Double = 0
 
 
   // TODO: implement all cases for these surge prices properly
@@ -187,8 +189,10 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
       for (j <- 0 until i.size - 1) {
         val surgePriceBin = i.apply(j)
         sum += surgePriceBin.currentIterationRevenue
-        if (maxSurgePricingLevel < surgePriceBin.currentIterationRevenue) {
-          maxSurgePricingLevel = surgePriceBin.currentIterationRevenue;
+        surgePricingLevelCount += 1
+        totalSurgePricingLevel += surgePriceBin.currentIterationSurgePriceLevel
+        if (maxSurgePricingLevel < surgePriceBin.currentIterationSurgePriceLevel) {
+          maxSurgePricingLevel = surgePriceBin.currentIterationSurgePriceLevel
         }
       }
     }
@@ -199,7 +203,9 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   def incrementIteration() = {
     iteration += 1
-    maxSurgePricingLevel=0
+    surgePricingLevelCount = 0
+    totalSurgePricingLevel = 0
+    maxSurgePricingLevel = 0
   }
 
   def getIterationNumber() = {

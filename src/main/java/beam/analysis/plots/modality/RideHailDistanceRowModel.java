@@ -6,6 +6,9 @@ public class RideHailDistanceRowModel {
     private double rideHailWaitingTimeSum;
     private int totalRideHailCount;
     private double rideHailRevenue;
+    private double totalSurgePricingLevel;
+    private double surgePricingLevelCount;
+    private double maxSurgePricingLevel;
     private Map<GraphType, Double> rideHailDistanceStatMap;
 
     public RideHailDistanceRowModel() {
@@ -44,6 +47,30 @@ public class RideHailDistanceRowModel {
 
     public void setRideHailDistanceStatMap(Map<GraphType, Double> rideHailDistanceStatMap) {
         this.rideHailDistanceStatMap = rideHailDistanceStatMap;
+    }
+
+    public double getTotalSurgePricingLevel() {
+        return totalSurgePricingLevel;
+    }
+
+    public void setTotalSurgePricingLevel(double totalSurgePricingLevel) {
+        this.totalSurgePricingLevel = totalSurgePricingLevel;
+    }
+
+    public double getSurgePricingLevelCount() {
+        return surgePricingLevelCount;
+    }
+
+    public void setSurgePricingLevelCount(double surgePricingLevelCount) {
+        this.surgePricingLevelCount = surgePricingLevelCount;
+    }
+
+    public double getMaxSurgePricingLevel() {
+        return maxSurgePricingLevel;
+    }
+
+    public void setMaxSurgePricingLevel(double maxSurgePricingLevel) {
+        this.maxSurgePricingLevel = maxSurgePricingLevel;
     }
 
     public enum GraphType {

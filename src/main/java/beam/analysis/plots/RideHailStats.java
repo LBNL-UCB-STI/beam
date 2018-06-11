@@ -1,17 +1,18 @@
 package beam.analysis.plots;
 
-import akka.stream.Graph;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author abid
@@ -96,7 +97,7 @@ public class RideHailStats implements IGraphStats {
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
 
-            String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTime,totalRideHailWaitingTime,passengerVKT,repositioningVKT,deadHeadingVKT";
+            String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTime,totalRideHailWaitingTime,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel";
             out.write(heading);
             out.newLine();
             for (Integer key : GraphUtils.RIDE_HAIL_REVENUE_MAP.keySet()) {
@@ -104,6 +105,10 @@ public class RideHailStats implements IGraphStats {
                 double passengerVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT);
                 double repositioningVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT);
                 double deadheadingVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT);
+                double maxSurgePricingLevel = model.getMaxSurgePricingLevel();
+                double totalSurgePricingLevel = model.getTotalSurgePricingLevel();
+                double surgePricingLevelCount = model.getSurgePricingLevelCount();
+                double averageSurgePricing = surgePricingLevelCount == 0 ? 0 : totalSurgePricingLevel / surgePricingLevelCount;
                 out.append("" + key);
                 out.append("," + model.getRideHailRevenue());
                 out.append("," + model.getRideHailWaitingTimeSum() / model.getTotalRideHailCount());
@@ -111,6 +116,8 @@ public class RideHailStats implements IGraphStats {
                 out.append("," + passengerVkt);
                 out.append("," + repositioningVkt);
                 out.append("," + deadheadingVkt);
+                out.append("," + averageSurgePricing);
+                out.append("," + maxSurgePricingLevel);
                 out.newLine();
             }
             out.flush();

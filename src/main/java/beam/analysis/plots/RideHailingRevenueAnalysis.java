@@ -42,6 +42,14 @@ public class RideHailingRevenueAnalysis implements ControlerListener, IterationE
 
         ArrayBuffer<?> data = surgePricingManager.rideHailingRevenue();
 
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+        if (model == null)
+            model = new RideHailDistanceRowModel();
+        model.setMaxSurgePricingLevel(surgePricingManager.maxSurgePricingLevel());
+        model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
+        model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+
         createGraph(data);
 
         writeRideHailingRevenueCsv(data);
