@@ -12,6 +12,7 @@ header:
       EXPERIMENT_MAX_RAM: 16g
       S3_OUTPUT_PATH_SUFFIX: "sf-light"
       DROP_OUTPUT_ONCOMPLETE: "true"
+      IS_PARALLEL: "false"
 
 
 # Default Params

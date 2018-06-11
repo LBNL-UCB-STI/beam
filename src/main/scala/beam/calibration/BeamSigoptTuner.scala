@@ -25,6 +25,9 @@ case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: Fi
   val baseConfig: Config = ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
 
   val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef, development)
+
+  val isParallel: Boolean = experimentDef.header.params.get("IS_PARALLEL").asInstanceOf[Boolean]
+
 }
 
 object SigoptExperimentData {
