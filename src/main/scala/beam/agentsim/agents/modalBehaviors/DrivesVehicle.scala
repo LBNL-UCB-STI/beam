@@ -33,9 +33,8 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Double) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
-
-  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
+  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Double)
 
@@ -77,9 +76,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
                   logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-                  scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
+                  scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg, data.currentVehicle.head), personRef)
                 }
               }
+              logDebug(s"PathTraversal")
               eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
                 beamServices.vehicles(currentVehicleUnderControl).getType,
@@ -172,7 +172,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case ev@Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug(s"state(DrivesVehicle.WaitingToDrive): $ev")
       val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule.schedule(newLeg).riders.map{ personVehicle =>
-        ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
+        ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head), beamServices.personRefs(personVehicle.personId))
       }.toVector
       eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
@@ -211,13 +211,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val legsInThePast = data.passengerSchedule.schedule.take(data.currentLegPassengerScheduleIndex).from(req.departFrom).to(req.arriveAt).keys.toSeq
       if (legsInThePast.nonEmpty) log.warning("Legs in the past: {} -- {}", legsInThePast,req)
       val triggersToSchedule = legsInThePast.flatMap(leg => Vector(
-        ScheduleTrigger(NotifyLegStartTrigger(leg.startTime, leg), sender()),
-        ScheduleTrigger(NotifyLegEndTrigger(leg.endTime, leg), sender()))
+        ScheduleTrigger(NotifyLegStartTrigger(leg.startTime, leg, data.currentVehicle.head), sender()),
+        ScheduleTrigger(NotifyLegEndTrigger(leg.endTime, leg, data.currentVehicle.head), sender()))
       ).toVector
       val triggersToSchedule2 = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
           if (stateName == Driving && legs.contains(currentLeg)) {
-            Vector(ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender()))
+            Vector(ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg, data.currentVehicle.head), sender()))
           }else{
             Vector()
           }
