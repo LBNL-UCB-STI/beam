@@ -84,11 +84,12 @@ public class FuelUsageStats implements IGraphStats{
     }
     private void processFuelUsage(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String vehicleType = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicleId = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        double lengthInMeters = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-        String fuelString = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_FUEL);
+        Map<String, String> eventAttributes = event.getAttributes();
+        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+        String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+        String fuelString = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
         modesFuel.add(mode);
         try {
             Double fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(vehicleId, mode, fuelString, lengthInMeters, vehicleType);

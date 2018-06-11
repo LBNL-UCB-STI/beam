@@ -7,6 +7,7 @@ import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.util.HashSet;
+import java.util.Map;
 
 // see issue 272
 public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
@@ -34,13 +35,14 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
     @Override
     public void handleEvent(Event event) {
+        Map<String, String> eventAttributes = event.getAttributes();
         if (event.getEventType().equalsIgnoreCase("departure")){
-            if (event.getAttributes().get("legMode").equalsIgnoreCase("drive_transit")) {
-                personIdsOnDriveTransit.add(event.getAttributes().get("person").toString());
+            if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
+                personIdsOnDriveTransit.add(eventAttributes.get("person").toString());
             }
         } else if (event.getEventType().equalsIgnoreCase("arrival")){
-            if (event.getAttributes().get("legMode").equalsIgnoreCase("drive_transit")) {
-                personIdsOnDriveTransit.remove(event.getAttributes().get("person").toString());
+            if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
+                personIdsOnDriveTransit.remove(eventAttributes.get("person").toString());
             }
         }
     }

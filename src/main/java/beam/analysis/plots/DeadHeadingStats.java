@@ -90,17 +90,18 @@ public class DeadHeadingStats implements IGraphStats {
     }
     private void processDeadHeading(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        Map<String, String> eventAttributes = event.getAttributes();
+        String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicle_id = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
+        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event, eventAttributes);
         boolean validCase = isValidCase(graphName, _num_passengers);
         if (validCase) {
             updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
         }
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+            Double length = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
             updateDeadHeadingTNCMap(length,hour,_num_passengers);
         }
     }
@@ -123,8 +124,8 @@ public class DeadHeadingStats implements IGraphStats {
         deadHeadingsTnc0Map.put(hour, hourData);
         return true;
     }
-    private Integer getPathTraversalEventNumOfPassengers(Event event){
-        String num_passengers = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
+    private Integer getPathTraversalEventNumOfPassengers(Event event, Map<String, String> eventAttributes){
+        String num_passengers = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
         Integer _num_passengers =null;
         try {
             _num_passengers = Integer.parseInt(num_passengers);
