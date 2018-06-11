@@ -40,12 +40,12 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
-    RideHailingWaitingSingleStats(BeamServices beamServices){
+    RideHailingWaitingSingleStats(BeamServices beamServices) {
 
         endTime = Time.parseTime(beamServices.beamConfig().matsim().modules().qsim().endTime());
         timeBinSizeInSec = beamServices.beamConfig().beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
-        numberOfTimeBins = Math.floor(endTime/timeBinSizeInSec);
+        numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
     }
 
     @Override
@@ -59,22 +59,22 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
 
-        if (event instanceof ModeChoiceEvent){
+        if (event instanceof ModeChoiceEvent) {
 
             String mode = event.getAttributes().get("mode");
-            if(mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hailing")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailingWaiting.put(personId.toString(), event);
             }
-        } else if(event instanceof PersonEntersVehicleEvent) {
+        } else if (event instanceof PersonEntersVehicleEvent) {
 
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent)event;
+            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if(rideHailingWaiting.containsKey(personId.toString())) {
+            if (rideHailingWaiting.containsKey(personId.toString())) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
@@ -91,18 +91,18 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
         Collections.sort(hours);
-        int maxHour = hours.get(hours.size() -1);
+        int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
 
         double[][] data = new double[1][maxHour + 1];
-        for(Integer key : hoursTimesMap.keySet()){
+        for (Integer key : hoursTimesMap.keySet()) {
 
-            if (key>=data[0].length){
+            if (key >= data[0].length) {
                 DebugLib.emptyFunctionForSettingBreakPoint();
             }
 
             data[0][key] = hoursTimesMap.get(key);
         }
-        CategoryDataset dataset = DatasetUtilities.createCategoryDataset("","",data);
+        CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
         if (dataset != null)
             createModesFrequencyGraph(dataset, event.getIteration());
 
@@ -115,11 +115,10 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        waitingTime = waitingTime/60;
+        waitingTime = waitingTime / 60;
 
         if (waitingTime > lastMaximumTime) {
             lastMaximumTime = waitingTime;
@@ -128,8 +127,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         Double timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
             timeList = waitingTime;
-        }
-        else {
+        } else {
             timeList += waitingTime;
         }
         hoursTimesMap.put(hour, timeList);
@@ -148,32 +146,24 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-
     private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "WaitingTime\\Hour";
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            StringBuilder heading = new StringBuilder("WaitingTime\\Hour");
             for (int hours = 1; hours <= numberOfTimeBins; hours++) {
-                heading += "," + hours;
+                heading.append(",").append(hours);
             }
-            out.write(heading);
+            out.write(heading.toString());
             out.newLine();
             String line;
             for (int i = 0; i < numberOfTimeBins; i++) {
                 Double inner = hourModeFrequency.get(i);
-                line = (inner == null ) ? ",0" : "," + Math.round(inner*100.0)/100.0;
+                line = (inner == null) ? ",0" : "," + Math.round(inner * 100.0) / 100.0;
                 out.write(line);
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 
