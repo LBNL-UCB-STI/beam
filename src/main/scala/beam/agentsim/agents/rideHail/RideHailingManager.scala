@@ -172,7 +172,7 @@ class RideHailingManager(
       resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).get.driver.foreach(driver => {
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
         if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId,passengerSchedule)) {
-          log.info(s"Making available: $vehicleId")
+          log.debug(s"Making available: $vehicleId")
           // we still might have some ongoing resrvation in going on
           makeAvailable(rideHailingAgentLocation)
         }
@@ -202,7 +202,7 @@ class RideHailingManager(
           val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere.get)
           if (modifyPassengerScheduleManager.noPendingReservations(vehicleId)) {
             // we still might have some ongoing resrvation in going on
-            log.info(s"Checking in: $vehicleId")
+            log.debug(s"Checking in: $vehicleId")
             makeAvailable(rideHailingAgentLocation)
           }
           sender ! CheckInSuccess
@@ -535,7 +535,7 @@ class RideHailingManager(
     val tripLegs = travelProposal.responseRideHailing2Dest.itineraries.head.legs.map(_.beamLeg)
     pendingModifyPassengerScheduleAcks.put(request.requestId.toString, RideHailingResponse(request, Some(travelProposal)))
 
-    log.info(s"Reserving vehicle: ${travelProposal.rideHailingAgentLocation.vehicleId} customer: ${request.customer.personId} request: ${request.requestId}")
+    log.debug(s"Reserving vehicle: ${travelProposal.rideHailingAgentLocation.vehicleId} customer: ${request.customer.personId} request: ${request.requestId}")
 
     modifyPassengerScheduleManager.reserveVehicle(passengerSchedule, passengerSchedule.schedule.head._1.startTime,
       travelProposal.rideHailingAgentLocation, Some(request.requestId))
@@ -544,7 +544,7 @@ class RideHailingManager(
   private def completeReservation(requestId: Int, triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
-        log.info(s"Completing reservation for $requestId")
+        log.debug(s"Completing reservation for $requestId")
         unlockVehicle(response.travelProposal.get.rideHailingAgentLocation.vehicleId)
         response.request.customer.personRef.get ! response.copy(triggersToSchedule = triggersToSchedule.toVector)
       case None =>

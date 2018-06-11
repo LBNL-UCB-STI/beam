@@ -176,8 +176,8 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
     val t2 = e2.getAttributes.getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}").toDouble
 
     if(t1 == t2)
-      e1.getTime < e2.getTime
+      e1.getTime <= e2.getTime
     else
-      t1 < t2
+      t1 <= t2
   }
 }

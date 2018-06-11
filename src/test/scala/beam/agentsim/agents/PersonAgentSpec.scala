@@ -311,10 +311,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       events.expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg, busLeg.beamVehicleId), personActor)
       lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
 
       events.expectMsgType[PersonEntersVehicleEvent]
@@ -322,8 +322,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg, tramLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg, tramLeg.beamVehicleId), personActor) // My tram is late!
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
