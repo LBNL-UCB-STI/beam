@@ -26,7 +26,7 @@ case class SigoptExperimentData(experimentDef: ExperimentDef, experimentPath: Fi
 
   val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef, development)
 
-  val isParallel: Boolean = experimentDef.header.params.get("IS_PARALLEL").asInstanceOf[Boolean]
+  val isParallel: Boolean = experimentDef.header.params.get("IS_PARALLEL").equals("true")
 
 }
 

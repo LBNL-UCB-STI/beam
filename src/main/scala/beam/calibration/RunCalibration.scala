@@ -10,7 +10,7 @@ import com.sigopt.exception.APIConnectionError
   To run on t2.large w/ 16g (Max) RAM on AWS via Gradle build script, do the following:
   *
   <code>
-  gradle :deploy -PrunName={{runName}} -PinstanceType='t2.large' -PmaxRAM="16g" -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', 'test/input/sf-light/sf-light-calibration/experiment.yml', '--benchmark', 'test/input/sf-light/sf-light-calibration/benchmarkTest.csv','--num_iters', '100']"
+ gradle :deploy -PrunName=test-calibration -PinstanceType=t2.large -PmaxRAM=32g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', 'test/input/sf-light/sf-light-calibration/experiment.yml', '--benchmark', 'test/input/sf-light/sf-light-calibration/benchmarkTest.csv','--num_iters', '100']"
   </code>
   *
   * For now, to view logging in console, SSH into created instance, and run:
