@@ -326,6 +326,9 @@ class RideHailingManager(
         modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       } else {
         modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+
+
+     //   printRepositionDistanceSum(repositionVehicles)
       }
 
       for (repositionVehicle <- repositionVehicles) {
@@ -401,6 +404,22 @@ class RideHailingManager(
     case msg =>
       log.warning(s"unknown message received by RideHailingManager $msg")
 
+  }
+
+  private def printRepositionDistanceSum(repositionVehicles: Vector[(Id[Vehicle], Location)]) = {
+    var sumOfDistances: Double = 0
+    var numberOfTrips = 0;
+    for (repositionVehicle <- repositionVehicles) {
+      val (vehicleId, destinationLocation) = repositionVehicle
+      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+
+      sumOfDistances += beamServices.geo.distInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
+      numberOfTrips += 1
+    }
+
+    println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   // Returns Boolean indicating success/failure
