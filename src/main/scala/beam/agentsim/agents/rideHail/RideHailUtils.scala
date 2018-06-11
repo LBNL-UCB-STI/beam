@@ -54,7 +54,7 @@ object RideHailUtils {
     }).sum
   }
 
-  private def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork) = {
+  def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
     val travelTime = (time: Long, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
@@ -88,15 +88,15 @@ object RideHailUtils {
 
   // TODO: move to some utility class,   e.g. geo
   private def getDirectionCoordVector(startCoord: Coord, endCoord: Coord): Coord = {
-    new Coord(endCoord.getX() - startCoord.getX(), endCoord.getY() - startCoord.getY())
+    new Coord((endCoord getX()) - startCoord.getX, endCoord.getY - startCoord.getY)
   }
 
   private def getCoord(startCoord: Coord, directionCoordVector: Coord): Coord = {
-    new Coord(startCoord.getX() + directionCoordVector.getX(), startCoord.getY() + directionCoordVector.getY())
+    new Coord(startCoord.getX + directionCoordVector.getX, startCoord.getY + directionCoordVector.getY)
   }
 
   private def scaleDirectionVector(directionCoordVector: Coord, scalingFactor: Double): Coord = {
-    new Coord(directionCoordVector.getX() * scalingFactor, directionCoordVector.getY() * scalingFactor)
+    new Coord(directionCoordVector.getX * scalingFactor, directionCoordVector.getY * scalingFactor)
   }
 
 }
