@@ -168,7 +168,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
 
     idleVehicles.foreach {
-      case (vId, rhLoc) =>
+      case (_, rhLoc) =>
 
         val startTimeBin = getTimeBin(tick)
         val endTimeBin = getTimeBin(tick+timeHorizonToConsiderForIdleVehiclesInSec)
@@ -187,7 +187,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        priorityQueue.enqueue(VehicleLocationScores(vId, rhLoc, idleScore)) // TODO: ZB: remove vId?
+        priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
     val listOfLocations = priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).map {
@@ -269,6 +269,6 @@ object TNCIterationStats {
   }
 }
 
-case class VehicleLocationScores(vehicleId: Id[vehicles.Vehicle], rideHailingAgentLocation: RideHailingAgentLocation, score: Double)
+case class VehicleLocationScores(rideHailingAgentLocation: RideHailingAgentLocation, score: Double)
 
 case class TazScore(taz: TAZ, score: Double)
