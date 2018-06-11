@@ -93,7 +93,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices),rideHailIterationHistoryActorName)
     tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices.beamConfig,rideHailIterationHistoryActor)
 
-    new RideHailDebugEventHandler(eventsManager)
+    // report inconsistencies in output:
+   // new RideHailDebugEventHandler(eventsManager)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
