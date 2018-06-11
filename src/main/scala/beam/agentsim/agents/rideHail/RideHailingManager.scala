@@ -253,8 +253,8 @@ class RideHailingManager(
 
         travelProposalCache.put(request.requestId.toString, travelProposal)
 
-        log.debug(s"Found ridehail ${rideHailingLocation.vehicleId} for person=${request.customer.personId} and ${request.requestType} " +
-          s"requestId=${request.requestId}, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
+//        log.debug(s"Found ridehail ${rideHailingLocation.vehicleId} for person=${request.customer.personId} and ${request.requestType} " +
+//          s"requestId=${request.requestId}, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
 
         request.requestType match {
           case RideHailingInquiry =>
@@ -575,7 +575,7 @@ class RideHailingManager(
 
 
   private def handleReservationRequest(request: RideHailingRequest) = {
-    log.debug(s"handleReservationRequest: $request")
+//    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailingAgentLocation.vehicleId) ||
