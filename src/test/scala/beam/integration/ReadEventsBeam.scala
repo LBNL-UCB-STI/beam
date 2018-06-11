@@ -46,8 +46,8 @@ class ReadEventsBeam extends ReadEvents{
     val events = basicEventHandler.events
     val filteredEvents = events.filter { event =>
       val attributes = event.getAttributes.asScala
-      eventType.map(_.equals(event.getEventType)).getOrElse(true) &&
-        mkeyValue.map{case (key, value) => attributes.get(key).filter(_.contains(value)).isDefined}.getOrElse(true)
+      eventType.forall(_.equals(event.getEventType)) &&
+        mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
     filteredEvents
@@ -75,7 +75,10 @@ class ReadEventsBeam extends ReadEvents{
         mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
-    filteredEvents.map( f =>(f.getAttributes.asScala(tagToReturn) ,f.getAttributes.asScala(tagTwoToReturn) ))
+    filteredEvents.map( f =>{
+      val attributes = f.getAttributes
+      (attributes.asScala(tagToReturn), attributes.asScala(tagTwoToReturn))
+    })
   }
 
   def getLinesFrom(file: File): String = {

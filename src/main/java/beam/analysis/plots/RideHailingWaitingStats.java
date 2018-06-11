@@ -50,9 +50,9 @@ public class RideHailingWaitingStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
 
+        Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent){
-
-            String mode = event.getAttributes().get("mode");
+            String mode = eventAttributes.get("mode");
             if(mode.equalsIgnoreCase("ride_hailing")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;

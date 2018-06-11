@@ -11,6 +11,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.util.Map;
 
 public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
@@ -34,7 +35,8 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     public void handleEvent(Event event) {
         if (writeDataInThisIteration && event instanceof ModeChoiceEvent){
             ModeChoiceEvent modeChoiceEvent= (ModeChoiceEvent) event;
-            Link link=network.getLinks().get(Id.createLinkId(modeChoiceEvent.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_LOCATION)));
+            Map<String, String> eventAttributes = modeChoiceEvent.getAttributes();
+            Link link=network.getLinks().get(Id.createLinkId(eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_LOCATION)));
 
             if (link!=null) { // TODO: fix this, so that location of mode choice event is always initialized
                 try {
@@ -44,7 +46,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
                 bufferedWriter.append(SEPERATOR);
                 bufferedWriter.append(Double.toString(link.getCoord().getY()));
                 bufferedWriter.append(SEPERATOR);
-                bufferedWriter.append(modeChoiceEvent.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_EXP_MAX_UTILITY));
+                bufferedWriter.append(eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_EXP_MAX_UTILITY));
                 bufferedWriter.append("\n");
                 csvWriter.flushBuffer();
                 } catch (IOException e) {

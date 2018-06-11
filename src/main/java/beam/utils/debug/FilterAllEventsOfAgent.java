@@ -8,6 +8,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Map;
 
 public class FilterAllEventsOfAgent implements BasicEventHandler {
 
@@ -39,7 +40,8 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
 
     @Override
     public void handleEvent(Event event) {
-        if (event.getAttributes().containsKey("person") && event.getAttributes().get("person").equalsIgnoreCase(personId)){
+        Map<String, String> eventAttributes = event.getAttributes();
+        if (eventAttributes.containsKey("person") && eventAttributes.get("person").equalsIgnoreCase(personId)){
             filteredEvents.add(event);
         }
     }
