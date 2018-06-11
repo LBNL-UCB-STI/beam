@@ -8,7 +8,6 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import sun.net.www.content.image.png;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -29,7 +28,7 @@ public class DeadHeadingStats implements IGraphStats {
     private static int maxPassengersSeenOnGenericCase = 0;
     private String fileNameBase = "rideHail";
     private String graphTitle = null;
-    private static final int DEFAULT_OCCURRENCE=1;
+    private static final int DEFAULT_OCCURRENCE = 1;
 
     Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
     Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
@@ -56,8 +55,6 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-
-
     @Override
     public void resetStats() {
         deadHeadingsMap.clear();
@@ -77,17 +74,16 @@ public class DeadHeadingStats implements IGraphStats {
 
     // Deadheading Distance Graph
 
-    private void processDeadHeadingDistanceRemainingRepositionings(){
-
+    private void processDeadHeadingDistanceRemainingRepositionings() {
 
         Set<String> vehicleIds = vehicleEvents.keySet();
 
-        for(String vid : vehicleIds) {
+        for (String vid : vehicleIds) {
 
             Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vid);
 
             if (vehicleData != null) {
-                List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
                 Collections.sort(hourKeys);
 
                 int n = hourKeys.size();
@@ -114,32 +110,33 @@ public class DeadHeadingStats implements IGraphStats {
 
         vehicleEvents.clear();
     }
-    private void processEventForTncDeadheadingDistanceGraph(Event event){
+
+    private void processEventForTncDeadheadingDistanceGraph(Event event) {
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
+        String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
-            if(_num_passengers > 0){
+            if (_num_passengers > 0) {
                 Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vehicle_id);
 
-                if(vehicleData != null){
-                    List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                if (vehicleData != null) {
+                    List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
                     Collections.sort(hourKeys);
 
                     int n = hourKeys.size();
-                    for(int k = 0; k < n; k++) {
+                    for (int k = 0; k < n; k++) {
 
                         int hourKey = hourKeys.get(k);
                         List<Event> vehicleHourData = vehicleData.get(hourKey);
 
                         int m = vehicleHourData.size();
-                        if(k == (n-1)){
+                        if (k == (n - 1)) {
                             m = vehicleHourData.size() - 1;
                         }
 
@@ -151,7 +148,7 @@ public class DeadHeadingStats implements IGraphStats {
                             updateDeadHeadingTNCMap(length2, hourKey, -1);
                         }
 
-                        if(k == (n-1)){
+                        if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
                             Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
@@ -163,16 +160,16 @@ public class DeadHeadingStats implements IGraphStats {
                 // Process the current event with num_passenger > 0 and remove any buffer of repositioning and deadheading events
                 updateDeadHeadingTNCMap(length, hour, _num_passengers);
                 vehicleEvents.remove(vehicle_id);
-            }else{
+            } else {
 
                 Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vehicle_id);
-                if(vehicleData == null) {
+                if (vehicleData == null) {
                     vehicleData = new HashMap<>();
                 }
 
                 List<Event> eventsList = vehicleData.get(hour);
 
-                if(eventsList == null){
+                if (eventsList == null) {
                     eventsList = new ArrayList<>();
                 }
 
@@ -184,7 +181,8 @@ public class DeadHeadingStats implements IGraphStats {
 
         }
     }
-    private boolean updateDeadHeadingTNCMap(double length,int hour,Integer _num_passengers){
+
+    private boolean updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -203,32 +201,34 @@ public class DeadHeadingStats implements IGraphStats {
         deadHeadingsTnc0Map.put(hour, hourData);
         return true;
     }
-    private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException{
-        double[][] dataset = buildDeadHeadingDatasetTnc0();
-        CategoryDataset tnc0DeadHeadingDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-        createDeadHeadingGraphTnc0(tnc0DeadHeadingDataset, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+
+    private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
+        double[][] dataSet = buildDeadHeadingDataSetTnc0();
+        CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
     }
-    private double[][] buildDeadHeadingDatasetTnc0() {
+
+    private double[][] buildDeadHeadingDataSetTnc0() {
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(deadHeadingsTnc0Map.keySet());
         int maxHour = 0;
         if (hours.size() > 0) {
             maxHour = hours.get(hours.size() - 1);
         }
-        Integer maxPassengers = TNC_MAX_PASSENGERS;
 
-        int lengthOfDataset = maxPassengers + 2;
-        double dataset[][] = new double[lengthOfDataset][maxHour + 1];
+        int lengthOfDataSet = TNC_MAX_PASSENGERS + 2;
+        double dataSet[][] = new double[lengthOfDataSet][maxHour + 1];
 
-        //dataset[0] = getDeadHeadingDatasetTnc0ModeOccurrencePerHour(maxHour, -1);
+        //dataSet[0] = getDeadHeadingDataSetTnc0ModeOccurrencePerHour(maxHour, -1);
 
-        for (int i = 0; i < lengthOfDataset; i++) {
-            dataset[i] = getDeadHeadingDatasetTnc0ModeOccurrencePerHour(maxHour, i - 1);
-            //dataset[i] = getDeadHeadingDatasetTnc0ModeOccurrencePerHour(maxHour, i - 1);
+        for (int i = 0; i < lengthOfDataSet; i++) {
+            dataSet[i] = getDeadHeadingDataSetTnc0ModeOccurrencePerHour(maxHour, i - 1);
+            //dataSet[i] = getDeadHeadingDataSetTnc0ModeOccurrencePerHour(maxHour, i - 1);
         }
-        return dataset;
+        return dataSet;
     }
-    private double[] getDeadHeadingDatasetTnc0ModeOccurrencePerHour(int maxHour, int outerLoopIndex) {
+
+    private double[] getDeadHeadingDataSetTnc0ModeOccurrencePerHour(int maxHour, int outerLoopIndex) {
         double[] modeOccurrencePerHour = new double[maxHour + 1];
         //String passengerCount = "p" + i;
         int index = 0;
@@ -236,14 +236,14 @@ public class DeadHeadingStats implements IGraphStats {
             Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
             if (hourData != null) {
 
-                if(hourData.get(outerLoopIndex) == null){
+                if (hourData.get(outerLoopIndex) == null) {
                     modeOccurrencePerHour[index] = 0;
-                }else{
+                } else {
 
-                    double val =  hourData.get(outerLoopIndex) / METERS_IN_KM;
+                    double val = hourData.get(outerLoopIndex) / METERS_IN_KM;
 //                    double val = hourData.get(outerLoopIndex);
                     //val = Math.round(val * 100) / 100;
-                    if(val > 0 && val < 1)
+                    if (val > 0 && val < 1)
                         val = Math.ceil(val);
                     modeOccurrencePerHour[index] = val;
 
@@ -255,29 +255,21 @@ public class DeadHeadingStats implements IGraphStats {
         }
         return modeOccurrencePerHour;
     }
-    private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
-        String fileName = getFileName(graphName,"png");
-        String graphTitle = getTitle(graphName);
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, deadHeadingTNC0XAxisTitle, deadHeadingTNC0YAxisTitle, fileName, legend);
-        CategoryPlot plot = chart.getCategoryPlot();
-        List<String> legendItemList= getLegendItemList(graphName,dataset.getRowCount(),getBucketSize());
-        GraphUtils.plotLegendItems(plot,legendItemList,dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
-        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+
+    private void createDeadHeadingGraphTnc0(CategoryDataset dataSet, int iterationNumber, String graphName) throws IOException {
+        createGraph(dataSet, iterationNumber, graphName, deadHeadingTNC0XAxisTitle, deadHeadingTNC0YAxisTitle);
     }
 
-
     // Deadheading Passenger Per Trip Graph
-    private void processDeadHeadingPassengerPerTripRemainingRepositionings(){
+    private void processDeadHeadingPassengerPerTripRemainingRepositionings() {
 
         Set<String> vehicleIds = vehicleEventsCache.keySet();
 
-        for(String vid: vehicleIds) {
+        for (String vid : vehicleIds) {
             Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vid);
 
             if (vehicleData != null) {
-                List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
                 Collections.sort(hourKeys);
 
                 int n = hourKeys.size();
@@ -296,7 +288,7 @@ public class DeadHeadingStats implements IGraphStats {
                         Event oldEvent = vehicleHourData.get(i);
 
                         String mode = oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-                        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vid);
+                        String graphName = getGraphNameAgainstModeAndVehicleId(mode, vid);
 
                         updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
                     }
@@ -306,11 +298,12 @@ public class DeadHeadingStats implements IGraphStats {
 
         vehicleEventsCache.clear();
     }
-    private void processEventForTncPassengerPerTripGraph(Event event){
+
+    private void processEventForTncPassengerPerTripGraph(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
+        String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
         boolean validCase = isValidCase(graphName, _num_passengers);
 
@@ -326,34 +319,29 @@ public class DeadHeadingStats implements IGraphStats {
             */
             //updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
 
-            if(_num_passengers > 0){
+            if (_num_passengers > 0) {
                 Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
 
-                if(vehicleData != null){
-                    List<Integer> hourKeys = new ArrayList<Integer>(vehicleData.keySet());
+                if (vehicleData != null) {
+                    List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
                     Collections.sort(hourKeys);
 
                     int n = hourKeys.size();
-                    for(int k = 0; k < n; k++) {
+                    for (int k = 0; k < n; k++) {
 
                         int hourKey = hourKeys.get(k);
                         List<Event> vehicleHourData = vehicleData.get(hourKey);
 
                         int m = vehicleHourData.size();
-                        if(k == (n-1)){
+                        if (k == (n - 1)) {
                             m = vehicleHourData.size() - 1;
                         }
 
                         for (int i = 0; i < m; i++) {
-
-                            Event oldEvent = vehicleHourData.get(i);
-
                             updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
                         }
 
-                        if(k == (n-1)){
-                            Event oldEvent = vehicleHourData.get(m);
-
+                        if (k == (n - 1)) {
                             updateNumPassengerInDeadHeadingsMap(hourKey, graphName, 0);
                         }
                     }
@@ -362,16 +350,16 @@ public class DeadHeadingStats implements IGraphStats {
                 // Process the current event with num_passenger > 0 and remove any buffer of repositioning and deadheading events
                 updateNumPassengerInDeadHeadingsMap(hour, graphName, _num_passengers);
                 vehicleEventsCache.remove(vehicle_id);
-            }else{
+            } else {
 
                 Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
-                if(vehicleData == null) {
+                if (vehicleData == null) {
                     vehicleData = new HashMap<>();
                 }
 
                 List<Event> eventsList = vehicleData.get(hour);
 
-                if(eventsList == null){
+                if (eventsList == null) {
                     eventsList = new ArrayList<>();
                 }
 
@@ -382,13 +370,13 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    public boolean updateNumPassengerInDeadHeadingsMap(int hour,String graphName,Integer _num_passengers){
+    public boolean updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers) {
 
         Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
         Map<Integer, Integer> hourData = null;
         if (deadHeadings != null)
             hourData = deadHeadings.get(hour);
-        else{
+        else {
             deadHeadings = new HashMap<>();
         }
         if (hourData == null) {
@@ -411,18 +399,17 @@ public class DeadHeadingStats implements IGraphStats {
     private void createDeadHeadingPassengerPerTripGraph(IterationEndsEvent event, String graphType) throws IOException {
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
-            double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(graphName), graphName);
-            CategoryDataset tncDeadHeadingDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-            createDeadHeadingGraph(tncDeadHeadingDataset, event.getIteration(), graphName);
+            double[][] dataSet = buildDeadHeadingDataSet(this.deadHeadingsMap.get(graphName), graphName);
+            CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+            createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }
     }
 
-    private double[][] buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data, String graphName) {
-        List<Integer> hours = new ArrayList<>();
-        hours.addAll(data.keySet());
+    private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
+        List<Integer> hours = new ArrayList<>(data.keySet());
         Collections.sort(hours);
         int maxHour = hours.get(hours.size() - 1);
-        Integer maxPassengers = null;
+        Integer maxPassengers;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             maxPassengers = CAR_MAX_PASSENGERS;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
@@ -430,15 +417,15 @@ public class DeadHeadingStats implements IGraphStats {
         } else {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
-        double dataset[][] = null;
+        double dataSet[][];
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC) || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
 
             int dataSetLength = maxPassengers + 2;
-            dataset = new double[dataSetLength][maxHour + 1];
-            dataset[0] = getModeOccurrencePerHourAgainstMode(data, maxHour, -1);
+            dataSet = new double[dataSetLength][maxHour + 1];
+            dataSet[0] = getModeOccurrencePerHourAgainstMode(data, maxHour, -1);
 
             for (int i = 1; i <= maxPassengers; i++) {
-                dataset[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i-1);
+                dataSet[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i - 1);
             }
         } else {
 
@@ -446,7 +433,7 @@ public class DeadHeadingStats implements IGraphStats {
             // In this case we have to group 0, 1 to 5, 6 to 10
 
             int bucketSize = getBucketSize();
-            dataset = new double[5][maxHour + 1];
+            dataSet = new double[5][maxHour + 1];
             // We need only 5 buckets
             // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
             // accomodated within the 4 buckets because the index will not be incremented until all
@@ -456,18 +443,17 @@ public class DeadHeadingStats implements IGraphStats {
             for (int i = 0; i <= maxPassengers; i++) {
                 modeOccurrencePerHour = getModeOccurrenceOfPassengerWithBucketSize(data, modeOccurrencePerHour, maxHour, i);
                 if (i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
-                    dataset[bucket] = modeOccurrencePerHour;
+                    dataSet[bucket] = modeOccurrencePerHour;
                     modeOccurrencePerHour = new double[maxHour + 1];
                     bucket = bucket + 1;
                 }
             }
         }
-        return dataset;
+        return dataSet;
     }
 
     private double[] getModeOccurrencePerHourAgainstMode(Map<Integer, Map<Integer, Integer>> data, int maxHour, int outerLoopIndex) {
         double[] modeOccurrencePerHour = new double[maxHour + 1];
-        //String passengerCount = "p" + i;
         int index = 0;
         for (int hour = 0; hour <= maxHour; hour++) {
             Map<Integer, Integer> hourData = data.get(hour);
@@ -495,84 +481,69 @@ public class DeadHeadingStats implements IGraphStats {
         return modeOccurrencePerHour;
     }
 
-    private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
-        String fileName = getFileName(graphName,"png");
+    private void createDeadHeadingGraph(CategoryDataset dataSet, int iterationNumber, String graphName) throws IOException {
+        createGraph(dataSet, iterationNumber, graphName, deadHeadingXAxisTitle, deadHeadingYAxisTitle);
+    }
+
+    private void createGraph(CategoryDataset dataSet, int iterationNumber, String graphName, String xAxisTitle, String yAxisTitle) throws IOException {
+        String fileName = getFileName(graphName, "png");
         String graphTitle = getTitle(graphName);
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, deadHeadingXAxisTitle, deadHeadingYAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> legendItemList= getLegendItemList(graphName,dataset.getRowCount(),getBucketSize());
-        GraphUtils.plotLegendItems(plot,legendItemList,dataset.getRowCount());
+        List<String> legendItemList = getLegendItemList(graphName, dataSet.getRowCount(), getBucketSize());
+        GraphUtils.plotLegendItems(plot, legendItemList, dataSet.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void writeToCSV(int iterationNumber, String graphName) throws IOException {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName,"csv"));
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+    private void writeToCSV(int iterationNumber, String graphName) {
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName, "csv"));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "hour,numPassengers,vkt";
             out.write(heading);
             out.newLine();
 
-            HashSet<Integer> passengerCategories = new HashSet<Integer>();
+            HashSet<Integer> passengerCategories = new HashSet<>();
             int maxHour = Integer.MIN_VALUE;
             int minHour = Integer.MAX_VALUE;
-            Iterator iter = deadHeadingsTnc0Map.keySet().iterator();
-            while(iter.hasNext()){
-                int nextHour = (Integer)iter.next();
-                if(nextHour>maxHour)maxHour=nextHour;
-                if(nextHour<minHour)minHour=nextHour;
-                Iterator keyIter = ((Map<Integer,Double>)deadHeadingsTnc0Map.get(nextHour)).keySet().iterator();
-                while(keyIter.hasNext()){
-                    passengerCategories.add((Integer)keyIter.next());
-                }
+            for (Integer nextHour : deadHeadingsTnc0Map.keySet()) {
+                if (nextHour > maxHour) maxHour = nextHour;
+                if (nextHour < minHour) minHour = nextHour;
+                passengerCategories.addAll(deadHeadingsTnc0Map.get(nextHour).keySet());
             }
 
-            Double vkt = null;
+            Double vkt;
             for (Integer hour = minHour; hour <= maxHour; hour++) {
-                Iterator keyIter = passengerCategories.iterator();
-                while(keyIter.hasNext()){
-                    Integer passengerKey = (Integer)keyIter.next();
-                    if(deadHeadingsTnc0Map.containsKey(hour)) {
-                        if (((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).containsKey(passengerKey)) {
-                            vkt = ((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).get(passengerKey);
-                        } else {
-                            vkt = 0.0;
-                        }
-                    }else {
+                for (Integer passengerKey : passengerCategories) {
+                    if (deadHeadingsTnc0Map.containsKey(hour)) {
+                        vkt = deadHeadingsTnc0Map.get(hour).getOrDefault(passengerKey, 0.0);
+                    } else {
                         vkt = 0.0;
                     }
-                    out.write(hour.toString()+","+passengerKey.toString()+","+vkt.toString());
+                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
                     out.newLine();
                 }
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
-
-
 
 
     ////
     // Utility Methods
-    private String getFileName(String graphName,String extension) {
+    private String getFileName(String graphName, String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             return "passengerPerTrip_" + fileNameBase + "." + extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-            return fileNameBase  + "TripDistance." + extension;
+            return fileNameBase + "TripDistance." + extension;
         } else {
             return "passengerPerTrip_" + graphName + "." + extension;
         }
     }
+
     private String getTitle(String graphName) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             return "Number of Passengers per Trip [TNC]";
@@ -584,9 +555,11 @@ public class DeadHeadingStats implements IGraphStats {
             return "Number of Passengers per Trip [" + graphName + "]";
         }
     }
+
     private int getBucketSize() {
         return (int) Math.ceil(maxPassengersSeenOnGenericCase / 4.0);
     }
+
     private boolean isValidCase(String graphName, int numPassengers) {
         boolean validCase = false;
         if (!graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.WALK)) {
@@ -602,26 +575,28 @@ public class DeadHeadingStats implements IGraphStats {
         }
         return validCase;
     }
-    private List<String> getLegendItemList(String graphName,int dataSetRowCount,int bucketSize){
+
+    private List<String> getLegendItemList(String graphName, int dataSetRowCount, int bucketSize) {
         List<String> legendItemList = new ArrayList<>();
         for (int i = 0; i < dataSetRowCount; i++) {
-            legendItemList.add(getLegendText(graphName, i,bucketSize));
+            legendItemList.add(getLegendText(graphName, i, bucketSize));
         }
         return legendItemList;
     }
-    private static String getLegendText(String graphName, int i,int bucketSize) {
 
-        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)){
+    private static String getLegendText(String graphName, int i, int bucketSize) {
+
+        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             return Integer.toString(i);
-        }else if(graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
+        } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
                 || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
 
-            if(i == 0){
+            if (i == 0) {
                 return "repositioning";
             }
-            return Integer.toString(i-1);
+            return Integer.toString(i - 1);
         } else {
-            if(i == 0) {
+            if (i == 0) {
                 return "0";
             } else {
                 int start = (i - 1) * bucketSize + 1;
@@ -630,9 +605,10 @@ public class DeadHeadingStats implements IGraphStats {
             }
         }
     }
-    private Integer getPathTraversalEventNumOfPassengers(Event event){
+
+    private Integer getPathTraversalEventNumOfPassengers(Event event) {
         String num_passengers = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
-        Integer _num_passengers =null;
+        Integer _num_passengers = null;
         try {
             _num_passengers = Integer.parseInt(num_passengers);
         } catch (NumberFormatException nfe) {
@@ -640,22 +616,24 @@ public class DeadHeadingStats implements IGraphStats {
         }
         return _num_passengers;
     }
-    private String getGraphNameAgainstModeAndVehicleId(String mode,String vehicle_id){
+
+    private String getGraphNameAgainstModeAndVehicleId(String mode, String vehicle_id) {
         String graphName = mode;
         if (mode.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR) && vehicle_id.contains(GraphsStatsAgentSimEventsListener.RIDE)) {
             graphName = GraphsStatsAgentSimEventsListener.TNC;
         }
         return graphName;
     }
+
     public int getDeadHeadingTnc0HourDataCount(int hourIndex, int hour) {
-        double[][] dataset = buildDeadHeadingDatasetTnc0();
-        double[] hoursData = dataset[hourIndex];
+        double[][] dataSet = buildDeadHeadingDataSetTnc0();
+        double[] hoursData = dataSet[hourIndex];
         return (int) Math.ceil(hoursData[hour]);
     }
 
     public int getBucketCountAgainstMode(int bucketIndex, String mode) {
-        double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(mode), mode);
-        double[] hoursData = dataset[bucketIndex];
+        double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(mode), mode);
+        double[] hoursData = dataSet[bucketIndex];
         double count = 0;
         for (double hourData : hoursData) {
             count = count + hourData;
@@ -664,14 +642,14 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     public int getPassengerPerTripCountForSpecificHour(int bucketIndex, String mode, int hour) {
-        double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(mode), mode);
-        double[] hoursData = dataset[bucketIndex];
+        double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(mode), mode);
+        double[] hoursData = dataSet[bucketIndex];
         return (int) Math.ceil(hoursData[hour]);
     }
 
     public int getDeadHeadingTnc0HourDataCount(int hourIndex) {
-        double[][] dataset = buildDeadHeadingDatasetTnc0();
-        double[] hoursData = dataset[hourIndex];
+        double[][] dataSet = buildDeadHeadingDataSetTnc0();
+        double[] hoursData = dataSet[hourIndex];
         double count = 0;
         for (double hourData : hoursData) {
             count = count + hourData;
