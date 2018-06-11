@@ -6,7 +6,6 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.rideHail.RideHailUtils
 import beam.agentsim.agents.rideHail.RideHailingAgent._
-import beam.agentsim.agents.rideHail.RideHailingManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -17,11 +16,10 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
-import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -54,21 +52,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case ev@Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
       log.debug(s"state(DrivesVehicle.Driving): $ev")
 
-      if(data.currentVehicle.head.toString.startsWith("ride")){
-        val i = 0
-      }
       val isLastLeg=data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           // If no manager is set, we ignore
           data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
             case Some(currentLeg) =>
-
-              if (isLastLeg && currentVehicleUnderControl.toString.contains("ride") && beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint).time!=data.passengerSchedule.schedule.toVector.last._1.endTime){
-                val endPoint=currentLeg.travelPath.endPoint
-                val geoEndPoint=beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)
-                DebugLib.emptyFunctionForSettingBreakPoint()
-              }
 
               if(isLastLeg)beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),data.passengerSchedule))
               beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
@@ -102,7 +91,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
     case ev@Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       log.debug(s"state(DrivesVehicle.Driving): $ev")
-      val currentVehicleUnderControl=data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption
+
       log.debug("DrivesVehicle.IgnoreEndLegTrigger: vehicleId(" + id + "),tick(" + tick + "),triggerId(" + triggerId + "),data(" + data + ")")
       stay replying CompletionNotice(triggerId, Vector())
 
@@ -114,18 +103,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   when(DrivingInterrupted) {
-    case ev@Event(StopDriving(stopTick), LiterallyDrivingData(data, legEndingAt)) =>
+    case ev@Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
       log.debug(s"state(DrivesVehicle.DrivingInterrupted): $ev")
       val isLastLeg=data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
 
-          if (!data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
+          if (data.passengerSchedule.schedule(currentLeg).riders.nonEmpty){
             log.error("DrivingInterrupted.StopDriving.Vehicle: " + data.currentVehicle.head)
             log.error("DrivingInterrupted.StopDriving.PassengerSchedule: " + data.passengerSchedule)
-           /// DebugLib.whileTrue()
-            DebugLib.emptyFunctionForSettingBreakPoint()
-
           }
 
             assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
@@ -193,7 +179,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       log.debug(s"state(DrivesVehicle.WaitingToDriveInterrupted): $ev")
       goto(WaitingToDrive)
 
-    case ev@Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
+    case ev@Event(TriggerWithId(StartLegTrigger(_, _), _), _) =>
       log.debug(s"state(DrivesVehicle.WaitingToDriveInterrupted): $ev")
       stash()
       stay
