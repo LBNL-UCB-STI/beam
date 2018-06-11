@@ -58,7 +58,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
   """).withFallback(testConfig("test/input/beamville/beam.conf")))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
-  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
   val eventsManager = new EventsManagerImpl()
   eventsManager.addHandler(new BasicEventHandler {
@@ -67,9 +67,9 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
     }
   })
 
-  val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
-  val personRefs = TrieMap[Id[Person], ActorRef]()
+  val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
+  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val householdsFactory:HouseholdsFactoryImpl= new HouseholdsFactoryImpl()
 
   val services: BeamServices = {
@@ -90,7 +90,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
   // Mock a transit driver (who has to be a child of a mock router)
   val transitDriverProps = Props(new ForwardActor(self))
-  val router = system.actorOf(Props(new Actor() {
+  val router: ActorRef = system.actorOf(Props(new Actor() {
     context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
     context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
     override def receive: Receive = {
@@ -162,10 +162,10 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(34400, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(34400, busLeg2.beamLeg, busLeg.beamVehicleId), personActor)
       expectMsgType[PersonEntersVehicleEvent]
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
@@ -182,8 +182,8 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg), personActor) // My tram is late!
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId), personActor) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -198,16 +198,10 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
       expectMsgType[CompletionNotice]
     }
-
-
-
-
   }
-
 
   override def afterAll: Unit = {
     shutdown()
   }
-
 }
 
