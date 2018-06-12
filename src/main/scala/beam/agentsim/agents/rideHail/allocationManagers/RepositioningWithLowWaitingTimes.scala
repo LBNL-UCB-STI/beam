@@ -28,7 +28,7 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
     val percentageOfVehiclesToReposition=0.01;
     val maxNumberOfVehiclesToReposition=(fleetSize*percentageOfVehiclesToReposition).toInt
 
-val repositionCircleRadisInMeters=3000
+    val repositionCircleRadisInMeters=3000
 
 
 

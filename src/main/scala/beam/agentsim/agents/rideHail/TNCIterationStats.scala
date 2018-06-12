@@ -90,16 +90,25 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
           }
         ).sum
 
-        scoredTAZInRadius+=TazScore(tazInRadius, score)
+        scoredTAZInRadius+=TazScore(tazInRadius, Math.exp(score))
       }
-
-      val scoreSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
 
       val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
 
+      val scoreExpSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
+
+      // TODO: sample instead of taking top n
       scoredTAZInRadius.foreach{tazScore =>
-        tazPriorityQueue.enqueue(TazScore(tazScore.taz, tazScore.score/scoreSumOverAllTAZInRadius))
+        tazPriorityQueue.enqueue(TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
       }
+
+
+     // val tmp=for (tazScore <- scoredTAZInRadius) yield {TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius)}
+
+     // val rand=scala.util.Random.nextDouble()
+     // val sumProb=0
+     // scala.util.Random.shuffle(tmp).
+
 
       vehicles.zip(tazPriorityQueue.take(vehicles.size).map(_.taz.coord))
     }
