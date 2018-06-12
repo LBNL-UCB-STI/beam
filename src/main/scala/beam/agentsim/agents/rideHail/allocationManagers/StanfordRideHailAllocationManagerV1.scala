@@ -69,10 +69,10 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     This method is called periodically, e.g. every 60 seconds to reposition ride hailing vehicles, e.g. towards areas of higher demand
    */
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailingManager.getIdleVehicles().size >= 2) {
-      val iter = rideHailingManager.getIdleVehicles().iterator
-      val (vehicleIdA, vehicleLocationA) = iter.next()
-      val (vehicleIdB, vehicleLocationB) = iter.next()
+    if (rideHailingManager.getIdleVehicles.size >= 2) {
+      val iter = rideHailingManager.getIdleVehicles.iterator
+      val (vehicleIdA, _) = iter.next()
+      val (_, vehicleLocationB) = iter.next()
       Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
     } else {
       Vector()
@@ -104,7 +104,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     val rideHailAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters).get
     rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
     rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
-    rideHailingManager.getIdleVehicles()
+    rideHailingManager.getIdleVehicles
 
   }
 }

@@ -2,12 +2,11 @@ package beam.agentsim.agents.rideHail.allocationManagers
 
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
-import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager,tncIterationStats:Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
+class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
@@ -15,29 +14,28 @@ class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManage
     None
   }
 
-def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-  log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
-    return allocationsDuringReservation
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+    log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
+    allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
-    val idleVehicles=rideHailingManager.getIdleVehicles()
-    val fleetSize=rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
-    val timeHorizonToConsiderInSecondsForIdleVehicles=20*60
-    val percentageOfVehiclesToReposition=0.01;
-    val maxNumberOfVehiclesToReposition=(fleetSize*percentageOfVehiclesToReposition).toInt
+    val idleVehicles = rideHailingManager.getIdleVehicles
+    val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
+    val timeHorizonToConsiderInSecondsForIdleVehicles = 20 * 60
+    val percentageOfVehiclesToReposition = 0.01
+    val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
-    val repositionCircleRadisInMeters=3000
+    val repositionCircleRadisInMeters = 3000
 
 
 
     //sortedTAZ.take(numberOfVehiclesToReposition)
 
 
-
     // TODO: location has to be fixed for random (same for all iterations)! -> confirm that not changing
-      //-> start with home or middle point, as fixed
+    //-> start with home or middle point, as fixed
 
 
     //intial distribution according to demand (=home).
@@ -105,31 +103,31 @@ rideHailStats
 
         //tncIterationStats.printMap()
 
-        val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
+        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
 
-        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
 
-        if (!vehiclesToReposition.isEmpty){
+        if (vehiclesToReposition.nonEmpty) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        if (!whichTAZToRepositionTo.isEmpty){
+        if (whichTAZToRepositionTo.nonEmpty) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
 
       case None =>
-        // iteration 0
+      // iteration 0
     }
 
 
-   // if (rideHailingManager.getIdleVehicles().size >= 2) {
-     // val origin=rideHailingManager.getIdleVehicles().values.toVector
+    // if (rideHailingManager.getIdleVehicles().size >= 2) {
+    // val origin=rideHailingManager.getIdleVehicles().values.toVector
     //  val destination=scala.util.Random.shuffle(origin)
-     // (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
-   // } else {
-      Vector()
-   // }
+    // (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
+    // } else {
+    Vector()
+    // }
   }
 }
 

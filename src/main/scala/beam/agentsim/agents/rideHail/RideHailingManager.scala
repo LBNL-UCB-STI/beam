@@ -396,7 +396,7 @@ class RideHailingManager(
     var numberOfTrips = 0;
     for (repositionVehicle <- repositionVehicles) {
       val (vehicleId, destinationLocation) = repositionVehicle
-      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+      val rideHailAgentLocation = getIdleVehicles(vehicleId)
 
       sumOfDistances += beamServices.geo.distInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
       numberOfTrips += 1
