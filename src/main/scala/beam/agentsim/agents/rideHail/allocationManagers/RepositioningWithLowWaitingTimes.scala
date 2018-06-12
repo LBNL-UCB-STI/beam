@@ -107,7 +107,7 @@ rideHailStats
 
         val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
 
-        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
+        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
 
         if (!vehiclesToReposition.isEmpty){
           DebugLib.emptyFunctionForSettingBreakPoint()
