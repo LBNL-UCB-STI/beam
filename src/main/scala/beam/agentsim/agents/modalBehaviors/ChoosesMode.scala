@@ -74,6 +74,7 @@ trait ChoosesMode {
           Vector()
       }
 
+      var routingResponse = choosesModeData.routingResponse
       var rideHailingResult = choosesModeData.rideHailingResult
       var rideHail2TransitRoutingResult = choosesModeData.rideHail2TransitRoutingResponse
       var rideHail2TransitAccessResult = choosesModeData.rideHail2TransitAccessResult
@@ -86,6 +87,7 @@ trait ChoosesMode {
           rideHail2TransitAccessResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
           rideHail2TransitEgressResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
         case Some(RIDE_HAIL_TRANSIT) =>
+          routingResponse = Some(RoutingResponse(Vector()))
           rideHailingResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))
           rideHail2TransitRoutingResult = None
           rideHail2TransitAccessResult = None
@@ -186,8 +188,9 @@ trait ChoosesMode {
           None
       }
       val newPersonData = choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles,
-        rideHail2TransitRoutingResponse = rideHail2TransitRoutingResult, rideHail2TransitRoutingRequestId = requestId,
-        rideHailingResult = rideHailingResult, rideHail2TransitAccessResult = rideHail2TransitAccessResult,
+        routingResponse = routingResponse, rideHail2TransitRoutingResponse = rideHail2TransitRoutingResult,
+        rideHail2TransitRoutingRequestId = requestId, rideHailingResult = rideHailingResult,
+        rideHail2TransitAccessResult = rideHail2TransitAccessResult,
         rideHail2TransitEgressResult = rideHail2TransitEgressResult
         )
       stay() using newPersonData
@@ -359,7 +362,8 @@ trait ChoosesMode {
 }
 
 object ChoosesMode {
-  case class ChoosesModeData(personData: BasePersonData, pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
+  case class ChoosesModeData(personData: BasePersonData,
+                             pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              routingResponse: Option[RoutingResponse] = None,
                              rideHailingResult: Option[RideHailingResponse] = None,
                              rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,

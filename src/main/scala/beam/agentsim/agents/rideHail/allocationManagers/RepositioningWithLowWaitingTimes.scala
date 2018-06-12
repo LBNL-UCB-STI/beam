@@ -16,19 +16,19 @@ class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManage
   }
 
 def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-  log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
+  log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
     return allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     val idleVehicles=rideHailingManager.getIdleVehicles()
-    val fleetSize=1000 // TODO: get proper number here from rideHailManager
+    val fleetSize=rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
     val timeHorizonToConsiderInSecondsForIdleVehicles=20*60
     val percentageOfVehiclesToReposition=0.01;
-    val maxNumberOfVehiclesToReposition=fleetSize*percentageOfVehiclesToReposition
+    val maxNumberOfVehiclesToReposition=(fleetSize*percentageOfVehiclesToReposition).toInt
 
-val repositionCircleRadisInMeters=3000
+    val repositionCircleRadisInMeters=3000
 
 
 
@@ -103,11 +103,11 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
-        tncIterationStats.printMap()
+        //tncIterationStats.printMap()
 
         val vehiclesToReposition=tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles,maxNumberOfVehiclesToReposition, tick,timeHorizonToConsiderInSecondsForIdleVehicles)
 
-        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
+        val whichTAZToRepositionTo:Vector[(Id[Vehicle], Location)]=tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition,repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
 
         if (!vehiclesToReposition.isEmpty){
           DebugLib.emptyFunctionForSettingBreakPoint()

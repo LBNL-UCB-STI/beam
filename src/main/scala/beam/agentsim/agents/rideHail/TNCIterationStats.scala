@@ -3,6 +3,7 @@ package beam.agentsim.agents.rideHail
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
 
@@ -40,8 +41,14 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     */
   def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingAgentLocation],
                                repositionCircleRadiusInMeters: Int,
-                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Int):
+                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Int, beamServices: BeamServices):
   Vector[(Id[vehicles.Vehicle], Location)] = {
+
+    // TODO: read from config and tune weights
+    val distanceWeight=1.0
+    val waitingTimeWeight=1.0
+    val demandWeight=1.0
+
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
 
@@ -63,7 +70,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val result = for ((taz, vehicles) <- tazVehicleMap) yield {
 
       val listOfTazInRadius = tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
-      val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
+      val scoredTAZInRadius= collection.mutable.ListBuffer[TazScore]()
 
       listOfTazInRadius.forEach { (tazInRadius) =>
         val startTimeBin = getTimeBin(tick)
@@ -72,15 +79,36 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         val score = (startTimeBin to endTimeBin).map(
           getRideHailStatsInfo(tazInRadius.tazId, _) match {
             case Some(statsEntry) =>
-              statsEntry.sumOfWaitingTimes
+              val distanceInMeters=beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+              val distanceScore = distanceWeight * distanceInMeters
+              val waitingTimeScore = waitingTimeWeight * statsEntry.sumOfWaitingTimes
+              val demandScore = demandWeight * statsEntry.sumOfRequestedRides
+              (distanceScore + waitingTimeScore + demandScore)
 
             case _ =>
               0
           }
         ).sum
 
-        tazPriorityQueue.enqueue(TazScore(tazInRadius, score))
+        scoredTAZInRadius+=TazScore(tazInRadius, Math.exp(score))
       }
+
+      val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
+
+      val scoreExpSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
+
+      // TODO: sample instead of taking top n
+      scoredTAZInRadius.foreach{tazScore =>
+        tazPriorityQueue.enqueue(TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
+      }
+
+
+     // val tmp=for (tazScore <- scoredTAZInRadius) yield {TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius)}
+
+     // val rand=scala.util.Random.nextDouble()
+     // val sumProb=0
+     // scala.util.Random.shuffle(tmp).
+
 
       vehicles.zip(tazPriorityQueue.take(vehicles.size).map(_.taz.coord))
     }
