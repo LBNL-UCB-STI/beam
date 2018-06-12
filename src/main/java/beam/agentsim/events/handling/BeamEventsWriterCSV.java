@@ -3,12 +3,13 @@ package beam.agentsim.events.handling;
 import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
-import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -73,8 +74,8 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
         String[] row = new String[attributeToColumnIndexMapping.keySet().size()];
 
         Map<String, String> eventAttributes = event.getAttributes();
-        Map<String, String> attributes = this.beamEventLogger.getAttributes(event);
-        for (String attribute : attributes.keySet()) {
+        HashSet<String> attributeKeys = this.beamEventLogger.getKeysToWrite(event, eventAttributes);
+        for (String attribute : attributeKeys) {
             if (!attributeToColumnIndexMapping.containsKey(attribute)){
                 if(this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)){
                     DebugLib.stopSystemAndReportInconsistency("unkown attribute:" + attribute + ";class:" + event.getClass());
