@@ -88,7 +88,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     "limited parking access should reduce driving" in {
       val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-      val emptyParkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
       parkingEvents.size should be > emptyParkingEvents.size
     }
