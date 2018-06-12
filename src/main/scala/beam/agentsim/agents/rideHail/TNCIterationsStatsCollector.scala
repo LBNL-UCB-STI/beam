@@ -24,9 +24,9 @@ import scala.util.Try
   * bin Size=100 -> count as idle in 10 bins (from 1000 to 2000)
   * idleTime[TAZId,binNumber] // bin 10, 11, 12,...19 we do +1
   *
-  * @param sumOfRequestedRides
-  * @param sumOfWaitingTimes
-  * @param sumOfIdlingVehicles
+  * @param sumOfRequestedRides Total number of ride requests
+  * @param sumOfWaitingTimes Sum of waiting times
+  * @param sumOfIdlingVehicles total number of idling vehicles
   */
 case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long, sumOfIdlingVehicles: Long) {
 
@@ -53,14 +53,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
 
   eventsManager.addHandler(this)
-
-  def getTNCIdlingTimes(): Set[WaitingEvent] = {
-    ???
-  }
-
-  def getTNCPassengerWaitingTimes(): Set[WaitingEvent] = {
-    ???
-  }
 
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     // TODO: send message to actor with collected data
@@ -106,8 +98,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     collectRides
     1. This method will collect all the ModeChoice events where the mode is 'rideHailing'
-    2. Afterwards when a PathTraversal event occurs for the same vehicle with num_passengers = 1 we will find the tazid
-      using coords from the PathTraversal event
+    2. Afterwards when a PathTraversal event occurs for the same vehicle with num_passengers = 1 we will find the tazId
+      using coord from the PathTraversal event
    */
   private def collectModeChoiceEvents(event: ModeChoiceEvent): Unit = {
 
@@ -196,12 +188,12 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     val tazId = getTazId(currentEvent)
 
-    val tazVehs = vehicleActiveBins.get(tazId) match {
+    val tazVehicles = vehicleActiveBins.get(tazId) match {
       case Some(vehicles) => vehicles
       case None => mutable.Map.empty[String, mutable.Set[Int]]
     }
 
-    var activeBins = tazVehs.get(vehicleId) match {
+    var activeBins = tazVehicles.get(vehicleId) match {
       case Some(bins) => bins
       case None => mutable.Set[Int]()
     }
@@ -214,8 +206,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
 
     activeBins ++= (startBin to endingBin).toSet
 
-    tazVehs.put(vehicleId, activeBins)
-    vehicleActiveBins.put(tazId, tazVehs)
+    tazVehicles.put(vehicleId, activeBins)
+    vehicleActiveBins.put(tazId, tazVehicles)
   }
 
   private def updateStatsForIdlingVehicles(): Unit = {

@@ -90,6 +90,10 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     log.debug("sendMessages:" + message.toString)
   }
 
+  private def isInterruptWhileDriving(interruptedPassengerSchedule: Option[PassengerSchedule]): Boolean ={
+    interruptedPassengerSchedule.isDefined
+  }
+
   def handleInterrupt(interruptType: Class[_], interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double): Unit = {
     log.debug("RideHailModifyPassengerScheduleManager.handleInterrupt: " + interruptType.getSimpleName + " -> " + vehicleId + "; tick(" + tick + ");interruptedPassengerSchedule:" + interruptedPassengerSchedule)
     interruptIdToModifyPassengerScheduleStatus.get(interruptId) match {
@@ -125,7 +129,21 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
             modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
             interruptIdToModifyPassengerScheduleStatus.remove(interruptId)
             vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).get.filterNot(x => x.interruptId == interruptId))
-            log.debug("remvoving due to overwrite by reserve:" + modifyPassengerScheduleStatus)
+
+            /*
+            When we are overwriting a reposition with a reserve, we have to distinguish between interrupted
+            while idle vs. interrupted while driving - while in the first case the overwrite just works fine
+            without any additional effort, in the second case the rideHailAgent gets stuck (we are interrupted and
+            overwriting reservation tries to interrupt again later, which is not defined). We "solve" this here by sending a resume
+            message to the agent. This puts the rideHailAgent back to state driving, so that the reservation interrupt
+            is received when agent is in state driving.
+             */
+
+            if (isInterruptWhileDriving(interruptedPassengerSchedule)){
+              sendMessage(modifyPassengerScheduleStatus.rideHailAgent, Resume())
+            }
+
+            log.debug("removing due to overwrite by reserve:" + modifyPassengerScheduleStatus)
           } else {
             // process reservation interrupt confirmation
             val reservationStatus = reservationModifyPassengerScheduleStatus.head
@@ -141,18 +159,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
           log.error("RideHailModifyPassengerScheduleManager - reservationModifyPassengerScheduleStatus contained more than one rideHail reservation request for same vehicle(" + vehicleId + ")")
           reservationModifyPassengerScheduleStatus.foreach(a => log.error("reservation requests:" + a.toString))
         }
-        sendModifyPassengerScheduleMessage(selectedForModifyPassengerSchedule, interruptedPassengerSchedule.isDefined)
+        sendModifyPassengerScheduleMessage(selectedForModifyPassengerSchedule, isInterruptWhileDriving(interruptedPassengerSchedule))
       case None =>
         log.error("RideHailModifyPassengerScheduleManager- interruptId not found: interruptId(" + interruptId + "),interruptType(" + interruptType + "),interruptedPassengerSchedule(" + interruptedPassengerSchedule + "),vehicleId(" + vehicleId + "),tick(" + tick + ")")
         //log.debug(getWithVehicleIds(vehicleId).toString())
         printState()
         DebugLib.stopSystemAndReportInconsistency()
-
-
-
-
     }
-
   }
 
   def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {

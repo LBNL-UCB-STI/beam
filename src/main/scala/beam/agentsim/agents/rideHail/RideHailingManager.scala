@@ -326,6 +326,9 @@ class RideHailingManager(
         modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       } else {
         modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+
+
+     //   printRepositionDistanceSum(repositionVehicles)
       }
 
       for (repositionVehicle <- repositionVehicles) {
@@ -403,6 +406,22 @@ class RideHailingManager(
 
   }
 
+  private def printRepositionDistanceSum(repositionVehicles: Vector[(Id[Vehicle], Location)]) = {
+    var sumOfDistances: Double = 0
+    var numberOfTrips = 0;
+    for (repositionVehicle <- repositionVehicles) {
+      val (vehicleId, destinationLocation) = repositionVehicle
+      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+
+      sumOfDistances += beamServices.geo.distInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
+      numberOfTrips += 1
+    }
+
+    println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
+  }
+
   // Returns Boolean indicating success/failure
   def findDriverAndSendRoutingRequests(request: RideHailingRequest): Boolean = {
 
@@ -435,6 +454,7 @@ class RideHailingManager(
     getIdleVehicles().getOrElse(vehicleId, inServiceRideHailVehicles.get(vehicleId).get)
   }
 
+  /*
   //TODO requires proposal in cache
   private def findClosestRideHailingAgents(requestId: Int, customerPickUp: Location) = {
     val travelPlanOpt = Option(travelProposalCache.asMap.remove(requestId))
@@ -449,6 +469,7 @@ class RideHailingManager(
       .itineraries.head.vehiclesInTrip.head))
     (travelPlanOpt, closestRHA)
   }
+  */
 
   private def sendRoutingRequests(personId: Id[PersonAgent], customerPickUp: Location, departAt: BeamTime,
                                   destination: Location, rideHailingLocation: RideHailingAgentLocation): (Future[Any], Future[Any]) = {

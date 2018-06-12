@@ -119,6 +119,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
       stash()
       stay()
+    case ev@Event(Interrupt(_,_), data) =>
+      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
+      stash()
+      stay()
   }
 
   val myUnhandled: StateFunction =  {
@@ -136,7 +140,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       stop
 
     case event@Event(_,_) =>
-      log.warning("unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
+      log.warning(s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
       stay()
   }
 
