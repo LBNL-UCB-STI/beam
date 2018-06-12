@@ -130,8 +130,6 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
             interruptIdToModifyPassengerScheduleStatus.remove(interruptId)
             vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).get.filterNot(x => x.interruptId == interruptId))
 
-
-
             /*
             When we are overwriting a reposition with a reserve, we have to distinguish between interrupted
             while idle vs. interrupted while driving - while in the first case the overwrite just works fine
@@ -167,12 +165,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
         //log.debug(getWithVehicleIds(vehicleId).toString())
         printState()
         DebugLib.stopSystemAndReportInconsistency()
-
-
-
-
     }
-
   }
 
   def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {
