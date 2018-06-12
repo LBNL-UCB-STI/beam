@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.collections.Tuple;
 
 import java.util.LinkedList;
+import java.util.Map;
 
 public class AgentSimPhysSimInterfaceDebugger {
 
@@ -29,11 +30,12 @@ public class AgentSimPhysSimInterfaceDebugger {
     }
 
     private void exploreAdjacentLinkConnectivity(Event event) {
-        String mode_ = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String links_ = event.getAttributes().get("links");
-        String vehicleType = event.getAttributes().get("vehicle_type");
-        String vehicleId_ = event.getAttributes().get("vehicle_id");
-        double fuel = Double.parseDouble(event.getAttributes().get("fuel"));
+        Map<String, String> eventAttributes = event.getAttributes();
+        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String links_ = eventAttributes.get("links");
+        String vehicleType = eventAttributes.get("vehicle_type");
+        String vehicleId_ = eventAttributes.get("vehicle_id");
+        double fuel = Double.parseDouble(eventAttributes.get("fuel"));
 
         if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();
@@ -41,7 +43,7 @@ public class AgentSimPhysSimInterfaceDebugger {
 
         LinkedList<String> linkIds_ = PathTraversalLib.getLinkIdList(links_, ",");
 
-        Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(event.getAttributes());
+        Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(eventAttributes);
 
         for (int i = 0; i < linkIds_.size() - 1; i++) {
             int linkIdInt = Integer.parseInt(linkIds_.get(i));

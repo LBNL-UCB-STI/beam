@@ -36,10 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -192,7 +189,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             previousActivity.put(activityEndEvent.getPersonId().toString(), activityEndEvent.getActType());
         } else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
-            String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+            Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
+            String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
@@ -205,10 +203,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
 
-                String links = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-                double departureTime = Double.parseDouble(pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
-                String vehicleId = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-                String vehicleType = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+                String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+                double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
+                String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
