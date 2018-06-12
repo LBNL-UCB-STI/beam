@@ -126,7 +126,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def sortEvents(): Unit = {
 
-    rideHailEvents = rideHailEvents.sortWith(compareEventsV3)
+    rideHailEvents = rideHailEvents.sorted(compareEventsV3)
   }
 
   private def compareEventsV1(e1: Event, e2: Event): Boolean = {
@@ -171,13 +171,13 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
     }
   }
 
-  private def compareEventsV3(e1: Event, e2: Event): Boolean = {
+  private def compareEventsV3(e1: Event, e2: Event): Int = {
     val t1 = e1.getAttributes.getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}").toDouble
     val t2 = e2.getAttributes.getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}").toDouble
 
     if(t1 == t2)
-      e1.getTime <= e2.getTime
+      e1.getTime.compareTo(e2.getTime)
     else
-      t1 <= t2
+      t1.compareTo(t2)
   }
 }
