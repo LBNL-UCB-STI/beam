@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -52,13 +53,14 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
     @Override
     protected void writeEvent(final Event event) {
         if(! (beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)){
+            Map<String, String> eventAttributes = event.getAttributes();
             try{
                 this.out.append("\t<event ");
-                Map<String, String> attr = beamEventLogger.getAttributes(event);
-                for (Map.Entry<String, String> entry : attr.entrySet()) {
-                    this.out.append(entry.getKey());
+                HashSet<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
+                for (String attrKey : attrKeys){
+                    this.out.append(attrKey);
                     this.out.append("=\"");
-                    this.out.append(encodeAttributeValue(entry.getValue()));
+                    this.out.append(encodeAttributeValue(eventAttributes.get(attrKey)));
                     this.out.append("\" ");
                 }
 
