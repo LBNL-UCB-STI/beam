@@ -320,7 +320,7 @@ object TAZTreeMap {
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 case class CsvTaz(id: String, coordX: Double, coordY: Double)
 
-class TAZ(val tazId: Id[TAZ],val coord: Coord){
+case class TAZ(val tazId: Id[TAZ],val coord: Coord){
   def this(tazIdString: String, coord: Coord) {
     this(Id.create(tazIdString,classOf[TAZ]),coord)
   }

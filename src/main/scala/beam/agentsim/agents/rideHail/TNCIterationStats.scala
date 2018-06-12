@@ -4,12 +4,16 @@ import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
+import beam.utils.DebugLib
+import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.util.{Pair => WeightPair}
 
 case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]],
                              tazTreeMap: TAZTreeMap,
@@ -83,12 +87,23 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
               val distanceScore = distanceWeight * distanceInMeters
               val waitingTimeScore = waitingTimeWeight * statsEntry.sumOfWaitingTimes
               val demandScore = demandWeight * statsEntry.sumOfRequestedRides
-              (distanceScore + waitingTimeScore + demandScore)
+
+              val res=distanceScore + waitingTimeScore + demandScore
+              if (res==Double.PositiveInfinity){
+                DebugLib.emptyFunctionForSettingBreakPoint()
+              }
+
+              println(s"original score: $res")
+              res
 
             case _ =>
               0
           }
         ).sum
+
+        if (score>0){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
 
         scoredTAZInRadius+=TazScore(tazInRadius, Math.exp(score))
       }
@@ -96,6 +111,48 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
 
       val scoreExpSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
+
+      if (scoreExpSumOverAllTAZInRadius==0){
+        DebugLib.emptyFunctionForSettingBreakPoint()
+      }
+
+
+      val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
+      scoredTAZInRadius.foreach { tazScore =>
+
+        println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
+        if (tazScore.score/scoreExpSumOverAllTAZInRadius==Double.NaN){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
+
+
+        mapping.add(new WeightPair(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
+      }
+
+      val d  = new EnumeratedDistribution(mapping)
+
+      val sampe = d.sample(10)
+      sampe.foreach { x =>
+        val z=x.asInstanceOf[TAZ]
+        println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
+      }
+
+
+      /*
+      val updatedList=BuffereList
+
+      scoredTAZInRadius foreach( taz =>
+        updatedList.add(taz.taz, taz.score/ scoreExpSumOverAllTAZInRadius)
+
+        )
+
+      val rand=scala.util.Random.nextDouble()
+       val sumProb=0
+      scala.util.Random.shuffle(tmp){
+        add up until sumProb> rand
+        return i
+      }
+*/
 
       // TODO: sample instead of taking top n
       scoredTAZInRadius.foreach{tazScore =>

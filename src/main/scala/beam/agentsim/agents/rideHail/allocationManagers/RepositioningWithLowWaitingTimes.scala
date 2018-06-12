@@ -24,7 +24,7 @@ class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManage
     val idleVehicles = rideHailingManager.getIdleVehicles
     val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
     val timeHorizonToConsiderInSecondsForIdleVehicles = 20 * 60
-    val percentageOfVehiclesToReposition = 0.01
+    val percentageOfVehiclesToReposition = 0.01 * 100
     val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
     val repositionCircleRadisInMeters = 3000
@@ -101,7 +101,7 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
-        //tncIterationStats.printMap()
+        tncIterationStats.printMap()
 
         val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
 
