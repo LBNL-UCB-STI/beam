@@ -135,7 +135,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
             while idle vs. interrupted while driving - while in the first case the overwrite just works fine
             without any additional effort, in the second case the rideHailAgent gets stuck (we are interrupted and
             overwriting reservation tries to interrupt again later, which is not defined). We "solve" this here by sending a resume
-            message to the agent. This puts the rideHailAgent back to driving, so that the reservation interrupt
+            message to the agent. This puts the rideHailAgent back to state driving, so that the reservation interrupt
             is received when agent is in state driving.
              */
 
