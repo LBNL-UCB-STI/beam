@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{RAIL, RIDE_HAIL, SUBWAY}
+import beam.router.Modes.BeamMode.{FERRY, RAIL, RIDE_HAIL, SUBWAY, TRAM}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
@@ -20,7 +20,7 @@ object Modes {
   sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
 
     def isTransit(): Boolean = isR5TransitMode(this)
-    def isMassTransit(): Boolean = this == SUBWAY || this == RAIL
+    def isMassTransit(): Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail(): Boolean = this == RIDE_HAIL
   }
 
