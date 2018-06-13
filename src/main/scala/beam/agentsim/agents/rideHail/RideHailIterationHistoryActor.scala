@@ -11,7 +11,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager, beamServices: BeamServices) extends Actor {
 
-  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices.beamConfig, self)
+  val tNCIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager, beamServices, self)
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!

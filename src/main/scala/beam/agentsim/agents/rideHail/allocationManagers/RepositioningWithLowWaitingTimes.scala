@@ -21,13 +21,7 @@ class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManage
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
-    val idleVehicles = rideHailingManager.getIdleVehicles
-    val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
-    val timeHorizonToConsiderInSecondsForIdleVehicles = 20 * 60
-    val percentageOfVehiclesToReposition = 0.01 * 100
-    val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
-    val repositionCircleRadisInMeters = 3000
 
 
 
@@ -101,9 +95,22 @@ rideHailStats
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
-        tncIterationStats.printMap()
 
-        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeHorizonToConsiderInSecondsForIdleVehicles)
+        val idleVehicles = rideHailingManager.getIdleVehicles
+        val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
+        val timeHorizonToConsiderInSecondsForIdleVehicles = 20 * 60
+        val percentageOfVehiclesToReposition = 0.01 * 100
+        val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
+
+        val repositionCircleRadisInMeters = 3000
+        val thresholdForMinimumNumberOfIdlingVehicles=1
+
+        //tncIterationStats.printMap()
+
+        assert(maxNumberOfVehiclesToReposition>0)
+
+
+        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeHorizonToConsiderInSecondsForIdleVehicles,thresholdForMinimumNumberOfIdlingVehicles)
 
         val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
 
@@ -115,9 +122,10 @@ rideHailStats
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-
+        whichTAZToRepositionTo
       case None =>
       // iteration 0
+        Vector()
     }
 
 
@@ -126,7 +134,7 @@ rideHailStats
     //  val destination=scala.util.Random.shuffle(origin)
     // (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
     // } else {
-    Vector()
+   // Vector()
     // }
   }
 }

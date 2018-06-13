@@ -14,6 +14,7 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.util.{Pair => WeightPair}
+import java.lang.{Double => JDouble}
 
 case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]],
                              tazTreeMap: TAZTreeMap,
@@ -84,16 +85,16 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
           getRideHailStatsInfo(tazInRadius.tazId, _) match {
             case Some(statsEntry) =>
               val distanceInMeters=beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-              val distanceScore = distanceWeight * distanceInMeters
-              val waitingTimeScore = waitingTimeWeight * statsEntry.sumOfWaitingTimes
-              val demandScore = demandWeight * statsEntry.sumOfRequestedRides
+              val distanceScore = distanceWeight * 1/(distanceInMeters+1)
+              val waitingTimeScore = waitingTimeWeight * Math.log(statsEntry.sumOfWaitingTimes+1)
+              val demandScore = demandWeight * Math.log(statsEntry.sumOfRequestedRides+1)
 
               val res=distanceScore + waitingTimeScore + demandScore
-              if (res==Double.PositiveInfinity){
+              if (JDouble.isNaN(res)){
                 DebugLib.emptyFunctionForSettingBreakPoint()
               }
 
-              println(s"original score: $res")
+             // println(s"original score: $res")
               res
 
             case _ =>
@@ -120,7 +121,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
       scoredTAZInRadius.foreach { tazScore =>
 
-        println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
+       // println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
         if (tazScore.score/scoreExpSumOverAllTAZInRadius==Double.NaN){
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
@@ -129,45 +130,17 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         mapping.add(new WeightPair(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
       }
 
-      val d  = new EnumeratedDistribution(mapping)
+      val enumDistribution  = new EnumeratedDistribution(mapping)
 
-      val sampe = d.sample(10)
-      sampe.foreach { x =>
+      val sample = enumDistribution.sample(vehicles.size)
+
+      sample.foreach { x =>
         val z=x.asInstanceOf[TAZ]
-        println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
+        // println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
       }
 
-
-      /*
-      val updatedList=BuffereList
-
-      scoredTAZInRadius foreach( taz =>
-        updatedList.add(taz.taz, taz.score/ scoreExpSumOverAllTAZInRadius)
-
-        )
-
-      val rand=scala.util.Random.nextDouble()
-       val sumProb=0
-      scala.util.Random.shuffle(tmp){
-        add up until sumProb> rand
-        return i
-      }
-*/
-
-      // TODO: sample instead of taking top n
-      scoredTAZInRadius.foreach{tazScore =>
-        tazPriorityQueue.enqueue(TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
-      }
-
-
-     // val tmp=for (tazScore <- scoredTAZInRadius) yield {TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius)}
-
-     // val rand=scala.util.Random.nextDouble()
-     // val sumProb=0
-     // scala.util.Random.shuffle(tmp).
-
-
-      vehicles.zip(tazPriorityQueue.take(vehicles.size).map(_.taz.coord))
+      val coords=for (taz<-sample;a=taz.asInstanceOf[TAZ].coord) yield a
+      vehicles.zip(coords)
     }
 
     result.flatten.toVector
@@ -184,9 +157,12 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingAgentLocation],
                                                     maxNumberOfVehiclesToReposition: Double,
                                                     tick: Double,
-                                                    timeHorizonToConsiderForIdleVehiclesInSec: Int): Vector[RideHailingAgentLocation] = {
+                                                    timeHorizonToConsiderForIdleVehiclesInSec: Int,
+                                                    thresholdForMinimumNumberOfIdlingVehicles:Int): Vector[RideHailingAgentLocation] = {
 
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
+
+    // TODO: group by TAZ to avoid evaluation twice
 
     for ((_, rhLoc) <- idleVehicles) {
 
@@ -206,7 +182,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
-    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).map(_.rideHailingAgentLocation).toVector
+    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score>thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
   }
 
   private def getTimeBin(time: Double): Int = {
