@@ -77,6 +77,7 @@ class RideHailingManager(
     val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
     Await.result(future, timeout.duration).asInstanceOf[Option[TNCIterationStats]]
   }
+  tncIterationStats.foreach(_.logMap())
 
 
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
@@ -402,7 +403,7 @@ class RideHailingManager(
       numberOfTrips += 1
     }
 
-    println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
+    //println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
 
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
