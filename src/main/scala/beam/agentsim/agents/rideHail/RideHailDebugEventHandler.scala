@@ -21,39 +21,19 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
   }
 
 
-  private def collectRideHailEvents(event: Event) = {
 
-    event.getEventType match {
-      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
-
-        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
-        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
-          rideHailEvents += event
-
-      case PathTraversalEvent.EVENT_TYPE =>
-
-        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-        if (vehicle.contains("rideHail"))
-          rideHailEvents += event
-
-      case _ =>
-
-    }
-  }
 
   override def reset(iteration: Int): Unit = {
     //TODO: fix execution for last iteration
-    sortEvents()
 
-    testZeroPassengerCount()
-
-    rideHailEvents.clear()
+    collectAbnormalities()
   }
 
-  private def testZeroPassengerCount(): Unit = {
+  def collectAbnormalities(): mutable.Seq[RideHailAbnormality] = {
+    sortEvents()
 
     val vehicleEvents = mutable.Map[String, mutable.Set[PersonEntersVehicleEvent]]()
+    val vehicleAbnormalities = mutable.Seq[RideHailAbnormality]()
 
     rideHailEvents.foreach(event =>
 
@@ -72,7 +52,8 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
           }
           // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
           if (events.nonEmpty) {
-            logger.debug(s"RideHail: vehicle $vehicle already has person and another enters - $event")
+            vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
+            logger.debug(s".RideHail: vehicle $vehicle already has person and another enters - $event")
           }
 
           events += currentEvent
@@ -88,11 +69,12 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
             case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
 
+              vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
 
             // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
             case None if numPassengers > 0 =>
-
+              vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(s"RideHail: vehicle $vehicle with $numPassengers passenger but no enterVehicle encountered - $event")
 
             case _ =>
@@ -122,6 +104,32 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
       })
 
     vehicleEvents.foreach(_._2.foreach(event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")))
+
+    rideHailEvents.clear()
+
+    vehicleAbnormalities
+  }
+
+
+  private def collectRideHailEvents(event: Event) = {
+
+    event.getEventType match {
+      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
+
+        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
+          rideHailEvents += event
+
+      case PathTraversalEvent.EVENT_TYPE =>
+
+        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+        if (vehicle.contains("rideHail"))
+          rideHailEvents += event
+
+      case _ =>
+
+    }
   }
 
   private def sortEvents(): Unit = {
@@ -181,3 +189,5 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
       t1.compareTo(t2)
   }
 }
+
+case class RideHailAbnormality(vehicleId: String, event: Event)
