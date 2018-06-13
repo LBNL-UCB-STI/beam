@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -33,6 +34,9 @@ public class RideHailingWaitingStats implements IGraphStats {
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+
+    private double waitTimeSum = 0;   //sum of all wait times experienced by customers
+    private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
 
     @Override
     public void resetStats() {
@@ -74,7 +78,12 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+        if (model == null)
+            model = new RideHailDistanceRowModel();
+        model.setRideHailWaitingTimeSum(this.waitTimeSum);
+        model.setTotalRideHailCount(this.rideHailCount);
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
 
@@ -95,7 +104,6 @@ public class RideHailingWaitingStats implements IGraphStats {
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        //waitingTime = Math.ceil(waitingTime / 60);
         waitingTime = waitingTime/60;
 
         if (waitingTime > lastMaximumTime) {
@@ -107,6 +115,8 @@ public class RideHailingWaitingStats implements IGraphStats {
             timeList = new ArrayList<>();
         }
         timeList.add(waitingTime);
+        this.waitTimeSum += waitingTime;
+        this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
     }
 
