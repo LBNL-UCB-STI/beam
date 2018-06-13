@@ -229,43 +229,66 @@ object TNCIterationStats {
     for (taz <- tazSet) {
       //val bufferA=statsA.rideHailStats.get(taz).getOrElse(mutable.ArrayBuffer.fill(numberOfTimeBins)(None))
       //val bufferB=statsB.rideHailStats.get(taz).getOrElse(mutable.ArrayBuffer.fill(numberOfTimeBins)(None))
-      result.put(taz, mergeArrayBuffer(statsA.rideHailStats(taz), statsB.rideHailStats(taz)))
+      //result.put(taz, mergeArrayBuffer(statsA.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]()) , statsB.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]())))
+
+
+      result.put(taz, mergeArrayBuffer(statsA.rideHailStats.get(taz) , statsB.rideHailStats.get(taz)))
     }
 
     statsA.getWithDifferentMap(result)
   }
 
-  def mergeArrayBuffer(bufferA: ArrayBuffer[Option[RideHailStatsEntry]], bufferB: ArrayBuffer[Option[RideHailStatsEntry]]): ArrayBuffer[Option[RideHailStatsEntry]] = {
+  def mergeArrayBuffer(bufferA: Option[ArrayBuffer[Option[RideHailStatsEntry]]], bufferB: Option[ArrayBuffer[Option[RideHailStatsEntry]]]): ArrayBuffer[Option[RideHailStatsEntry]] = {
     val result = ArrayBuffer[Option[RideHailStatsEntry]]()
 
-    for (i <- bufferA.indices) {
-      bufferA(i) match {
+    bufferA match {
+      case Some(bufferA) =>
 
-        case Some(rideHailStatsEntryA) =>
+        bufferB match {
+          case Some(bufferB) =>
+            for (i <- bufferA.indices) {
+              bufferA(i) match {
 
-          bufferB(i) match {
+                case Some(rideHailStatsEntryA) =>
 
-            case Some(rideHailStatsEntryB) =>
-              result += Some(rideHailStatsEntryA.average(rideHailStatsEntryB))
+                  bufferB(i) match {
 
-            case None =>
-              result += Some(rideHailStatsEntryA)
-          }
+                    case Some(rideHailStatsEntryB) =>
+                      result += Some(rideHailStatsEntryA.average(rideHailStatsEntryB))
 
-        case None =>
+                    case None =>
+                      result += Some(rideHailStatsEntryA)
+                  }
 
-          bufferB(i) match {
+                case None =>
 
-            case Some(rideHailStatsEntryB) =>
-              result += Some(rideHailStatsEntryB)
+                  bufferB(i) match {
 
-            case None =>
-              result += None
-          }
-      }
+                    case Some(rideHailStatsEntryB) =>
+                      result += Some(rideHailStatsEntryB)
+
+                    case None =>
+                      result += None
+                  }
+              }
+            }
+
+            result
+
+          case None =>
+            bufferA
+
+        }
+
+      case None =>
+        bufferB match {
+          case Some(bufferB) =>
+            bufferB
+          case None =>
+            result
+        }
     }
 
-    result
   }
 }
 
