@@ -5,8 +5,6 @@ import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHai
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -28,7 +26,7 @@ import scala.util.Try
   * idleTime[TAZId,binNumber] // bin 10, 11, 12,...19 we do +1
   *
   * @param sumOfRequestedRides Total number of ride requests
-  * @param sumOfWaitingTimes Sum of waiting times
+  * @param sumOfWaitingTimes   Sum of waiting times
   * @param sumOfIdlingVehicles total number of idling vehicles
   */
 case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long, sumOfIdlingVehicles: Long) {
@@ -39,7 +37,7 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
 }
 
 class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: BeamServices, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
-  val beamConfig=beamServices.beamConfig
+  val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
   private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
@@ -65,7 +63,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    //    printStats()
+    printStats()
 
     rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
@@ -234,7 +232,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
-    val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).size
+    val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).toSet.size
     vehicleActiveBins.get(tazId) match {
       case Some(vehBins) =>
         val noOfActiveVehicles = vehBins.count(_._2.contains(binIndex))
@@ -253,10 +251,10 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   }
 
   private def getTazId(pathTraversalEvent: PathTraversalEvent): String = {
-    val startX =pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+    val startX = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
 
-    val coord=beamServices.geo.wgs2Utm(new Coord(startX,startY))
+    val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
 
     val tazId = getTazId(coord.getX, coord.getY)
     tazId
