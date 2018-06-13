@@ -4,7 +4,10 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
@@ -35,8 +38,8 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
   }
 }
 
-class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: BeamConfig, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
-
+class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: BeamServices, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
+  val beamConfig=beamServices.beamConfig
   // TAZ level -> how to get as input here?
   private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
@@ -250,10 +253,12 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamConfig: Beam
   }
 
   private def getTazId(pathTraversalEvent: PathTraversalEvent): String = {
-    val startX = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+    val startX =pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
 
-    val tazId = getTazId(startX, startY)
+    val coord=beamServices.geo.wgs2Utm(new Coord(startX,startY))
+
+    val tazId = getTazId(coord.getX, coord.getY)
     tazId
   }
 
