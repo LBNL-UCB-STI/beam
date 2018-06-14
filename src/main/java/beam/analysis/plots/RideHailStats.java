@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
@@ -36,8 +37,8 @@ public class RideHailStats implements IGraphStats {
     public void processStats(Event event) {
 
         if (event instanceof PathTraversalEvent) {
-            String vehicleId = event.getAttributes().get("vehicle_id");
-            if (vehicleId.toLowerCase().contains("ridehailingvehicle")) {
+            String vehicleId = event.getAttributes().get("vehicle");
+            if (vehicleId.toLowerCase().contains("ridehail")) {
                 List<PathTraversalEvent> list;
                 list = eventMap.get(vehicleId);
                 if (list == null || list.isEmpty()) {
