@@ -228,7 +228,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     log.debug(columns)
 
     for (i <- 1 until numberOfTimeBins) {
-      columns = i + "\t\t"
+      columns = ""
       rideHailStats.foreach(rhs => {
         val arrayBuffer = rhs._2
         val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0))
@@ -239,7 +239,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
         columns = columns + entry + "\t\t"
       })
-      columns = aggregates(i) + "\t\t" + columns
+      columns = i + "\t\t" +aggregates(i) + "\t\t" + columns
       log.debug(columns)
     }
 
