@@ -67,7 +67,7 @@ public class RideHailStats implements IGraphStats {
                     distance = distance + newDistance;
                     distanceTravelled.put(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, distance);
                 } else if (arr[loopCounter].getAttributes().get("num_passengers").equals("0") && loopCounter < (size - 1) && arr[loopCounter + 1].getAttributes().get("num_passengers").equals("1")) {
-                    double distance = distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT.toString()) == null ? 0 : distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT.toString());
+                    double distance = distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT) == null ? 0 : distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT);
                     distance = distance + newDistance;
                     distanceTravelled.put(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, distance);
                 } else if (arr[loopCounter].getAttributes().get("num_passengers").equals("0")) {
@@ -82,8 +82,6 @@ public class RideHailStats implements IGraphStats {
             model = new RideHailDistanceRowModel();
         model.setRideHailDistanceStatMap(distanceTravelled);
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-        GraphUtils.RIDE_HAIL_REVENUE_MAP.get(0);
-        System.out.println("");
         writeToCSV(event);
     }
 
