@@ -68,7 +68,7 @@ class RideHailingManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds
   }
 
-  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager
+  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
 
 
 
