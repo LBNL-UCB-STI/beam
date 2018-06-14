@@ -236,7 +236,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
-        triggerQueue.dequeueAll.foreach(scheduledTrigger => if (!scheduledTrigger.agent.path.toString.contains("rideHailingAgent")) scheduledTrigger.agent ! Finish)
+        triggerQueue.dequeueAll.foreach(scheduledTrigger => if (!scheduledTrigger.agent.path.toString.contains("rideHailAgent")) scheduledTrigger.agent ! Finish)
 
         startSender ! CompletionNotice(0L)
       }

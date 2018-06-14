@@ -16,11 +16,17 @@ import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.util.{Pair => WeightPair}
 import java.lang.{Double => JDouble}
 
+import akka.event.LoggingAdapter
+import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
+import org.slf4j.{Logger, LoggerFactory}
+
 case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]],
                              tazTreeMap: TAZTreeMap,
                              timeBinSizeInSec: Double,
                              numberOfTimeBins: Int) {
 
+
+  private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
 
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
@@ -214,9 +220,9 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     ???
   }
 
-  def printMap(): Unit = {
-    println("TNCIterationStats:")
-    rideHailStats.values.head.foreach(println)
+  def logMap(): Unit = {
+    log.debug("TNCIterationStats:")
+    rideHailStats.values.head.foreach(x => log.debug(x.toString))
   }
 }
 

@@ -65,7 +65,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    printStats()
+    //printStats() -> use logger instead
 
     rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
