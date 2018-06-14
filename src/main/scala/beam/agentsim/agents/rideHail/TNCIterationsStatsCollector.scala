@@ -71,6 +71,10 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     rideHailModeChoiceEvents.clear()
 
+    rideHailLastEvent.clear()
+
+    vehicleIdlingBins.clear()
+
     vehicleActiveBins.clear()
 
     rideHailEventsTuples.clear()
