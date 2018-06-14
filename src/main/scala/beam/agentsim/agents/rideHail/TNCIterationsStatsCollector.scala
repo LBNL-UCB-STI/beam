@@ -44,7 +44,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   // TAZ level -> how to get as input here?
   private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
+  private val log = LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
 
 
   // timeBins -> number OfTimeBins input
@@ -70,7 +70,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    //printStats() -> use logger instead
+    // printStats()
 
     rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
@@ -150,6 +150,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
+
+
+
       collectActiveVehicles(vehicleId, pathTraversalEvent)
     }
   }
@@ -201,12 +204,18 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val startTazId = getStartTazId(currentEvent)
     val endTazId = getEndTazId(currentEvent)
 
+    //log.debug(currentEvent.toString)
 
     val startTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
     val endTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
 
+
+
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
+
+    log.debug(s"startTazId($startTazId), endTazId($endTazId), startTime($startTime), endTime($endTime), numberOfPassengers(${currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)})")
+
 
     var idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins
@@ -369,8 +378,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
   private def printStats(): Unit = {
     rideHailStats.foreach { rhs =>
-      println(rhs._1)
-      rhs._2.foreach(println)
+      log.debug(rhs._1)
+      rhs._2.map(_.toString).foreach(log.debug)
     }
   }
+
 }

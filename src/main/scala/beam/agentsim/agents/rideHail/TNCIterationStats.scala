@@ -1,24 +1,21 @@
 package beam.agentsim.agents.rideHail
 
+import java.lang.{Double => JDouble}
+
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils.DebugLib
 import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
+import org.slf4j.LoggerFactory
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import org.apache.commons.math3.distribution.EnumeratedDistribution
-import org.apache.commons.math3.util.{Pair => WeightPair}
-import java.lang.{Double => JDouble}
-
-import akka.event.LoggingAdapter
-import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import org.slf4j.{Logger, LoggerFactory}
 
 case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]],
                              tazTreeMap: TAZTreeMap,
@@ -51,8 +48,8 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     * }
     */
   def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingAgentLocation],
-                               repositionCircleRadiusInMeters: Int,
-                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Int, beamServices: BeamServices):
+                               repositionCircleRadiusInMeters: Double,
+                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Double, beamServices: BeamServices):
   Vector[(Id[vehicles.Vehicle], Location)] = {
 
     // TODO: read from config and tune weights
@@ -163,7 +160,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingAgentLocation],
                                                     maxNumberOfVehiclesToReposition: Double,
                                                     tick: Double,
-                                                    timeHorizonToConsiderForIdleVehiclesInSec: Int,
+                                                    timeHorizonToConsiderForIdleVehiclesInSec: Double,
                                                     thresholdForMinimumNumberOfIdlingVehicles: Int): Vector[RideHailingAgentLocation] = {
 
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
@@ -222,10 +219,29 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
   def logMap(): Unit = {
     log.debug("TNCIterationStats:")
+
+    var columns = "index\t\t aggregate \t\t"
+    val aggregates: ArrayBuffer[RideHailStatsEntry] = ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry(0, 0, 0))
     rideHailStats.foreach(rhs => {
-      log.debug("TAZ:" + rhs._1)
-      rhs._2.foreach(x => log.debug(x.toString))
+      columns = columns + rhs._1 + "\t\t"
     })
+    log.debug(columns)
+
+    for (i <- 1 until numberOfTimeBins) {
+      columns = ""
+      rideHailStats.foreach(rhs => {
+        val arrayBuffer = rhs._2
+        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0))
+
+        aggregates(i) = aggregates(i).copy(aggregates(i).sumOfRequestedRides + entry.sumOfRequestedRides,
+          aggregates(i).sumOfWaitingTimes + entry.sumOfWaitingTimes,
+          aggregates(i).sumOfIdlingVehicles + entry.sumOfIdlingVehicles)
+
+        columns = columns + entry + "\t\t"
+      })
+      columns = i + "\t\t" +aggregates(i) + "\t\t" + columns
+      log.debug(columns)
+    }
 
   }
 }
