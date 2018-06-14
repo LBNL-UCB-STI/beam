@@ -56,9 +56,9 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   Vector[(Id[vehicles.Vehicle], Location)] = {
 
     // TODO: read from config and tune weights
-    val distanceWeight=1.0
-    val waitingTimeWeight=1.0
-    val demandWeight=1.0
+    val distanceWeight = 1.0
+    val waitingTimeWeight = 1.0
+    val demandWeight = 1.0
 
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
@@ -81,7 +81,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val result = for ((taz, vehicles) <- tazVehicleMap) yield {
 
       val listOfTazInRadius = tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
-      val scoredTAZInRadius= collection.mutable.ListBuffer[TazScore]()
+      val scoredTAZInRadius = collection.mutable.ListBuffer[TazScore]()
 
       listOfTazInRadius.forEach { (tazInRadius) =>
         val startTimeBin = getTimeBin(tick)
@@ -90,17 +90,17 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         val score = (startTimeBin to endTimeBin).map(
           getRideHailStatsInfo(tazInRadius.tazId, _) match {
             case Some(statsEntry) =>
-              val distanceInMeters=beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-              val distanceScore = distanceWeight * 1/(distanceInMeters+1)
-              val waitingTimeScore = waitingTimeWeight * Math.log(statsEntry.sumOfWaitingTimes+1)
-              val demandScore = demandWeight * Math.log(statsEntry.sumOfRequestedRides+1)
+              val distanceInMeters = beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+              val distanceScore = distanceWeight * 1 / (distanceInMeters + 1)
+              val waitingTimeScore = waitingTimeWeight * Math.log(statsEntry.sumOfWaitingTimes + 1)
+              val demandScore = demandWeight * Math.log(statsEntry.sumOfRequestedRides + 1)
 
-              val res=distanceScore + waitingTimeScore + demandScore
-              if (JDouble.isNaN(res)){
+              val res = distanceScore + waitingTimeScore + demandScore
+              if (JDouble.isNaN(res)) {
                 DebugLib.emptyFunctionForSettingBreakPoint()
               }
 
-             // println(s"original score: $res")
+              // println(s"original score: $res")
               res
 
             case _ =>
@@ -108,18 +108,18 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
           }
         ).sum
 
-        if (score>0){
+        if (score > 0) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        scoredTAZInRadius+=TazScore(tazInRadius, Math.exp(score))
+        scoredTAZInRadius += TazScore(tazInRadius, Math.exp(score))
       }
 
       val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
 
-      val scoreExpSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
+      val scoreExpSumOverAllTAZInRadius = scoredTAZInRadius.map(taz => taz.score).sum
 
-      if (scoreExpSumOverAllTAZInRadius==0){
+      if (scoreExpSumOverAllTAZInRadius == 0) {
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
@@ -127,25 +127,25 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
       scoredTAZInRadius.foreach { tazScore =>
 
-       // println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
-        if (tazScore.score/scoreExpSumOverAllTAZInRadius==Double.NaN){
+        // println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
+        if (tazScore.score / scoreExpSumOverAllTAZInRadius == Double.NaN) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
 
-        mapping.add(new WeightPair(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
+        mapping.add(new WeightPair(tazScore.taz, tazScore.score / scoreExpSumOverAllTAZInRadius))
       }
 
-      val enumDistribution  = new EnumeratedDistribution(mapping)
+      val enumDistribution = new EnumeratedDistribution(mapping)
 
       val sample = enumDistribution.sample(vehicles.size)
 
       sample.foreach { x =>
-        val z=x.asInstanceOf[TAZ]
+        val z = x.asInstanceOf[TAZ]
         // println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
       }
 
-      val coords=for (taz<-sample;a=taz.asInstanceOf[TAZ].coord) yield a
+      val coords = for (taz <- sample; a = taz.asInstanceOf[TAZ].coord) yield a
       vehicles.zip(coords)
     }
 
@@ -164,7 +164,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
                                                     maxNumberOfVehiclesToReposition: Double,
                                                     tick: Double,
                                                     timeHorizonToConsiderForIdleVehiclesInSec: Int,
-                                                    thresholdForMinimumNumberOfIdlingVehicles:Int): Vector[RideHailingAgentLocation] = {
+                                                    thresholdForMinimumNumberOfIdlingVehicles: Int): Vector[RideHailingAgentLocation] = {
 
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
 
@@ -188,7 +188,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
-    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score>thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
+    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score > thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
   }
 
   private def getTimeBin(time: Double): Int = {
@@ -222,7 +222,11 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
   def logMap(): Unit = {
     log.debug("TNCIterationStats:")
-    rideHailStats.values.head.foreach(x => log.debug(x.toString))
+    rideHailStats.foreach(rhs => {
+      log.debug("TAZ:" + rhs._1)
+      rhs._2.foreach(x => log.debug(x.toString))
+    })
+
   }
 }
 
@@ -238,7 +242,7 @@ object TNCIterationStats {
       //result.put(taz, mergeArrayBuffer(statsA.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]()) , statsB.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]())))
 
 
-      result.put(taz, mergeArrayBuffer(statsA.rideHailStats.get(taz) , statsB.rideHailStats.get(taz)))
+      result.put(taz, mergeArrayBuffer(statsA.rideHailStats.get(taz), statsB.rideHailStats.get(taz)))
     }
 
     statsA.getWithDifferentMap(result)
