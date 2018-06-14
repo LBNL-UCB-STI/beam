@@ -83,10 +83,12 @@ public class RideHailingWaitingStats implements IGraphStats {
             model = new RideHailDistanceRowModel();
         model.setRideHailWaitingTimeSum(this.waitTimeSum);
         model.setTotalRideHailCount(this.rideHailCount);
+        this.waitTimeSum = 0;
+        this.rideHailCount = 0;
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
-
+        hoursTimesMap.clear();
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(hourModeFrequency);
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
