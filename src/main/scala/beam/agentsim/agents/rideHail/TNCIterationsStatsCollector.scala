@@ -70,7 +70,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    //printStats() -> use logger instead
+    printStats()
 
     rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
@@ -369,8 +369,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
   private def printStats(): Unit = {
     rideHailStats.foreach { rhs =>
-      println(rhs._1)
-      rhs._2.foreach(println)
+      log.debug(rhs._1)
+      rhs._2.map(_.toString).foreach(log.debug)
     }
   }
 }
