@@ -57,6 +57,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
   private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicleActiveBins = mutable.Map[String, mutable.Map[String, mutable.Set[Int]]]()
+  private val vehicles = mutable.Map[String, Boolean]()
 
   var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
 
@@ -83,6 +84,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     vehicleActiveBins.clear()
 
     rideHailEventsTuples.clear()
+
+    vehicles.clear()
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -130,6 +133,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val vehicleId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
+      if(personId.contains("rideHailAgent")) vehicles.put(vehicleId, false)
+
       rideHailModeChoiceEvents.get(personId) match {
         case Some(modeChoiceEvent) =>
 
@@ -150,8 +155,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
-
-
+      vehicles.put(vehicleId, true)
 
       collectActiveVehicles(vehicleId, pathTraversalEvent)
     }
@@ -268,8 +272,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
   private def updateStatsForIdlingVehicles(): Unit = {
 
-
-
     rideHailLastEvent.foreach(rhEvent => {
       val vehicleId = rhEvent._1
       var idlingBins = vehicleIdlingBins.get(vehicleId) match {
@@ -285,6 +287,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
       vehicleIdlingBins.put(vehicleId, idlingBins)
     })
+
+    val numAlwaysIdleVehicles = vehicles.count(!_._2)
+    if(numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles vehicles never moved/ were always idle.")
 
     rideHailStats.foreach { items =>
 
