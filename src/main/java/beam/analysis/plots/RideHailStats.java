@@ -31,6 +31,7 @@ public class RideHailStats implements IGraphStats {
 
     @Override
     public void resetStats() {
+        eventMap.clear();
     }
 
     @Override
@@ -114,9 +115,9 @@ public class RideHailStats implements IGraphStats {
                 out.append("," + model.getRideHailRevenue());
                 out.append("," + model.getRideHailWaitingTimeSum() / model.getTotalRideHailCount());
                 out.append("," + model.getRideHailWaitingTimeSum());
-                out.append("," + passengerVkt);
-                out.append("," + repositioningVkt);
-                out.append("," + deadheadingVkt);
+                out.append("," + passengerVkt/1000);
+                out.append("," + repositioningVkt/1000);
+                out.append("," + deadheadingVkt/1000);
                 out.append("," + averageSurgePricing);
                 out.append("," + maxSurgePricingLevel);
                 out.newLine();
