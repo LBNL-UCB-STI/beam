@@ -222,10 +222,21 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
   def logMap(): Unit = {
     log.debug("TNCIterationStats:")
+
+    var columns="index\t"
     rideHailStats.foreach(rhs => {
-      log.debug("TAZ:" + rhs._1)
-      rhs._2.foreach(x => log.debug(x.toString))
+      columns=columns+rhs._1+"\t"
     })
+    log.debug(columns)
+      for (i <-1 until rideHailStats.head._2.size){
+        columns=i + "\t"
+        rideHailStats.foreach(rhs => {
+          val arrayBuffer=rhs._2
+
+          columns=columns+arrayBuffer(i)+"\t"
+        })
+        log.debug(columns)
+      }
 
   }
 }
