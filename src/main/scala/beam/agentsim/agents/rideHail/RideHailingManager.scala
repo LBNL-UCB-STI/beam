@@ -88,7 +88,7 @@ class RideHailingManager(
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
       new RideHailAllocationManagerBufferedImplTemplate(this)
     case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-      new RepositioningWithLowWaitingTimes(this,tncIterationStats)
+      new RepositioningLowWaitingTimes(this,tncIterationStats)
     case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
       new RandomRepositioning(this)
     case _ =>

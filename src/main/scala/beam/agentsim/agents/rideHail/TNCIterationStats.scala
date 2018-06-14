@@ -48,8 +48,8 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     * }
     */
   def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingAgentLocation],
-                               repositionCircleRadiusInMeters: Int,
-                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Int, beamServices: BeamServices):
+                               repositionCircleRadiusInMeters: Double,
+                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Double, beamServices: BeamServices):
   Vector[(Id[vehicles.Vehicle], Location)] = {
 
     // TODO: read from config and tune weights
@@ -160,7 +160,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingAgentLocation],
                                                     maxNumberOfVehiclesToReposition: Double,
                                                     tick: Double,
-                                                    timeHorizonToConsiderForIdleVehiclesInSec: Int,
+                                                    timeHorizonToConsiderForIdleVehiclesInSec: Double,
                                                     thresholdForMinimumNumberOfIdlingVehicles: Int): Vector[RideHailingAgentLocation] = {
 
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))

@@ -6,7 +6,7 @@ import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RepositioningWithLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
+class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
@@ -98,21 +98,21 @@ rideHailStats
 
         val idleVehicles = rideHailingManager.getIdleVehicles
         val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
-        val timeHorizonToConsiderInSecondsForIdleVehicles = 20 * 60
-        val percentageOfVehiclesToReposition = 0.01 * 100
+        val timeWindowSizeInSecForDecidingAboutRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning
+        val percentageOfVehiclesToReposition = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition
         val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
-        val repositionCircleRadisInMeters = 3000
-        val thresholdForMinimumNumberOfIdlingVehicles=1
+        val repositionCircleRadisInMeters = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters
+        val minimumNumberOfIdlingVehiclesThreshholdForRepositioning=rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning
 
         //tncIterationStats.printMap()
 
-        assert(maxNumberOfVehiclesToReposition>0)
+        assert(maxNumberOfVehiclesToReposition>0,"Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
 
 
-        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeHorizonToConsiderInSecondsForIdleVehicles,thresholdForMinimumNumberOfIdlingVehicles)
+        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeHorizonToConsiderInSecondsForIdleVehicles, rideHailingManager.beamServices)
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
 
         if (vehiclesToReposition.nonEmpty) {
           DebugLib.emptyFunctionForSettingBreakPoint()
