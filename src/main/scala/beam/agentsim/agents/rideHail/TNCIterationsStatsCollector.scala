@@ -289,7 +289,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     })
 
     val numAlwaysIdleVehicles = vehicles.count(!_._2)
-    if(numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles vehicles never moved/ were always idle.")
+    if(numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved during whole day.")
 
     rideHailStats.foreach { items =>
 
