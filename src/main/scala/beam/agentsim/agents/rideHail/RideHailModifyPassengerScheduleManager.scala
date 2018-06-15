@@ -294,6 +294,10 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     getWithVehicleIds(vehicleId).filter(_.interruptOrigin == InterruptOrigin.RESERVATION).isEmpty
   }
 
+  def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
+    getWithVehicleIds(vehicleId).isEmpty
+  }
+
   def checkInResource(vehicleId: Id[Vehicle], availableIn: Option[SpaceTime],passengerSchedule:Option[PassengerSchedule]): Unit = {
     passengerSchedule match {
       case Some (passengerSchedule) =>
