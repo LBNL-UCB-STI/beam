@@ -190,27 +190,25 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
 
   def demandRatioInCircleToOutside(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double): Double = {
-
-    /* sum of demand for TAZs in cirlce around vehicles
-
-      demandInCircle=go through vehilces -> sum up demand in time window -> sum all // TODO: also add method for input: (TAZ,startime,endTime) -> collection(RideHailStatsEntry)
-
-      demandAll=sum up demand in time window -> sum all
-
-      */
     import scala.collection.JavaConverters._
-
     val startTime = tick
     val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
-
     val listOfTazInRadius = vehiclesToReposition.flatMap(vehicle => tazTreeMap.getTAZInRadius(vehicle.currentLocation.loc, circleSize).asScala.map(_.tazId)).toSet
-
     val demandInCircle = listOfTazInRadius.map(getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides).sum
-
     val demandAll = getAggregatedRideHailStats(startTime, endTime).sumOfRequestedRides
-
-    val result = if(demandAll > 0) demandInCircle / demandAll else 0
+    val result = if(demandAll > 0) demandInCircle / demandAll else Double.PositiveInfinity
     result
+  }
+
+
+  def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double,allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
+    var updatedCircleSize=circleSize
+
+    while (allowIncreasingRadiusIfMostDemandOutside && demandRatioInCircleToOutside(vehiclesToReposition, updatedCircleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
+      updatedCircleSize = updatedCircleSize * 2
+    }
+
+    updatedCircleSize
   }
 
 
