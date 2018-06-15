@@ -39,7 +39,6 @@ import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -146,7 +145,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     log.debug(s"# options found = ${result.options.size()}")
     result
   }
-
 
   def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
     log.debug(routingRequest.toString)
@@ -384,27 +382,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.debug("Adding dummy walk route with maximum street time.")
-        val origin = new Coord(routingRequest.origin.getX, routingRequest.origin.getY)
-        val dest = new Coord(routingRequest.destination.getX, routingRequest.destination.getY)
-        val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
-        val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-        val dummyTrip = EmbodiedBeamTrip(
-          Vector(
-            EmbodiedBeamLeg(
-              BeamLeg(
-                routingRequest.departureTime.atTime,
-                WALK,
-                bushwhackingTime,
-                BeamPath(
-                  Vector(),
-                  None,
-                  SpaceTime(origin, routingRequest.departureTime.atTime),
-                  SpaceTime(dest, routingRequest.departureTime.atTime + bushwhackingTime),
-                  beelineDistanceInMeters)
-              ),
-              maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
-          )
-        )
+        val dummyTrip = R5RoutingWorker.createBushwackingTrip(new Coord(routingRequest.origin.getX, routingRequest.origin.getY),
+          new Coord(routingRequest.destination.getX, routingRequest.destination.getY),
+          routingRequest.departureTime.atTime,
+          maybeBody.get.id, beamServices)
         RoutingResponse(embodiedTrips :+ dummyTrip)
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
@@ -664,8 +645,32 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 }
 
 object R5RoutingWorker {
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
+
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator, tollCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
   case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
+
+  def createBushwackingTrip(origin: Location, dest: Location, atTime: Int, bodyId: Id[Vehicle], beamServices: BeamServices): EmbodiedBeamTrip = {
+    val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
+    val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    EmbodiedBeamTrip(
+      Vector(
+        EmbodiedBeamLeg(
+          BeamLeg(
+            atTime,
+            WALK,
+            bushwhackingTime,
+            BeamPath(
+              Vector(),
+              None,
+              SpaceTime(origin, atTime),
+              SpaceTime(dest, atTime + bushwhackingTime),
+              beelineDistanceInMeters)
+          ),
+          bodyId, true, None, 0, unbecomeDriverOnCompletion = false)
+      )
+    )
+  }
 }

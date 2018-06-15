@@ -22,6 +22,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
+import beam.router.r5.R5RoutingWorker
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
@@ -305,8 +306,16 @@ trait ChoosesMode {
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-          val originalWalkTripLeg = routingResponse.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+          val originalWalkTripLeg = routingResponse.itineraries.filter(_.tripClassifier == WALK).headOption match {
+            case Some(originalWalkTrip) =>
+              originalWalkTrip.legs.head
+            case None =>
+              R5RoutingWorker.createBushwackingTrip(currentActivity(choosesModeData.personData).getCoord,
+                nextAct.getCoord, _currentTick.get.toInt, bodyId, beamServices).legs.head
+          }
           val expensiveWalkTrip = EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
+
+
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(expensiveWalkTrip))
       }
   }
