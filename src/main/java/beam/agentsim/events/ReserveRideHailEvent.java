@@ -51,9 +51,13 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         this.destinationY = destinationY;
     }
 
+    private Map<String, String> attr;
+
     @Override
     public Map<String, String> getAttributes() {
-        Map<String, String> attr = super.getAttributes();
+        if(attr != null) return attr;
+
+        attr = super.getAttributes();
 
         attr.put(ATTRIBUTE_PERSON_ID, customerId.toString());
         attr.put(ATTRIBUTE_DEPART_TIME, Long.toString(departTime));
@@ -77,13 +81,14 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
 
     public static ReserveRideHailEvent apply(Event event) {
         if (!(event instanceof ReserveRideHailEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            Map<String, String> attr = event.getAttributes();
             return new ReserveRideHailEvent(event.getTime(),
-                    Id.createPersonId(event.getAttributes().get(ATTRIBUTE_PERSON_ID)),
-                    Long.parseLong(event.getAttributes().get(ATTRIBUTE_DEPART_TIME)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_X)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_PICKUP_LOCATION_Y)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOUT_LOCATION_X)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_DROPOUT_LOCATION_Y))
+                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
+                    Long.parseLong(attr.get(ATTRIBUTE_DEPART_TIME)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_Y)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_Y))
             );
         }
         return (ReserveRideHailEvent) event;

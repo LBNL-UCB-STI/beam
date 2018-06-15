@@ -49,9 +49,12 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         this.chosenTrip = chosenTrip;
     }
 
+    private Map<String, String> attr;
     @Override
     public Map<String, String> getAttributes() {
-        Map<String, String> attr = super.getAttributes();
+        if(attr != null) return attr;
+
+        attr = super.getAttributes();
 
         attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
@@ -84,15 +87,16 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
 
     public static ModeChoiceEvent apply(Event event) {
         if (!(event instanceof ModeChoiceEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            Map<String, String> attr = event.getAttributes();
             return new ModeChoiceEvent(event.getTime(),
-                    Id.createPersonId(event.getAttributes().get(ATTRIBUTE_PERSON_ID)),
-                    event.getAttributes().get(ATTRIBUTE_MODE),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_EXP_MAX_UTILITY)),
-                    event.getAttributes().get(ATTRIBUTE_LOCATION),
-                    event.getAttributes().get(ATTRIBUTE_AVAILABLE_ALTERNATIVES),
-                    Boolean.parseBoolean(event.getAttributes().get(ATTRIBUTE_PERSONAL_VEH_AVAILABLE)),
-                    Double.parseDouble(event.getAttributes().get(ATTRIBUTE_TRIP_LENGTH)),
-                    Integer.parseInt(event.getAttributes().get(ATTRIBUTE_TOUR_INDEX)),
+                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
+                    attr.get(ATTRIBUTE_MODE),
+                    Double.parseDouble(attr.get(ATTRIBUTE_EXP_MAX_UTILITY)),
+                    attr.get(ATTRIBUTE_LOCATION),
+                    attr.get(ATTRIBUTE_AVAILABLE_ALTERNATIVES),
+                    Boolean.parseBoolean(attr.get(ATTRIBUTE_PERSONAL_VEH_AVAILABLE)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_TRIP_LENGTH)),
+                    Integer.parseInt(attr.get(ATTRIBUTE_TOUR_INDEX)),
                     null
             );
         }

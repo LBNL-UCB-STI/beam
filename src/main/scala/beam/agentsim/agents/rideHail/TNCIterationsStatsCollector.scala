@@ -131,20 +131,21 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       using coord from the PathTraversal event
    */
   private def collectModeChoiceEvents(event: ModeChoiceEvent): Unit = {
-
-    val mode = event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE)
+    val attr = event.getAttributes
+    val mode = attr.get(ModeChoiceEvent.ATTRIBUTE_MODE)
 
     if (mode.equals("ride_hailing")) {
 
-      val personId = event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
+      val personId = attr.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       rideHailModeChoiceEvents.put(personId, event)
     }
   }
 
   private def collectPersonEntersEvents(personEntersVehicleEvent: PersonEntersVehicleEvent): Unit = {
 
-    val personId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-    val vehicleId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+    val attr = personEntersVehicleEvent.getAttributes
+    val personId = attr.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+    val vehicleId = attr.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
       if (personId.contains("rideHailAgent")) vehicles.put(vehicleId, false)
@@ -164,8 +165,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     processPathTraversalEvent(pathTraversalEvent)
 
-    val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val attr = pathTraversalEvent.getAttributes
+    val mode = attr.get(PathTraversalEvent.ATTRIBUTE_MODE)
+    val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
 
@@ -177,8 +179,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
   private def processPathTraversalEvent(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    val vehicleId = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPassengers = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+    val attr = pathTraversalEvent.getAttributes
+    val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPassengers = attr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
 
 
     rideHailEventsTuples.get(vehicleId) match {
