@@ -1,10 +1,13 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
+import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.concurrent.TrieMap
 
 class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
@@ -31,6 +34,22 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
     1.0 // demandInCircle/demandAll
+  }
+
+
+  def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles: TrieMap[Id[Vehicle], RideHailingManager.RideHailingAgentLocation], maxNumberOfVehiclesToReposition:Int): Vector[RideHailingAgentLocation] ={
+    val (idle,repositioning)=idleVehicles.values.toVector.partition( rideHailAgentLocation => rideHailingManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId))
+    val result= if (idle.size< maxNumberOfVehiclesToReposition){
+      idle ++ repositioning.take(maxNumberOfVehiclesToReposition-idle.size)
+    } else {
+      idle
+    }
+
+    if (result.size<idleVehicles.values.size){
+      log.debug(s"filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by ${idleVehicles.values.size-result.size}")
+    }
+
+    result
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
@@ -129,7 +148,10 @@ rideHailStats
         assert(maxNumberOfVehiclesToReposition>0,"Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
 
 
-        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
+
+        var vehiclesToReposition=filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
+
+        vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
 
         var circleSize=repositionCircleRadisInMeters
 
