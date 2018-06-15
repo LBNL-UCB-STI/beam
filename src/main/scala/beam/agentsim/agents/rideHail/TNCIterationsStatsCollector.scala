@@ -31,12 +31,22 @@ import scala.util.Try
   * @param sumOfIdlingVehicles total number of idling vehicles
   */
 case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long, sumOfIdlingVehicles: Long) {
+  def aggregate(other: RideHailStatsEntry): RideHailStatsEntry = RideHailStatsEntry(sumOfRequestedRides + other.sumOfRequestedRides,
+    sumOfWaitingTimes + other.sumOfWaitingTimes,
+    sumOfIdlingVehicles + other.sumOfIdlingVehicles)
 
   def average(other: RideHailStatsEntry): RideHailStatsEntry = {
     RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingTimes + other.sumOfWaitingTimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2)
   }
 }
 
+object RideHailStatsEntry {
+  def empty: RideHailStatsEntry = RideHailStatsEntry(0,0,0)
+
+  def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = {
+    rideHailStats.collect { case Some(statsEntry) => statsEntry }.reduce((e1, e2) => e1.aggregate(e2))
+  }
+}
 
 
 class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: BeamServices, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
@@ -133,7 +143,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val vehicleId = personEntersVehicleEvent.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
-      if(personId.contains("rideHailAgent")) vehicles.put(vehicleId, false)
+      if (personId.contains("rideHailAgent")) vehicles.put(vehicleId, false)
 
       rideHailModeChoiceEvents.get(personId) match {
         case Some(modeChoiceEvent) =>
@@ -214,7 +224,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val endTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
 
 
-
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
@@ -227,17 +236,17 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     }
 
 
-    val iB= rideHailLastEvent.get(vehicleId) match {
+    val iB = rideHailLastEvent.get(vehicleId) match {
 
-      case Some(lastEvent)  =>
+      case Some(lastEvent) =>
         val endTazId = getEndTazId(lastEvent)
         val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
         val endingBin = getTimeBin(endTime)
-        ((endingBin+1) until startBin).map((_,endTazId)).toMap
+        ((endingBin + 1) until startBin).map((_, endTazId)).toMap
 
       case None =>
-        if(startBin > 0) {
-          (0 until startBin).map((_,startTazId)).toMap
+        if (startBin > 0) {
+          (0 until startBin).map((_, startTazId)).toMap
         } else {
           Map[Int, String]()
         }
@@ -250,8 +259,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     rideHailLastEvent.put(vehicleId, currentEvent)
 
 
-
-
     val tazVehicles = vehicleActiveBins.get(startTazId) match {
       case Some(vehicles) => vehicles
       case None => mutable.Map.empty[String, mutable.Set[Int]]
@@ -261,7 +268,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       case Some(bins) => bins
       case None => mutable.Set[Int]()
     }
-
 
 
     activeBins ++= (startBin to endingBin).toSet
@@ -283,13 +289,13 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       val endTazId = getEndTazId(lastEvent)
       val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
       val endingBin = getTimeBin(endTime)
-      idlingBins ++= ((endingBin+1) until numberOfTimeBins).map((_,endTazId)).toMap
+      idlingBins ++= ((endingBin + 1) until numberOfTimeBins).map((_, endTazId)).toMap
 
       vehicleIdlingBins.put(vehicleId, idlingBins)
     })
 
     val numAlwaysIdleVehicles = vehicles.count(!_._2)
-    if(numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved during whole day.")
+    if (numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved during whole day.")
 
     rideHailStats.foreach { items =>
 
@@ -334,15 +340,15 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       }
     })*/
 
-/*
-    val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).toSet.size
-    vehicleActiveBins.get(tazId) match {
-      case Some(vehBins) =>
-        val noOfActiveVehicles = vehBins.count(_._2.contains(binIndex))
-        totalVehicles - noOfActiveVehicles
-      case None =>
-        totalVehicles
-    }*/
+    /*
+        val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).toSet.size
+        vehicleActiveBins.get(tazId) match {
+          case Some(vehBins) =>
+            val noOfActiveVehicles = vehBins.count(_._2.contains(binIndex))
+            totalVehicles - noOfActiveVehicles
+          case None =>
+            totalVehicles
+        }*/
   }
 
   private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {

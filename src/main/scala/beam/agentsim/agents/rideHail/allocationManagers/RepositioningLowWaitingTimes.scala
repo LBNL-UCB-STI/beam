@@ -19,24 +19,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
     allocationsDuringReservation
   }
 
-  def demandRatioInCircleToOutside(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, timeWindowSizeInSecForDecidingAboutRepositioning:Double): Double = {
-
-    /* sum of demand for TAZs in cirlce around vehicles
-
-      demandInCircle=go through vehilces -> sum up demand in time window -> sum all // TODO: also add method for input: (TAZ,startime,endTime) -> collection(RideHailStatsEntry)
-
-      demandAll=sum up demand in time window -> sum all
-
-      */
-
-
-    1.0 // demandInCircle/demandAll
-  }
-
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-
-
-
 
 
     //sortedTAZ.take(numberOfVehiclesToReposition)
@@ -112,29 +95,29 @@ rideHailStats
 
         val idleVehicles = rideHailingManager.getIdleVehicles
         val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
-        val timeWindowSizeInSecForDecidingAboutRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning
+      val timeWindowSizeInSecForDecidingAboutRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning
         val percentageOfVehiclesToReposition = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition
         val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
         val repositionCircleRadisInMeters = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters
-        val minimumNumberOfIdlingVehiclesThreshholdForRepositioning=rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning
+        val minimumNumberOfIdlingVehiclesThreshholdForRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning
 
-        val allowIncreasingRadiusIfMostDemandOutside=true
-        val minReachableDemandByVehiclesSelectedForReposition=0.1
+        val allowIncreasingRadiusIfMostDemandOutside = true
+        val minReachableDemandByVehiclesSelectedForReposition = 0.1
 
 
 
         //tncIterationStats.printMap()
 
-        assert(maxNumberOfVehiclesToReposition>0,"Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
+        assert(maxNumberOfVehiclesToReposition > 0, "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
 
 
-        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
+        val vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
 
-        var circleSize=repositionCircleRadisInMeters
+        var circleSize = repositionCircleRadisInMeters
 
-        while (demandRatioInCircleToOutside(vehiclesToReposition, circleSize,timeWindowSizeInSecForDecidingAboutRepositioning)<minReachableDemandByVehiclesSelectedForReposition){
-          circleSize=repositionCircleRadisInMeters*2
+        while (tncIterationStats.demandRatioInCircleToOutside(vehiclesToReposition, circleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
+          circleSize = repositionCircleRadisInMeters * 2
         }
 
         val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
@@ -149,7 +132,7 @@ rideHailStats
 
         whichTAZToRepositionTo
       case None =>
-      // iteration 0
+        // iteration 0
         Vector()
     }
 
@@ -159,7 +142,7 @@ rideHailStats
     //  val destination=scala.util.Random.shuffle(origin)
     // (for ((o,d)<-(origin zip destination)) yield (o.vehicleId,d.currentLocation.loc)) //.splitAt(4)._1
     // } else {
-   // Vector()
+    // Vector()
     // }
   }
 }

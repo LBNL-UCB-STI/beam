@@ -114,6 +114,10 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getDisk(x,y,radius)
   }
+
+  def getTAZInRadius(loc: Coord, radius:Double): util.Collection[TAZ] = {
+    tazQuadTree.getDisk(loc.getX,loc.getY,radius)
+  }
 }
 
 object TAZTreeMap {
