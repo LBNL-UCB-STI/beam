@@ -9,6 +9,7 @@ public class RideHailDistanceRowModel {
     private double totalSurgePricingLevel;
     private double surgePricingLevelCount;
     private double maxSurgePricingLevel;
+    private int reservationCount;
     private Map<GraphType, Double> rideHailDistanceStatMap;
 
     public RideHailDistanceRowModel() {
@@ -47,6 +48,14 @@ public class RideHailDistanceRowModel {
 
     public void setRideHailDistanceStatMap(Map<GraphType, Double> rideHailDistanceStatMap) {
         this.rideHailDistanceStatMap = rideHailDistanceStatMap;
+    }
+
+    public void setReservationCount(int reservationCount){
+        this.reservationCount = reservationCount;
+    }
+
+    public int getReservationCount(){
+        return reservationCount;
     }
 
     public double getTotalSurgePricingLevel() {
