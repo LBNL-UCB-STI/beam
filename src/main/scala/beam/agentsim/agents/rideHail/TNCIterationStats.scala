@@ -279,9 +279,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         val arrayBuffer = rhs._2
         val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0))
 
-        aggregates(i) = aggregates(i).copy(aggregates(i).sumOfRequestedRides + entry.sumOfRequestedRides,
-          aggregates(i).sumOfWaitingTimes + entry.sumOfWaitingTimes,
-          aggregates(i).sumOfIdlingVehicles + entry.sumOfIdlingVehicles)
+        aggregates(i) = aggregates(i).aggregate(entry)
 
         columns = columns + entry + "\t\t"
       })
