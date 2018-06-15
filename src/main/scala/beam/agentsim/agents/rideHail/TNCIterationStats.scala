@@ -207,15 +207,21 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   }
 
 
-  def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double,allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
-    var updatedCircleSize=circleSize
+  val maxRadiusInMeters=100 * 1000
 
-    while (vehiclesToReposition.size>0 && allowIncreasingRadiusIfMostDemandOutside && demandRatioInCircleToOutside(vehiclesToReposition, updatedCircleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
-      updatedCircleSize = updatedCircleSize * 2
-      log.debug(s"search radius for repositioning algorithm increased: $updatedCircleSize")
+
+  def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleRadiusInMeters: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double, allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
+    var updatedRadius=circleRadiusInMeters
+
+    while (vehiclesToReposition.size>0 && allowIncreasingRadiusIfMostDemandOutside && updatedRadius<maxRadiusInMeters && demandRatioInCircleToOutside(vehiclesToReposition, updatedRadius, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
+      updatedRadius = updatedRadius * 2
     }
 
-    updatedCircleSize
+    if (circleRadiusInMeters!=updatedRadius){
+      log.debug(s"search radius for repositioning algorithm increased: $updatedRadius")
+    }
+
+    updatedRadius
   }
 
 
