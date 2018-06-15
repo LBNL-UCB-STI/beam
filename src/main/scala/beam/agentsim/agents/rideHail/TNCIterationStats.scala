@@ -1,11 +1,17 @@
 package beam.agentsim.agents.rideHail
 
+import java.lang.{Double => JDouble}
+
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
+import beam.utils.DebugLib
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
+import org.slf4j.LoggerFactory
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -16,6 +22,8 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
                              timeBinSizeInSec: Double,
                              numberOfTimeBins: Int) {
 
+
+  private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
 
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
@@ -40,14 +48,14 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     * }
     */
   def whichCoordToRepositionTo(vehiclesToReposition: Vector[RideHailingAgentLocation],
-                               repositionCircleRadiusInMeters: Int,
-                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Int, beamServices: BeamServices):
+                               repositionCircleRadiusInMeters: Double,
+                               tick: Double, timeHorizonToConsiderForIdleVehiclesInSec: Double, beamServices: BeamServices):
   Vector[(Id[vehicles.Vehicle], Location)] = {
 
     // TODO: read from config and tune weights
-    val distanceWeight=1.0
-    val waitingTimeWeight=1.0
-    val demandWeight=1.0
+    val distanceWeight = 1.0
+    val waitingTimeWeight = 1.0
+    val demandWeight = 1.0
 
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
@@ -70,7 +78,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val result = for ((taz, vehicles) <- tazVehicleMap) yield {
 
       val listOfTazInRadius = tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
-      val scoredTAZInRadius= collection.mutable.ListBuffer[TazScore]()
+      val scoredTAZInRadius = collection.mutable.ListBuffer[TazScore]()
 
       listOfTazInRadius.forEach { (tazInRadius) =>
         val startTimeBin = getTimeBin(tick)
@@ -79,38 +87,63 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
         val score = (startTimeBin to endTimeBin).map(
           getRideHailStatsInfo(tazInRadius.tazId, _) match {
             case Some(statsEntry) =>
-              val distanceInMeters=beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-              val distanceScore = distanceWeight * distanceInMeters
-              val waitingTimeScore = waitingTimeWeight * statsEntry.sumOfWaitingTimes
-              val demandScore = demandWeight * statsEntry.sumOfRequestedRides
-              (distanceScore + waitingTimeScore + demandScore)
+              val distanceInMeters = beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+              val distanceScore = distanceWeight * 1 / (distanceInMeters + 1)
+              val waitingTimeScore = waitingTimeWeight * Math.log(statsEntry.sumOfWaitingTimes + 1)
+              val demandScore = demandWeight * Math.log(statsEntry.sumOfRequestedRides + 1)
+
+              val res = distanceScore + waitingTimeScore + demandScore
+              if (JDouble.isNaN(res)) {
+                DebugLib.emptyFunctionForSettingBreakPoint()
+              }
+
+              // println(s"original score: $res")
+              res
 
             case _ =>
               0
           }
         ).sum
 
-        scoredTAZInRadius+=TazScore(tazInRadius, Math.exp(score))
+        if (score > 0) {
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
+
+        scoredTAZInRadius += TazScore(tazInRadius, Math.exp(score))
       }
 
       val tazPriorityQueue = mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) => tazScore1.score.compare(tazScore2.score))
 
-      val scoreExpSumOverAllTAZInRadius=scoredTAZInRadius.map(taz => taz.score).sum
+      val scoreExpSumOverAllTAZInRadius = scoredTAZInRadius.map(taz => taz.score).sum
 
-      // TODO: sample instead of taking top n
-      scoredTAZInRadius.foreach{tazScore =>
-        tazPriorityQueue.enqueue(TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius))
+      if (scoreExpSumOverAllTAZInRadius == 0) {
+        DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
 
-     // val tmp=for (tazScore <- scoredTAZInRadius) yield {TazScore(tazScore.taz, tazScore.score/scoreExpSumOverAllTAZInRadius)}
+      val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
+      scoredTAZInRadius.foreach { tazScore =>
 
-     // val rand=scala.util.Random.nextDouble()
-     // val sumProb=0
-     // scala.util.Random.shuffle(tmp).
+        // println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
+        if (tazScore.score / scoreExpSumOverAllTAZInRadius == Double.NaN) {
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
 
 
-      vehicles.zip(tazPriorityQueue.take(vehicles.size).map(_.taz.coord))
+        mapping.add(new WeightPair(tazScore.taz, tazScore.score / scoreExpSumOverAllTAZInRadius))
+      }
+
+      val enumDistribution = new EnumeratedDistribution(mapping)
+
+      val sample = enumDistribution.sample(vehicles.size)
+
+      sample.foreach { x =>
+        val z = x.asInstanceOf[TAZ]
+        // println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
+      }
+
+      val coords = for (taz <- sample; a = taz.asInstanceOf[TAZ].coord) yield a
+      vehicles.zip(coords)
     }
 
     result.flatten.toVector
@@ -127,9 +160,12 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingAgentLocation],
                                                     maxNumberOfVehiclesToReposition: Double,
                                                     tick: Double,
-                                                    timeHorizonToConsiderForIdleVehiclesInSec: Int): Vector[RideHailingAgentLocation] = {
+                                                    timeHorizonToConsiderForIdleVehiclesInSec: Double,
+                                                    thresholdForMinimumNumberOfIdlingVehicles: Int): Vector[RideHailingAgentLocation] = {
 
     val priorityQueue = mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
+
+    // TODO: group by TAZ to avoid evaluation twice
 
     for ((_, rhLoc) <- idleVehicles) {
 
@@ -149,7 +185,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
-    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).map(_.rideHailingAgentLocation).toVector
+    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score > thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
   }
 
   private def getTimeBin(time: Double): Int = {
@@ -181,9 +217,32 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     ???
   }
 
-  def printMap(): Unit = {
-    println("TNCIterationStats:")
-    rideHailStats.values.head.foreach(println)
+  def logMap(): Unit = {
+    log.debug("TNCIterationStats:")
+
+    var columns = "index\t\t aggregate \t\t"
+    val aggregates: ArrayBuffer[RideHailStatsEntry] = ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry(0, 0, 0))
+    rideHailStats.foreach(rhs => {
+      columns = columns + rhs._1 + "\t\t"
+    })
+    log.debug(columns)
+
+    for (i <- 1 until numberOfTimeBins) {
+      columns = ""
+      rideHailStats.foreach(rhs => {
+        val arrayBuffer = rhs._2
+        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0))
+
+        aggregates(i) = aggregates(i).copy(aggregates(i).sumOfRequestedRides + entry.sumOfRequestedRides,
+          aggregates(i).sumOfWaitingTimes + entry.sumOfWaitingTimes,
+          aggregates(i).sumOfIdlingVehicles + entry.sumOfIdlingVehicles)
+
+        columns = columns + entry + "\t\t"
+      })
+      columns = i + "\t\t" +aggregates(i) + "\t\t" + columns
+      log.debug(columns)
+    }
+
   }
 }
 
@@ -196,43 +255,66 @@ object TNCIterationStats {
     for (taz <- tazSet) {
       //val bufferA=statsA.rideHailStats.get(taz).getOrElse(mutable.ArrayBuffer.fill(numberOfTimeBins)(None))
       //val bufferB=statsB.rideHailStats.get(taz).getOrElse(mutable.ArrayBuffer.fill(numberOfTimeBins)(None))
-      result.put(taz, mergeArrayBuffer(statsA.rideHailStats(taz), statsB.rideHailStats(taz)))
+      //result.put(taz, mergeArrayBuffer(statsA.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]()) , statsB.rideHailStats.getOrElse(taz,ArrayBuffer[Option[RideHailStatsEntry]]())))
+
+
+      result.put(taz, mergeArrayBuffer(statsA.rideHailStats.get(taz), statsB.rideHailStats.get(taz)))
     }
 
     statsA.getWithDifferentMap(result)
   }
 
-  def mergeArrayBuffer(bufferA: ArrayBuffer[Option[RideHailStatsEntry]], bufferB: ArrayBuffer[Option[RideHailStatsEntry]]): ArrayBuffer[Option[RideHailStatsEntry]] = {
+  def mergeArrayBuffer(bufferA: Option[ArrayBuffer[Option[RideHailStatsEntry]]], bufferB: Option[ArrayBuffer[Option[RideHailStatsEntry]]]): ArrayBuffer[Option[RideHailStatsEntry]] = {
     val result = ArrayBuffer[Option[RideHailStatsEntry]]()
 
-    for (i <- bufferA.indices) {
-      bufferA(i) match {
+    bufferA match {
+      case Some(bufferA) =>
 
-        case Some(rideHailStatsEntryA) =>
+        bufferB match {
+          case Some(bufferB) =>
+            for (i <- bufferA.indices) {
+              bufferA(i) match {
 
-          bufferB(i) match {
+                case Some(rideHailStatsEntryA) =>
 
-            case Some(rideHailStatsEntryB) =>
-              result += Some(rideHailStatsEntryA.average(rideHailStatsEntryB))
+                  bufferB(i) match {
 
-            case None =>
-              result += Some(rideHailStatsEntryA)
-          }
+                    case Some(rideHailStatsEntryB) =>
+                      result += Some(rideHailStatsEntryA.average(rideHailStatsEntryB))
 
-        case None =>
+                    case None =>
+                      result += Some(rideHailStatsEntryA)
+                  }
 
-          bufferB(i) match {
+                case None =>
 
-            case Some(rideHailStatsEntryB) =>
-              result += Some(rideHailStatsEntryB)
+                  bufferB(i) match {
 
-            case None =>
-              result += None
-          }
-      }
+                    case Some(rideHailStatsEntryB) =>
+                      result += Some(rideHailStatsEntryB)
+
+                    case None =>
+                      result += None
+                  }
+              }
+            }
+
+            result
+
+          case None =>
+            bufferA
+
+        }
+
+      case None =>
+        bufferB match {
+          case Some(bufferB) =>
+            bufferB
+          case None =>
+            result
+        }
     }
 
-    result
   }
 }
 

@@ -156,9 +156,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             null
         }
 
-        val rideHailingName = s"rideHailingAgent-${person.getId}"
+        val rideHailingName = s"rideHailAgent-${person.getId}"
         val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-        val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-${person.getId}")
+        val rideHailVehicleId = Id.createVehicleId(s"rideHailVehicle-${person.getId}")
         val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
         val rideHailingAgentPersonId: Id[RideHailingAgent] = Id.create(rideHailingName,classOf[RideHailingAgent])
         val information = Option(rideHailVehicle.getType.getEngineInformation)

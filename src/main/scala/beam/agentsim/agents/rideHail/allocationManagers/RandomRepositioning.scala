@@ -19,10 +19,14 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+
+    val repositioningShare=rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
+    val fleetSize = rideHailingManager.resources.size
+    val numVechilesToReposition=(repositioningShare*fleetSize).toInt
     if (rideHailingManager.getIdleVehicles.size >= 2) {
       val origin=rideHailingManager.getIdleVehicles.values.toVector
       val destination=scala.util.Random.shuffle(origin)
-      for ((o, d) <- (origin zip destination)) yield (o.vehicleId, d.currentLocation.loc) //.splitAt(4)._1
+      (for ((o, d) <- (origin zip destination)) yield (o.vehicleId, d.currentLocation.loc)).splitAt(numVechilesToReposition)._1
     } else {
       Vector()
     }

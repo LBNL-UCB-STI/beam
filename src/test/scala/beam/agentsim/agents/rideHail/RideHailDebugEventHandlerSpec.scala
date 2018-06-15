@@ -1,25 +1,20 @@
 package beam.agentsim.agents.rideHail
 
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.scalatest.{Matchers, WordSpecLike}
+import beam.agentsim.agents.GenericEventsSpec
+import org.scalatest.Matchers
 
-class RideHailDebugEventHandlerSpec extends WordSpecLike with Matchers {
-
+class RideHailDebugEventHandlerSpec extends GenericEventsSpec with Matchers {
 
   "A RideHail debug handler " must {
     "detect abnormalities " in {
-      val events = EventsUtils.createEventsManager
-      val debugHandler = new RideHailDebugEventHandler(events)
+      val debugHandler = new RideHailDebugEventHandler(this.eventManager)
+
+      processHandlers(List(debugHandler))
 
 
-      val reader = new MatsimEventsReader(events)
+      val rhAbnorms = debugHandler.collectAbnormalities()
 
-      reader.readFile("test/input/beamville/test-data/beamville.events.xml")
-//      reader.readFile("output/beamville/beamville__2018-06-09_05-57-41/ITERS/it.1/1.events.xml")
-
-      debugHandler.reset(0)
-
-
+      rhAbnorms should not be empty
       //TODO: add value assertions
     }
   }

@@ -68,7 +68,7 @@ class RideHailingManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds
   }
 
-  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager
+  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
 
 
 
@@ -77,6 +77,7 @@ class RideHailingManager(
     val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
     Await.result(future, timeout.duration).asInstanceOf[Option[TNCIterationStats]]
   }
+  tncIterationStats.foreach(_.logMap())
 
 
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
@@ -87,7 +88,7 @@ class RideHailingManager(
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
       new RideHailAllocationManagerBufferedImplTemplate(this)
     case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-      new RepositioningWithLowWaitingTimes(this,tncIterationStats)
+      new RepositioningLowWaitingTimes(this,tncIterationStats)
     case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
       new RandomRepositioning(this)
     case _ =>
@@ -402,7 +403,7 @@ class RideHailingManager(
       numberOfTrips += 1
     }
 
-    println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
+    //println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
 
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
