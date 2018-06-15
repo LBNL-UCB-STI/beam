@@ -37,6 +37,9 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
     result
   }
 
+
+  var firstRepositioningOfDay=true
+
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     tncIterationStats match {
@@ -44,45 +47,52 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         // iteration >0
         //tncIterationStats.getRideHailStatsInfo()
 
+          val idleVehicles = rideHailingManager.getIdleVehicles
+          val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
+          val timeWindowSizeInSecForDecidingAboutRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning
+          val percentageOfVehiclesToReposition = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition
+          var maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
-        val idleVehicles = rideHailingManager.getIdleVehicles
-        val fleetSize = rideHailingManager.resources.size // TODO: get proper number here from rideHailManager
-      val timeWindowSizeInSecForDecidingAboutRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning
-        val percentageOfVehiclesToReposition = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition
-        val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
+          var repositionCircleRadisInMeters = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters
+          var minimumNumberOfIdlingVehiclesThreshholdForRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning
 
-        var repositionCircleRadisInMeters = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters
-        val minimumNumberOfIdlingVehiclesThreshholdForRepositioning = rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning
+          val allowIncreasingRadiusIfMostDemandOutside = true
+          val minReachableDemandByVehiclesSelectedForReposition = 0.1
 
-        val allowIncreasingRadiusIfMostDemandOutside = true
-        val minReachableDemandByVehiclesSelectedForReposition = 0.1
-
-
-
-        //tncIterationStats.printMap()
-
-        assert(maxNumberOfVehiclesToReposition > 0, "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
-
-
-
-        var vehiclesToReposition=filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
-
-        vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
-
-        repositionCircleRadisInMeters = tncIterationStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning,minReachableDemandByVehiclesSelectedForReposition,allowIncreasingRadiusIfMostDemandOutside)
+          if (firstRepositioningOfDay){
+            // allow more aggressive repositioning at start of day
+            minimumNumberOfIdlingVehiclesThreshholdForRepositioning=0
+            repositionCircleRadisInMeters=500 *1000
+            maxNumberOfVehiclesToReposition=idleVehicles.size
+            firstRepositioningOfDay=false
+          }
 
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
 
-        if (vehiclesToReposition.nonEmpty) {
-          DebugLib.emptyFunctionForSettingBreakPoint()
-        }
 
-        if (whichTAZToRepositionTo.nonEmpty) {
-          DebugLib.emptyFunctionForSettingBreakPoint()
-        }
+          //tncIterationStats.printMap()
 
-        whichTAZToRepositionTo
+          assert(maxNumberOfVehiclesToReposition > 0, "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
+
+
+          var vehiclesToReposition = filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles, minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
+
+          vehiclesToReposition = tncIterationStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThreshholdForRepositioning)
+
+          repositionCircleRadisInMeters = tncIterationStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minReachableDemandByVehiclesSelectedForReposition, allowIncreasingRadiusIfMostDemandOutside)
+
+
+          val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterationStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadisInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+
+          if (vehiclesToReposition.nonEmpty) {
+            DebugLib.emptyFunctionForSettingBreakPoint()
+          }
+
+          if (whichTAZToRepositionTo.nonEmpty) {
+            DebugLib.emptyFunctionForSettingBreakPoint()
+          }
+
+          whichTAZToRepositionTo
       case None =>
       // iteration 0
         Vector()

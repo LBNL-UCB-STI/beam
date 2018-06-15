@@ -201,21 +201,27 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
     val listOfTazInRadius = vehiclesToReposition.flatMap(vehicle => tazTreeMap.getTAZInRadius(vehicle.currentLocation.loc, circleSize).asScala.map(_.tazId)).toSet
     val demandInCircle = listOfTazInRadius.map(getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides).sum
-    val demandAll = getAggregatedRideHailStats(startTime, endTime).sumOfRequestedRides
+    val demandAll = getAggregatedRideHailStatsAllTAZ(startTime, endTime).sumOfRequestedRides
     val result = if(demandAll > 0) demandInCircle.toDouble / demandAll.toDouble else Double.PositiveInfinity
     result
   }
 
 
-  def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double,allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
-    var updatedCircleSize=circleSize
+  val maxRadiusInMeters=10 * 1000
 
-    while (vehiclesToReposition.size>0 && allowIncreasingRadiusIfMostDemandOutside && demandRatioInCircleToOutside(vehiclesToReposition, updatedCircleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
-      updatedCircleSize = updatedCircleSize * 2
-      log.debug(s"search radius for repositioning algorithm increased: $updatedCircleSize")
+
+  def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleRadiusInMeters: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double, allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
+    var updatedRadius=circleRadiusInMeters
+
+    while (vehiclesToReposition.size>0 && allowIncreasingRadiusIfMostDemandOutside && updatedRadius<maxRadiusInMeters && demandRatioInCircleToOutside(vehiclesToReposition, updatedRadius, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
+      updatedRadius = updatedRadius * 2
     }
 
-    updatedCircleSize
+    if (circleRadiusInMeters!=updatedRadius){
+      log.debug(s"search radius for repositioning algorithm increased: $updatedRadius")
+    }
+
+    updatedRadius
   }
 
 
@@ -252,7 +258,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     RideHailStatsEntry.aggregate((startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList)
   }
 
-  def getAggregatedRideHailStats(startTime: Double, endTime: Double): RideHailStatsEntry = {
+  def getAggregatedRideHailStatsAllTAZ(startTime: Double, endTime: Double): RideHailStatsEntry = {
     val startTimeBin = getTimeBin(startTime)
     val endTimeBin = getTimeBin(endTime)
 
