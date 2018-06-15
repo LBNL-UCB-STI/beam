@@ -192,11 +192,17 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def demandRatioInCircleToOutside(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double): Double = {
     import scala.collection.JavaConverters._
     val startTime = tick
+
+    if (circleSize==Double.PositiveInfinity){
+        DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+
     val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
     val listOfTazInRadius = vehiclesToReposition.flatMap(vehicle => tazTreeMap.getTAZInRadius(vehicle.currentLocation.loc, circleSize).asScala.map(_.tazId)).toSet
     val demandInCircle = listOfTazInRadius.map(getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides).sum
     val demandAll = getAggregatedRideHailStats(startTime, endTime).sumOfRequestedRides
-    val result = if(demandAll > 0) demandInCircle / demandAll else Double.PositiveInfinity
+    val result = if(demandAll > 0) demandInCircle.toDouble / demandAll.toDouble else Double.PositiveInfinity
     result
   }
 
@@ -204,8 +210,9 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double,allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
     var updatedCircleSize=circleSize
 
-    while (allowIncreasingRadiusIfMostDemandOutside && demandRatioInCircleToOutside(vehiclesToReposition, updatedCircleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
+    while (vehiclesToReposition.size>0 && allowIncreasingRadiusIfMostDemandOutside && demandRatioInCircleToOutside(vehiclesToReposition, updatedCircleSize, tick, timeWindowSizeInSecForDecidingAboutRepositioning) < minReachableDemandByVehiclesSelectedForReposition) {
       updatedCircleSize = updatedCircleSize * 2
+      log.debug(s"search radius for repositioning algorithm increased: $updatedCircleSize")
     }
 
     updatedCircleSize

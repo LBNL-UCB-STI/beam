@@ -5,6 +5,7 @@ import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHai
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -44,7 +45,13 @@ object RideHailStatsEntry {
   def empty: RideHailStatsEntry = RideHailStatsEntry(0,0,0)
 
   def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = {
-    rideHailStats.collect { case Some(statsEntry) => statsEntry }.reduce((e1, e2) => e1.aggregate(e2))
+    val collection=rideHailStats.flatten
+
+    if (collection.isEmpty){
+      empty
+    } else {
+      collection.reduce((e1, e2) => e1.aggregate(e2))
+    }
   }
 }
 
