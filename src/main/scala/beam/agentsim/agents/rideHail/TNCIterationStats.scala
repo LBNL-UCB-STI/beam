@@ -201,13 +201,13 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
     val listOfTazInRadius = vehiclesToReposition.flatMap(vehicle => tazTreeMap.getTAZInRadius(vehicle.currentLocation.loc, circleSize).asScala.map(_.tazId)).toSet
     val demandInCircle = listOfTazInRadius.map(getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides).sum
-    val demandAll = getAggregatedRideHailStats(startTime, endTime).sumOfRequestedRides
+    val demandAll = getAggregatedRideHailStatsAllTAZ(startTime, endTime).sumOfRequestedRides
     val result = if(demandAll > 0) demandInCircle.toDouble / demandAll.toDouble else Double.PositiveInfinity
     result
   }
 
 
-  val maxRadiusInMeters=100 * 1000
+  val maxRadiusInMeters=10 * 1000
 
 
   def getUpdatedCircleSize(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleRadiusInMeters: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double, minReachableDemandByVehiclesSelectedForReposition:Double, allowIncreasingRadiusIfMostDemandOutside:Boolean): Double ={
@@ -258,7 +258,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     RideHailStatsEntry.aggregate((startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList)
   }
 
-  def getAggregatedRideHailStats(startTime: Double, endTime: Double): RideHailStatsEntry = {
+  def getAggregatedRideHailStatsAllTAZ(startTime: Double, endTime: Double): RideHailStatsEntry = {
     val startTimeBin = getTimeBin(startTime)
     val endTimeBin = getTimeBin(endTime)
 
