@@ -808,6 +808,11 @@ class RideHailingManager(
 
   def getClosestIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[(RideHailingAgentLocation,
     Double)] = {
+    getIdleVehiclesWithinRadius(pickupLocation, radius).sortBy(_._2)
+  }
+
+  def getIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[(RideHailingAgentLocation,
+    Double)] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
     val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
@@ -816,12 +821,16 @@ class RideHailingManager(
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2)
+    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId))
   }
 
   def getClosestIdleRideHailingAgent(pickupLocation: Coord,
                                      radius: Double): Option[(RideHailingAgentLocation, Double)] = {
-    getClosestIdleVehiclesWithinRadius(pickupLocation, radius).headOption
+    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius)
+    if (idleVehicles.isEmpty) None
+    else {
+      Some(idleVehicles.minBy { case (location, radius) => radius })
+    }
   }
 
 
