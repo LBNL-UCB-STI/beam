@@ -188,6 +188,32 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score > thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
   }
 
+
+  def demandRatioInCircleToOutside(vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation], circleSize: Double, tick: Double, timeWindowSizeInSecForDecidingAboutRepositioning: Double): Double = {
+
+    /* sum of demand for TAZs in cirlce around vehicles
+
+      demandInCircle=go through vehilces -> sum up demand in time window -> sum all // TODO: also add method for input: (TAZ,startime,endTime) -> collection(RideHailStatsEntry)
+
+      demandAll=sum up demand in time window -> sum all
+
+      */
+    import scala.collection.JavaConverters._
+
+    val startTime = tick
+    val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
+
+    val listOfTazInRadius = vehiclesToReposition.flatMap(vehicle => tazTreeMap.getTAZInRadius(vehicle.currentLocation.loc, circleSize).asScala.map(_.tazId)).toSet
+
+    val demandInCircle = listOfTazInRadius.map(getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides).sum
+
+    val demandAll = getAggregatedRideHailStats(startTime, endTime).sumOfRequestedRides
+
+    val result = if(demandAll > 0) demandInCircle / demandAll else 0
+    result
+  }
+
+
   private def getTimeBin(time: Double): Int = {
     (time / timeBinSizeInSec).toInt
   }
@@ -206,6 +232,26 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
   def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
 
     rideHailStats.get(tazId.toString).flatMap(ab => ab(timeBin))
+  }
+
+  def getAggregatedRideHailStats(coord: Coord, startTime: Double, endTime: Double): RideHailStatsEntry = {
+    val tazId = tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
+
+    getAggregatedRideHailStats(tazId, startTime, endTime)
+  }
+
+  def getAggregatedRideHailStats(tazId: Id[TAZ], startTime: Double, endTime: Double): RideHailStatsEntry = {
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+
+    RideHailStatsEntry.aggregate((startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList)
+  }
+
+  def getAggregatedRideHailStats(startTime: Double, endTime: Double): RideHailStatsEntry = {
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+
+    RideHailStatsEntry.aggregate((startTimeBin to endTimeBin).flatMap(timeBin => rideHailStats.collect { case (_, stats) => stats(timeBin) }).toList)
   }
 
   // TODO: implement according to description
@@ -239,7 +285,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
 
         columns = columns + entry + "\t\t"
       })
-      columns = i + "\t\t" +aggregates(i) + "\t\t" + columns
+      columns = i + "\t\t" + aggregates(i) + "\t\t" + columns
       log.debug(columns)
     }
 
