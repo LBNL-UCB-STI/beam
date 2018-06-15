@@ -73,7 +73,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   private val rideHailEventsTuples = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
   private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
-  private val vehicleActiveBins = mutable.Map[String, mutable.Map[String, mutable.Set[Int]]]()
   private val vehicles = mutable.Map[String, Boolean]()
 
   var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
@@ -97,8 +96,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     rideHailLastEvent.clear()
 
     vehicleIdlingBins.clear()
-
-    vehicleActiveBins.clear()
 
     rideHailEventsTuples.clear()
 
@@ -174,7 +171,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
       vehicles.put(vehicleId, true)
 
-      collectActiveVehicles(vehicleId, pathTraversalEvent)
+      collectIdlingVehicles(vehicleId, pathTraversalEvent)
     }
   }
 
@@ -220,28 +217,23 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     }
   }
 
-  private def collectActiveVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
+  private def collectIdlingVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
 
     val startTazId = getStartTazId(currentEvent)
     val endTazId = getEndTazId(currentEvent)
 
-    //log.debug(currentEvent.toString)
-
     val startTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
     val endTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-
 
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
     log.debug(s"startTazId($startTazId), endTazId($endTazId), startTime($startTime), endTime($endTime), numberOfPassengers(${currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)})")
 
-
     var idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins
       case None => mutable.Map[Int, String]()
     }
-
 
     val iB = rideHailLastEvent.get(vehicleId) match {
 
@@ -260,27 +252,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     }
     idlingBins ++= iB
 
-    //    val allBins = ((startBin until endingBin).map((_,startTazId)).toMap + (endingBin-> endTazId)) ++ idlingBins
-
     vehicleIdlingBins.put(vehicleId, idlingBins)
     rideHailLastEvent.put(vehicleId, currentEvent)
-
-
-    val tazVehicles = vehicleActiveBins.get(startTazId) match {
-      case Some(vehicles) => vehicles
-      case None => mutable.Map.empty[String, mutable.Set[Int]]
-    }
-
-    var activeBins = tazVehicles.get(vehicleId) match {
-      case Some(bins) => bins
-      case None => mutable.Set[Int]()
-    }
-
-
-    activeBins ++= (startBin to endingBin).toSet
-
-    tazVehicles.put(vehicleId, activeBins)
-    vehicleActiveBins.put(startTazId, tazVehicles)
   }
 
   private def updateStatsForIdlingVehicles(): Unit = {
@@ -330,32 +303,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         case _ => false
       }
     })
-
-    /*val c = vehicleIdlingBins.count(vehicle => {
-      val bins = vehicle._2
-      bins.get(binIndex) match {
-        case Some(_) => false
-        case None =>
-          val taz = bins.keySet.find(binIndex < _) match {
-            case Some(first) => bins.get(first)
-            case None => bins.values.lastOption
-          }
-          taz match {
-            case Some(t) if t == tazId => true
-            case _ => false
-          }
-      }
-    })*/
-
-    /*
-        val totalVehicles = vehicleActiveBins.flatMap(_._2.keySet).toSet.size
-        vehicleActiveBins.get(tazId) match {
-          case Some(vehBins) =>
-            val noOfActiveVehicles = vehBins.count(_._2.contains(binIndex))
-            totalVehicles - noOfActiveVehicles
-          case None =>
-            totalVehicles
-        }*/
   }
 
   private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
