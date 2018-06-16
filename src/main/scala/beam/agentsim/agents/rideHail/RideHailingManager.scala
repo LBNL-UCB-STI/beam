@@ -1,5 +1,6 @@
 package beam.agentsim.agents.rideHail
 
+import java.awt.Color
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
@@ -27,7 +28,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.DebugLib
+import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
@@ -303,6 +304,29 @@ class RideHailingManager(
       modifyPassengerScheduleManager.printState()
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
+
+
+      if(tick>0 && tick.toInt%3600==0 && tick < 24*3600){
+        val spatialPlot=new SpatialPlot(1000,1000)
+
+        for(veh<-resources.values){
+          spatialPlot.addPoint(PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc,Color.BLACK,5))
+        }
+
+
+
+        tncIterationStats.foreach( tncIterationStats=> {
+
+          val tazEntries=tncIterationStats getCoordinatesWithRideHailStatsEntry(tick,tick+3600)
+
+          for (tazEntry <- tazEntries.filter( x => x._2.sumOfRequestedRides>0)){
+            spatialPlot.addPoint(PointToPlot(tazEntry._1,Color.RED,1+ Math.log(tazEntry._2.sumOfRequestedRides).toInt))
+          }
+        })
+
+        spatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber,tick.toInt/3600 + "locationOfAgentsInitally.png"))
+      }
+
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
       log.debug(s"getIdleVehicles().size:${getIdleVehicles.size}")

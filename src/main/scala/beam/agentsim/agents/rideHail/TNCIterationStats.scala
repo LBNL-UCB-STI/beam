@@ -258,6 +258,23 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     RideHailStatsEntry.aggregate((startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList)
   }
 
+  def getCoordinatesWithRideHailStatsEntry(startTime: Double, endTime: Double):ListBuffer[(Coord,RideHailStatsEntry)]={
+    var result= collection.mutable.ListBuffer[(Coord,RideHailStatsEntry)]()
+
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+
+    for (tazIdString <- rideHailStats.keySet){
+      val rideHailStatsEntry = getAggregatedRideHailStats(Id.create(tazIdString,classOf[TAZ]), startTime, endTime)
+
+      result += ((tazTreeMap.getTAZ(tazIdString).get.coord,rideHailStatsEntry))
+    }
+
+    result
+  }
+
+
+
   def getAggregatedRideHailStatsAllTAZ(startTime: Double, endTime: Double): RideHailStatsEntry = {
     val startTimeBin = getTimeBin(startTime)
     val endTimeBin = getTimeBin(endTime)

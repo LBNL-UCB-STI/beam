@@ -105,9 +105,24 @@ object TAZCreatorScript extends App {
 }
 
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
+
+  val stringIdToTAZMapping=collection.mutable.HashMap[String,TAZ]()
+
+  for (taz:TAZ <- tazQuadTree.values().asScala){
+    stringIdToTAZMapping.put(taz.tazId.toString,taz)
+  }
+
   def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
+  }
+
+  def getTAZ(tazId:String): Option[TAZ] ={
+    stringIdToTAZMapping.get(tazId)
+  }
+
+  def getTAZ(tazId:Id[TAZ]): Option[TAZ] ={
+    stringIdToTAZMapping.get(tazId.toString)
   }
 
   def getTAZInRadius(x: Double, y: Double, radius:Double): util.Collection[TAZ] = {

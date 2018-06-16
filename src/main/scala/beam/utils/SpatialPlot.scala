@@ -35,7 +35,7 @@ case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
     }
 
     def getImageProjectedCoordinates(originalCoord:Coord, width:Int, height:Int):Coord={
-      if (minX!=maxX){
+      if (minX==maxX){
         new Coord(width/2, height/2)
       } else {
         new Coord((originalCoord.getX - minX) / (maxX - minX) * width, (originalCoord.getY - minY) / (maxY - minY) * height)
