@@ -1,6 +1,9 @@
 package beam.utils
 
-import java.awt.{BasicStroke, Color, Font}
+import java.awt.{BasicStroke, Color, Font, Graphics2D}
+import java.awt.geom.Point2D
+import java.awt.Stroke
+
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -79,12 +82,15 @@ class SpatialPlot(width:Int, height:Int){
     val graphics2d = bufferedImage.createGraphics();
 
     for (lineToPlot <- linesToPlot) {
-      val stroke = new BasicStroke(lineToPlot.stroke)
-      graphics2d.setStroke(stroke)
+      //val stroke = new BasicStroke(lineToPlot.stroke)
+      //graphics2d.setStroke(stroke)
       graphics2d.setColor(lineToPlot.color)
       val projectedStartCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.startCoord,width,height)
       val projectedEndCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.endCoord,width,height)
-      graphics2d.drawLine(projectedStartCoord.getX.toInt, projectedStartCoord.getY.toInt, projectedEndCoord.getX.toInt, projectedEndCoord.getY.toInt)
+
+      drawArrow(graphics2d,new Point2D.Double(projectedStartCoord.getX,projectedStartCoord.getY),new Point2D.Double(projectedEndCoord.getX,projectedEndCoord.getY),new BasicStroke(lineToPlot.stroke),new BasicStroke(lineToPlot.stroke*10),lineToPlot.stroke*10)
+
+      //graphics2d.drawLine(projectedStartCoord.getX.toInt, projectedStartCoord.getY.toInt, projectedEndCoord.getX.toInt, projectedEndCoord.getY.toInt)
     }
 
 
@@ -105,6 +111,43 @@ class SpatialPlot(width:Int, height:Int){
     }
 
     ImageIO.write(bufferedImage, "PNG", new File(path));
+  }
+
+
+  def drawArrow (gfx:Graphics2D, start:Point2D, end:Point2D , lineStroke:Stroke, arrowStroke:Stroke,  arrowSize:Float):Unit = {
+    import java.awt.geom.GeneralPath
+
+    val startx = start.getX
+    val starty = start.getY
+
+    gfx.setStroke(arrowStroke)
+    val deltax = startx - end.getX
+    var result = .0
+    if (deltax == 0.0d) result = Math.PI / 2
+    else result = Math.atan((starty - end.getY) / deltax) + (if (startx < end.getX) Math.PI
+    else 0)
+
+    val angle = result
+
+    val arrowAngle = Math.PI / 12.0d
+
+    val x1 = arrowSize * Math.cos(angle - arrowAngle)
+    val y1 = arrowSize * Math.sin(angle - arrowAngle)
+    val x2 = arrowSize * Math.cos(angle + arrowAngle)
+    val y2 = arrowSize * Math.sin(angle + arrowAngle)
+
+    val cx = (arrowSize / 2.0f) * Math.cos(angle)
+    val cy = (arrowSize / 2.0f) * Math.sin(angle)
+
+    val polygon = new GeneralPath
+    polygon.moveTo(end.getX, end.getY)
+    polygon.lineTo(end.getX + x1, end.getY + y1)
+    polygon.lineTo(end.getX + x2, end.getY + y2)
+    polygon.closePath()
+    gfx.fill(polygon)
+
+    gfx.setStroke(lineStroke)
+    gfx.drawLine(startx.toInt, starty.toInt, (end.getX + cx).asInstanceOf[Int], (end.getY + cy).asInstanceOf[Int])
   }
 
 }
@@ -146,7 +189,7 @@ object SpatialPlot extends App {
     spatialPlot.addPoint(PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,5))
   }
 
-  spatialPlot.addLine(LineToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,5))
+  spatialPlot.addLine(LineToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,2))
 
   spatialPlot.addString(StringToPlot("X",new Coord(Random.nextDouble(), Random.nextDouble()),Color.green,100))
 
