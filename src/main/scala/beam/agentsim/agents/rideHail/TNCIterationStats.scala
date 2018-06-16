@@ -185,7 +185,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
-    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score > thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
+    priorityQueue.take(maxNumberOfVehiclesToReposition.toInt).filter(vehicleLocationScores => vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles).map(_.rideHailingAgentLocation).toVector
   }
 
 

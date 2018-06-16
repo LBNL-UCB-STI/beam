@@ -8,7 +8,8 @@ import javax.imageio.ImageIO
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
-import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
+import beam.utils.SpatialPlot.spatialPlot
+import beam.utils.{DebugLib, LineToPlot, PointToPlot, SpatialPlot}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -101,13 +102,13 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           }
 
 
-        val produceDebugImages = false
+        val produceDebugImages = true
         if (produceDebugImages) {
           if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
             val spatialPlot = new SpatialPlot(1000, 1000)
 
             for (vehToRepso <- rideHailingManager.getIdleVehicles.values) {
-              spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
+             // spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
             }
 
               val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
@@ -118,7 +119,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
             for (vehToRepso <- whichTAZToRepositionTo) {
-              spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, Color.YELLOW, 10))
+              spatialPlot.addLine(LineToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc,vehToRepso._2,Color.blue,3))
+              //spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, Color.YELLOW, 10))
             }
 
             spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png"))
@@ -129,7 +131,19 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           whichTAZToRepositionTo
       case None =>
       // iteration 0
-        Vector()
+
+        val idleVehicles = rideHailingManager.getIdleVehicles
+
+        if (firstRepositioningOfDay && !idleVehicles.isEmpty){
+          // these are zero distance repositionings
+          // => this is a hack, as the tnc iteration stats does not know the initial position of any rideHailVehicle unless it has at least one pathTraversal during the day
+          // this is needed to account for idling vehicles by TAZ, even if they are not moving during the whole day
+          firstRepositioningOfDay=false
+          val result=idleVehicles.map( idle => (idle._1,idle._2.currentLocation.loc)).toVector
+          result
+        } else {
+          Vector()
+        }
     }
 
 
