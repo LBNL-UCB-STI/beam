@@ -1,6 +1,6 @@
 package beam.utils
 
-import java.awt.Color
+import java.awt.{BasicStroke, Color, Font}
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -12,7 +12,8 @@ import scala.util.Random
 
 
 case class PointToPlot(val coord:Coord, val color:Color, val size:Int)
-
+case class LineToPlot(val startCoord:Coord, val endCoord:Coord,  val color:Color, val stroke:Int)
+case class StringToPlot(val text:String,val coord:Coord, val color:Color, val fontSize:Int)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
@@ -48,23 +49,54 @@ class SpatialPlot(width:Int, height:Int){
 
   val pointsToPlot= collection.mutable.ListBuffer[PointToPlot]()
 
+  val linesToPlot= collection.mutable.ListBuffer[LineToPlot]()
+
+  val stringsToPlot= collection.mutable.ListBuffer[StringToPlot]()
+
   val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
+  val boundsCalculator=new BoundsCalculator
 
+  def addLine(line: LineToPlot) = {
+    linesToPlot+=line
+    boundsCalculator.addPoint(line.startCoord)
+    boundsCalculator.addPoint(line.endCoord)
+  }
 
+  def addString(stringToPlot: StringToPlot) = {
+    stringsToPlot+=stringToPlot
+    boundsCalculator.addPoint(stringToPlot.coord)
+  }
 
   def addPoint(point: PointToPlot) = {
     pointsToPlot+=point
+    boundsCalculator.addPoint(point.coord)
   }
 
   def writeImage(path: String): Unit ={
-    val boundsCalculator=new BoundsCalculator
-    for (pointToPlot <- pointsToPlot){
-      boundsCalculator.addPoint(pointToPlot.coord)
-    }
     val bound=boundsCalculator.getBound
 
     val graphics2d = bufferedImage.createGraphics();
+
+    for (lineToPlot <- linesToPlot) {
+      val stroke = new BasicStroke(lineToPlot.stroke)
+      graphics2d.setStroke(stroke)
+      graphics2d.setColor(lineToPlot.color)
+      val projectedStartCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.startCoord,width,height)
+      val projectedEndCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.endCoord,width,height)
+      graphics2d.drawLine(projectedStartCoord.getX.toInt, projectedStartCoord.getY.toInt, projectedEndCoord.getX.toInt, projectedEndCoord.getY.toInt)
+    }
+
+
+    for (stringToPlot <- stringsToPlot) {
+      val font= new Font("Serif", Font.PLAIN, stringToPlot.fontSize)
+      graphics2d.setFont(font)
+      graphics2d.setColor(stringToPlot.color)
+      val projectedCoord=boundsCalculator.getImageProjectedCoordinates(stringToPlot.coord,width,height)
+      graphics2d.drawString(stringToPlot.text,projectedCoord.getX.toInt, projectedCoord.getY.toInt)
+    }
+
+
 
     for (pointToPlot <- pointsToPlot){
       graphics2d.setColor(pointToPlot.color)
@@ -110,9 +142,16 @@ object SpatialPlot extends App {
 
   val spatialPlot=new SpatialPlot(1000,1000)
 
-  for (i <- 1 until 10) {
-    spatialPlot.addPoint(PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),Color.WHITE,5))
+  for (i <- 1 until 100) {
+    spatialPlot.addPoint(PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,5))
   }
+
+  spatialPlot.addLine(LineToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,5))
+
+  spatialPlot.addString(StringToPlot("X",new Coord(Random.nextDouble(), Random.nextDouble()),Color.green,100))
+
+
+
 
   spatialPlot.writeImage("c:\\temp\\name.png")
 
