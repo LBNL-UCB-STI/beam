@@ -41,6 +41,7 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor:ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
+  var matsimServices:MatsimServices
 
 
   var iterationNumber = -1
@@ -60,6 +61,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+  var matsimServices:MatsimServices =_
 
   def clearAll = {
     personRefs.clear

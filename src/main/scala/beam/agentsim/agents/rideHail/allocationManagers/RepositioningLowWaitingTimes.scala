@@ -1,13 +1,19 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
+import java.awt.{Color, Graphics2D}
+import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
+
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
-import beam.utils.DebugLib
-import org.matsim.api.core.v01.Id
+import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
+import scala.util.Random
 
 class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
@@ -59,7 +65,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           val allowIncreasingRadiusIfMostDemandOutside = true
           val minReachableDemandByVehiclesSelectedForReposition = 0.1
 
-          if (firstRepositioningOfDay){
+          if (firstRepositioningOfDay & tick>0){
             // allow more aggressive repositioning at start of day
             minimumNumberOfIdlingVehiclesThreshholdForRepositioning=0
             repositionCircleRadisInMeters=500 *1000

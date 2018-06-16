@@ -77,6 +77,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 
+    beamServices.matsimServices=event.getServices
+
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
       transportNetwork,
