@@ -72,10 +72,9 @@ class RideHailingManager(
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
 
 
-
-  val tncIterationStats:Option[TNCIterationStats]={
+  val tncIterationStats: Option[TNCIterationStats] = {
     val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
-    val future=rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
+    val future = rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
     Await.result(future, timeout.duration).asInstanceOf[Option[TNCIterationStats]]
   }
   tncIterationStats.foreach(_.logMap())
@@ -89,7 +88,7 @@ class RideHailingManager(
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
       new RideHailAllocationManagerBufferedImplTemplate(this)
     case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-      new RepositioningLowWaitingTimes(this,tncIterationStats)
+      new RepositioningLowWaitingTimes(this, tncIterationStats)
     case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
       new RandomRepositioning(this)
     case _ =>
@@ -163,7 +162,7 @@ class RideHailingManager(
       //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
       resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver.foreach(driver => {
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
-        if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId,passengerSchedule)) {
+        if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId, passengerSchedule)) {
           log.debug(s"Making available: $vehicleId")
           // we still might have some ongoing resrvation in going on
           makeAvailable(rideHailingAgentLocation)
@@ -245,8 +244,8 @@ class RideHailingManager(
 
         travelProposalCache.put(request.requestId.toString, travelProposal)
 
-//        log.debug(s"Found ridehail ${rideHailingLocation.vehicleId} for person=${request.customer.personId} and ${request.requestType} " +
-//          s"requestId=${request.requestId}, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
+        //        log.debug(s"Found ridehail ${rideHailingLocation.vehicleId} for person=${request.customer.personId} and ${request.requestType} " +
+        //          s"requestId=${request.requestId}, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
 
         request.requestType match {
           case RideHailingInquiry =>
@@ -305,32 +304,33 @@ class RideHailingManager(
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
 
+      val produceDebugImages = false
+      if (produceDebugImages) {
+        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
+          val spatialPlot = new SpatialPlot(1000, 1000)
 
-      if(tick>0 && tick.toInt%3600==0 && tick < 24*3600){
-        val spatialPlot=new SpatialPlot(1000,1000)
-
-        for(veh<-resources.values){
-          spatialPlot.addPoint(PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc,Color.BLACK,5))
-        }
-
-
-
-        tncIterationStats.foreach( tncIterationStats=> {
-
-          val tazEntries=tncIterationStats getCoordinatesWithRideHailStatsEntry(tick,tick+3600)
-
-          for (tazEntry <- tazEntries.filter( x => x._2.sumOfRequestedRides>0)){
-            spatialPlot.addPoint(PointToPlot(tazEntry._1,Color.RED,1+ Math.log(tazEntry._2.sumOfRequestedRides).toInt))
+          for (veh <- resources.values) {
+            spatialPlot.addPoint(PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5))
           }
-        })
 
-        spatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber,tick.toInt/3600 + "locationOfAgentsInitally.png"))
+
+          tncIterationStats.foreach(tncIterationStats => {
+
+            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
+
+            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+              spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt))
+            }
+          })
+
+          spatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png"))
+        }
       }
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
       log.debug(s"getIdleVehicles().size:${getIdleVehicles.size}")
-      getIdleVehicles.foreach( x => log.debug("getIdleVehicles():"+x._1.toString))
+      getIdleVehicles.foreach(x => log.debug("getIdleVehicles():" + x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
@@ -340,7 +340,7 @@ class RideHailingManager(
         modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
 
 
-     //   printRepositionDistanceSum(repositionVehicles)
+        //   printRepositionDistanceSum(repositionVehicles)
       }
 
       for (repositionVehicle <- repositionVehicles) {
@@ -503,7 +503,7 @@ class RideHailingManager(
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 
-  private def isAvailable(vehicleId: Id[Vehicle]): Boolean ={
+  private def isAvailable(vehicleId: Id[Vehicle]): Boolean = {
     availableRideHailVehicles.contains(vehicleId)
   }
 
@@ -606,7 +606,7 @@ class RideHailingManager(
 
 
   private def handleReservationRequest(request: RideHailingRequest): Unit = {
-//    log.debug(s"handleReservationRequest: $request")
+    //    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailingAgentLocation.vehicleId) ||
