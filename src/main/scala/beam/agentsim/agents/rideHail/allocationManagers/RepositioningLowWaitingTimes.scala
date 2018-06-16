@@ -100,6 +100,32 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
             DebugLib.emptyFunctionForSettingBreakPoint()
           }
 
+
+        val produceDebugImages = false
+        if (produceDebugImages) {
+          if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
+            val spatialPlot = new SpatialPlot(1000, 1000)
+
+            for (vehToRepso <- rideHailingManager.getIdleVehicles.values) {
+              spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
+            }
+
+              val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
+
+              for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+                spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt))
+              }
+
+
+            for (vehToRepso <- whichTAZToRepositionTo) {
+              spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, Color.YELLOW, 10))
+            }
+
+            spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png"))
+          }
+        }
+
+
           whichTAZToRepositionTo
       case None =>
       // iteration 0

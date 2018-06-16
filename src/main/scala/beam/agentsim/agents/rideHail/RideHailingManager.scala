@@ -460,7 +460,7 @@ class RideHailingManager(
     getRideHailAgentLocation(vehicleId).agentRef
   }
 
-  private def getRideHailAgentLocation(vehicleId: Id[Vehicle]): RideHailingAgentLocation = {
+  def getRideHailAgentLocation(vehicleId: Id[Vehicle]): RideHailingAgentLocation = {
     getIdleVehicles.getOrElse(vehicleId, inServiceRideHailVehicles(vehicleId))
   }
 
