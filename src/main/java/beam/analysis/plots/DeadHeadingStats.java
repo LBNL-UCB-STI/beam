@@ -114,13 +114,14 @@ public class DeadHeadingStats implements IGraphStats {
     private void processEventForTncDeadheadingDistanceGraph(Event event) {
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        Map<String, String> attributes = event.getAttributes();
+        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+            Double length = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
             if (_num_passengers > 0) {
                 Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vehicle_id);
@@ -301,8 +302,9 @@ public class DeadHeadingStats implements IGraphStats {
 
     private void processEventForTncPassengerPerTripGraph(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        Map<String, String> attributes = event.getAttributes();
+        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
         Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
         boolean validCase = isValidCase(graphName, _num_passengers);
