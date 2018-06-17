@@ -7,9 +7,10 @@ import javax.imageio.ImageIO
 
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
+import beam.agentsim.infrastructure.TAZ
 import beam.router.BeamRouter.Location
 import beam.utils.SpatialPlot.spatialPlot
-import beam.utils.{DebugLib, LineToPlot, PointToPlot, SpatialPlot}
+import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -46,6 +47,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
   var firstRepositioningOfDay=true
+  var boundsCalculator:Option[BoundsCalculator]=None
+  var firstRepositionCoordsOfDay:Option[(Coord,Coord)]=None
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
@@ -69,7 +72,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           if (firstRepositioningOfDay & tick>0){
             // allow more aggressive repositioning at start of day
             minimumNumberOfIdlingVehiclesThreshholdForRepositioning=0
-            repositionCircleRadisInMeters=500 *1000
+            repositionCircleRadisInMeters=100 *1000
             maxNumberOfVehiclesToReposition=idleVehicles.size
             firstRepositioningOfDay=false
           }
@@ -103,29 +106,76 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
         val produceDebugImages = true
-        if (produceDebugImages) {
-          if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
-            val spatialPlot = new SpatialPlot(1000, 1000)
+        if (produceDebugImages && !whichTAZToRepositionTo.isEmpty) {
+          if (tick > 0 && tick < 24 * 3600) {
+            val spatialPlot = new SpatialPlot(1100, 1100, 50)
 
-            for (vehToRepso <- rideHailingManager.getIdleVehicles.values) {
-             // spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
+            //if (firstRepositionCoordOfDay.isDefined) {
+
+
+            //  spatialPlot.addString(StringToPlot("A", firstRepositionCoordOfDay.get, Color.BLACK, 50))
+
+
+              //spatialPlot.addString(StringToPlot("A", new Coord((boundsCalculator.get.minX+boundsCalculator.get.maxX)*4/10, (boundsCalculator.get.minY+boundsCalculator.get.maxY)*4/10), Color.BLACK, 50))
+              //spatialPlot.addString(StringToPlot("B",new Coord((boundsCalculator.get.minX+boundsCalculator.get.maxX)*6/10, (boundsCalculator.get.minY+boundsCalculator.get.maxY)*6/10), Color.BLACK, 50))
+              //spatialPlot.addInvisiblePointsForBoundary(new Coord((boundsCalculator.get.minX+boundsCalculator.get.maxX)*4/10, (boundsCalculator.get.minY+boundsCalculator.get.maxY)*4/10))
+              //spatialPlot.addInvisiblePointsForBoundary(new Coord((boundsCalculator.get.minX+boundsCalculator.get.maxX)*6/10, (boundsCalculator.get.minY+boundsCalculator.get.maxY)*6/10))
+           // }
+
+            // for (taz:TAZ <- tncIterationStats.tazTreeMap.getTAZs()){
+            //   spatialPlot.addInvisiblePointsForBoundary(taz.coord)
+            // }
+
+            // for (vehToRepso <- rideHailingManager.getIdleVehicles.values) {
+            // spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
+            // }
+
+            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
+
+            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+              spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt))
+              spatialPlot.addString(StringToPlot(tazEntry._2.sumOfRequestedRides.toString, tazEntry._1, Color.RED, 50))
             }
-
-              val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
-
-              for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-                spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt))
-              }
 
 
             for (vehToRepso <- whichTAZToRepositionTo) {
-              spatialPlot.addLine(LineToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc,vehToRepso._2,Color.blue,3))
+              val lineToPlot = LineToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, vehToRepso._2, Color.blue, 3)
+              spatialPlot.addLine(lineToPlot)
+
+              //log.debug(s"spatialPlot.addLine:${lineToPlot.toString}")
               //spatialPlot.addPoint(PointToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, Color.YELLOW, 10))
             }
 
-            spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png"))
+
+            /*if (firstRepositionCoordOfDay.isDefined) {
+              spatialPlot.addString(StringToPlot("A", firstRepositionCoordOfDay.get, Color.BLACK, 50))
+              spatialPlot.addString(StringToPlot("A", new Coord((spatialPlot.getBoundsCalculator().minX+spatialPlot.getBoundsCalculator().maxX)*4/10, (spatialPlot.getBoundsCalculator().minY+spatialPlot.getBoundsCalculator().maxY)*4/10), Color.BLACK, 50))
+              spatialPlot.addString(StringToPlot("B", new Coord((spatialPlot.getBoundsCalculator().minX+spatialPlot.getBoundsCalculator().maxX)*6/10, (spatialPlot.getBoundsCalculator().minY+spatialPlot.getBoundsCalculator().maxY)*6/10), Color.BLACK, 50))
+            } else {
+              spatialPlot.addString(StringToPlot("A", firstRepositionCoordOfDay.get, Color.BLACK, 50))
+            }*/
+
+            if (!firstRepositionCoordsOfDay.isDefined){
+              firstRepositionCoordsOfDay=Some(rideHailingManager.getRideHailAgentLocation(whichTAZToRepositionTo.head._1).currentLocation.loc,whichTAZToRepositionTo.head._2)
+            }
+
+            spatialPlot.addString(StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50))
+            //spatialPlot.addString(StringToPlot("B", firstRepositionCoordsOfDay.get._2, Color.BLACK, 50))
+
+            spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, (tick / 3600 * 100).toInt / 100.0 + "locationOfAgentsInitally.png"))
+
+            //if (!boundsCalculator.isDefined) {
+            //  boundsCalculator = Some(spatialPlot.getBoundsCalculator())
+            //}
+
           }
         }
+
+
+        if (whichTAZToRepositionTo.size>0){
+          //log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+        }
+
 
 
           whichTAZToRepositionTo

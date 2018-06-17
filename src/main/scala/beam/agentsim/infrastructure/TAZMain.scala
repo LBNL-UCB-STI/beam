@@ -108,6 +108,11 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   val stringIdToTAZMapping=collection.mutable.HashMap[String,TAZ]()
 
+
+  def getTAZs(): Iterable[TAZ] ={
+    tazQuadTree.values().asScala
+  }
+
   for (taz:TAZ <- tazQuadTree.values().asScala){
     stringIdToTAZMapping.put(taz.tazId.toString,taz)
   }

@@ -307,7 +307,7 @@ class RideHailingManager(
       val produceDebugImages = false
       if (produceDebugImages) {
         if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
-          val spatialPlot = new SpatialPlot(1000, 1000)
+          val spatialPlot = new SpatialPlot(1100, 1100,50)
 
           for (veh <- resources.values) {
             spatialPlot.addPoint(PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5))

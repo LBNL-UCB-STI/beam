@@ -3,7 +3,6 @@ package beam.utils
 import java.awt.{BasicStroke, Color, Font, Graphics2D}
 import java.awt.geom.Point2D
 import java.awt.Stroke
-
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -38,17 +37,20 @@ case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
       Bounds(minX,minY,maxX,maxY)
     }
 
-    def getImageProjectedCoordinates(originalCoord:Coord, width:Int, height:Int):Coord={
+    def getImageProjectedCoordinates(originalCoord:Coord, width:Int, height:Int,frame:Int):Coord={
+      val updatedWidth=width-2*frame
+      val updatedHeight=height-2*frame
+
       if (minX==maxX){
-        new Coord(width/2, height/2)
+        new Coord(updatedWidth/2, updatedHeight/2)
       } else {
-        new Coord((originalCoord.getX - minX) / (maxX - minX) * width, (originalCoord.getY - minY) / (maxY - minY) * height)
+        new Coord(frame+(originalCoord.getX - minX) / (maxX - minX) * updatedWidth, frame+(originalCoord.getY - minY) / (maxY - minY) * updatedHeight)
       }
     }
   }
 
-
-class SpatialPlot(width:Int, height:Int){
+// frame is good for text lables as they can be outside of the area otherwise
+class SpatialPlot(width:Int, height:Int, frame:Int){
 
   val pointsToPlot= collection.mutable.ListBuffer[PointToPlot]()
 
@@ -58,7 +60,19 @@ class SpatialPlot(width:Int, height:Int){
 
   val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
-  val boundsCalculator=new BoundsCalculator
+  var boundsCalculator=new BoundsCalculator
+
+  def setBoundsCalculator(boundsCalculator: BoundsCalculator){
+    this.boundsCalculator=boundsCalculator
+  }
+
+  def getBoundsCalculator(): BoundsCalculator ={
+    boundsCalculator
+  }
+
+  def addInvisiblePointsForBoundary(coord:Coord)={
+    boundsCalculator.addPoint(coord)
+  }
 
   def addLine(line: LineToPlot) = {
     linesToPlot+=line
@@ -85,29 +99,26 @@ class SpatialPlot(width:Int, height:Int){
       //val stroke = new BasicStroke(lineToPlot.stroke)
       //graphics2d.setStroke(stroke)
       graphics2d.setColor(lineToPlot.color)
-      val projectedStartCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.startCoord,width,height)
-      val projectedEndCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.endCoord,width,height)
+      val projectedStartCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.startCoord,width,height,frame)
+      val projectedEndCoord=boundsCalculator.getImageProjectedCoordinates(lineToPlot.endCoord,width,height,frame)
 
       drawArrow(graphics2d,new Point2D.Double(projectedStartCoord.getX,projectedStartCoord.getY),new Point2D.Double(projectedEndCoord.getX,projectedEndCoord.getY),new BasicStroke(lineToPlot.stroke),new BasicStroke(lineToPlot.stroke*10),lineToPlot.stroke*10)
 
       //graphics2d.drawLine(projectedStartCoord.getX.toInt, projectedStartCoord.getY.toInt, projectedEndCoord.getX.toInt, projectedEndCoord.getY.toInt)
     }
 
+    for (pointToPlot <- pointsToPlot){
+      graphics2d.setColor(pointToPlot.color)
+      val projectedCoord=boundsCalculator.getImageProjectedCoordinates(pointToPlot.coord,width,height,frame)
+      graphics2d.fillOval(projectedCoord.getX.toInt, projectedCoord.getY.toInt, pointToPlot.size,pointToPlot.size)
+    }
 
     for (stringToPlot <- stringsToPlot) {
       val font= new Font("Serif", Font.PLAIN, stringToPlot.fontSize)
       graphics2d.setFont(font)
       graphics2d.setColor(stringToPlot.color)
-      val projectedCoord=boundsCalculator.getImageProjectedCoordinates(stringToPlot.coord,width,height)
+      val projectedCoord=boundsCalculator.getImageProjectedCoordinates(stringToPlot.coord,width,height,frame)
       graphics2d.drawString(stringToPlot.text,projectedCoord.getX.toInt, projectedCoord.getY.toInt)
-    }
-
-
-
-    for (pointToPlot <- pointsToPlot){
-      graphics2d.setColor(pointToPlot.color)
-      val projectedCoord=boundsCalculator.getImageProjectedCoordinates(pointToPlot.coord,width,height)
-      graphics2d.fillOval(projectedCoord.getX.toInt, projectedCoord.getY.toInt, pointToPlot.size,pointToPlot.size)
     }
 
     ImageIO.write(bufferedImage, "PNG", new File(path));
@@ -183,7 +194,7 @@ object SpatialPlot extends App {
     ImageIO.write(bi, "PNG", new File("c:\\temp\\name.png"));
     */
 
-  val spatialPlot=new SpatialPlot(1000,1000)
+  val spatialPlot=new SpatialPlot(1000,1000,20)
 
   for (i <- 1 until 100) {
     spatialPlot.addPoint(PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),Color.blue,5))
