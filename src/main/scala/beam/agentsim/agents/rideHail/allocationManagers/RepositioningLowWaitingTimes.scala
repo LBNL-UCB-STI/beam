@@ -47,6 +47,9 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
   var firstRepositioningOfDay=true
+
+
+
   var boundsCalculator:Option[BoundsCalculator]=None
   var firstRepositionCoordsOfDay:Option[(Coord,Coord)]=None
 
@@ -69,7 +72,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           val allowIncreasingRadiusIfMostDemandOutside = true
           val minReachableDemandByVehiclesSelectedForReposition = 0.1
 
-          if (firstRepositioningOfDay & tick>0){
+          if (firstRepositioningOfDay && tick>0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)){
             // allow more aggressive repositioning at start of day
             minimumNumberOfIdlingVehiclesThreshholdForRepositioning=0
             repositionCircleRadisInMeters=100 *1000
