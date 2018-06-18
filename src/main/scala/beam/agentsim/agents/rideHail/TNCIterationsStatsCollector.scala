@@ -72,7 +72,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   private val rideHailEventsTuples = mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
   private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
-  private val vehicles = mutable.Map[String, Boolean]()
+  private val vehicles = mutable.Map[String, Int]()
 
   var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = Map()
 
@@ -133,7 +133,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val vehicleId = attr.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
-      if (personId.contains("rideHailAgent")) vehicles.put(vehicleId, false)
+      if (personId.contains("rideHailAgent")) vehicles.put(vehicleId, -1)
 
       rideHailModeChoiceEvents.get(personId) match {
         case Some(modeChoiceEvent) =>
@@ -155,11 +155,13 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
     val numPass = attr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
 
-    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail") && numPass > 0) {
-
-      vehicles.put(vehicleId, true)
-
-      collectIdlingVehicles(vehicleId, pathTraversalEvent)
+    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
+      if(numPass > 0) {
+        vehicles.put(vehicleId, 1)
+        collectIdlingVehicles(vehicleId, pathTraversalEvent)
+      } else {
+        vehicles.put(vehicleId, 0)
+      }
     }
   }
 
@@ -263,8 +265,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       vehicleIdlingBins.put(vehicleId, idlingBins)
     })
 
-    val numAlwaysIdleVehicles = vehicles.count(!_._2)
-    if (numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved during whole day.")
+    val numAlwaysIdleVehicles = vehicles.count(_._2 != 1)
+    val numIdleVehiclesWithoutPassenger = vehicles.count(_._2 == 0)
+    if (numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger of them have no passenger during whole day.")
 
     rideHailStats.foreach { items =>
 
