@@ -1,11 +1,11 @@
 package beam.analysis.plots;
 
-import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -21,6 +21,7 @@ import java.util.Map;
  */
 public class RideHailStats implements IGraphStats {
 
+    Logger log = LoggerFactory.getLogger(this.getClass());
     private static final String fileName = "RideHailStats";
 
     /**
@@ -125,11 +126,7 @@ public class RideHailStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
+            log.error("CSV generation failed.", e);
         }
     }
 }
