@@ -265,9 +265,14 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       vehicleIdlingBins.put(vehicleId, idlingBins)
     })
 
-    val numAlwaysIdleVehicles = vehicles.count(_._2 != 1)
+    // -1 : Vehicles never encountered any ride hail path traversal
+    val numAlwaysIdleVehicles = vehicles.count(_._2 == -1)
+    // 0 : Vehicles with ride hail path traversal but num_pass were 0 (zero)
     val numIdleVehiclesWithoutPassenger = vehicles.count(_._2 == 0)
-    if (numAlwaysIdleVehicles > 0) log.warn(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger of them have no passenger during whole day.")
+    // Ride Hail Vehicles that never encounter any path traversal with some passenger
+    val numIdleVehicles = vehicles.count(_._2 < 1)
+
+    log.info(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger vehicles had no passenger during whole day.")
 
     rideHailStats.foreach { items =>
 
