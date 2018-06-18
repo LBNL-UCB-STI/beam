@@ -96,37 +96,34 @@ public class RideHailStats implements IGraphStats {
     private void writeToCSV(IterationEndsEvent event) throws IOException {
 
         String csvFileName = event.getServices().getControlerIO().getOutputFilename(fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTime,totalRideHailWaitingTime,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
             out.write(heading);
             out.newLine();
             for (Integer key : GraphUtils.RIDE_HAIL_REVENUE_MAP.keySet()) {
                 RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(key);
-                double passengerVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT);
-                double repositioningVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT);
-                double deadheadingVkt = model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT) == null ? 0 : model.getRideHailDistanceStatMap().get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT);
+                double passengerVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, 0d);
+                double repositioningVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, 0d);
+                double deadheadingVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, 0d);
                 double maxSurgePricingLevel = model.getMaxSurgePricingLevel();
                 double totalSurgePricingLevel = model.getTotalSurgePricingLevel();
                 double surgePricingLevelCount = model.getSurgePricingLevelCount();
                 double averageSurgePricing = surgePricingLevelCount == 0 ? 0 : totalSurgePricingLevel / surgePricingLevelCount;
                 int reservationCount = model.getReservationCount();
-                out.append("" + key);
-                out.append("," + model.getRideHailRevenue());
-                out.append("," + model.getRideHailWaitingTimeSum() / model.getTotalRideHailCount());
-                out.append("," + model.getRideHailWaitingTimeSum());
-                out.append("," + passengerVkt/1000);
-                out.append("," + repositioningVkt/1000);
-                out.append("," + deadheadingVkt/1000);
-                out.append("," + averageSurgePricing);
-                out.append("," + maxSurgePricingLevel);
-                out.append("," + reservationCount);
+                out.append(key.toString());
+                out.append(",").append(String.valueOf(model.getRideHailRevenue()));
+                out.append(",").append(String.valueOf(model.getRideHailWaitingTimeSum() / model.getTotalRideHailCount()));
+                out.append(",").append(String.valueOf(model.getRideHailWaitingTimeSum()));
+                out.append(",").append(String.valueOf(passengerVkt / 1000));
+                out.append(",").append(String.valueOf(repositioningVkt / 1000));
+                out.append(",").append(String.valueOf(deadheadingVkt / 1000));
+                out.append(",").append(String.valueOf(averageSurgePricing));
+                out.append(",").append(String.valueOf(maxSurgePricingLevel));
+                out.append(",").append(String.valueOf(reservationCount));
                 out.newLine();
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
