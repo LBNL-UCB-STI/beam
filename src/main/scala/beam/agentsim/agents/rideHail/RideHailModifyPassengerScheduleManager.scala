@@ -305,7 +305,8 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
         var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
         var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
-        log.debug(s"BEFORE checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
+        log.debug("BEFORE checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
+          rideHailModifyPassengerScheduleStatusSet.size, rideHailModifyPassengerScheduleStatusSet, passengerSchedule)
          val listSizeAtStart=rideHailModifyPassengerScheduleStatusSet.size
 
         rideHailModifyPassengerScheduleStatusSet.foreach{ status =>
@@ -359,10 +360,11 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        log.debug(s"AFTER checkin.removeWithVehicleId(${rideHailModifyPassengerScheduleStatusSet.size}):$rideHailModifyPassengerScheduleStatusSet, passengerSchedule: $passengerSchedule")
+        log.debug("AFTER checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
+          rideHailModifyPassengerScheduleStatusSet.size, rideHailModifyPassengerScheduleStatusSet, passengerSchedule)
 
       case None =>
-        log.debug(s"checkin: $vehicleId with empty passenger schedule")
+        log.debug("checkin: {} with empty passenger schedule", vehicleId)
     }
 
 

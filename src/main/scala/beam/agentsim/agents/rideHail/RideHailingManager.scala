@@ -163,7 +163,7 @@ class RideHailingManager(
       resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver.foreach(driver => {
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere)
         if (modifyPassengerScheduleManager.noPendingReservations(vehicleId) || modifyPassengerScheduleManager.isPendingReservationEnding(vehicleId, passengerSchedule)) {
-          log.debug(s"Making available: $vehicleId")
+          log.debug("Making available: {}", vehicleId)
           // we still might have some ongoing resrvation in going on
           makeAvailable(rideHailingAgentLocation)
         }
@@ -193,11 +193,11 @@ class RideHailingManager(
           val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, whenWhere.get)
           if (modifyPassengerScheduleManager.noPendingReservations(vehicleId)) {
             // we still might have some ongoing resrvation in going on
-            log.debug(s"Checking in: $vehicleId")
+            log.debug("Checking in: {}", vehicleId)
             makeAvailable(rideHailingAgentLocation)
           }
           sender ! CheckInSuccess
-          log.debug("checking in resource: vehicleId(" + vehicleId + ");availableIn.time(" + whenWhere.get.time + ")")
+          log.debug("checking in resource: vehicleId({});availableIn.time({})", vehicleId, whenWhere.get.time)
           modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere, None)
           driver ! GetBeamVehicleFuelLevel
         })
@@ -271,7 +271,7 @@ class RideHailingManager(
         // call was made by ride hail agent itself
         //        }
       } else {
-        log.debug(s"Router could not find route to customer person=${request.customer.personId} for requestId=${request.requestId}")
+        log.debug("Router could not find route to customer person={} for requestId={}", request.customer.personId, request.requestId)
         request.customer.personRef.get ! RideHailingResponse(request, None, error = Some(CouldNotFindRouteToCustomer))
       }
 
@@ -329,8 +329,8 @@ class RideHailingManager(
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
-      log.debug(s"getIdleVehicles().size:${getIdleVehicles.size}")
-      getIdleVehicles.foreach(x => log.debug("getIdleVehicles():" + x._1.toString))
+      log.debug("getIdleVehicles().size:{}", getIdleVehicles.size)
+      getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}",  x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
@@ -564,7 +564,8 @@ class RideHailingManager(
     val tripLegs = travelProposal.responseRideHailing2Dest.itineraries.head.legs.map(_.beamLeg)
     pendingModifyPassengerScheduleAcks.put(request.requestId.toString, RideHailingResponse(request, Some(travelProposal)))
 
-    log.debug(s"Reserving vehicle: ${travelProposal.rideHailingAgentLocation.vehicleId} customer: ${request.customer.personId} request: ${request.requestId}")
+    log.debug("Reserving vehicle: {} customer: {} request: {}",
+      travelProposal.rideHailingAgentLocation.vehicleId, request.customer.personId, request.requestId)
 
     modifyPassengerScheduleManager.reserveVehicle(passengerSchedule, passengerSchedule.schedule.head._1.startTime,
       travelProposal.rideHailingAgentLocation, Some(request.requestId))
@@ -573,7 +574,7 @@ class RideHailingManager(
   private def completeReservation(requestId: Int, triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
-        log.debug(s"Completing reservation for $requestId")
+        log.debug("Completing reservation for {}", requestId)
         unlockVehicle(response.travelProposal.get.rideHailingAgentLocation.vehicleId)
         response.request.customer.personRef.get ! response.copy(triggersToSchedule = triggersToSchedule.toVector)
       case None =>

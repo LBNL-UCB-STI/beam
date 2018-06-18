@@ -75,52 +75,52 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   when(Idle) {
     case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
-      log.debug(s"state(RideHailingAgent.Idle): $ev")
+      log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(IdleInterrupted) {
     case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      log.debug(s"state(RideHailingAgent.IdleInterrupted): $ev")
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      log.debug(s"updating Passenger schedule - vehicleId($id): $updatedPassengerSchedule")
+      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
       goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule,vehicle.id)
     case ev@Event(Resume(), _) =>
-      log.debug(s"state(RideHailingAgent.IdleInterrupted): $ev")
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
     case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
-      log.debug(s"state(RideHailingAgent.IdleInterrupted): $ev")
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(PassengerScheduleEmpty) {
     case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       val (tick, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
     case ev@Event(Interrupt(_,_), data) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
     case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
     case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
     case ev@Event(Resume(), _) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
     case ev@Event(Interrupt(_,_), data) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted): $ev")
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
   }
@@ -128,15 +128,15 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   val myUnhandled: StateFunction =  {
 
     case ev@Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
-      log.debug(s"state(RideHailingAgent.myUnhandled): $ev")
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stay replying CompletionNotice(triggerId)
 
     case ev@Event(IllegalTriggerGoToError(reason), _) =>
-      log.debug(s"state(RideHailingAgent.myUnhandled): $ev")
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop(Failure(reason))
 
     case ev@Event(Finish, _) =>
-      log.debug(s"state(RideHailingAgent.myUnhandled): $ev")
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop
 
     case event@Event(_,_) =>

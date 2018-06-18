@@ -189,7 +189,7 @@ object HouseholdActor {
          */
         _reservedForPerson.get(personId) match {
           case Some(vehicleId) if vehicleId == vehId =>
-            log.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
+            log.debug("Vehicle {} is now available for anyone in household {}", vehicleId, id)
             _reservedForPerson.remove(personId)
           case _ =>
         }
@@ -254,7 +254,7 @@ object HouseholdActor {
           }
         case None =>
       }
-      log.debug(s"Resource $vehicleId is now available again")
+      log.debug("Resource {} is now available again", vehicleId)
     }
 
     // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last

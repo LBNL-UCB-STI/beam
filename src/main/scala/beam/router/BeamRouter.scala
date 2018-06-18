@@ -81,7 +81,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
         transitVehicles.getVehicleTypes.get(vehicleTypeId)
       } else {
-        log.debug(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
+        log.debug("no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
+          vehicleTypeId.toString)
         transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]))
       }
 

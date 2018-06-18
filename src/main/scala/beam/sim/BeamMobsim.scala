@@ -140,9 +140,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        val rideInitialLocation: Coord = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation match {
+        val rideInitialLocation: Coord = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
-            new Coord(personInitialLocation.getX, personInitialLocation.getY)
+            val radius=beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
+            new Coord(personInitialLocation.getX + radius* rand.nextDouble() , personInitialLocation.getY + radius* rand.nextDouble())
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
             val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand.nextDouble()
             val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand.nextDouble()
@@ -229,7 +230,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             context.stop(self)
             runSender ! Success("Ran.")
           } else {
-            log.debug(s"Remaining: ${context.children}")
+            log.debug("Remaining: {}", context.children)
           }
 
         case "Run!" =>
