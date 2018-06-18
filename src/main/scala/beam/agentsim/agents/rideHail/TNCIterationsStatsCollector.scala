@@ -274,7 +274,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
     log.info(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger vehicles had no passenger during whole day.")
     log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).map(_._1).mkString(", ")}")
-    log.info(s"Ride hail vehicles never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
+    log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
 
     rideHailStats.foreach { items =>
 
