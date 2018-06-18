@@ -133,7 +133,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val vehicleId = attr.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
     if (vehicleId.contains("rideHail")) {
-      if (personId.contains("rideHailAgent")) vehicles.put(vehicleId, -1)
+      if (personId.contains("rideHailAgent") && !vehicles.contains(vehicleId)) vehicles.put(vehicleId, -1)
 
       rideHailModeChoiceEvents.get(personId) match {
         case Some(modeChoiceEvent) =>
@@ -159,7 +159,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       if(numPass > 0) {
         vehicles.put(vehicleId, 1)
         collectIdlingVehicles(vehicleId, pathTraversalEvent)
-      } else {
+      } else if (vehicles.getOrElse(vehicleId, -1) < 0) {
         vehicles.put(vehicleId, 0)
       }
     }
