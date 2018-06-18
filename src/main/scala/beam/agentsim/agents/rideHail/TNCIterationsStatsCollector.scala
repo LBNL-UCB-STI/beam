@@ -41,12 +41,12 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
 }
 
 object RideHailStatsEntry {
-  def empty: RideHailStatsEntry = RideHailStatsEntry(0,0,0)
+  def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0)
 
   def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = {
-    val collection=rideHailStats.flatten
+    val collection = rideHailStats.flatten
 
-    if (collection.isEmpty){
+    if (collection.isEmpty) {
       empty
     } else {
       collection.reduce((e1, e2) => e1.aggregate(e2))
@@ -74,14 +74,15 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicles = mutable.Map[String, Boolean]()
 
-  var rideHailStats: mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = mutable.Map()
+  var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = Map()
 
   eventsManager.addHandler(this)
 
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     updateStatsForIdlingVehicles()
 
-    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
+    rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats.mapValues(_.toList),
+      mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
     clearStats()
   }
@@ -197,7 +198,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
             Some(RideHailStatsEntry(1, waitingTime, 0))
         }
 
-        rideHailStats.put(tazId, tazBins)
+        rideHailStats = rideHailStats + (tazId -> tazBins)
 
         rideHailEventsTuples.remove(vehicleId)
 
@@ -294,7 +295,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   }
 
   private def clearStats(): Unit = {
-    rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
+    rideHailStats = Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
 
     rideHailModeChoiceEvents.clear()
 
