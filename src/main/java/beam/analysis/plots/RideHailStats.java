@@ -21,14 +21,9 @@ import java.util.Map;
  */
 public class RideHailStats implements IGraphStats {
 
-    Logger log = LoggerFactory.getLogger(this.getClass());
+    private Logger log = LoggerFactory.getLogger(this.getClass());
     private static final String fileName = "RideHailStats";
 
-    /**
-     * Map < IterationNumber, < statsName,Distance > >
-     * statsName = passengerVKT | repositioningVKT | deadHeadingVKT
-     */
-    private Map<Integer, Map<String, Double>> statsMap = new HashMap<>();
     private Map<String, List<PathTraversalEvent>> eventMap = new HashMap<>();
 
     @Override
@@ -52,40 +47,39 @@ public class RideHailStats implements IGraphStats {
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         int reservationCount = 0;
-        Map<RideHailDistanceRowModel.GraphType, Double> distanceTravelled = new HashMap<>();
+        double passengerVkt = 0d;
+        double repositioningVkt = 0d;
+        double deadheadingVkt = 0d;
+
         for (String vehicle : eventMap.keySet()) {
             List<PathTraversalEvent> list = eventMap.get(vehicle);
             int size = list.size();
-            PathTraversalEvent[] arr = new PathTraversalEvent[size];
-            arr = list.toArray(arr);
+
             for (int loopCounter = 0; loopCounter < size; loopCounter++) {
-                Map<String, String> evAttr = arr[loopCounter].getAttributes();
+                Map<String, String> evAttr = list.get(loopCounter).getAttributes();
                 double newDistance = Double.parseDouble(evAttr.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
                 int numPass = Integer.parseInt(evAttr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
                 if (numPass == 1) {
                     if ("car".equals(evAttr.get(PathTraversalEvent.ATTRIBUTE_MODE))) {
                         reservationCount++;
                     }
-                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, 0d);
-                    distance = distance + newDistance;
-                    distanceTravelled.put(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, distance);
-                } else if (numPass == 0 && loopCounter < (size - 1) && "1".equals(arr[loopCounter + 1].getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS))) {
-                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, 0d);
-                    distance = distance + newDistance;
-                    distanceTravelled.put(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, distance);
+                    passengerVkt += newDistance;
+                } else if (numPass == 0 && loopCounter < (size - 1) && "1".equals(list.get(loopCounter + 1).getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS))) {
+                    repositioningVkt += newDistance;
                 } else if (numPass == 0) {
-                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, 0d);
-                    distance = distance + newDistance;
-                    distanceTravelled.put(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, distance);
+                    deadheadingVkt += newDistance;
                 }
             }
         }
-        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
-        if (model == null)
-            model = new RideHailDistanceRowModel();
+
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(event.getIteration(), new RideHailDistanceRowModel());
+
         model.setReservationCount(reservationCount);
-        model.setRideHailDistanceStatMap(distanceTravelled);
+        model.setPassengerVkt(passengerVkt);
+        model.setDeadheadingVkt(deadheadingVkt);
+        model.setRepositioningVkt(repositioningVkt);
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+
         writeToCSV(event);
     }
 
@@ -104,9 +98,9 @@ public class RideHailStats implements IGraphStats {
             out.newLine();
             for (Integer key : GraphUtils.RIDE_HAIL_REVENUE_MAP.keySet()) {
                 RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(key);
-                double passengerVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, 0d);
-                double repositioningVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, 0d);
-                double deadheadingVkt = model.getRideHailDistanceStatMap().getOrDefault(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, 0d);
+                double passengerVkt = model.getPassengerVkt();
+                double repositioningVkt = model.getRepositioningVkt();
+                double deadheadingVkt = model.getDeadheadingVkt();
                 double maxSurgePricingLevel = model.getMaxSurgePricingLevel();
                 double totalSurgePricingLevel = model.getTotalSurgePricingLevel();
                 double surgePricingLevelCount = model.getSurgePricingLevelCount();

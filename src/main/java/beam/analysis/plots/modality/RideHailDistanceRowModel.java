@@ -1,7 +1,5 @@
 package beam.analysis.plots.modality;
 
-import java.util.Map;
-
 public class RideHailDistanceRowModel {
     private double rideHailWaitingTimeSum;
     private int totalRideHailCount;
@@ -10,12 +8,17 @@ public class RideHailDistanceRowModel {
     private double surgePricingLevelCount;
     private double maxSurgePricingLevel;
     private int reservationCount;
-    private Map<GraphType, Double> rideHailDistanceStatMap;
+    private double passengerVkt;
+    private double repositioningVkt;
+    private double deadheadingVkt;
 
     public RideHailDistanceRowModel() {
         this.rideHailRevenue = 0;
         this.totalRideHailCount = 0;
         this.rideHailRevenue = 0;
+        this.passengerVkt = 0d;
+        this.repositioningVkt = 0d;
+        this.deadheadingVkt = 0d;
     }
 
     public double getRideHailWaitingTimeSum() {
@@ -40,14 +43,6 @@ public class RideHailDistanceRowModel {
 
     public void setRideHailRevenue(double rideHailRevenue) {
         this.rideHailRevenue = rideHailRevenue;
-    }
-
-    public Map<GraphType, Double> getRideHailDistanceStatMap() {
-        return rideHailDistanceStatMap;
-    }
-
-    public void setRideHailDistanceStatMap(Map<GraphType, Double> rideHailDistanceStatMap) {
-        this.rideHailDistanceStatMap = rideHailDistanceStatMap;
     }
 
     public void setReservationCount(int reservationCount){
@@ -82,20 +77,27 @@ public class RideHailDistanceRowModel {
         this.maxSurgePricingLevel = maxSurgePricingLevel;
     }
 
-    public enum GraphType {
-        PASSENGER_VKT("passengerVKT"),
-        REPOSITIONING_VKT("repositioningVKT"),
-        DEAD_HEADING_VKT("deadHeadingVKT");
+    public double getPassengerVkt() {
+        return passengerVkt;
+    }
 
-        private final String name;
+    public void setPassengerVkt(double passengerVkt) {
+        this.passengerVkt = passengerVkt;
+    }
 
-        GraphType(final String name) {
-            this.name = name;
-        }
+    public double getRepositioningVkt() {
+        return repositioningVkt;
+    }
 
-        @Override
-        public String toString() {
-            return name;
-        }
+    public void setRepositioningVkt(double repositioningVkt) {
+        this.repositioningVkt = repositioningVkt;
+    }
+
+    public double getDeadheadingVkt() {
+        return deadheadingVkt;
+    }
+
+    public void setDeadheadingVkt(double deadheadingVkt) {
+        this.deadheadingVkt = deadheadingVkt;
     }
 }
