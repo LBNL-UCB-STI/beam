@@ -38,12 +38,10 @@ public class RideHailStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent) {
-            String vehicleId = event.getAttributes().get("vehicle");
+            String vehicleId = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
             if (vehicleId.toLowerCase().contains("ridehail")) {
-                List<PathTraversalEvent> list = eventMap.get(vehicleId);
-                if (list == null || list.isEmpty()) {
-                    list = new ArrayList<>();
-                }
+                List<PathTraversalEvent> list = eventMap.getOrDefault(vehicleId, new ArrayList<>());
+
                 list.add((PathTraversalEvent) event);
                 eventMap.put(vehicleId, list);
             }
@@ -60,23 +58,24 @@ public class RideHailStats implements IGraphStats {
             PathTraversalEvent[] arr = new PathTraversalEvent[size];
             arr = list.toArray(arr);
             for (int loopCounter = 0; loopCounter < size; loopCounter++) {
-                double newDistance = Double.parseDouble(arr[loopCounter].getAttributes().get("length"));
-                if (arr[loopCounter].getAttributes().get("num_passengers").equals("1")) {
-                    if(arr[loopCounter].getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE).equals("car")){
+                Map<String, String> evAttr = arr[loopCounter].getAttributes();
+                double newDistance = Double.parseDouble(evAttr.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                int numPass = Integer.parseInt(evAttr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+                if (numPass == 1) {
+                    if ("car".equals(evAttr.get(PathTraversalEvent.ATTRIBUTE_MODE))) {
                         reservationCount++;
                     }
-                    double distance = distanceTravelled.get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT) == null ? 0 : distanceTravelled.get(RideHailDistanceRowModel.GraphType.PASSENGER_VKT);
+                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, 0d);
                     distance = distance + newDistance;
                     distanceTravelled.put(RideHailDistanceRowModel.GraphType.PASSENGER_VKT, distance);
-                } else if (arr[loopCounter].getAttributes().get("num_passengers").equals("0") && loopCounter < (size - 1) && arr[loopCounter + 1].getAttributes().get("num_passengers").equals("1")) {
-                    double distance = distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT) == null ? 0 : distanceTravelled.get(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT);
+                } else if (numPass == 0 && loopCounter < (size - 1) && "1".equals(arr[loopCounter + 1].getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS))) {
+                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, 0d);
                     distance = distance + newDistance;
                     distanceTravelled.put(RideHailDistanceRowModel.GraphType.DEAD_HEADING_VKT, distance);
-                } else if (arr[loopCounter].getAttributes().get("num_passengers").equals("0")) {
-                    double distance = distanceTravelled.get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT) == null ? 0 : distanceTravelled.get(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT);
+                } else if (numPass == 0) {
+                    double distance = distanceTravelled.getOrDefault(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, 0d);
                     distance = distance + newDistance;
                     distanceTravelled.put(RideHailDistanceRowModel.GraphType.REPOSITIONING_VKT, distance);
-
                 }
             }
         }
@@ -136,6 +135,4 @@ public class RideHailStats implements IGraphStats {
             }
         }
     }
-
-
 }
