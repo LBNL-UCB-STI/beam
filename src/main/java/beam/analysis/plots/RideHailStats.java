@@ -65,9 +65,9 @@ public class RideHailStats implements IGraphStats {
                     }
                     passengerVkt += newDistance;
                 } else if (numPass == 0 && loopCounter < (size - 1) && "1".equals(list.get(loopCounter + 1).getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS))) {
-                    repositioningVkt += newDistance;
-                } else if (numPass == 0) {
                     deadheadingVkt += newDistance;
+                } else if (numPass == 0) {
+                    repositioningVkt += newDistance;
                 }
             }
         }
