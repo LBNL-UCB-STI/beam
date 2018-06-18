@@ -230,7 +230,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             context.stop(self)
             runSender ! Success("Ran.")
           } else {
-            log.debug(s"Remaining: ${context.children}")
+            log.debug("Remaining: {}", context.children)
           }
 
         case "Run!" =>

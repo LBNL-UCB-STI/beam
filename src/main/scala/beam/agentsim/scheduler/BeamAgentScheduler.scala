@@ -170,7 +170,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
         numberRepeats += 1
         numReps = numberRepeats
-        log.debug(s"DEBUG: $numReps repeats.")
+        log.debug("DEBUG: {} repeats.", numReps )
       } else {
         numberRepeats = 0
       }

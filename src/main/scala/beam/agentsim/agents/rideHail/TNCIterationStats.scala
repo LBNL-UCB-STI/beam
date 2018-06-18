@@ -218,7 +218,7 @@ case class TNCIterationStats(rideHailStats: mutable.Map[String, ArrayBuffer[Opti
     }
 
     if (circleRadiusInMeters!=updatedRadius){
-      log.debug(s"search radius for repositioning algorithm increased: $updatedRadius")
+      log.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
     updatedRadius

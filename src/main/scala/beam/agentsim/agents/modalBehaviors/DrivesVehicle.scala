@@ -50,7 +50,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(Driving) {
     case ev@Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
-      log.debug(s"state(DrivesVehicle.Driving): $ev")
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
 
       val isLastLeg=data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.currentVehicle.headOption match {
@@ -90,13 +90,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
 
     case ev@Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
-      log.debug(s"state(DrivesVehicle.Driving): $ev")
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
 
-      log.debug("DrivesVehicle.IgnoreEndLegTrigger: vehicleId(" + id + "),tick(" + tick + "),triggerId(" + triggerId + "),data(" + data + ")")
+      log.debug("DrivesVehicle.IgnoreEndLegTrigger: vehicleId({}), tick({}), triggerId({}), data({})", id, tick, triggerId, data)
       stay replying CompletionNotice(triggerId, Vector())
 
     case ev@Event(Interrupt(interruptId,tick), data) =>
-      log.debug(s"state(DrivesVehicle.Driving): $ev")
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
       goto(DrivingInterrupted) replying InterruptedAt(interruptId,data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id,tick)
 
@@ -104,7 +104,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(DrivingInterrupted) {
     case ev@Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
-      log.debug(s"state(DrivesVehicle.DrivingInterrupted): $ev")
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       val isLastLeg=data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
         case Some(currentLeg) =>
@@ -142,21 +142,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
       goto(PassengerScheduleEmptyInterrupted) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]
     case ev@Event(Resume(), _) =>
-      log.debug(s"state(DrivesVehicle.DrivingInterrupted): $ev")
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)
     case ev@Event(TriggerWithId(EndLegTrigger(_), _), _) =>
-      log.debug(s"state(DrivesVehicle.DrivingInterrupted): $ev")
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
     case ev@Event(Interrupt(_,_), _) =>
-      log.debug(s"state(DrivesVehicle.DrivingInterrupted): $ev")
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
   }
 
   when(WaitingToDrive) {
     case ev@Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-      log.debug(s"state(DrivesVehicle.WaitingToDrive): $ev")
+      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule.schedule(newLeg).riders.map{ personVehicle =>
         ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head), beamServices.personRefs(personVehicle.personId))
       }.toVector
@@ -169,18 +169,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
     case ev@Event(Interrupt(_,_), _) =>
-      log.debug(s"state(DrivesVehicle.WaitingToDrive): $ev")
+      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       stash()
       stay
   }
 
   when(WaitingToDriveInterrupted) {
     case ev@Event(Resume(), _) =>
-      log.debug(s"state(DrivesVehicle.WaitingToDriveInterrupted): $ev")
+      log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       goto(WaitingToDrive)
 
     case ev@Event(TriggerWithId(StartLegTrigger(_, _), _), _) =>
-      log.debug(s"state(DrivesVehicle.WaitingToDriveInterrupted): $ev")
+      log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
 
@@ -188,11 +188,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   val drivingBehavior: StateFunction = {
     case ev@Event(req: ReservationRequest, data) if !hasRoomFor(data.passengerSchedule, req, beamServices.vehicles(data.currentVehicle.head)) =>
-      log.debug(s"state(DrivesVehicle.drivingBehavior): $ev")
+      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       stay() replying ReservationResponse(req.requestId, Left(VehicleFullError),TRANSIT)
 
     case ev@Event(req: ReservationRequest, data) =>
-      log.debug(s"state(DrivesVehicle.drivingBehavior): $ev")
+      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       val legs = data.passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).keys.toSeq
       val legsInThePast = data.passengerSchedule.schedule.take(data.currentLegPassengerScheduleIndex).from(req.departFrom).to(req.arriveAt).keys.toSeq
       if (legsInThePast.nonEmpty) log.warning("Legs in the past: {} -- {}", legsInThePast,req)
@@ -216,7 +216,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           triggersToSchedule ++ triggersToSchedule2)),TRANSIT)
 
     case ev@Event(RemovePassengerFromTrip(id), data) =>
-      log.debug(s"state(DrivesVehicle.drivingBehavior): $ev")
+      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       stay() using data.withPassengerSchedule(PassengerSchedule(data.passengerSchedule.schedule ++ data.passengerSchedule.schedule.collect {
         case (leg, manifest) =>
           (leg, manifest.copy(riders = manifest.riders - id, alighters = manifest.alighters - id.vehicleId, boarders = manifest.boarders - id.vehicleId))
@@ -224,13 +224,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
 
     case ev@Event(AddFuel(fuelInJoules),data) =>
-      log.debug(s"state(DrivesVehicle.drivingBehavior): $ev")
+      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
       currentVehicleUnderControl.addFuel(fuelInJoules)
       stay()
 
     case ev@Event(GetBeamVehicleFuelLevel,data) =>
-      log.debug(s"state(DrivesVehicle.drivingBehavior): $ev")
+      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
       // also position is not accurate (TODO: interpolate?)
