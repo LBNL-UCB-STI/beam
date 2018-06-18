@@ -168,8 +168,9 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val attr = pathTraversalEvent.getAttributes
     val mode = attr.get(PathTraversalEvent.ATTRIBUTE_MODE)
     val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+    val numPass = attr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
 
-    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
+    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail") && numPass > 0) {
 
       vehicles.put(vehicleId, true)
 
