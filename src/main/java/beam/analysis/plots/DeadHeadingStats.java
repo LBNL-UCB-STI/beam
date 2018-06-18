@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -33,6 +34,11 @@ public class DeadHeadingStats implements IGraphStats {
     Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
     Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
 
+    Double passengerVkt = 0d;
+    Double deadHeadingVkt = 0d;
+    Double repositioningVkt = 0d;
+    int reservationCount = 0;
+
 
     @Override
     public void processStats(Event event) {
@@ -60,6 +66,11 @@ public class DeadHeadingStats implements IGraphStats {
         deadHeadingsMap.clear();
         deadHeadingsTnc0Map.clear();
         maxPassengersSeenOnGenericCase = 0;
+
+        passengerVkt = 0d;
+        deadHeadingVkt = 0d;
+        repositioningVkt = 0d;
+        reservationCount = 0;
     }
 
 
@@ -207,7 +218,26 @@ public class DeadHeadingStats implements IGraphStats {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
         CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
         createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+
+
         writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+
+
+        // Updating the model for the RideHailStats.csv
+        updateRideHailStatsModel(event);
+        writeRideHailStatsCSV(event);
+    }
+
+    private void updateRideHailStatsModel(IterationEndsEvent event){
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(event.getIteration(), new RideHailDistanceRowModel());
+
+        model.setPassengerVkt(passengerVkt);
+        model.setDeadheadingVkt(deadHeadingVkt);
+        model.setRepositioningVkt(repositioningVkt);
+        model.setReservationCount(reservationCount);
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+
+
     }
 
     private double[][] buildDeadHeadingDataSetTnc0() {
@@ -518,11 +548,25 @@ public class DeadHeadingStats implements IGraphStats {
             Double vkt;
             for (Integer hour = minHour; hour <= maxHour; hour++) {
                 for (Integer passengerKey : passengerCategories) {
+
                     if (deadHeadingsTnc0Map.containsKey(hour)) {
                         vkt = deadHeadingsTnc0Map.get(hour).getOrDefault(passengerKey, 0.0);
                     } else {
                         vkt = 0.0;
                     }
+
+                    if(passengerKey == 0){
+
+                        deadHeadingVkt += vkt;
+                    }else if(passengerKey == -1){
+
+                        repositioningVkt += vkt;
+                    }else{
+
+                        passengerVkt += vkt;
+                        reservationCount += 1;
+                    }
+
                     out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
                     out.newLine();
                 }
@@ -657,6 +701,43 @@ public class DeadHeadingStats implements IGraphStats {
             count = count + hourData;
         }
         return (int) Math.ceil(count);
+    }
+
+
+    private void writeRideHailStatsCSV(IterationEndsEvent event) {
+
+        String csvFileName = event.getServices().getControlerIO().getOutputFilename("rideHailStats.csv");
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+
+            String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTime,totalRideHailWaitingTime,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
+            out.write(heading);
+            out.newLine();
+            for (Integer key : GraphUtils.RIDE_HAIL_REVENUE_MAP.keySet()) {
+                RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(key);
+                double passengerVkt = model.getPassengerVkt();
+                double repositioningVkt = model.getRepositioningVkt();
+                double deadheadingVkt = model.getDeadheadingVkt();
+                double maxSurgePricingLevel = model.getMaxSurgePricingLevel();
+                double totalSurgePricingLevel = model.getTotalSurgePricingLevel();
+                double surgePricingLevelCount = model.getSurgePricingLevelCount();
+                double averageSurgePricing = surgePricingLevelCount == 0 ? 0 : totalSurgePricingLevel / surgePricingLevelCount;
+                int reservationCount = model.getReservationCount();
+                out.append(key.toString());
+                out.append(",").append(String.valueOf(model.getRideHailRevenue()));
+                out.append(",").append(String.valueOf(model.getRideHailWaitingTimeSum() / model.getTotalRideHailCount()));
+                out.append(",").append(String.valueOf(model.getRideHailWaitingTimeSum()));
+                out.append(",").append(String.valueOf(passengerVkt / 1000));
+                out.append(",").append(String.valueOf(repositioningVkt / 1000));
+                out.append(",").append(String.valueOf(deadheadingVkt / 1000));
+                out.append(",").append(String.valueOf(averageSurgePricing));
+                out.append(",").append(String.valueOf(maxSurgePricingLevel));
+                out.append(",").append(String.valueOf(reservationCount));
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            System.out.println("CSV generation failed." + e);
+        }
     }
 
 }
