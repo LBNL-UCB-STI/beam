@@ -5,7 +5,6 @@ import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHai
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
-import beam.utils.DebugLib
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -57,7 +56,7 @@ object RideHailStatsEntry {
 
 
 class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: BeamServices, rideHailIterationHistoryActor: ActorRef) extends BasicEventHandler {
-  val beamConfig = beamServices.beamConfig
+  private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
   private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
@@ -80,26 +79,11 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   eventsManager.addHandler(this)
 
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
-    // TODO: send message to actor with collected data
-
-    //println("Inside tellHistoryToRideHailIterationHistoryActor")
     updateStatsForIdlingVehicles()
 
     rideHailIterationHistoryActor ! UpdateRideHailStats(TNCIterationStats(rideHailStats, mTazTreeMap.get, timeBinSizeInSec, numberOfTimeBins))
 
-    // printStats()
-
-    rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
-
-    rideHailModeChoiceEvents.clear()
-
-    rideHailLastEvent.clear()
-
-    vehicleIdlingBins.clear()
-
-    rideHailEventsTuples.clear()
-
-    vehicles.clear()
+    clearStats()
   }
 
   override def handleEvent(event: Event): Unit = {
@@ -232,7 +216,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
-    log.debug(s"startTazId($startTazId), endTazId($endTazId), startTime($startTime), endTime($endTime), numberOfPassengers(${currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)})")
+    log.debug(s"startTazId($startTazId), endTazId($endTazId), startBin($startBin), endingBin($endingBin), numberOfPassengers(${currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)})")
 
     var idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins
@@ -309,6 +293,20 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     })
   }
 
+  private def clearStats(): Unit = {
+    rideHailStats = mutable.Map[String, ArrayBuffer[Option[RideHailStatsEntry]]]()
+
+    rideHailModeChoiceEvents.clear()
+
+    rideHailLastEvent.clear()
+
+    vehicleIdlingBins.clear()
+
+    rideHailEventsTuples.clear()
+
+    vehicles.clear()
+  }
+
   private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
     val lastCoord = (lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble,
       lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble)
@@ -344,12 +342,4 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
   private def getTimeBin(time: Double): Int = {
     (time / timeBinSizeInSec).toInt
   }
-
-  private def printStats(): Unit = {
-    rideHailStats.foreach { rhs =>
-      log.debug(rhs._1)
-      rhs._2.map(_.toString).foreach(log.debug)
-    }
-  }
-
 }
