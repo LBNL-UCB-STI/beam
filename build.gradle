@@ -450,12 +450,11 @@ def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM')
 
 def getCurrentTimestamp = {
     Date today = new Date()
-    SimpleDateFormat df = new SimpleDateFormat("MM-dd-yyyy_hh-mm-ss")
+    SimpleDateFormat df = new SimpleDateFormat("MM-dd-yyyy_HH-mm-ss")
     return df.format(today)
 }
 
-def logGC = ["-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:+PrintGCDetails",
-         "-XX:+PrintGCDateStamps", "-XX:+PrintGCTimeStamps", "-XX:+PrintGCCause", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
+def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
