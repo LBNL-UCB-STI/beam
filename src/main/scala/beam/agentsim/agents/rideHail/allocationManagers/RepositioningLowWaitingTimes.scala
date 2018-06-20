@@ -67,8 +67,9 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
-        val repositioningMethod= "weigtedKMeans"// repositioningConfig.repositioningMethod = (basedOnTopScores | weigtedKMeans)
-        val keepMaxTopNScores=10 // repositioningConfig.keepMaxTopNScores
+        val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weigtedKMeans)
+        val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
+        val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning
 
 
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
@@ -94,24 +95,21 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
         //val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = if (repositioningMethod.equalsIgnoreCase("basedOnWaitingTimeGravity")){
-         // tncIterStats.repositionToBasedOnWaitingTimesGravity(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        // tncIterStats.repositionToBasedOnWaitingTimesGravity(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
 
-          // TAZ1 -> waitingTime
-
+        // TAZ1 -> waitingTime
 
 
         //} else {
 
-          // define max TAZ to consider -keep to 10
+        // define max TAZ to consider -keep to 10
 
-          // keep same number as vehicles
+        // keep same number as vehicles
 
-          // add keepMaxTopNScores (TODO)
+        // add keepMaxTopNScores (TODO)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =tncIterStats.reposition(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterStats.reposition(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
         //}
-
-
 
 
         if (vehiclesToReposition.nonEmpty) {
