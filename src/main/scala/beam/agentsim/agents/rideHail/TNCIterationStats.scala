@@ -63,7 +63,7 @@ case class TNCIterationStats(
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
-    val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning
+    val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
 
     // TODO: read from config and tune weights
     val distanceWeight = 1
@@ -102,7 +102,12 @@ case class TNCIterationStats(
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
-      val scoredTAZInRadius = mutable.ListBuffer[TazScore]()
+
+      var scoredTAZInRadius =
+        mutable.PriorityQueue[TazScore]()((vls1, vls2) =>
+          vls1.score.compare(vls2.score))
+
+     // val scoredTAZInRadius = mutable.ListBuffer[TazScore]()
 
       listOfTazInRadius.forEach { (tazInRadius) =>
         val startTimeBin = getTimeBin(tick)
@@ -140,8 +145,14 @@ case class TNCIterationStats(
         scoredTAZInRadius += TazScore(tazInRadius, score)
       }
 
-      val coords =  repositioningMethod match {
-        case "TOP_SCORES" =>
+
+      // filter top N scores
+      // ignore scores smaller than minScoreThresholdForRespositioning
+      scoredTAZInRadius=scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score>= minScoreThresholdForRespositioning)
+
+
+      val vehicleToCoordAssignment = if (scoredTAZInRadius.size>0) {
+        val coords = if (repositioningMethod.equalsIgnoreCase("TOP_SCORES") || scoredTAZInRadius.size <= vehicles.size) {
           val scoreExpSumOverAllTAZInRadius =
             scoredTAZInRadius.map(taz => Math.exp(taz.score)).sum
 
@@ -151,7 +162,6 @@ case class TNCIterationStats(
 
           val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
           scoredTAZInRadius.foreach { tazScore =>
-            // println(s"score: ${tazScore.score/scoreExpSumOverAllTAZInRadius} - ${tazScore.score} - $scoreExpSumOverAllTAZInRadius")
             if (tazScore.score / scoreExpSumOverAllTAZInRadius == Double.NaN) {
               DebugLib.emptyFunctionForSettingBreakPoint()
             }
@@ -163,27 +173,25 @@ case class TNCIterationStats(
                 Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
           }
 
-
           val enumDistribution = new EnumeratedDistribution(mapping)
-
           val sample = enumDistribution.sample(vehicles.size)
 
-          //      sample.foreach { x =>
-          //        val z = x.asInstanceOf[TAZ]
-          //      // println(z + " -> " +  scoredTAZInRadius.filter( y => y.taz==z))
-          //      }
-
           for (taz <- sample; a = taz.asInstanceOf[TAZ].coord) yield a
+        } else if (repositioningMethod.equalsIgnoreCase("WEIGHTED_KMEANS")) {
+          val clusterInput = scoredTAZInRadius.map(t => new LocationWrapper(t.taz.coord))
 
-        case "WEIGHTED_KMEANS" =>
-          val clusterInput = scoredTAZInRadius.map(t =>new LocationWrapper(t.taz.coord))
-
-          val clusterSize = if (clusterInput.size < vehicles.size ) clusterInput.size else vehicles.size
+          val clusterSize = if (clusterInput.size < vehicles.size) clusterInput.size else vehicles.size
           val clusterer = new KMeansPlusPlusClusterer[LocationWrapper](clusterSize, 1000)
-          val clusterResults = clusterer.cluster(clusterInput.asJava)
+          val clusterResults = clusterer.cluster(clusterInput.toVector.asJava)
           clusterResults.asScala.map(c => new Coord(c.getCenter.getPoint()(0), c.getCenter.getPoint()(1))).toArray
+        } else {
+          throw new RuntimeException(s"unknown repositioningMethod: $repositioningMethod")
+          ???
+        }
+        vehicles.zip(coords)
+      } else {
+        Vector()
       }
-      val result = vehicles.zip(coords)
 
       if (vehicles.size > 1 && tick > 10000) {
         DebugLib.emptyFunctionForSettingBreakPoint()
@@ -193,7 +201,7 @@ case class TNCIterationStats(
 
       // TODO: add kmeans approach here with number of vehicle clusters. (switch between top n scores and cluster).
 
-      result
+      vehicleToCoordAssignment
     }
 
 
