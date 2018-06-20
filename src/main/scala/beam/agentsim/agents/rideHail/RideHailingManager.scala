@@ -66,7 +66,7 @@ class RideHailingManager(
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
 
   private val rideHailAllocationManagerTimeoutInSeconds = {
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   }
 
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name

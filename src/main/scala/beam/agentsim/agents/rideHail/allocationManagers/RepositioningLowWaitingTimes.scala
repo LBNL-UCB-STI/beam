@@ -68,6 +68,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
 
+
+
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
           // allow more aggressive repositioning at start of day
           minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
@@ -90,7 +92,23 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minDemandPercentageInRadius, allowIncreasingRadiusIfDemandInRadiusLow)
 
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        //val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = if (repositioningMethod.equalsIgnoreCase("basedOnWaitingTimeGravity")){
+        // tncIterStats.repositionToBasedOnWaitingTimesGravity(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+
+        // TAZ1 -> waitingTime
+
+
+        //} else {
+
+        // define max TAZ to consider -keep to 10
+
+        // keep same number as vehicles
+
+        // add keepMaxTopNScores (TODO)
+
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterStats.reposition(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        //}
+
 
         if (vehiclesToReposition.nonEmpty) {
           DebugLib.emptyFunctionForSettingBreakPoint()
@@ -129,8 +147,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-              spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt))
-              spatialPlot.addString(StringToPlot(tazEntry._2.sumOfRequestedRides.toString, tazEntry._1, Color.RED, 50))
+              spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
+              spatialPlot.addString(StringToPlot(s"(${tazEntry._2.sumOfRequestedRides},${tazEntry._2.sumOfWaitingTimes})", tazEntry._1, Color.RED, 20))
             }
 
 
@@ -201,7 +219,3 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
     // }
   }
 }
-
-
-
-

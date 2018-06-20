@@ -26,6 +26,7 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
       plannedActivities.zip(experiencedActivities).foreach {
         case (plannedActivity: Activity, experiencedActivity: Activity) =>
           experiencedActivity.setCoord(plannedActivity.getCoord)
+        case  (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
       val selectedPlanAttributes = person.getSelectedPlan.getAttributes

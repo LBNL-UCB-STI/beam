@@ -118,6 +118,9 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends
   DrivesVehicle[PersonData] with ChoosesMode with Stash {
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   startWith(Uninitialized, BasePersonData())
