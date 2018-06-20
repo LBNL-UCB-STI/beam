@@ -265,8 +265,12 @@ case class TNCIterationStats(
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
-    priorityQueue
-      .take(maxNumberOfVehiclesToReposition.toInt)
+
+
+val head=priorityQueue
+  .take(maxNumberOfVehiclesToReposition.toInt)
+
+    head
       .filter(vehicleLocationScores =>
         vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
       .map(_.rideHailingAgentLocation)

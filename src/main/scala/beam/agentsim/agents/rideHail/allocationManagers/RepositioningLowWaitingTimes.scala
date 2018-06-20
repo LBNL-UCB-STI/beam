@@ -187,7 +187,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
 
         if (whichTAZToRepositionTo.nonEmpty) {
-          //log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+          log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
 
