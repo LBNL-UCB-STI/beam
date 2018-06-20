@@ -176,6 +176,9 @@ case class TNCIterationStats(
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
+
+      // TODO: from top taz which remain after filtering, apply kmeans to them (unweighted, as we don't have weighted implementation available yet)
+
       // TODO: add kmeans approach here with number of vehicle clusters. (switch between top n scores and cluster).
 
       result
