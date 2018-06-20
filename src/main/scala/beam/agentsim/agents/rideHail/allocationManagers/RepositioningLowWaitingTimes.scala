@@ -67,7 +67,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
-        val repositioningMethod= "basedOnKMeans"// repositioningConfig.repositioningMethod = (basedOnTopScores | basedOnKMeans)
+        val repositioningMethod= "weigtedKMeans"// repositioningConfig.repositioningMethod = (basedOnTopScores | weigtedKMeans)
         val keepMaxTopNScores=10 // repositioningConfig.keepMaxTopNScores
 
 
