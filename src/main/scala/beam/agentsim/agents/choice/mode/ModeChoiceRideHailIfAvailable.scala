@@ -14,11 +14,8 @@ import scala.collection.mutable.ArrayBuffer
 class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    val containsRideHailAlt: ArrayBuffer[Int] = ArrayBuffer[Int]()
-    alternatives.zipWithIndex.foreach { alt =>
-      if (alt._1.tripClassifier == RIDE_HAIL) {
-        containsRideHailAlt += alt._2
-      }
+    val containsRideHailAlt = alternatives.zipWithIndex.collect {
+      case (trip, idx) if (trip.tripClassifier == RIDE_HAIL) => idx
     }
     if (containsRideHailAlt.nonEmpty) {
       Some(alternatives(containsRideHailAlt.head))

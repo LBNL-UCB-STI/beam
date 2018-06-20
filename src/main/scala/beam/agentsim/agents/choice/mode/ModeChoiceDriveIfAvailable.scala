@@ -14,11 +14,8 @@ import scala.collection.mutable.ArrayBuffer
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    val containsDriveAlt: ArrayBuffer[Int] = ArrayBuffer[Int]()
-    alternatives.zipWithIndex.foreach { alt =>
-      if (alt._1.tripClassifier == CAR) {
-        containsDriveAlt += alt._2
-      }
+    val containsDriveAlt = alternatives.zipWithIndex.collect {
+      case(trip, idx) if trip.tripClassifier == CAR  => idx
     }
     if (containsDriveAlt.nonEmpty) {
       Some(alternatives(containsDriveAlt.head))
