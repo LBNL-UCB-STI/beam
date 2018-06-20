@@ -150,22 +150,22 @@ object HouseholdActor {
     /**
       * Current [[Vehicle]] assignments.
       */
-    val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
+    private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
 
     /**
       * These [[Vehicle]]s cannot be assigned to other agents.
       */
-    val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
+    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
 
     /**
       * Vehicles that are currently checked out to traveling agents.
       */
-    val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
+    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
 
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] = mutable.Map[Id[Vehicle], StreetVehicle]()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] = mutable.Map[Id[Vehicle], StreetVehicle]()
 
 
     // Initial vehicle assignments.

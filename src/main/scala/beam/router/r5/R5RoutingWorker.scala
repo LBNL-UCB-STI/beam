@@ -281,8 +281,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           //TODO make a more sensible window not just 30 minutes
           startTime >= time.fromTime && startTime <= time.fromTime + 1800
         }.map(itinerary => {
-          val legsWithFares = ArrayBuffer[(BeamLeg, Double)]()
-          maybeWalkToVehicle.foreach(x => legsWithFares += ((x, 0.0)))
+          val legsWithFares = maybeWalkToVehicle.map(x=> ArrayBuffer((x, 0.0)))
+            .getOrElse(ArrayBuffer[(BeamLeg, Double)]())
 
           val access = option.access.get(itinerary.connection.access)
           val toll = if (access.mode == LegMode.CAR) {

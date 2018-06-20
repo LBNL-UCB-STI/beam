@@ -90,11 +90,11 @@ class RideHailingManager(
   }
 
   // TODO: remove following (replace by RideHailModifyPassengerScheduleManager)
-  val repositioningPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], Option[PassengerSchedule])] = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
-  val reservationPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], ModifyPassengerSchedule)] =mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
-  val repositioningVehicles: mutable.Set[Id[Vehicle]] = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
+  private val repositioningPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], Option[PassengerSchedule])] = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
+  private val reservationPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], ModifyPassengerSchedule)] =mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
+  private val repositioningVehicles: mutable.Set[Id[Vehicle]] = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
-  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
+  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
 
   private val repositionDoneOnce: Boolean = false

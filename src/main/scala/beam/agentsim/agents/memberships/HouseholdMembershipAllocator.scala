@@ -26,7 +26,7 @@ case class HouseholdMembershipAllocator(households: Households,
   }
 
 
-  val vehicleAllocationsByRank: TrieMap[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = TrieMap[Id[Household],
+  private val vehicleAllocationsByRank: TrieMap[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = TrieMap[Id[Household],
     mutable
   .Map[Id[Person],Id[Vehicle]]]()
 

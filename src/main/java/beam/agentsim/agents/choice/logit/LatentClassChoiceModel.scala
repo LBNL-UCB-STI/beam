@@ -17,7 +17,7 @@ import scala.collection.mutable
   * BEAM
   */
 class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices {
-  val lccmData: IndexedSeq[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+  private val lccmData: IndexedSeq[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
 
   val classMembershipModels: Map[TourType, MultinomialLogit] = extractClassMembershipModels(lccmData)
   val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit]] = {
