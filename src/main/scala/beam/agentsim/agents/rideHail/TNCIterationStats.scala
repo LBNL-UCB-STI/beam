@@ -66,9 +66,9 @@ case class TNCIterationStats(
     val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
 
     // TODO: read from config and tune weights
-    val distanceWeight = 1
-    val waitingTimeWeight = 4
-    val demandWeight = 1
+    val distanceWeight = 0.01
+    val waitingTimeWeight = 4.0
+    val demandWeight = 1.0
 
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
@@ -115,22 +115,25 @@ case class TNCIterationStats(
           getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
         val distanceInMeters =
           beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-        val distanceScore = -1 * distanceWeight * (distanceInMeters * distanceInMeters) / (distanceInMeters + 1000) / (distanceInMeters + 1000)
+        val distanceScore = -1 * distanceWeight * (distanceInMeters * distanceInMeters) / (distanceInMeters + 1000.0) / (distanceInMeters + 1000.0)
 
         val score = (startTimeBin to endTimeBin)
           .map(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
 
-                val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes * statsEntry.sumOfWaitingTimes) / (statsEntry.sumOfWaitingTimes + 1000) / (statsEntry.sumOfWaitingTimes + 1000)
+                val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes * statsEntry.sumOfWaitingTimes) / (statsEntry.sumOfWaitingTimes + 1000.0) / (statsEntry.sumOfWaitingTimes + 1000.0)
 
-                val demandScore = demandWeight * (statsEntry.sumOfRequestedRides * statsEntry.sumOfRequestedRides) / (statsEntry.sumOfRequestedRides + 10) / (statsEntry.sumOfRequestedRides + 10)
+                val demandScore = demandWeight * (statsEntry.sumOfRequestedRides * statsEntry.sumOfRequestedRides) / (statsEntry.sumOfRequestedRides + 10.0) / (statsEntry.sumOfRequestedRides + 10.0)
 
-                val randomError = Random.nextDouble() * 0.00001
-
-                val res = waitingTimeScore + demandScore + distanceScore + randomError
+                val res = waitingTimeScore + demandScore + distanceScore
 
                 //log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+
+                if (waitingTimeScore> 0){
+                  DebugLib.emptyFunctionForSettingBreakPoint()
+                }
+
                 res
 
               case _ =>
@@ -146,15 +149,26 @@ case class TNCIterationStats(
       }
 
 
+
+
       // filter top N scores
       // ignore scores smaller than minScoreThresholdForRespositioning
-      scoredTAZInRadius=scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score>= minScoreThresholdForRespositioning)
+      val tmp=scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score> minScoreThresholdForRespositioning && tazScore.score>0)
 
+      if (tmp.size>1){
+        DebugLib.emptyFunctionForSettingBreakPoint()
+      }
+
+      scoredTAZInRadius=tmp
+
+      // TODO: add WEIGHTED_KMEANS as well
 
       val vehicleToCoordAssignment = if (scoredTAZInRadius.size>0) {
         val coords = if (repositioningMethod.equalsIgnoreCase("TOP_SCORES") || scoredTAZInRadius.size <= vehicles.size) {
+          // Not using
           val scoreExpSumOverAllTAZInRadius =
-            scoredTAZInRadius.map(taz => Math.exp(taz.score)).sum
+            scoredTAZInRadius.map(taz => taz.score).sum
+          //scoredTAZInRadius.map(taz => Math.exp(taz.score)).sum
 
           if (scoreExpSumOverAllTAZInRadius == 0) {
             DebugLib.emptyFunctionForSettingBreakPoint()
@@ -162,22 +176,20 @@ case class TNCIterationStats(
 
           val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
           scoredTAZInRadius.foreach { tazScore =>
-            if (tazScore.score / scoreExpSumOverAllTAZInRadius == Double.NaN) {
-              DebugLib.emptyFunctionForSettingBreakPoint()
-            }
 
             //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ Math.exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
 
             mapping.add(
               new WeightPair(tazScore.taz,
                 Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
+                //Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
           }
 
           val enumDistribution = new EnumeratedDistribution(mapping)
           val sample = enumDistribution.sample(vehicles.size)
 
           for (taz <- sample; a = taz.asInstanceOf[TAZ].coord) yield a
-        } else if (repositioningMethod.equalsIgnoreCase("WEIGHTED_KMEANS")) {
+        } else if (repositioningMethod.equalsIgnoreCase("KMEANS")) {
           val clusterInput = scoredTAZInRadius.map(t => new LocationWrapper(t.taz.coord))
 
           val clusterSize = if (clusterInput.size < vehicles.size) clusterInput.size else vehicles.size
