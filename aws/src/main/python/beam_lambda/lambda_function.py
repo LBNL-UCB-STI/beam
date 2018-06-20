@@ -92,7 +92,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'i2.xlarge', 'i2.2xlarge', 'i2.4xlarge', 'i2.8xlarge',
                   'h1.2xlarge', 'h1.4xlarge', 'h1.8xlarge', 'h1.16xlarge',
                   'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge',
-                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge']
+                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge',
+                  'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge']
 
 regions = ['us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
@@ -199,7 +200,8 @@ def deploy_handler(event):
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
 
     if instance_type not in instance_types:
-        instance_type = os.environ['INSTANCE_TYPE']
+        return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
+        #instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
