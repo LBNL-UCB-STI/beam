@@ -54,10 +54,12 @@ case class TNCIterationStats(
       timeHorizonToConsiderForIdleVehiclesInSec: Double,
       beamServices: BeamServices): Vector[(Id[vehicles.Vehicle], Location)] = {
 
+   // log.debug("whichCoordToRepositionTo.start=======================")
+
     // TODO: read from config and tune weights
-    val distanceWeight = 1.0
-    val waitingTimeWeight = 1.0
-    val demandWeight = 1.0
+    val distanceWeight = 1
+    val waitingTimeWeight = 4
+    val demandWeight = 1
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
 
@@ -83,6 +85,13 @@ case class TNCIterationStats(
         taz.coord.getX,
         taz.coord.getY,
         repositionCircleRadiusInMeters)
+
+    //  log.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
+
+      if (listOfTazInRadius.size()>0){
+        DebugLib.emptyFunctionForSettingBreakPoint()
+      }
+
       val scoredTAZInRadius = collection.mutable.ListBuffer[TazScore]()
 
       listOfTazInRadius.forEach { (tazInRadius) =>
@@ -96,18 +105,21 @@ case class TNCIterationStats(
               case Some(statsEntry) =>
                 val distanceInMeters =
                   beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-                val distanceScore = distanceWeight * 1 / (distanceInMeters + 1)
-                val waitingTimeScore = waitingTimeWeight * Math.log(
-                  statsEntry.sumOfWaitingTimes + 1)
-                val demandScore = demandWeight * Math.log(
-                  statsEntry.sumOfRequestedRides + 1)
+                val distanceScore = -1 * distanceWeight * (distanceInMeters*distanceInMeters)/(distanceInMeters+1000)/(distanceInMeters+1000)
 
-                val res = distanceScore + waitingTimeScore + demandScore
+                val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes*statsEntry.sumOfWaitingTimes)/ (statsEntry.sumOfWaitingTimes+1000)/(statsEntry.sumOfWaitingTimes+1000)
+
+
+                val demandScore = demandWeight * (statsEntry.sumOfRequestedRides*statsEntry.sumOfRequestedRides)/(statsEntry.sumOfRequestedRides+10)/(statsEntry.sumOfRequestedRides+10)
+
+
+                val res = waitingTimeScore + demandScore + distanceScore
                 if (JDouble.isNaN(res)) {
-                  DebugLib.emptyFunctionForSettingBreakPoint()
+
                 }
 
-                // println(s"original score: $res")
+                //log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+
                 res
 
               case _ =>
@@ -120,15 +132,11 @@ case class TNCIterationStats(
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        scoredTAZInRadius += TazScore(tazInRadius, Math.exp(score))
+        scoredTAZInRadius += TazScore(tazInRadius, score)
       }
 
-      val tazPriorityQueue =
-        mutable.PriorityQueue[TazScore]()((tazScore1, tazScore2) =>
-          tazScore1.score.compare(tazScore2.score))
-
       val scoreExpSumOverAllTAZInRadius =
-        scoredTAZInRadius.map(taz => taz.score).sum
+        scoredTAZInRadius.map(taz => Math.exp(taz.score)).sum
 
       if (scoreExpSumOverAllTAZInRadius == 0) {
         DebugLib.emptyFunctionForSettingBreakPoint()
@@ -141,10 +149,16 @@ case class TNCIterationStats(
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
+
+        //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ Math.exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
+
+
+
         mapping.add(
           new WeightPair(tazScore.taz,
-                         tazScore.score / scoreExpSumOverAllTAZInRadius))
-      }
+            Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
+        }
+
 
       val enumDistribution = new EnumeratedDistribution(mapping)
 
@@ -156,8 +170,17 @@ case class TNCIterationStats(
       }
 
       val coords = for (taz <- sample; a = taz.asInstanceOf[TAZ].coord) yield a
-      vehicles.zip(coords)
+      val result=vehicles.zip(coords)
+
+      if (vehicles.size>1 && tick>10000){
+        DebugLib.emptyFunctionForSettingBreakPoint()
+      }
+
+      result
     }
+
+
+   // log.debug("whichCoordToRepositionTo.end=======================")
 
     result.flatten.toVector
   }
