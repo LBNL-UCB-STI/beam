@@ -48,7 +48,7 @@ case class TNCIterationStats(
     * -> assign to each vehicle in tazVehicleGroup(taz) the top best vehicles.
     * }
     */
-  def repositionToBasedOnScore(
+  def reposition(
       vehiclesToReposition: Vector[RideHailingAgentLocation],
       repositionCircleRadiusInMeters: Double,
       tick: Double,

@@ -108,7 +108,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
           // add keepMaxTopNScores (TODO)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =tncIterStats.repositionToBasedOnScore(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =tncIterStats.reposition(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
         //}
 
 
