@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 // original code based on: https://picoledelimao.github.io/blog/2016/03/12/multithreaded-k-means-in-java/
+// TODO: add weights
 
 public class KMeans {
 
@@ -31,7 +32,7 @@ public class KMeans {
       br.close();
       return dataset;
   }
-  
+
   public static List<Point2D> initializeRandomCenters(int n, int lowerBound, int upperBound) {
       List<Point2D> centers = new ArrayList<>(n);
       for (int i = 0; i < n; i++) {
