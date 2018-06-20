@@ -67,6 +67,9 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
+        val repositioningMethod= "basedOnKMeans"// repositioningConfig.repositioningMethod = (basedOnTopScores | basedOnKMeans)
+        val keepMaxTopNScores=10 // repositioningConfig.keepMaxTopNScores
+
 
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
           // allow more aggressive repositioning at start of day
@@ -90,7 +93,26 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minDemandPercentageInRadius, allowIncreasingRadiusIfDemandInRadiusLow)
 
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterStats.whichCoordToRepositionTo(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        //val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = if (repositioningMethod.equalsIgnoreCase("basedOnWaitingTimeGravity")){
+         // tncIterStats.repositionToBasedOnWaitingTimesGravity(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+
+          // TAZ1 -> waitingTime
+
+
+
+        //} else {
+
+          // define max TAZ to consider -keep to 10
+
+          // keep same number as vehicles
+
+          // add keepMaxTopNScores (TODO)
+
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =tncIterStats.repositionToBasedOnScore(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, rideHailingManager.beamServices)
+        //}
+
+
+
 
         if (vehiclesToReposition.nonEmpty) {
           DebugLib.emptyFunctionForSettingBreakPoint()

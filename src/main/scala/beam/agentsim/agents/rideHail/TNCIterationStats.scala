@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.util.Random
 
 case class TNCIterationStats(
     rideHailStats: Map[String, List[Option[RideHailStatsEntry]]],
@@ -47,7 +48,7 @@ case class TNCIterationStats(
     * -> assign to each vehicle in tazVehicleGroup(taz) the top best vehicles.
     * }
     */
-  def whichCoordToRepositionTo(
+  def repositionToBasedOnScore(
       vehiclesToReposition: Vector[RideHailingAgentLocation],
       repositionCircleRadiusInMeters: Double,
       tick: Double,
@@ -60,6 +61,7 @@ case class TNCIterationStats(
     val distanceWeight = 1
     val waitingTimeWeight = 4
     val demandWeight = 1
+
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
 
@@ -112,13 +114,14 @@ case class TNCIterationStats(
 
                 val demandScore = demandWeight * (statsEntry.sumOfRequestedRides*statsEntry.sumOfRequestedRides)/(statsEntry.sumOfRequestedRides+10)/(statsEntry.sumOfRequestedRides+10)
 
-
-                val res = waitingTimeScore + demandScore + distanceScore
+                val randomError = Random.nextDouble()*0.00001
+                val res = waitingTimeScore + demandScore + distanceScore + randomError
                 if (JDouble.isNaN(res)) {
 
                 }
 
                 //log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+
 
                 res
 
@@ -149,10 +152,7 @@ case class TNCIterationStats(
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-
         //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ Math.exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
-
-
 
         mapping.add(
           new WeightPair(tazScore.taz,
@@ -175,6 +175,8 @@ case class TNCIterationStats(
       if (vehicles.size>1 && tick>10000){
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
+
+      // TODO: add kmeans approach here with number of vehicle clusters. (switch between top n scores and cluster).
 
       result
     }
