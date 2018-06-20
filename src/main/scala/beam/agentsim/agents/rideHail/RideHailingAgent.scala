@@ -57,6 +57,9 @@ object RideHailingAgent {
 class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: ActorRef, vehicle: BeamVehicle, initialLocation: Coord,
                        val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
   extends BeamAgent[RideHailingAgentData] with DrivesVehicle[RideHailingAgentData] with Stash {
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   startWith(Uninitialized, RideHailingAgentData())
