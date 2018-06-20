@@ -67,9 +67,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
-        val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weigtedKMeans)
-        val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
-        val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning
+
 
 
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
@@ -221,7 +219,3 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
     // }
   }
 }
-
-
-
-
