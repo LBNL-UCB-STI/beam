@@ -58,6 +58,7 @@ class RideHailingManager(
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  val radiusInMeters = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
   override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
   private val vehicleFuelLevel: mutable.Map[Id[Vehicle], Double] = mutable.Map[Id[Vehicle], Double]()
@@ -669,7 +670,6 @@ class RideHailingManager(
 
 object RideHailingManager {
   val dummyID: Id[RideHailingRequest] = Id.create("dummyInquiryId", classOf[RideHailingRequest])
-  val radiusInMeters: Double = 5000d
 
   val INITIAL_RIDEHAIL_LOCATION_HOME = "HOME"
   val INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
