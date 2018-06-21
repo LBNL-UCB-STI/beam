@@ -80,7 +80,6 @@ class RideHailingManager(
   }
   tncIterationStats.foreach(_.logMap())
 
-
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
     case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
       new DefaultRideHailResourceAllocationManager()

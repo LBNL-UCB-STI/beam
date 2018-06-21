@@ -85,9 +85,14 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           assert(maxNumberOfVehiclesToReposition > 0, "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
         }
 
+        if (tick>30000){
+          DebugLib.emptyFunctionForSettingBreakPoint()
+        }
+
         var vehiclesToReposition = filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
 
-        vehiclesToReposition = tncIterStats.getVehiclesWhichAreBiggestCandidatesForIdling(idleVehicles, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
+
+        vehiclesToReposition = tncIterStats.getVehiclesWhichAreBiggestCandidatesForIdling(vehiclesToReposition, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minDemandPercentageInRadius, allowIncreasingRadiusIfDemandInRadiusLow)
 

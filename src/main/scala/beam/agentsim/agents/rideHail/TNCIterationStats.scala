@@ -239,7 +239,7 @@ case class TNCIterationStats(
   // the longer the waiting time in future, the l
   // just look at smaller repositioning
   def getVehiclesWhichAreBiggestCandidatesForIdling(
-                                                     idleVehicles: TrieMap[Id[vehicles.Vehicle], RideHailingAgentLocation],
+                                                     idleVehicles: Vector[RideHailingAgentLocation],
                                                      maxNumberOfVehiclesToReposition: Double,
                                                      tick: Double,
                                                      timeHorizonToConsiderForIdleVehiclesInSec: Double,
@@ -253,7 +253,7 @@ case class TNCIterationStats(
 
     // TODO: group by TAZ to avoid evaluation multiple times?
 
-    for ((_, rhLoc) <- idleVehicles) {
+    for (rhLoc <- idleVehicles) {
 
       val startTimeBin = getTimeBin(tick)
       val endTimeBin = getTimeBin(
