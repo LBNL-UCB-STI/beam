@@ -45,6 +45,7 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
 object RideHailStatsEntry {
   def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0, 0)
 
+  def apply(sumOfRequestedRides: Long = 0, sumOfWaitingTimes: Long = 0, sumOfIdlingVehicles: Long = 0, sumOfActivityEndEvents: Long = 0): RideHailStatsEntry = new RideHailStatsEntry(sumOfRequestedRides, sumOfWaitingTimes, sumOfIdlingVehicles, sumOfActivityEndEvents)
   def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = {
     val collection = rideHailStats.flatten
 
@@ -206,7 +207,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
             Some(entry.copy(sumOfRequestedRides = numOfRequestedRides,
               sumOfWaitingTimes = sumOfWaitingTimes))
           case None =>
-            Some(RideHailStatsEntry(1, waitingTime, 0, 0))
+            Some(RideHailStatsEntry(1, waitingTime))
         }
 
         rideHailEventsTuples.remove(vehicleId)
@@ -302,9 +303,11 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         val binIndex = bin._2
         val noOfIdlingVehicles = getNoOfIdlingVehicle(tazId, binIndex)
 
-        bins(binIndex) = bin._1 match {
-          case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
-          case None => Some(RideHailStatsEntry(0, 0, noOfIdlingVehicles, 0))
+        if(noOfIdlingVehicles > 0) {
+          bins(binIndex) = bin._1 match {
+            case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
+            case None => Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
+          }
         }
       }
     }
@@ -393,7 +396,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         val sumOfActivityEndEvents = entry.sumOfActivityEndEvents + 1
         Some(entry.copy(sumOfActivityEndEvents = sumOfActivityEndEvents))
       case None =>
-        Some(RideHailStatsEntry(0, 0, 0, 1))
+        Some(RideHailStatsEntry(sumOfActivityEndEvents = 1))
     }
   }
 }
