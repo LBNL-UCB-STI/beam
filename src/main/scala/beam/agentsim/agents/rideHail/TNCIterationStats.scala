@@ -14,12 +14,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
 import org.slf4j.LoggerFactory
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.util.Random
-
-import scala.collection.JavaConverters._
 
 case class TNCIterationStats(
                               rideHailStats: Map[String, List[Option[RideHailStatsEntry]]],
@@ -28,6 +26,7 @@ case class TNCIterationStats(
                               numberOfTimeBins: Int) {
 
   private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
+  logMap()
 
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
@@ -89,7 +88,7 @@ case class TNCIterationStats(
       }
     }
 
-    val result = for ((taz, vehicles) <- tazVehicleMap) yield {
+    val result = (for ((taz, vehicles) <- tazVehicleMap) yield {
 
       val listOfTazInRadius = tazTreeMap.getTAZInRadius(
         taz.coord.getX,
@@ -130,7 +129,7 @@ case class TNCIterationStats(
 
                 //log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
-                if (waitingTimeScore> 0){
+                if (waitingTimeScore > 0) {
                   DebugLib.emptyFunctionForSettingBreakPoint()
                 }
 
@@ -149,21 +148,19 @@ case class TNCIterationStats(
       }
 
 
-
-
       // filter top N scores
       // ignore scores smaller than minScoreThresholdForRespositioning
-      val tmp=scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score> minScoreThresholdForRespositioning && tazScore.score>0)
+      val tmp = scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score > minScoreThresholdForRespositioning && tazScore.score > 0)
 
-      if (tmp.size>1){
+      if (tmp.size > 1) {
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
-      scoredTAZInRadius=tmp
+      scoredTAZInRadius = tmp
 
       // TODO: add WEIGHTED_KMEANS as well
 
-      val vehicleToCoordAssignment = if (scoredTAZInRadius.size>0) {
+      val vehicleToCoordAssignment = if (scoredTAZInRadius.size > 0) {
         val coords = if (repositioningMethod.equalsIgnoreCase("TOP_SCORES") || scoredTAZInRadius.size <= vehicles.size) {
           // Not using
           val scoreExpSumOverAllTAZInRadius =
@@ -214,12 +211,14 @@ case class TNCIterationStats(
       // TODO: add kmeans approach here with number of vehicle clusters. (switch between top n scores and cluster).
 
       vehicleToCoordAssignment
+    }).flatten.toVector
+
+    if (result.size > 0) {
+      DebugLib.emptyFunctionForSettingBreakPoint()
     }
-
-
     // log.debug("whichCoordToRepositionTo.end=======================")
 
-    result.flatten.toVector
+    result
   }
 
   // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
@@ -293,7 +292,7 @@ case class TNCIterationStats(
     // TODO: replace below code with above - was getting stuck perhaps due to empty set?
 
 
-    val head=priorityQueue
+    val head = priorityQueue
       .take(maxNumberOfVehiclesToReposition.toInt)
 
     head
@@ -454,7 +453,7 @@ case class TNCIterationStats(
 
     var columns = "index\t\t aggregate \t\t"
     val aggregates: ArrayBuffer[RideHailStatsEntry] =
-      ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry(0, 0, 0, 0))
+      ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry.empty)
     rideHailStats.foreach(rhs => {
       columns = columns + rhs._1 + "\t\t"
     })
@@ -464,7 +463,7 @@ case class TNCIterationStats(
       columns = ""
       rideHailStats.foreach(rhs => {
         val arrayBuffer = rhs._2
-        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0, 0))
+        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry.empty)
 
         aggregates(i) = aggregates(i).aggregate(entry)
 
@@ -488,7 +487,7 @@ object TNCIterationStats {
         statsB.rideHailStats.get(taz))
     }.toMap
 
-    statsA.getWithDifferentMap(result)
+    statsA.copy(rideHailStats = result)
   }
 
   def mergeArrayBuffer(bufferA: Option[List[Option[RideHailStatsEntry]]],
