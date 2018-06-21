@@ -78,10 +78,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
           repositionCircleRadiusInMeters = 100 * 1000
           maxNumberOfVehiclesToReposition = idleVehicles.size
-          firstRepositioningOfDay = false
         } else if (firstRepositioningOfDay && tick > 0){
          // tncIterStats.printTAZForVehicles(idleVehicles.map(x=>x._2).toVector)
-          firstRepositioningOfDay = false
         }
 
         //tncIterationStats.printMap()
@@ -202,8 +200,14 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
+        val result=if (firstRepositioningOfDay){
+          firstRepositioningOfDay = false
+          idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
+        } else {
+          whichTAZToRepositionTo
+        }
 
-        whichTAZToRepositionTo
+        result
       case None =>
         // iteration 0
 
@@ -215,11 +219,10 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           // this is needed to account for idling vehicles by TAZ, even if they are not moving during the whole day
           firstRepositioningOfDay = false
 
-          val mTazTreeMap = Try(TAZTreeMap.fromCsv(rideHailingManager.beamServices.beamConfig.beam.agentsim.taz.file)).toOption
+          //val mTazTreeMap = Try(TAZTreeMap.fromCsv(rideHailingManager.beamServices.beamConfig.beam.agentsim.taz.file)).toOption
 
-          val vehicleToTAZ=idleVehicles.foreach( x=> log.debug(s"${x._2.vehicleId} -> ${mTazTreeMap.get.getTAZ(x._2.currentLocation.loc.getX,
-            x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
-
+        //  val vehicleToTAZ=idleVehicles.foreach( x=> log.debug(s"${x._2.vehicleId} -> ${mTazTreeMap.get.getTAZ(x._2.currentLocation.loc.getX,
+        //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
           val result = idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
           result
