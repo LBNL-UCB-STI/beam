@@ -428,7 +428,7 @@ val head=priorityQueue
 
     var columns = "index\t\t aggregate \t\t"
     val aggregates: ArrayBuffer[RideHailStatsEntry] =
-      ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry(0, 0, 0))
+      ArrayBuffer.fill(numberOfTimeBins)(RideHailStatsEntry(0, 0, 0, 0))
     rideHailStats.foreach(rhs => {
       columns = columns + rhs._1 + "\t\t"
     })
@@ -438,7 +438,7 @@ val head=priorityQueue
       columns = ""
       rideHailStats.foreach(rhs => {
         val arrayBuffer = rhs._2
-        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0))
+        val entry = arrayBuffer(i).getOrElse(RideHailStatsEntry(0, 0, 0, 0))
 
         aggregates(i) = aggregates(i).aggregate(entry)
 
