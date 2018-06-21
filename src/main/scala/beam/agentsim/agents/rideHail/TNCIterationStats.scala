@@ -124,7 +124,7 @@ case class TNCIterationStats(
 
                 val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes * statsEntry.sumOfWaitingTimes) / (statsEntry.sumOfWaitingTimes + 1000.0) / (statsEntry.sumOfWaitingTimes + 1000.0)
 
-                val demandScore = demandWeight * (statsEntry.sumOfRequestedRides * statsEntry.sumOfRequestedRides) / (statsEntry.sumOfRequestedRides + 10.0) / (statsEntry.sumOfRequestedRides + 10.0)
+                val demandScore = demandWeight * (statsEntry.getDemandEstimate * statsEntry.getDemandEstimate) / (statsEntry.getDemandEstimate + 10.0) / (statsEntry.getDemandEstimate + 10.0)
 
                 val res = waitingTimeScore + demandScore + distanceScore
 
@@ -326,10 +326,10 @@ case class TNCIterationStats(
       .toSet
     val demandInCircle = listOfTazInRadius
       .map(
-        getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides)
+        getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate)
       .sum
     val demandAll =
-      getAggregatedRideHailStatsAllTAZ(startTime, endTime).sumOfRequestedRides
+      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
     val result =
       if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
       else Double.PositiveInfinity
