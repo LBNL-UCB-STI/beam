@@ -4,10 +4,11 @@ import akka.actor.{Actor, Props}
 import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor._
 import beam.sim.BeamServices
 import beam.utils.DebugLib
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.core.api.experimental.events.EventsManager
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager,
-                                    beamServices: BeamServices)
+                                    beamServices: BeamServices, transportNetwork: TransportNetwork)
     extends Actor {
 
   val tNCIterationsStatsCollector =
@@ -71,6 +72,6 @@ object RideHailIterationHistoryActor {
 
   case class CollectRideHailStats()
 
-  def props(eventsManager: EventsManager, beamServices: BeamServices) =
-    Props(new RideHailIterationHistoryActor(eventsManager, beamServices))
+  def props(eventsManager: EventsManager, beamServices: BeamServices, transportNetwork: TransportNetwork) =
+    Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
 }
