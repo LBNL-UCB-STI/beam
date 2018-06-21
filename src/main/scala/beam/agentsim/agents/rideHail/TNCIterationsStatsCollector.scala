@@ -277,6 +277,11 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).map(_._1).mkString(", ")}")
     log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
 
+    val remainingTaz = vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
+    remainingTaz.foreach{ tazId =>
+      rideHailStats += (tazId -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None))
+    }
+
     rideHailStats.foreach { items =>
 
       val tazId = items._1
@@ -293,14 +298,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         }
       }
     }
-
-    vehicleIdlingBins.foreach( vehicleIdBin => {
-
-
-
-    }
-    )
-
 
 
 
