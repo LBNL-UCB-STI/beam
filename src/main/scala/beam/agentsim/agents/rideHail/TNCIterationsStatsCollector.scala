@@ -40,6 +40,10 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
   def average(other: RideHailStatsEntry): RideHailStatsEntry = {
     RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingTimes + other.sumOfWaitingTimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2, (sumOfActivityEndEvents + other.sumOfActivityEndEvents) / 2)
   }
+
+  def getDemandEstimate():Double ={
+    sumOfRequestedRides + sumOfActivityEndEvents
+  }
 }
 
 object RideHailStatsEntry {

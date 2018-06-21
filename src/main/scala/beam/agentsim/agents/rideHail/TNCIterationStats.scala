@@ -57,7 +57,7 @@ case class TNCIterationStats(
                   timeHorizonToConsiderForIdleVehiclesInSec: Double,
                   beamServices: BeamServices): Vector[(Id[vehicles.Vehicle], Location)] = {
 
-    // log.debug("whichCoordToRepositionTo.start=======================")
+     log.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
@@ -67,7 +67,11 @@ case class TNCIterationStats(
     // TODO: read from config and tune weights
     val distanceWeight = 0.01
     val waitingTimeWeight = 4.0
-    val demandWeight = 1.0
+    val demandWeight = 6.0
+
+    if (tick>36000){
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
 
 
     val tazVehicleMap = mutable.Map[TAZ, ListBuffer[Id[vehicles.Vehicle]]]()
@@ -123,13 +127,18 @@ case class TNCIterationStats(
 
                 val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes * statsEntry.sumOfWaitingTimes) / (statsEntry.sumOfWaitingTimes + 1000.0) / (statsEntry.sumOfWaitingTimes + 1000.0)
 
-                val demandScore = demandWeight * (statsEntry.sumOfRequestedRides * statsEntry.sumOfRequestedRides) / (statsEntry.sumOfRequestedRides + 10.0) / (statsEntry.sumOfRequestedRides + 10.0)
+                val demandScore = demandWeight * (statsEntry.getDemandEstimate * statsEntry.getDemandEstimate) / (statsEntry.getDemandEstimate + 10.0) / (statsEntry.getDemandEstimate + 10.0)
 
                 val res = waitingTimeScore + demandScore + distanceScore
 
-                //log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+                log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
                 if (waitingTimeScore > 0) {
+                  DebugLib.emptyFunctionForSettingBreakPoint()
+                }
+
+                if (statsEntry.getDemandEstimate>0){
+
                   DebugLib.emptyFunctionForSettingBreakPoint()
                 }
 
@@ -254,6 +263,11 @@ case class TNCIterationStats(
         .map(
           getRideHailStatsInfo(rhLoc.currentLocation.loc, _) match {
             case Some(statsEntry) =>
+              if (statsEntry.sumOfIdlingVehicles>0){
+                DebugLib.emptyFunctionForSettingBreakPoint()
+              }
+
+
               statsEntry.sumOfIdlingVehicles
 
             case _ =>
@@ -325,10 +339,10 @@ case class TNCIterationStats(
       .toSet
     val demandInCircle = listOfTazInRadius
       .map(
-        getAggregatedRideHailStats(_, startTime, endTime).sumOfRequestedRides)
+        getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate)
       .sum
     val demandAll =
-      getAggregatedRideHailStatsAllTAZ(startTime, endTime).sumOfRequestedRides
+      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
     val result =
       if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
       else Double.PositiveInfinity

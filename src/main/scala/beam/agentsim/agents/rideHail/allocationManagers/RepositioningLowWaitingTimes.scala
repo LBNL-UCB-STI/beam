@@ -146,9 +146,9 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
 
-            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+            for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
               spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
-              spatialPlot.addString(StringToPlot(s"(${tazEntry._2.sumOfRequestedRides},${tazEntry._2.sumOfWaitingTimes})", tazEntry._1, Color.RED, 20))
+              spatialPlot.addString(StringToPlot(s"(${tazEntry._2.getDemandEstimate},${tazEntry._2.sumOfWaitingTimes})", tazEntry._1, Color.RED, 20))
             }
 
 
