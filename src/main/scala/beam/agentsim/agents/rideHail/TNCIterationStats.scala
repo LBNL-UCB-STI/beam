@@ -266,15 +266,21 @@ case class TNCIterationStats(
     }
 
 
+    val scoreSum=priorityQueue.map( x=> x.score).sum
 
-val head=priorityQueue
-  .take(maxNumberOfVehiclesToReposition.toInt)
 
-    head
-      .filter(vehicleLocationScores =>
-        vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
-      .map(_.rideHailingAgentLocation)
-      .toVector
+    val mapping = new java.util.ArrayList[WeightPair[RideHailingAgentLocation, java.lang.Double]]()
+    priorityQueue.foreach { vehicleLocationScore =>
+
+      mapping.add(
+        new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
+          vehicleLocationScore.score / scoreSum))
+    }
+
+    val enumDistribution = new EnumeratedDistribution(mapping)
+    val sample = enumDistribution.sample(idleVehicles.size)
+
+    (for (rideHailingAgentLocation <- sample; a = rideHailingAgentLocation.asInstanceOf[RideHailingAgentLocation]) yield a).toVector
   }
 
   def demandRatioInCircleToOutside(
