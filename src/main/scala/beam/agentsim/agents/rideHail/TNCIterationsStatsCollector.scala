@@ -5,6 +5,7 @@ import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHai
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -158,10 +159,10 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
       if(numPass > 0) {
         vehicles.put(vehicleId, 1)
-        collectIdlingVehicles(vehicleId, pathTraversalEvent)
       } else if (vehicles.getOrElse(vehicleId, -1) < 0) {
         vehicles.put(vehicleId, 0)
       }
+      collectIdlingVehicles(vehicleId, pathTraversalEvent)
     }
   }
 
@@ -292,6 +293,18 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         }
       }
     }
+
+    vehicleIdlingBins.foreach( vehicleIdBin => {
+
+
+
+    }
+    )
+
+
+
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
