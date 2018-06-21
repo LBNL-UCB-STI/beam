@@ -222,6 +222,12 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
   private def collectIdlingVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
 
+    val startX = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+    val startY = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+
+    val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
+
+
     val startTazId = getStartTazId(currentEvent)
     val endTazId = getEndTazId(currentEvent)
 
@@ -250,6 +256,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         ((endingBin + 1) until startBin).map((_, endTazId)).toMap
 
       case None =>
+        log.debug(s"$vehicleId -> $startTazId -> $coord")
+
         if (startBin > 0) {
           (0 until startBin).map((_, startTazId)).toMap
         } else {

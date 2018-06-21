@@ -26,7 +26,7 @@ case class TNCIterationStats(
                               numberOfTimeBins: Int) {
 
   private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
-  logMap()
+  //logMap()
 
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
@@ -57,7 +57,7 @@ case class TNCIterationStats(
                   timeHorizonToConsiderForIdleVehiclesInSec: Double,
                   beamServices: BeamServices): Vector[(Id[vehicles.Vehicle], Location)] = {
 
-     log.debug("whichCoordToRepositionTo.start=======================")
+    // log.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
@@ -131,7 +131,7 @@ case class TNCIterationStats(
 
                 val res = waitingTimeScore + demandScore + distanceScore
 
-                log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+              //  log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
                 if (waitingTimeScore > 0) {
                   DebugLib.emptyFunctionForSettingBreakPoint()
@@ -230,6 +230,50 @@ case class TNCIterationStats(
     result
   }
 
+
+  def getVehiclesCloseToIdlingAreas(idleVehicles: Vector[RideHailingAgentLocation],
+                                    maxNumberOfVehiclesToReposition: Double,
+                                    tick: Double,
+                                    timeHorizonToConsiderForIdleVehiclesInSec: Double,
+                                    thresholdForMinimumNumberOfIdlingVehicles: Int, beamServices: BeamServices)
+  : Vector[RideHailingAgentLocation] ={
+    var priorityQueue =
+      mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
+        vls1.score.compare(vls2.score))
+
+    // TODO: improve efficiency asap
+
+
+    val maxDistanceInMeters=1000
+
+    val startTimeBin = getTimeBin(tick)
+    val endTimeBin = getTimeBin(
+      tick + timeHorizonToConsiderForIdleVehiclesInSec)
+
+
+
+    val idleTAZs=rideHailStats.map(tazId => (tazId._1,getAggregatedRideHailStats(Id.create(tazId._1, classOf[TAZ]),startTimeBin,endTimeBin))).filter( t => t._2.sumOfIdlingVehicles>=thresholdForMinimumNumberOfIdlingVehicles)
+
+    for (rhLoc <- idleVehicles) {
+      var idleScore = 0L
+      for (tazId <- idleTAZs.keys) {
+        if (beamServices.geo.distInMeters(tazTreeMap.getTAZ(tazId).get.coord, rhLoc.currentLocation.loc) < maxDistanceInMeters) {
+          idleScore = idleScore + idleTAZs.get(tazId).get.sumOfIdlingVehicles
+        }
+      }
+      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+    }
+
+    val head = priorityQueue
+      .take(maxNumberOfVehiclesToReposition.toInt)
+
+    //printTAZForVehicles(idleVehicles)
+
+    head.map(_.rideHailingAgentLocation)
+      .toVector
+  }
+
+
   // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
   // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
   // e.g. just go through 20min
@@ -259,9 +303,12 @@ case class TNCIterationStats(
       val endTimeBin = getTimeBin(
         tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
+      val taz = tazTreeMap.getTAZ(rhLoc.currentLocation.loc.getX,
+        rhLoc.currentLocation.loc.getY)
+
       val idleScore = (startTimeBin to endTimeBin)
         .map(
-          getRideHailStatsInfo(rhLoc.currentLocation.loc, _) match {
+          getRideHailStatsInfo(taz.tazId, _) match {
             case Some(statsEntry) =>
               if (statsEntry.sumOfIdlingVehicles>0){
                 DebugLib.emptyFunctionForSettingBreakPoint()
@@ -309,11 +356,19 @@ case class TNCIterationStats(
     val head = priorityQueue
       .take(maxNumberOfVehiclesToReposition.toInt)
 
+    //printTAZForVehicles(idleVehicles)
+
     head
       .filter(vehicleLocationScores =>
         vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
       .map(_.rideHailingAgentLocation)
       .toVector
+  }
+
+  def printTAZForVehicles(rideHailingAgentLocations: Vector[RideHailingAgentLocation]) = {
+    log.debug("vehicle located at TAZs:")
+    val vehicleToTAZ=rideHailingAgentLocations.foreach( x=> log.debug(s"s${x.vehicleId} -> ${tazTreeMap.getTAZ(x.currentLocation.loc.getX,
+      x.currentLocation.loc.getY).tazId}"))
   }
 
   def demandRatioInCircleToOutside(

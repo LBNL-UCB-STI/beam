@@ -4,12 +4,14 @@ import java.awt.Color
 
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
+import scala.util.Try
 
 class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
@@ -43,10 +45,12 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
   var firstRepositioningOfDay = true
 
 
+
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+
 
     tncIterationStats match {
       case Some(tncIterStats) =>
@@ -69,12 +73,14 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
 
 
-
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
           // allow more aggressive repositioning at start of day
           minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
           repositionCircleRadiusInMeters = 100 * 1000
           maxNumberOfVehiclesToReposition = idleVehicles.size
+          firstRepositioningOfDay = false
+        } else if (firstRepositioningOfDay && tick > 0){
+         // tncIterStats.printTAZForVehicles(idleVehicles.map(x=>x._2).toVector)
           firstRepositioningOfDay = false
         }
 
@@ -92,7 +98,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         var vehiclesToReposition = filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
 
 
-        vehiclesToReposition = tncIterStats.getVehiclesWhichAreBiggestCandidatesForIdling(vehiclesToReposition, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
+        vehiclesToReposition = tncIterStats.getVehiclesCloseToIdlingAreas(vehiclesToReposition, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning,rideHailingManager.beamServices)
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minDemandPercentageInRadius, allowIncreasingRadiusIfDemandInRadiusLow)
 
@@ -207,6 +213,13 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           // => this is a hack, as the tnc iteration stats does not know the initial position of any rideHailVehicle unless it has at least one pathTraversal during the day
           // this is needed to account for idling vehicles by TAZ, even if they are not moving during the whole day
           firstRepositioningOfDay = false
+
+          val mTazTreeMap = Try(TAZTreeMap.fromCsv(rideHailingManager.beamServices.beamConfig.beam.agentsim.taz.file)).toOption
+
+          val vehicleToTAZ=idleVehicles.foreach( x=> log.debug(s"${x._2.vehicleId} -> ${mTazTreeMap.get.getTAZ(x._2.currentLocation.loc.getX,
+            x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
+
+
           val result = idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
           result
         } else {
