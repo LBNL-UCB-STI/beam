@@ -241,7 +241,7 @@ case class TNCIterationStats(
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
         vls1.score.compare(vls2.score))
 
-    val maxDistanceInMeters=100000
+    val maxDistanceInMeters=500
 
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(
