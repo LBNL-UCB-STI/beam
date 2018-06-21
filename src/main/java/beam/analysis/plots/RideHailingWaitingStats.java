@@ -54,6 +54,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         rideHailCount = 0;
         rideHailingWaiting.clear();
         hoursTimesMap.clear();
+        rideHailWaitingIndividualStatList.clear();
     }
 
     @Override
@@ -346,7 +347,7 @@ public class RideHailingWaitingStats implements IGraphStats {
             Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
 
-            legends.add( legend + "_min");
+            legends.add( legend + "_sec");
         }
         //Collections.sort(legends);
         return legends;
