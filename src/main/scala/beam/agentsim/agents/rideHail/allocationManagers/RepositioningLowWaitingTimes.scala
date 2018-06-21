@@ -75,7 +75,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
 
         if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
           // allow more aggressive repositioning at start of day
-          minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
+          //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
           repositionCircleRadiusInMeters = 100 * 1000
           maxNumberOfVehiclesToReposition = idleVehicles.size
           firstRepositioningOfDay = false
@@ -158,10 +158,11 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
-              spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
-              spatialPlot.addString(StringToPlot(s"(${tazEntry._2.getDemandEstimate},${tazEntry._2.sumOfWaitingTimes})", tazEntry._1, Color.RED, 20))
+              if (!firstRepositionCoordsOfDay.isDefined || (firstRepositionCoordsOfDay.isDefined && rideHailingManager.beamServices.geo.distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+                spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
+                spatialPlot.addString(StringToPlot(s"(${tazEntry._2.getDemandEstimate},${tazEntry._2.sumOfWaitingTimes})", tazEntry._1, Color.RED, 20))
+              }
             }
-
 
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(rideHailingManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc, vehToRepso._2, Color.blue, 3)

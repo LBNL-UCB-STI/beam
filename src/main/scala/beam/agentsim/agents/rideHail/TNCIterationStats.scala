@@ -241,24 +241,66 @@ case class TNCIterationStats(
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
         vls1.score.compare(vls2.score))
 
-    val maxDistanceInMeters=500
+    val maxDistanceInMeters=100000
 
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(
       tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-    val idleTAZs=rideHailStats.map(tazId => (tazId._1,getAggregatedRideHailStats(Id.create(tazId._1, classOf[TAZ]),startTimeBin,endTimeBin))).filter( t => t._2.sumOfIdlingVehicles>=thresholdForMinimumNumberOfIdlingVehicles)
+    if (startTimeBin>2){
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+    val tmp=rideHailStats.map(tazId => (tazId._1,getAggregatedRideHailStats(Id.create(tazId._1, classOf[TAZ]),tick,tick + timeHorizonToConsiderForIdleVehiclesInSec)))
+
+    val idleTAZs=tmp.filter( t => t._2.sumOfIdlingVehicles>=thresholdForMinimumNumberOfIdlingVehicles)
+
+
+
 
     for (rhLoc <- idleVehicles) {
       var idleScore = 0L
 
-      for (tazId <-tazTreeMap.getTAZInRadius(rhLoc.currentLocation.loc.getX,rhLoc.currentLocation.loc.getY,maxDistanceInMeters)){
-        if (idleTAZs.contains(tazId)){
-          idleScore = idleScore + idleTAZs.get(tazId).get.sumOfIdlingVehicles
+      for (taz <-tazTreeMap.getTAZInRadius(rhLoc.currentLocation.loc.getX,rhLoc.currentLocation.loc.getY,maxDistanceInMeters).asScala){
+        if (idleTAZs.contains(taz.tazId.toString)){
+          idleScore = idleScore + idleTAZs.get(taz.tazId.toString).get.sumOfIdlingVehicles
         }
       }
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
+
+
+
+    priorityQueue= priorityQueue.filter(vehicleLocationScores =>
+      vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
+/*
+
+//TODO: figure out issue with this code, why ERROR:
+more rideHailVehicle interruptions in process than should be possible: rideHailVehicle-22 -> further errors surpressed (debug later if this is still relevant)
+03:34:58.103 [beam-actor-system-akka.actor.default-dispatcher-9] ERROR beam.agentsim.agents.rideHail.RideHailingManager -
+when enabled
+
+    if (!priorityQueue.isEmpty){
+
+      val scoreSum=priorityQueue.map( x=> x.score).sum
+
+      val mapping = new java.util.ArrayList[WeightPair[RideHailingAgentLocation, java.lang.Double]]()
+      priorityQueue.foreach { vehicleLocationScore =>
+
+        mapping.add(
+          new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
+            vehicleLocationScore.score / scoreSum))
+      }
+
+      val enumDistribution = new EnumeratedDistribution(mapping)
+      val sample = enumDistribution.sample(idleVehicles.size)
+
+      (for (rideHailingAgentLocation <- sample; a = rideHailingAgentLocation.asInstanceOf[RideHailingAgentLocation]) yield a).toVector
+    } else {
+      Vector()
+    }
+
+    */
 
     val head = priorityQueue
       .take(maxNumberOfVehiclesToReposition.toInt)
@@ -449,7 +491,8 @@ case class TNCIterationStats(
   def getRideHailStatsInfo(tazId: Id[TAZ],
                            timeBin: Int): Option[RideHailStatsEntry] = {
 
-    rideHailStats.get(tazId.toString).flatMap(ab => ab(timeBin))
+    val tmp=rideHailStats.get(tazId.toString)
+      tmp.flatMap(ab => ab(timeBin))
   }
 
   def getAggregatedRideHailStats(coord: Coord,
