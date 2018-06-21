@@ -73,14 +73,14 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
 
 
-        if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
+        //if (firstRepositioningOfDay && tick > 0 && rideHailingManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailingManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
           // allow more aggressive repositioning at start of day
           //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
-          repositionCircleRadiusInMeters = 100 * 1000
-          maxNumberOfVehiclesToReposition = idleVehicles.size
-        } else if (firstRepositioningOfDay && tick > 0){
+        //  repositionCircleRadiusInMeters = 100 * 1000
+        //  maxNumberOfVehiclesToReposition = idleVehicles.size
+        //} else if (firstRepositioningOfDay && tick > 0){
          // tncIterStats.printTAZForVehicles(idleVehicles.map(x=>x._2).toVector)
-        }
+        //}
 
         //tncIterationStats.printMap()
 
