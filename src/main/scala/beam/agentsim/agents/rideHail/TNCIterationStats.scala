@@ -238,11 +238,12 @@ case class TNCIterationStats(
                                                      thresholdForMinimumNumberOfIdlingVehicles: Int)
   : Vector[RideHailingAgentLocation] = {
 
-    val priorityQueue =
+    // TODO: convert to non sorted, as priority queue not needed anymore
+    var priorityQueue =
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
         vls1.score.compare(vls2.score))
 
-    // TODO: group by TAZ to avoid evaluation twice
+    // TODO: group by TAZ to avoid evaluation multiple times?
 
     for ((_, rhLoc) <- idleVehicles) {
 
@@ -265,10 +266,35 @@ case class TNCIterationStats(
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
     }
 
+/*
+    priorityQueue= priorityQueue.filter(vehicleLocationScores =>
+      vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
+
+    if (!priorityQueue.isEmpty){
+
+    val scoreSum=priorityQueue.map( x=> x.score).sum
+
+    val mapping = new java.util.ArrayList[WeightPair[RideHailingAgentLocation, java.lang.Double]]()
+    priorityQueue.foreach { vehicleLocationScore =>
+
+      mapping.add(
+        new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
+          vehicleLocationScore.score / scoreSum))
+    }
+
+    val enumDistribution = new EnumeratedDistribution(mapping)
+    val sample = enumDistribution.sample(idleVehicles.size)
+
+    (for (rideHailingAgentLocation <- sample; a = rideHailingAgentLocation.asInstanceOf[RideHailingAgentLocation]) yield a).toVector
+    } else {
+      Vector()
+    }
+*/
+    // TODO: replace below code with above - was getting stuck perhaps due to empty set?
 
 
-val head=priorityQueue
-  .take(maxNumberOfVehiclesToReposition.toInt)
+    val head=priorityQueue
+      .take(maxNumberOfVehiclesToReposition.toInt)
 
     head
       .filter(vehicleLocationScores =>
