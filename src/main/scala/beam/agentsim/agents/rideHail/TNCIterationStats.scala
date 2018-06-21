@@ -241,23 +241,19 @@ case class TNCIterationStats(
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
         vls1.score.compare(vls2.score))
 
-    // TODO: improve efficiency asap
-
-
-    val maxDistanceInMeters=1000
+    val maxDistanceInMeters=500
 
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(
       tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-
-
     val idleTAZs=rideHailStats.map(tazId => (tazId._1,getAggregatedRideHailStats(Id.create(tazId._1, classOf[TAZ]),startTimeBin,endTimeBin))).filter( t => t._2.sumOfIdlingVehicles>=thresholdForMinimumNumberOfIdlingVehicles)
 
     for (rhLoc <- idleVehicles) {
       var idleScore = 0L
-      for (tazId <- idleTAZs.keys) {
-        if (beamServices.geo.distInMeters(tazTreeMap.getTAZ(tazId).get.coord, rhLoc.currentLocation.loc) < maxDistanceInMeters) {
+
+      for (tazId <-tazTreeMap.getTAZInRadius(rhLoc.currentLocation.loc.getX,rhLoc.currentLocation.loc.getY,maxDistanceInMeters)){
+        if (idleTAZs.contains(tazId)){
           idleScore = idleScore + idleTAZs.get(tazId).get.sumOfIdlingVehicles
         }
       }
