@@ -10,9 +10,6 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager,
                                     beamServices: BeamServices)
     extends Actor {
 
-  val tNCIterationsStatsCollector =
-    new TNCIterationsStatsCollector(eventsManager, beamServices, self)
-
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
   // create methods in that class, which I need for my programming
