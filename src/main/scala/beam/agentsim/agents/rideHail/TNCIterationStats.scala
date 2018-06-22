@@ -118,18 +118,19 @@ case class TNCIterationStats(
           getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
         val distanceInMeters =
           beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
-        val distanceScore = -1 * distanceWeight * (distanceInMeters * distanceInMeters) / (distanceInMeters + 1000.0) / (distanceInMeters + 1000.0)
+
+        val distanceScore = -1 * distanceWeight * Math.pow(distanceInMeters,2) / Math.pow(distanceInMeters + 1000.0,2)
 
         val score = (startTimeBin to endTimeBin)
           .map(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
 
-                val waitingTimeScore = waitingTimeWeight * (statsEntry.sumOfWaitingTimes * statsEntry.sumOfWaitingTimes) / (statsEntry.sumOfWaitingTimes + 1000.0) / (statsEntry.sumOfWaitingTimes + 1000.0)
+                val waitingTimeScore = waitingTimeWeight * Math.pow(statsEntry.sumOfWaitingTimes,2) /   Math.pow(statsEntry.sumOfWaitingTimes + 1000.0,2)
 
-                val demandScore = demandWeight * (statsEntry.getDemandEstimate * statsEntry.getDemandEstimate) / (statsEntry.getDemandEstimate + 10.0) / (statsEntry.getDemandEstimate + 10.0)
+                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate,2) / Math.pow(statsEntry.getDemandEstimate + 10.0,2)
 
-                val res = waitingTimeScore + demandScore + distanceScore
+                val finalScore = waitingTimeScore + demandScore + distanceScore
 
               //  log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
@@ -142,7 +143,7 @@ case class TNCIterationStats(
                   DebugLib.emptyFunctionForSettingBreakPoint()
                 }
 
-                res
+                finalScore
 
               case _ =>
                 0
