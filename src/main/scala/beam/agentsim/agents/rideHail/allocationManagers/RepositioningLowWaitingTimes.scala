@@ -128,7 +128,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         }
 
 
-        val produceDebugImages = true
+        val produceDebugImages = repositioningConfig.produceDebugImages
         if (produceDebugImages && whichTAZToRepositionTo.nonEmpty) {
           if (tick > 0 && tick < 24 * 3600) {
             val spatialPlot = new SpatialPlot(1100, 1100, 50)

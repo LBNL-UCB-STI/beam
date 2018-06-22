@@ -63,11 +63,10 @@ case class TNCIterationStats(
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
     val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
-
-    // TODO: read from config and tune weights
-    val distanceWeight = 0.01
-    val waitingTimeWeight = 4.0
-    val demandWeight = 6.0
+    
+    val distanceWeight = repositioningConfig.distanceWeight
+    val waitingTimeWeight = repositioningConfig.waitingTimeWeight
+    val demandWeight = repositioningConfig.demandWeight
 
     if (tick>36000){
       DebugLib.emptyFunctionForSettingBreakPoint()
