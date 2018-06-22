@@ -4,7 +4,7 @@ load.libraries(c('GEOquery','XML'))
 clean.and.relabel <- function(ev,factor.to.scale.personal.back,factor.to.scale.transit.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
-  ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
+  ev[vehicle_type=="CAR" | substr(vehicle,1,5)=="rideH",vehicle_type:="TNC"]
   ev[vehicle_type=="subway",vehicle_type:="BART"]
   ev[vehicle_type=="SUV",vehicle_type:="Car"]
   ev[vehicle_type=="cable_car",vehicle_type:="Cable_Car"]
