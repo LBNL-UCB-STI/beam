@@ -8,11 +8,10 @@ import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -49,9 +48,12 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends
   DrivesVehicle[TransitDriverData] {
-  override val id: Id[TransitDriverAgent] = transitDriverId
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "
+
+  override val id: Id[TransitDriverAgent] = transitDriverId
 
   startWith(Uninitialized, TransitDriverData())
 

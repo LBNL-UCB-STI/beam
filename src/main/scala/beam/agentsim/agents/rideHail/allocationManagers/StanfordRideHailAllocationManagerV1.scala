@@ -30,7 +30,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
    */
 
   override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
+    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)
 
     rideHailingAgentLocation match {
       case Some(rideHailingAgentLocation) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -50,7 +50,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for (rideHailingAgentLocation <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)) {
+        for (rideHailingAgentLocation <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)) {
           if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
             vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -101,9 +101,9 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
 
     // RHM
-    val rideHailAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters).get
+    val rideHailAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters).get
     rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
+    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)
     rideHailingManager.getIdleVehicles
 
   }

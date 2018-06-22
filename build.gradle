@@ -463,10 +463,10 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 mainClassName = "beam.sim.RunBeam"
 
 def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
-
+println(applicationDefaultJvmArgs)
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-javaagent:build/aspectjweaver-1.8.10.jar"]
+applicationDefaultJvmArgs = ["-Xmx130g"]
 
 run {
     if (project.hasProperty("appArgs")) {

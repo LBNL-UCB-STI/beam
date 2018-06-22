@@ -23,6 +23,15 @@ import java.util.*;
  */
 public class RideHailingWaitingStats implements IGraphStats {
 
+    class RideHailWaitingIndividualStat{
+        double time;
+        String personId;
+        String vehicleId;
+        double waitingTime;
+    }
+
+    List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
@@ -45,6 +54,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         rideHailCount = 0;
         rideHailingWaiting.clear();
         hoursTimesMap.clear();
+        rideHailWaitingIndividualStatList.clear();
     }
 
     @Override
@@ -71,6 +81,18 @@ public class RideHailingWaitingStats implements IGraphStats {
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailingWaitingTimes(modeChoiceEvent, difference);
 
+                // Building the RideHailWaitingIndividualStat List
+                String __vehicleId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
+                String __personId = personEntersVehicleEvent.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+
+                RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
+                rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
+                rideHailWaitingIndividualStat.personId = __personId;
+                rideHailWaitingIndividualStat.vehicleId = __vehicleId;
+                rideHailWaitingIndividualStat.waitingTime = difference;
+                rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
+
+
                 // Remove the personId from the list of ModeChoiceEvent
                 rideHailingWaiting.remove(_personId);
             }
@@ -92,6 +114,41 @@ public class RideHailingWaitingStats implements IGraphStats {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         writeToCSV(event.getIteration(), hourModeFrequency);
+        writeRideHailWaitingIndividualStatCSV(event.getIteration());
+    }
+
+    private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException{
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"rideHailIndividualWaitingTimes.csv");
+        BufferedWriter out = null;
+        try {
+            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+            String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
+
+            out.write(heading);
+            out.newLine();
+
+            for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList){
+
+
+                String line = rideHailWaitingIndividualStat.time + "," +
+                        rideHailWaitingIndividualStat.personId + "," +
+                        rideHailWaitingIndividualStat.vehicleId + "," +
+                        rideHailWaitingIndividualStat.waitingTime;
+
+                out.write(line);
+
+                out.newLine();
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (out != null) {
+                out.close();
+            }
+        }
     }
 
     @Override
@@ -104,7 +161,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        waitingTime = waitingTime/60;
+        //waitingTime = waitingTime/60;
 
         if (waitingTime > lastMaximumTime) {
             lastMaximumTime = waitingTime;
@@ -179,7 +236,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         BufferedWriter out = null;
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "WaitingTime\\Hour";
+            String heading = "WaitingTime(sec)\\Hour";
             for (int hours = 1; hours <= 24; hours++) {
                 heading += "," + hours;
             }
@@ -290,7 +347,7 @@ public class RideHailingWaitingStats implements IGraphStats {
             Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
 
-            legends.add( legend + "_min");
+            legends.add( legend + "_sec");
         }
         //Collections.sort(legends);
         return legends;

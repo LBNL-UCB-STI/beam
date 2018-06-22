@@ -92,8 +92,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices),rideHailIterationHistoryActorName)
-    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices,rideHailIterationHistoryActor)
+    rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices, transportNetwork),rideHailIterationHistoryActorName)
+    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices,rideHailIterationHistoryActor,transportNetwork)
 
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)

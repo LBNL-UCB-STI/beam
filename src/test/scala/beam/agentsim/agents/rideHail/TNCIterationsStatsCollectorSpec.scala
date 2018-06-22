@@ -9,7 +9,7 @@ class TNCIterationsStatsCollectorSpec extends GenericEventsSpec with Matchers {
   "A TNC Iterations Stats Collector " must {
     "collect stats" in {
       val events = EventsUtils.createEventsManager
-      val tncHandler = new TNCIterationsStatsCollector(events, beamServices, null)
+      val tncHandler = new TNCIterationsStatsCollector(events, beamServices, null, null)
 
       processHandlers(List(tncHandler))
 

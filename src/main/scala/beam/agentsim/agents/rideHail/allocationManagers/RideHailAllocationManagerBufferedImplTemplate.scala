@@ -11,7 +11,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
+    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)
 
     rideHailingAgentLocation match {
       case Some(agentLocation) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))

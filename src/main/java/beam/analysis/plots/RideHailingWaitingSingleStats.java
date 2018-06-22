@@ -118,7 +118,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        waitingTime = waitingTime / 60;
+        //waitingTime = waitingTime / 60;
 
         if (waitingTime > lastMaximumTime) {
             lastMaximumTime = waitingTime;
@@ -149,7 +149,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            StringBuilder heading = new StringBuilder("WaitingTime\\Hour");
+            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
             for (int hours = 1; hours <= numberOfTimeBins; hours++) {
                 heading.append(",").append(hours);
             }

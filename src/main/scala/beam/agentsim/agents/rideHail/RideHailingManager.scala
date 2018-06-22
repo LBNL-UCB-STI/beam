@@ -58,6 +58,7 @@ class RideHailingManager(
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  val radiusInMeters = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
   override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
   private val vehicleFuelLevel: mutable.Map[Id[Vehicle], Double] = mutable.Map[Id[Vehicle], Double]()
@@ -66,7 +67,7 @@ class RideHailingManager(
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
 
   private val rideHailAllocationManagerTimeoutInSeconds = {
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailAllocationManagerTimeoutInSeconds
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   }
 
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
@@ -78,7 +79,6 @@ class RideHailingManager(
     Await.result(future, timeout.duration).asInstanceOf[Option[TNCIterationStats]]
   }
   tncIterationStats.foreach(_.logMap())
-
 
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
     case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
@@ -669,11 +669,11 @@ class RideHailingManager(
 
 object RideHailingManager {
   val dummyID: Id[RideHailingRequest] = Id.create("dummyInquiryId", classOf[RideHailingRequest])
-  val radiusInMeters: Double = 5000d
 
   val INITIAL_RIDEHAIL_LOCATION_HOME = "HOME"
   val INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
+  val INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
 
   def nextRideHailingInquiryId: Id[RideHailingRequest] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingRequest])
