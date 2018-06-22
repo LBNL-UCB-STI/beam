@@ -46,12 +46,11 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   val defaultEvents = runAndCollectEvents("default")
   val emptyEvents = runAndCollectEvents("empty")
   val expensiveEvents = runAndCollectEvents("expensive")
+  val limitedEvents = runAndCollectEvents("limited")
 
   "Parking system " must {
     "guarantee at least some parking used " in {
-
       val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-
       parkingEvents.size should be > 0
     }
 
@@ -84,6 +83,13 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
 
       isSameArrivalAndDeparture shouldBe true
+    }
+
+    "expensive parking should reduce driving" in {
+      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+
+      parkingEvents.size should be > emptyParkingEvents.size
     }
 
     "limited parking access should reduce driving" in {
