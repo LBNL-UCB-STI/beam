@@ -4,14 +4,12 @@ import java.awt.Color
 
 import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
 import beam.agentsim.agents.rideHail.{RideHailingManager, TNCIterationStats}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
-import scala.util.Try
 
 class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, tncIterationStats: Option[TNCIterationStats]) extends RideHailResourceAllocationManager {
 
@@ -45,7 +43,6 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
   var firstRepositioningOfDay = true
 
 
-
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
@@ -64,10 +61,10 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
         // TODO: get proper number here from rideHailManager
         val timeWindowSizeInSecForDecidingAboutRepositioning = repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
         val percentageOfVehiclesToReposition = repositioningConfig.percentageOfVehiclesToReposition
-        var maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
+        val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
 
         var repositionCircleRadiusInMeters = repositioningConfig.repositionCircleRadiusInMeters
-        var minimumNumberOfIdlingVehiclesThresholdForRepositioning = repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
+        val minimumNumberOfIdlingVehiclesThresholdForRepositioning = repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
 
         val allowIncreasingRadiusIfDemandInRadiusLow = repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
         val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
@@ -89,14 +86,14 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           assert(maxNumberOfVehiclesToReposition > 0, "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed")
         }
 
-        if (tick>30000){
+        if (tick > 30000) {
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
         var vehiclesToReposition = filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(idleVehicles, minimumNumberOfIdlingVehiclesThresholdForRepositioning)
 
 
-        vehiclesToReposition = tncIterStats.getVehiclesCloseToIdlingAreas(vehiclesToReposition, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning,rideHailingManager.beamServices)
+        vehiclesToReposition = tncIterStats.getVehiclesCloseToIdlingAreas(vehiclesToReposition, maxNumberOfVehiclesToReposition, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minimumNumberOfIdlingVehiclesThresholdForRepositioning, rideHailingManager.beamServices)
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(vehiclesToReposition, repositionCircleRadiusInMeters, tick, timeWindowSizeInSecForDecidingAboutRepositioning, minDemandPercentageInRadius, allowIncreasingRadiusIfDemandInRadiusLow)
 
@@ -200,7 +197,7 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
           log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
-        val result=if (firstRepositioningOfDay){
+        val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
           idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
         } else {
