@@ -65,6 +65,9 @@ case class TNCIterationStats(
     val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
 
     // TODO: read from config and tune weights
+
+
+
     val distanceWeight = 0.01
     val waitingTimeWeight = 4.0
     val demandWeight = 6.0
@@ -119,16 +122,19 @@ case class TNCIterationStats(
         val distanceInMeters =
           beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
 
-        val distanceScore = -1 * distanceWeight * Math.pow(distanceInMeters,2) / Math.pow(distanceInMeters + 1000.0,2)
+        val distanceScore = -1 * distanceWeight * Math.pow(distanceInMeters,2) /
+          Math.pow(distanceInMeters + 1000.0,2)
 
         val score = (startTimeBin to endTimeBin)
           .map(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
 
-                val waitingTimeScore = waitingTimeWeight * Math.pow(statsEntry.sumOfWaitingTimes,2) /   Math.pow(statsEntry.sumOfWaitingTimes + 1000.0,2)
+                val waitingTimeScore = waitingTimeWeight * Math.pow(statsEntry.sumOfWaitingTimes,2) /
+                  Math.pow(statsEntry.sumOfWaitingTimes + 1000.0,2)
 
-                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate,2) / Math.pow(statsEntry.getDemandEstimate + 10.0,2)
+                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate(),2) /
+                  Math.pow(statsEntry.getDemandEstimate() + 10.0,2)
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
