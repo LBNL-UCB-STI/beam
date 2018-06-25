@@ -7,7 +7,7 @@ source('./src/main/R/beam-utilities.R')
 
 ##############################################################################################################################################
 # LOAD LIBRARIES NEED BY THIS SCRIPT
-load.libraries(c('optparse'),quietly=T)
+load.libraries(c('optparse','stringr'),quietly=T)
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -16,6 +16,7 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Downloads/2014-Clipper.csv'
+  args<-'/Users/critter/Downloads/output 3/application-sfbay/base__2018-06-18_16-21-35/ITERS/it.1/1.events.csv'
   args <- parse_args(OptionParser(option_list = option_list,usage = "csv2Rdata.R [file-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "csv2Rdata.R [file-to-convert]"),positional_arguments=T)
