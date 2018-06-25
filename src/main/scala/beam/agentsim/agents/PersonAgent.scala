@@ -209,12 +209,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), _), data: BasePersonData) =>
       logWarn(s"replanning because ${firstErrorResponse.errorCode}")
-      goto(ChoosingMode) using ChoosesModeData(data.copy(currentTourMode = None))
+      goto(ChoosingMode) using ChoosesModeData(data,isWithinTripReplanning = true)
     case Event(RideHailingResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailingResponse(_, _, Some(error), _), data: BasePersonData) =>
       logWarn(s"replanning because ${error.errorCode}")
-      goto(ChoosingMode) using ChoosesModeData(data.copy(currentTourMode = None))
+      goto(ChoosingMode) using ChoosesModeData(data,isWithinTripReplanning = true)
   }
 
 
