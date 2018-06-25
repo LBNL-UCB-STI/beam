@@ -5,11 +5,12 @@ import java.awt.geom.Point2D
 import java.awt.Stroke
 import java.awt.image.BufferedImage
 import java.io.File
-import javax.imageio.ImageIO
 
+import javax.imageio.ImageIO
 import beam.agentsim.infrastructure.QuadTreeBounds
 import org.matsim.api.core.v01.Coord
 
+import scala.tools.nsc
 import scala.util.Random
 
 
@@ -121,7 +122,10 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
       graphics2d.drawString(stringToPlot.text,projectedCoord.getX.toInt, projectedCoord.getY.toInt)
     }
 
-    ImageIO.write(bufferedImage, "PNG", new File(path));
+    val index = path.lastIndexOf("/")
+    val outDir = new File(path.substring(0, index))
+    if(!outDir.exists()) outDir.mkdirs()
+    ImageIO.write(bufferedImage, "PNG", new File(path))
   }
 
 

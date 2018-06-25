@@ -304,7 +304,7 @@ class RideHailingManager(
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
 
-      val produceDebugImages = false
+      val produceDebugImages = true
       if (produceDebugImages) {
         if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
           val spatialPlot = new SpatialPlot(1100, 1100,50)
@@ -323,7 +323,8 @@ class RideHailingManager(
             }
           })
 
-          spatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png"))
+          val iteration = "it."+beamServices.iterationNumber;
+          spatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, tick.toInt / 3600 + "locationOfAgentsInitally.png").replace(iteration,iteration+"/rideHailDebugging"))
         }
       }
 
