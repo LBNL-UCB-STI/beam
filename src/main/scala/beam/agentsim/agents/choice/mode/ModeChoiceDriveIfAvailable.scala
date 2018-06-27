@@ -6,17 +6,16 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * BEAM
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    var containsDriveAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach { alt =>
-      if (alt._1.tripClassifier == CAR) {
-        containsDriveAlt = containsDriveAlt :+ alt._2
-      }
+    val containsDriveAlt = alternatives.zipWithIndex.collect {
+      case(trip, idx) if trip.tripClassifier == CAR  => idx
     }
     if (containsDriveAlt.nonEmpty) {
       Some(alternatives(containsDriveAlt.head))

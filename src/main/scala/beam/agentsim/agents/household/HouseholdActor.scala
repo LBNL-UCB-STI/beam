@@ -140,32 +140,32 @@ object HouseholdActor {
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
-    var _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+    val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
       */
-    var _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
+    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
 
     /**
       * Current [[Vehicle]] assignments.
       */
-    var _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
+    private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
 
     /**
       * These [[Vehicle]]s cannot be assigned to other agents.
       */
-    var _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
+    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
 
     /**
       * Vehicles that are currently checked out to traveling agents.
       */
-    var _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
+    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
 
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] = mutable.Map[Id[Vehicle], StreetVehicle]()
 
 
     // Initial vehicle assignments.
@@ -232,7 +232,7 @@ object HouseholdActor {
       // Do nothing
     }
 
-    def dieIfNoChildren() = {
+    def dieIfNoChildren(): Unit = {
       if (context.children.isEmpty) {
         context.stop(self)
       } else {
@@ -269,7 +269,7 @@ object HouseholdActor {
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
         if (i < _vehicles.size & i < household.rankedMembers.size) {
-          _reservedForPerson = _reservedForPerson + (household.rankedMembers(i).memberId -> _vehicles(i))
+          _reservedForPerson += (household.rankedMembers(i).memberId -> _vehicles(i))
         }
       }
 
@@ -279,7 +279,7 @@ object HouseholdActor {
 
       for {veh <- _vehicles} yield {
         //TODO following mode should come from the vehicle
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle +
+        _vehicleToStreetVehicle +=
           (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
       }
     }

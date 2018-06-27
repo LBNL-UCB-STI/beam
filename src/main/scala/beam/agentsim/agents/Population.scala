@@ -20,7 +20,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicles
 
-import scala.collection.JavaConverters
+import scala.collection.{JavaConverters, mutable}
 import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
 
@@ -33,21 +33,20 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     case _: Exception => Stop
     case _: AssertionError => Stop
   }
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   import context.dispatcher
 
-  private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
+  private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] = mutable.Map[Id[Person], Id[Household]]()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
-    personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
+    personToHouseholdId ++= matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
   }
-
 
   // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
 
 
-  override def receive = {
+  override def receive: PartialFunction[Any, Unit] = {
     case Terminated(_) =>
     // Do nothing
     case Finish =>

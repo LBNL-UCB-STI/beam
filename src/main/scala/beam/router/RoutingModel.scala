@@ -134,7 +134,7 @@ object RoutingModel {
     * @param linkIds either matsim linkId or R5 edgeIds that describes whole path
     * @param transitStops start and end stop if this path is transit (partial) route
     */
-  case class BeamPath(linkIds: Vector[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
+  case class BeamPath(linkIds: IndexedSeq[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 

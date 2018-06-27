@@ -90,11 +90,11 @@ class RideHailingManager(
   }
 
   // TODO: remove following (replace by RideHailModifyPassengerScheduleManager)
-  val repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
-  val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
-  val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
+  private val repositioningPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], Option[PassengerSchedule])] = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
+  private val reservationPassengerSchedule: mutable.Map[Id[Vehicle], (Id[Interrupt], ModifyPassengerSchedule)] =mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
+  private val repositioningVehicles: mutable.Set[Id[Vehicle]] = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
-  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
+  val modifyPassengerScheduleManager = new RideHailModifyPassengerScheduleManager(log,self,rideHailAllocationManagerTimeoutInSeconds,scheduler)
 
 
   private val repositionDoneOnce: Boolean = false
@@ -144,7 +144,7 @@ class RideHailingManager(
 
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[Id[RideHailingInquiry],
     ReservationResponse]()
-  private var lockedVehicles = Set[Id[Vehicle]]()
+  private val lockedVehicles = mutable.HashSet[Id[Vehicle]]()
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
@@ -282,7 +282,7 @@ class RideHailingManager(
 
                 // TODO if there is any issue related to bufferedReserveRideMessages, look at this closer (e.g. make two data structures, one for those
                 // before timout and one after
-                if (handleRideHailInquirySubmitted.size == 0) {
+                if (handleRideHailInquirySubmitted.isEmpty) {
                   modifyPassengerScheduleManager.sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 }
 
@@ -356,7 +356,7 @@ class RideHailingManager(
           val (vehicleId, destinationLocation) = repositionVehicle
 
           if (getIdleVehicles().contains(vehicleId)) {
-            val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+            val rideHailAgentLocation = getIdleVehicles()(vehicleId)
 
            // println("RHM: tick(" + tick + ")" + vehicleId + " - " + rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
 
@@ -497,9 +497,9 @@ class RideHailingManager(
     log.debug(interruptType + " - vehicle: " + vehicleId)
     val rideHailAgent =getRideHailAgent(vehicleId)
         if (repositioningPassengerSchedule.contains(vehicleId)){
-          val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
+          val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule(vehicleId)
           if (reservationPassengerSchedule.contains(vehicleId)){
-            val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
+            val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule(vehicleId)
               interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
               log.debug(interruptType + " - ignoring reposition: " + vehicleId)
           } else {
@@ -511,7 +511,7 @@ class RideHailingManager(
         }
 
         if (reservationPassengerSchedule.contains(vehicleId)) {
-          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
+          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule(vehicleId)
           if (interruptId == interruptIdReservation) {
             val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
             interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
@@ -531,7 +531,7 @@ class RideHailingManager(
   }
 
   private def getRideHailAgentLocation(vehicleId:Id[Vehicle]):RideHailingAgentLocation={
-    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get)
+    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles(vehicleId))
   }
 
 
@@ -542,10 +542,10 @@ class RideHailingManager(
 // contains both idling and repositioning vehicles
   private def getNotInUseVehicleLocation(vehicleId:Id[Vehicle],tick:Double): RideHailingAgentLocation ={
     if (isVehicleRepositioning(vehicleId)){
-      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule.get(vehicleId).get._2.get.schedule.head._1,tick)
+      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule(vehicleId)._2.get.schedule.head._1,tick)
     }
 
-    getIdleVehicles().get(vehicleId).get
+    getIdleVehicles()(vehicleId)
   }
 
 
@@ -649,7 +649,7 @@ class RideHailingManager(
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
     getLinks() match {
-      case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
+      case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).getFreespeed)
       case None => None
     }
   }
@@ -664,16 +664,7 @@ class RideHailingManager(
   }
 
   def convertLinkIdsToVector(set: util.Set[Id[Link]]): Vector[Int] = {
-
-    val iterator = set.iterator
-    var linkIdVector: Vector[Int] = Vector()
-    while (iterator.hasNext) {
-      val linkId: Id[Link] = iterator.next()
-      val _linkId = linkId.toString.toInt
-      linkIdVector = linkIdVector :+ _linkId
-    }
-
-    linkIdVector
+    set.asScala.map { linkId => linkId.toString.toInt }.toVector
   }
 
   private def getVehicleCoordinate(beamLeg:BeamLeg, stopTime:Double): Coord ={
@@ -817,6 +808,11 @@ class RideHailingManager(
 
   def getClosestIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[(RideHailingAgentLocation,
     Double)] = {
+    getIdleVehiclesWithinRadius(pickupLocation, radius).sortBy(_._2)
+  }
+
+  def getIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double): Vector[(RideHailingAgentLocation,
+    Double)] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
     val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
@@ -825,12 +821,16 @@ class RideHailingManager(
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2)
+    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId))
   }
 
   def getClosestIdleRideHailingAgent(pickupLocation: Coord,
                                      radius: Double): Option[(RideHailingAgentLocation, Double)] = {
-    getClosestIdleVehiclesWithinRadius(pickupLocation, radius).headOption
+    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius)
+    if (idleVehicles.isEmpty) None
+    else {
+      Some(idleVehicles.minBy { case (location, radius) => radius })
+    }
   }
 
 
@@ -859,14 +859,12 @@ class RideHailingManager(
     }
   }
 
-  def lockVehicle(vehicleId: Id[Vehicle]) = {
+  def lockVehicle(vehicleId: Id[Vehicle]): Unit = {
     lockedVehicles += vehicleId
   }
 
 
-  def getVehicleFuelLevel(vehicleId: Id[Vehicle]): Double = {
-    vehicleFuelLevel.get(vehicleId).get
-  }
+  def getVehicleFuelLevel(vehicleId: Id[Vehicle]): Double = vehicleFuelLevel(vehicleId)
 
   def getIdleVehicles(): collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation] = {
     availableRideHailVehicles

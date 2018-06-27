@@ -6,17 +6,16 @@ import beam.router.Modes.BeamMode.RIDE_HAIL
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * BEAM
   */
 class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    var containsRideHailAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach { alt =>
-      if (alt._1.tripClassifier == RIDE_HAIL) {
-        containsRideHailAlt = containsRideHailAlt :+ alt._2
-      }
+    val containsRideHailAlt = alternatives.zipWithIndex.collect {
+      case (trip, idx) if (trip.tripClassifier == RIDE_HAIL) => idx
     }
     if (containsRideHailAlt.nonEmpty) {
       Some(alternatives(containsRideHailAlt.head))

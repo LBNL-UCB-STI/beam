@@ -5,7 +5,7 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import org.slf4j.{Logger, LoggerFactory};
+import org.slf4j.{Logger, LoggerFactory}
 
 trait RideHailResourceAllocationManager {
 
@@ -32,7 +32,7 @@ trait RideHailResourceAllocationManager {
 
   // add assigned and get back new
 
-  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])]
 
   def repositionVehicles(tick: Double):Vector[(Id[Vehicle],Location)]
 

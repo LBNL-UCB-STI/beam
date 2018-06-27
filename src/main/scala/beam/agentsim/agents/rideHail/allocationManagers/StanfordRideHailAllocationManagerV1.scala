@@ -5,6 +5,8 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
 
 /*
@@ -43,9 +45,9 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]()
-    var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+    val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((vehicleAllocationRequest, vehicleAllocation) <- allocationsDuringReservation) {
       var vehicleAllocation: Option[VehicleAllocation] = None
 
@@ -59,7 +61,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
         }
       }
 
-      result = result :+ (vehicleAllocationRequest, vehicleAllocation)
+      result += ((vehicleAllocationRequest, vehicleAllocation))
     }
     result
   }
@@ -86,7 +88,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
 /*
   API available to implement allocation manager
  */
-  def apiExamples(vehicleAllocationRequest: VehicleAllocationRequest) = {
+  def apiExamples(vehicleAllocationRequest: VehicleAllocationRequest): TrieMap[Id[Vehicle], RideHailingManager.RideHailingAgentLocation] = {
 
     // network operations
     val linkId = 5

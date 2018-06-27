@@ -36,9 +36,10 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with Stash with ActorLogging {
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
   private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
@@ -46,7 +47,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
   private var numStopsNotFound = 0
 
-  override def receive = {
+  override def receive: PartialFunction[Any, Unit] = {
     case InitTransit(scheduler) =>
       val transitSchedule = initTransit(scheduler)
       metricsPrinter ! Subscribe("histogram","**")
@@ -162,10 +163,10 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-          var legs: Seq[BeamLeg] = Nil
+          val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
           tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (departureTimeTo, to)) =>
             val duration = tripSchedule.arrivals(to) - departureTimeFrom
-            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
+            legs += BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
           }
           (tripVehId, (route, legs))
         }
