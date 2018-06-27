@@ -7,6 +7,8 @@ from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
 
+EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
+
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
 S3_PUBLISH_SCRIPT = '''
@@ -27,6 +29,10 @@ SHUTDOWN_DEFAULT = '30'
 
 TRUE = 'true'
 
+EXECUTE_CLASS_DEFAULT = 'beam.sim.RunBeam'
+
+EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
+
 EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
@@ -45,15 +51,17 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - git fetch
   - echo "git checkout ..."
-  - GIT_LFS_SKIP_SMUDGE=1 git checkout $BRANCH
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
   - echo "git checkout -qf ..."
-  - GIT_LFS_SKIP_SMUDGE=1 git checkout -qf $COMMIT
-  - git pull
-  - git lfs pull
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+  - sudo git pull
+  - sudo git lfs pull
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
+  - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
+  - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
   - s3p=""
   - for cf in $CONFIG
@@ -84,7 +92,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'i2.xlarge', 'i2.2xlarge', 'i2.4xlarge', 'i2.8xlarge',
                   'h1.2xlarge', 'h1.4xlarge', 'h1.8xlarge', 'h1.16xlarge',
                   'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge',
-                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge']
+                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge',
+                  'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge']
 
 regions = ['us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
@@ -175,33 +184,45 @@ def deploy_handler(event):
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
+    deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
+    experiments = event.get('experiments', EXPERIMENT_DEFAULT)
+    execute_class = event.get('execute_class', EXECUTE_CLASS_DEFAULT)
+    execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
+    batch = event.get('batch', TRUE)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
-    is_experiment = event.get('is_experiment', 'false')
     s3_publish = event.get('s3_publish', 'true')
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
-    batch = event.get('batch', TRUE)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
     region = event.get('region', os.environ['REGION'])
     shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
+    sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
+    sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
 
     if instance_type not in instance_types:
-        instance_type = os.environ['INSTANCE_TYPE']
+        return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
+        #instance_type = os.environ['INSTANCE_TYPE']
 
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
     selected_script = CONFIG_SCRIPT
+    params = configs
     if s3_publish == TRUE:
         selected_script += S3_PUBLISH_SCRIPT
 
-    if is_experiment == TRUE:
+    if deploy_mode == 'experiment':
         selected_script = EXPERIMENT_SCRIPT
+        params = experiments
 
     if batch == TRUE:
-        configs = [ configs.replace(',', ' ') ]
+        params = [ params.replace(',', ' ') ]
     else:
-        configs = configs.split(',')
+        params = params.split(',')
+
+    if deploy_mode == 'execute':
+        selected_script = EXECUTE_SCRIPT
+        params = [ '"{args}"'.format(args=execute_args) ]
 
     txt = ''
 
@@ -212,12 +233,12 @@ def deploy_handler(event):
 
     if validate(branch) and validate(commit_id):
         runNum = 1
-        for arg in configs:
+        for arg in params:
             uid = str(uuid.uuid4())[:8]
             runName = titled
-            if len(configs) > 1:
+            if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
@@ -231,27 +252,30 @@ def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
+    system_instances = os.environ['SYSTEM_INSTANCES']
 
     if region not in regions:
         return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id, region=region)
 
     init_ec2(region)
 
+    system_instances = system_instances.split(',')
     instance_ids = instance_ids.split(',')
     invalid_ids = check_instance_id(list(instance_ids))
     valid_ids = [item for item in instance_ids if item not in invalid_ids]
+    allowed_ids = [item for item in valid_ids if item not in system_instances]
 
     if command_id == 'start':
-        start_instance(valid_ids)
-        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(valid_ids, list(map(get_dns, valid_ids)))]))
+        start_instance(allowed_ids)
+        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
 
     if command_id == 'stop':
-        stop_instance(valid_ids)
+        stop_instance(allowed_ids)
 
     if command_id == 'terminate':
-        terminate_instance(valid_ids)
+        terminate_instance(allowed_ids)
 
-    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(valid_ids))
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(allowed_ids))
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.logit;
 
+import java.util.Map;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -23,7 +24,7 @@ public class NestedLogit implements AbstractLogit{
 	public NestedLogit(NestedLogit tree) {
 		this.data = new NestedLogitData();
 		this.data.setElasticity(tree.data.getElasticity().doubleValue());
-		this.data.setNestName(tree.data.nestName);
+		this.data.setNestName(tree.data.getNestName());
 		this.data.setUtility(tree.data.getUtility());
 		this.parent = tree.parent;
 		this.children = tree.children;
@@ -106,7 +107,7 @@ public class NestedLogit implements AbstractLogit{
 		}else {
 			for (NestedLogit child : this.children) {
 				if (inputData.containsKey(child.getName())) {
-					return child.data.utility.evaluateFunction(inputData.get(child.getName()));
+					return child.data.getUtility().evaluateFunction(inputData.get(child.getName()));
 				}
 			}
 		}
@@ -187,7 +188,8 @@ public class NestedLogit implements AbstractLogit{
 		if(this.cdf==null){
 			return null;
 		}else{
-			return sumMarginalProbsOfNest(this,nestName,this.cdf.getProbabilityDensityMap());
+			LinkedHashMap<String, Double> probabilityDensityMap = new LinkedHashMap<>(cdf.getProbabilityDensityMap());
+			return sumMarginalProbsOfNest(this,nestName, probabilityDensityMap);
 		}
 	}
 	@Override
@@ -195,7 +197,7 @@ public class NestedLogit implements AbstractLogit{
 		return this.data.getExpectedMaxUtility();
 	}
 	public Double getExpectedMaximumUtility(String nestName) {
-		if(this.data.nestName.equals(nestName)){
+		if(this.data.getNestName().equals(nestName)){
 			return this.data.getExpectedMaxUtility();
 		}else if(!this.isAlternative()){
 			for(NestedLogit child : this.children){
@@ -209,7 +211,7 @@ public class NestedLogit implements AbstractLogit{
 		return sumMarginalProbsOfNest(this,nestName,pdf,false);
 	}
 	private Double sumMarginalProbsOfNest(NestedLogit node, String nestName, LinkedHashMap<String,Double> pdf, Boolean startSumming) {
-		if(!startSumming && node.data.nestName.equals(nestName)){
+		if(!startSumming && node.data.getNestName().equals(nestName)){
 			return sumMarginalProbsOfNest(node,nestName,pdf,true);
 		}
 		if(node.isAlternative()){

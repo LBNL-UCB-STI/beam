@@ -5,7 +5,6 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.jsoup.helper.StringUtil;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
@@ -16,7 +15,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.*;
 
 /**
@@ -26,25 +24,30 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "Waiting Time (min)";
+    private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
 
-    private int lastMax = 0;
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
 
-    private HashMap<String, Event> rideHailingWaiting = new HashMap<>();
-    private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private Set<String> timeSlots = new TreeSet<>();
+    private Map<String, Event> rideHailingWaiting = new HashMap<>();
+
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-    private List<Double> listOfBounds = new ArrayList<>();
+
+    @Override
+    public void resetStats() {
+        lastMaximumTime = 0;
+
+        rideHailingWaiting.clear();
+        hoursTimesMap.clear();
+    }
 
     @Override
     public void processStats(Event event) {
 
+        Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent){
-
-            String mode = event.getAttributes().get("mode");
+            String mode = eventAttributes.get("mode");
             if(mode.equalsIgnoreCase("ride_hailing")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
@@ -71,10 +74,15 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        calculateHourlyData();
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+
+        List<Double> listOfBounds = getCategories();
+        Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
+
+        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(hourModeFrequency);
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+
+        writeToCSV(event.getIteration(), hourModeFrequency);
     }
 
     @Override
@@ -82,16 +90,6 @@ public class RideHailingWaitingStats implements IGraphStats {
         throw new IOException("Not implemented");
     }
 
-    @Override
-    public void resetStats() {
-        lastMax = 0;
-        lastMaximumTime = 0;
-
-        hourModeFrequency.clear();
-        timeSlots.clear();
-        rideHailingWaiting.clear();
-        hoursTimesMap.clear();
-    }
 
 
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
@@ -112,78 +110,61 @@ public class RideHailingWaitingStats implements IGraphStats {
         hoursTimesMap.put(hour, timeList);
     }
 
-    private double[] getHoursDataPerTimeRange(String timeRange, int maxHour) {
+    private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
-        int index = 0;
+
         for (int hour = 0; hour <= maxHour; hour++) {
-            Map<String, Integer> hourData = hourModeFrequency.get(hour);
-            timeRangeOccurrencePerHour[index] = (hourData == null || hourData.get(timeRange) == null) ? 0 : hourData.get(timeRange);
-            index++;
+            Map<Double, Integer> hourData = hourModeFrequency.get(hour);
+            timeRangeOccurrencePerHour[hour] = (hourData == null || hourData.get(category) == null) ? 0 : hourData.get(category);
+
         }
         return timeRangeOccurrencePerHour;
     }
 
-    private double[][] buildModesFrequencyDataset() {
+    private double[][] buildModesFrequencyDataset(Map<Integer, Map<Double, Integer>> hourModeFrequency) {
+
         List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
-        List<String> timeSlotList = GraphsStatsAgentSimEventsListener.getSortedStringList(timeSlots);
+
         if (hoursList.isEmpty())
             return null;
+
         int maxHour = hoursList.get(hoursList.size() - 1);
-        double[][] dataset = new double[timeSlots.size()][maxHour + 1];
-        for (int i = 0; i < timeSlotList.size(); i++) {
-            String modeChosen = timeSlotList.get(i);
-            dataset[i] = getHoursDataPerTimeRange(modeChosen, maxHour);
+
+        List<Double> categories = getCategories();
+        double[][] dataset = new double[categories.size()][maxHour + 1];
+
+        for (int i = 0; i < categories.size(); i++) {
+            dataset[i] = getHoursDataPerTimeRange(categories.get(i), maxHour, hourModeFrequency);
         }
         return dataset;
     }
 
-    private CategoryDataset buildModesFrequencyDatasetForGraph() {
+    private CategoryDataset buildModesFrequencyDatasetForGraph(Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = buildModesFrequencyDataset();
+        double[][] dataset = buildModesFrequencyDataset(hourModeFrequency);
         if (dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Time ", "", dataset);
         return categoryDataset;
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> timeRanges = new ArrayList<>();
-        timeRanges.addAll(timeSlots);
-        Collections.sort(timeRanges);
-        GraphUtils.plotLegendItems(plot, timeRanges, dataset.getRowCount());
+
+        // Legends
+        List<String> legends = getLegends(getCategories());
+        GraphUtils.plotLegendItems(plot, legends, dataset.getRowCount());
+
+        // Writing graph to image file
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-        writeToCSV(iterationNumber);
     }
 
-    /**
-     * Recursive function that will add the upper and lower bounds to the list
-     *
-     */
-    private void getBounds() {
-        /*DecimalFormat df = new DecimalFormat();
-        df.setMaximumFractionDigits(2);*/
-        /*if ((upperBound - bound) <= 0) {
-            listOfBounds.add(upperBound);
-            listOfBounds.add(0.0);
-        } else if (bound < upperBound) {
-            listOfBounds.add(bound);
-            getBounds(bound + , upperBound);
-        }*/
-        double upperBound = lastMaximumTime;
-        double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
 
-        listOfBounds.add(0.0);
-        listOfBounds.add(lastMaximumTime);
 
-        for(double x = bound; x < upperBound; x += bound){
-            listOfBounds.add(x);
-        }
-    }
-
-    private void writeToCSV(int iterationNumber) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         BufferedWriter out = null;
         try {
@@ -195,12 +176,18 @@ public class RideHailingWaitingStats implements IGraphStats {
             out.write(heading);
             out.newLine();
 
-            for (String slot : timeSlots) {
-                out.write(slot);
+            List<Double> categories = getCategories();
+
+
+            for (int j = 0; j < categories.size(); j++){
+
+                Double category = categories.get(j);
+                Double _category = getRoundedCategoryUpperBound(category);
+                out.write(_category + "");
                 String line = "";
                 for (int i = 0; i < 24; i++) {
-                    Map<String, Integer> innerMap = hourModeFrequency.get(i);
-                    line = (innerMap == null || innerMap.get(slot) == null) ? ",0" : "," + innerMap.get(slot);
+                    Map<Double, Integer> innerMap = hourModeFrequency.get(i);
+                    line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
                     out.write(line);
                 }
                 out.newLine();
@@ -219,53 +206,87 @@ public class RideHailingWaitingStats implements IGraphStats {
     /**
      * Calculate the data and populate the dataset i.e. "hourModeFrequency"
      */
-    private synchronized void calculateHourlyData() {
-        getBounds();
-        Collections.sort(listOfBounds);
+    private synchronized Map<Integer, Map<Double, Integer>>
+        calculateHourlyData(Map<Integer, List<Double>> hoursTimesMap, List<Double> categories) {
+
+        Map<Integer, Map<Double, Integer>> hourModeFrequency = new HashMap<>();
+
         Set<Integer> hours = hoursTimesMap.keySet();
 
         for (Integer hour : hours) {
             List<Double> listTimes = hoursTimesMap.get(hour);
             for (double time : listTimes) {
-                String range = getSlot(time);
-                if(range == null){
-                    System.out.println("range is null");
-                }else{
-                    timeSlots.add(range);
-                    Map<String, Integer> hourData = hourModeFrequency.get(hour);
-                    Integer frequency = 1;
-                    if (hourData != null) {
-                        frequency = hourData.get(range);
-                        frequency = (frequency == null) ? 1 : frequency + 1;
-                    } else {
-                        hourData = new HashMap<>();
-                    }
-                    hourData.put(range, frequency);
-                    hourModeFrequency.put(hour, hourData);
+                Double category = getCategory(time, categories);
+
+
+                Map<Double, Integer> hourData = hourModeFrequency.get(hour);
+                Integer frequency = 1;
+                if (hourData != null) {
+                    frequency = hourData.get(category);
+                    frequency = (frequency == null) ? 1 : frequency + 1;
+                } else {
+                    hourData = new HashMap<>();
                 }
+                hourData.put(category, frequency);
+                hourModeFrequency.put(hour, hourData);
             }
         }
+
+        return hourModeFrequency;
     }
 
-    /**
-     * Returns the category in which the current time lies
-     *
-     * @param time given time
-     * @return name of the category e.g. "0.0-2.0 mins"
-     */
-    private String getSlot(double time) {
-        int i = 1;
-        while (i < listOfBounds.size()) {
-            double range = listOfBounds.get(i);
-            if (time <= range) {
 
-                range = Math.round(range*100)/100.0;
+    // Utility Methods
+    private List<Double> getCategories() {
 
-                return range + "_min";
-                //return listOfBounds.get(i - 1) + "-" + range + " mins ";
+        List<Double> listOfBounds = new ArrayList<>();
+
+        double upperBound = lastMaximumTime;
+        double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
+
+        //listOfBounds.add(0.0);
+
+        for(double x = bound; x < upperBound; x += bound){
+            listOfBounds.add(x);
+        }
+
+        if(!listOfBounds.isEmpty()) {
+            listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
+            Collections.sort(listOfBounds);
+        }
+
+        return listOfBounds;
+    }
+
+    private Double getCategory(double time, List<Double> categories) {
+        int i = 0;
+        Double categoryUpperBound = null;
+        while (i < categories.size()) {
+            categoryUpperBound = categories.get(i);
+            if (time <= categoryUpperBound) {
+
+                break;
             }
             i++;
         }
-        return null;
+        return categoryUpperBound;
+    }
+
+    private List<String> getLegends(List<Double> categories){
+
+        List<String> legends = new ArrayList<>();
+        for(int i = 0; i<categories.size(); i++){
+
+            Double category = categories.get(i);
+            double legend = getRoundedCategoryUpperBound(category);
+
+            legends.add( legend + "_min");
+        }
+        //Collections.sort(legends);
+        return legends;
+    }
+
+    private double getRoundedCategoryUpperBound(double category){
+        return Math.round(category * 100)/100.0;
     }
 }

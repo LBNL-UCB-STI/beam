@@ -132,11 +132,11 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       val walkTime = altAndIdx._1.legs.filter(_.beamLeg.mode == WALK).map(_.beamLeg.duration).sum
       val bikeTime = altAndIdx._1.legs.filter(_.beamLeg.mode == BIKE).map(_.beamLeg.duration).sum
       val vehicleTime = altAndIdx._1.legs.filter(_.beamLeg.mode != WALK).filter(_.beamLeg.mode != BIKE).map(_.beamLeg.duration).sum
-      val waitTime = altAndIdx._1.totalTravelTime - walkTime - vehicleTime
+      val waitTime = altAndIdx._1.totalTravelTimeInSecs - walkTime - vehicleTime
       ModeChoiceData(altAndIdx._1.tripClassifier, tourType, vehicleTime, walkTime, waitTime, bikeTime, totalCost.toDouble, altAndIdx._2)
     }
 
-    val groupedByMode = modeChoiceAlternatives.sortBy(_.mode.value).groupBy(_.mode)
+    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] = modeChoiceAlternatives.groupBy(_.mode)
     val bestInGroup = groupedByMode.map { case (_, alts) =>
       // Which dominates at $18/hr for total time
       alts.map { alt => ((alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost, alt) }.minBy(_._1)._2
@@ -152,10 +152,10 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
         "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
       )
       AlternativeAttributes(alt.mode.value, theParams)
-    }.toVector
+    }
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).sampleAlternative(modeChoiceInputData, new Random())
   }
-  
+
   def utilityAcrossModalityStyles(embodiedBeamTrip: EmbodiedBeamTrip, tourType: TourType): Map[String,Double] = {
     lccm.classMembershipModels(tourType).alternativeParams.keySet.map( theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType))).toMap
   }
@@ -167,7 +167,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
   }
 
   def utilityOf(mode: BeamMode, conditionedOnModalityStyle: String, tourType: TourType, cost: Double, time: Double): Double = {
-    val theParams = Map(("cost"->cost.toDouble),("time"->time))
+    val theParams = Map("cost" -> cost.toDouble, "time" -> time)
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
   }
 

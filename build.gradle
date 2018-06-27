@@ -197,9 +197,9 @@ dependencies {
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
-//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
+    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
+    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
+    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
 
     /////////////
@@ -233,7 +233,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
@@ -255,13 +255,21 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
-                    (project.hasProperty('iterations') ?
-                            '-Diterations='+project.findProperty('iterations') :
-                            '-Dtest=test') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') :
-                            '-Dtest=test'))
+            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+            (project.hasProperty('config') && project.hasProperty('iterations') ?
+                    '-Diterations='+project.findProperty('iterations') : '')
+    jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
+
+    doFirst() {
+        if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
+            download {
+                src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                dest buildDir
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -300,8 +308,25 @@ task deploy(type: AWSLambdaInvokeTask) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
-        if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
-            throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+        switch (project.findProperty('deployMode')) {
+            case 'config':
+                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                    throw new GradleException('beamConfigs is required to deploy config run.')
+                }
+                break
+            case 'experiment':
+                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                    throw new GradleException('beamExperiments is required to deploy experement.')
+                }
+                break
+            case 'execute':
+                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                    throw new GradleException('executeClass and executeArgs are required to deploy execute.')
+                }
+                break
+            default:
+                throw new GradleException('Please provide a valid deployMode.')
+                break
         }
     }
 
@@ -309,8 +334,11 @@ task deploy(type: AWSLambdaInvokeTask) {
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
-  "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
+  "deploy_mode": "${project.findProperty('deployMode')}",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
+  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "execute_class": "${project.findProperty('executeClass')}",
+  "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
@@ -344,7 +372,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
   "command": "start"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
@@ -367,7 +395,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
   "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
     invocationType = InvocationType.RequestResponse
     payload = pload
 

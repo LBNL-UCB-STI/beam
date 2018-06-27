@@ -19,6 +19,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.vehicles.Vehicle
 
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
@@ -44,13 +45,13 @@ object RideHailingAgent {
 
   case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
 
-  case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
+  case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
 
-  case class Interrupt()
+  case class Interrupt(interruptId: Id[Interrupt], tick: Double)
   case class Resume()
 
-  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int)
-  case class InterruptedWhileIdle()
+  case class InterruptedAt(interruptId: Id[Interrupt],passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle], tick: Double)
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt],vehicleId:Id[Vehicle],tick: Double)
 
 }
 
@@ -74,8 +75,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   when(Idle) {
-    case Event(Interrupt(), data) =>
-      goto(IdleInterrupted) replying InterruptedWhileIdle()
+    case Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+      goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(IdleInterrupted) {
@@ -83,9 +84,11 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
-      goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
+      goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule,vehicle.id)
     case Event(Resume(), _) =>
       goto(Idle)
+    case Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+      stay() replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(PassengerScheduleEmpty) {
@@ -94,12 +97,23 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+    case Event(Interrupt(_,_), data) =>
+      stash()
+      stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
     case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      stash()
+      stay()
+    case Event(Resume(), _) =>
+      stash()
+      stay()
+
+
   }
 
   val myUnhandled: StateFunction =  {
@@ -112,6 +126,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
     case Event(Finish, _) =>
       stop
+
+    case event@Event(_,_) =>
+      log.warning("unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
+      stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

@@ -30,7 +30,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
 
-      val groupedByMode = modeCostTimeTransfers.sortBy(_.mode.value).groupBy(_.mode)
+      val groupedByMode: Map[BeamMode, Seq[ModeCostTimeTransfer]] = modeCostTimeTransfers.groupBy(_.mode)
 
       val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
         // Which dominates at $18/hr
@@ -105,7 +105,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       assert(numTransfers >= 0)
-      ModeCostTimeTransfer(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime, numTransfers, altAndIdx._2)
+      ModeCostTimeTransfer(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTimeInSecs, numTransfers, altAndIdx._2)
     }
   }
 
