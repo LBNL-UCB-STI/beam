@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -109,7 +109,10 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle],  val parkingManager: ActorRef) extends
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator,
+                  val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef,
+                  val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan,
+                  val bodyId: Id[Vehicle],  val parkingManager: ActorRef) extends
   DrivesVehicle[PersonData] with ChoosesMode with ChoosesParking with Stash {
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
@@ -286,11 +289,20 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero){
     // Non-empty trips with me as driver
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if nextLeg.asDriver =>
+
       val (tick, triggerId) = releaseTickAndTriggerId()
       val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
 
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
-      goto(WaitingToDrive) using data.copy(
+
+      val stateToGo = if(!currentVehicle.isEmpty && beamServices.vehicles(currentVehicle.head).beamVehicleType.idString.equals("car")){
+        ReleasingParkingSpot
+      } else {
+        WaitingToDrive
+      }
+
+//      goto(WaitingToDrive) using data.copy(
+      goto(stateToGo) using data.copy(
         passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
         currentLegPassengerScheduleIndex = 0,
         currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {

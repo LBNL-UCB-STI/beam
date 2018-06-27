@@ -65,20 +65,19 @@ trait ChoosesParking {
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
 
-      val veh = beamServices
-        .vehicles(
-          data.currentVehicle.head)
+//      val veh = beamServices
+//        .vehicles(
+//          data.currentVehicle.head)
 
-      //
-      veh.stall.foreach{ stall =>
-//        val nextLeg = data.passengerSchedule.schedule.head._1
-        val distance = beamServices.geo.distInMeters(stall.location, newLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
-        val cost = stall.cost
-        val energyCharge: Double = 0.0 //TODO
-        val valueOfTime: Double = getValueOfTime
-        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
-        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
-      }
+//      veh.stall.foreach{ stall =>
+////        val nextLeg = data.passengerSchedule.schedule.head._1
+//        val distance = beamServices.geo.distInMeters(stall.location, newLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
+//        val cost = stall.cost
+//        val energyCharge: Double = 0.0 //TODO
+//        val valueOfTime: Double = getValueOfTime
+//        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
+//        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
+//      }
 
       stash()
       stay using data
@@ -86,6 +85,30 @@ trait ChoosesParking {
       parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
       beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
       goto(WaitingToDrive) using data.personData
+
+    case Event(StateTimeout, data@BasePersonData(_, _,_,_,_,_,_,_,_)) =>
+
+
+      parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
+      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+
+      val veh = beamServices
+        .vehicles(data.currentVehicle.head)
+
+
+
+      veh.stall.foreach{ stall =>
+        val tick: Double = ??? //TODO
+        val nextLeg = data.passengerSchedule.schedule.head._1
+        val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
+        val cost = stall.cost
+        val energyCharge: Double = 0.0 //TODO
+        val valueOfTime: Double = getValueOfTime
+        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
+        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
+      }
+
+      goto(WaitingToDrive) using data
   }
   when(ChoosingParkingSpot) {
     case Event(ParkingInquiryResponse(stall), data@ChoosesParkingData(_)) =>

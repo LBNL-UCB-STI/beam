@@ -99,5 +99,31 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       parkingEvents.size should be > emptyParkingEvents.size
     }
 
+    "when parking expensive then after several iterations we expect fewer people to choose drive mode due to poor experiences" in {
+
+      val parkingScenario = "expensive"
+      val iterations = 2
+
+      val config = baseConfig
+        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+        .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+        .withValue("beam.agentsim.taz.parking", ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv"))
+        .withValue("beam.outputs.events.overrideWritingLevels", ConfigValueFactory.fromAnyRef("beam.agentsim.events.ParkEvent:VERBOSE, beam.agentsim.events.LeavingParkingEvent:VERBOSE"))
+        .withValue("matsim.modules.controler.firstIteration", ConfigValueFactory.fromAnyRef(iterations))
+        .resolve()
+
+      val matsimConfig = runBeamWithConfig(config)._1
+      val queueEvents = ArrayBuffer[Queue[Event]]()
+      for(i <- 0 to iterations){
+        val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
+        queueEvents.append(collectEvents(filePath))
+      }
+
+      val queueParkingEvents = queueEvents.map(_.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType)).size)
+      (queueParkingEvents.dropRight(1) zip queueParkingEvents.tail).forall{ case (prev, next) =>
+          prev < next
+      } shouldBe true
+    }
+
   }
 }
