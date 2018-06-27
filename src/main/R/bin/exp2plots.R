@@ -221,7 +221,7 @@ for(fact in factors){
   # Deadheading 
   toplot <- pt[vehicle_type=='TNC',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
   setkey(toplot,hr,dead)
-  dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles[dead==F]),1),"% Empty")),by=c('the.factor')]
+  dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles),1),"% Empty")),by=c('the.factor')]
   toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','the.factor')]
   p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("TNC Deadheading"))+geom_text(data=dead.frac,hjust=1,aes(x=24,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
   pdf.scale <- .6

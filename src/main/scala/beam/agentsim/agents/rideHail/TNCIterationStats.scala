@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.math.{exp, pow}
 
 case class TNCIterationStats(
                               rideHailStats: Map[String, List[Option[RideHailStatsEntry]]],
@@ -65,6 +64,7 @@ case class TNCIterationStats(
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
     val demandWeight = repositioningConfig.demandWeight
+
 
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
@@ -116,16 +116,19 @@ case class TNCIterationStats(
         val distanceInMeters =
           beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
 
-        val distanceScore = -1 * distanceWeight * pow(distanceInMeters, 2) / pow(distanceInMeters + 1000.0, 2)
+        val distanceScore = -1 * distanceWeight * Math.pow(distanceInMeters,2) /
+          Math.pow(distanceInMeters + 1000.0,2)
 
         val score = (startTimeBin to endTimeBin)
           .map(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
 
-                val waitingTimeScore = waitingTimeWeight * pow(statsEntry.sumOfWaitingTimes, 2) / pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
+                val waitingTimeScore = waitingTimeWeight * Math.pow(statsEntry.sumOfWaitingTimes,2) /
+                  Math.pow(statsEntry.sumOfWaitingTimes + 1000.0,2)
 
-                val demandScore = demandWeight * pow(statsEntry.getDemandEstimate(), 2) / pow(statsEntry.getDemandEstimate + 10.0, 2)
+                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate(),2) /
+                  Math.pow(statsEntry.getDemandEstimate() + 10.0,2)
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
@@ -184,7 +187,7 @@ case class TNCIterationStats(
 
             mapping.add(
               new WeightPair(tazScore.taz,
-                exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
+                Math.exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
             //exp(tazScore.score) / scoreExpSumOverAllTAZInRadius))
           }
 
