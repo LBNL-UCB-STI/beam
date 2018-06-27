@@ -41,7 +41,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
   protected var _currentTick: Option[Double] = None
 
   onTermination {
-    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, _) =>
       reason match {
         case FSM.Shutdown =>
           log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
