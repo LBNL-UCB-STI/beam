@@ -41,7 +41,7 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
     RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingTimes + other.sumOfWaitingTimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2, (sumOfActivityEndEvents + other.sumOfActivityEndEvents) / 2)
   }
 
-  def getDemandEstimate():Double ={
+  def getDemandEstimate(): Double = {
     sumOfRequestedRides + sumOfActivityEndEvents
   }
 }
@@ -58,12 +58,11 @@ object RideHailStatsEntry {
 
 
 class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: BeamServices, rideHailIterationHistoryActor: ActorRef, transportNetwork: TransportNetwork) extends BasicEventHandler {
+  private val log = LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
+
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
   private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
-
 
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
@@ -145,7 +144,6 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         case Some(modeChoiceEvent) =>
 
           rideHailEventsTuples.put(vehicleId, (modeChoiceEvent, personEntersVehicleEvent))
-
           rideHailModeChoiceEvents.remove(personId)
         case None =>
       }
@@ -179,10 +177,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
 
 
     rideHailEventsTuples.get(vehicleId) match {
-      case Some(events) =>
-
-        val modeChoiceEvent = events._1
-        val personEntersVehicleEvent = events._2
+      case Some((modeChoiceEvent, personEntersVehicleEvent)) =>
 
         val startTime = modeChoiceEvent.getTime.toLong
         val endTime = personEntersVehicleEvent.getTime.toLong
@@ -284,21 +279,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       idlingBins ++= ((endingBin + 1) until numberOfTimeBins).map((_, endTazId)).toMap
     })
 
-    // -1 : Vehicles never encountered any ride hail path traversal
-    val numAlwaysIdleVehicles = vehicles.count(_._2 == -1)
-    // 0 : Vehicles with ride hail path traversal but num_pass were 0 (zero)
-    val numIdleVehiclesWithoutPassenger = vehicles.count(_._2 == 0)
-    // Ride Hail Vehicles that never encounter any path traversal with some passenger
-    // val numIdleVehicles = vehicles.count(_._2 < 1)
-
-    log.info(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger vehicles were moved without a passenger, during whole day.")
-    log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).map(_._1).mkString(", ")}")
-    log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
-
-    val remainingTaz = vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
-    remainingTaz.foreach { tazId =>
-      rideHailStats += (tazId -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None))
-    }
+    addMissingTaz
 
     rideHailStats.foreach { items =>
 
@@ -310,7 +291,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         val binIndex = bin._2
         val noOfIdlingVehicles = getNoOfIdlingVehicle(tazId, binIndex)
 
-        if(noOfIdlingVehicles > 0) {
+        if (noOfIdlingVehicles > 0) {
           bins(binIndex) = bin._1 match {
             case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
             case None => Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
@@ -318,6 +299,26 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
         }
       }
     }
+
+    logIdlingStats
+  }
+
+  private def addMissingTaz = {
+    val remainingTaz = vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
+    rideHailStats ++= remainingTaz.map(_ -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None))
+  }
+
+  private def logIdlingStats = {
+    // -1 : Vehicles never encountered any ride hail path traversal
+    val numAlwaysIdleVehicles = vehicles.count(_._2 == -1)
+    // 0 : Vehicles with ride hail path traversal but num_pass were 0 (zero)
+    val numIdleVehiclesWithoutPassenger = vehicles.count(_._2 == 0)
+    // Ride Hail Vehicles that never encounter any path traversal with some passenger
+    // val numIdleVehicles = vehicles.count(_._2 < 1)
+
+    log.info(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger vehicles were moved without a passenger, during whole day.")
+    log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).map(_._1).mkString(", ")}")
+    log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
@@ -372,18 +373,13 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     tazId
   }
 
-  private def getTazId(coord: Coord): String = {
-    mTazTreeMap.get.getTAZ(coord.getX, coord.getY).tazId.toString
-  }
+  private def getTazId(coord: Coord): String = mTazTreeMap.get.getTAZ(coord.getX, coord.getY).tazId.toString
 
-  private def getTimeBin(time: Double): Int = {
-    (time / timeBinSizeInSec).toInt
-  }
-
+  private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 
   private def calculateActivityEndStats(event: ActivityEndEvent): Unit = {
 
-    val attrs: java.util.Map[String, String] = event.getAttributes()
+    val attrs = event.getAttributes
     val linkId = attrs.get(ActivityEndEvent.ATTRIBUTE_LINK).toInt
     val endPointLocation = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
     val coord = new Coord(endPointLocation.getX, endPointLocation.getY)
