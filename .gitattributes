@@ -9,3 +9,4 @@
 *.p filter=lfs diff=lfs merge=lfs -text
 *.txt filter=lfs diff=lfs merge=lfs -text
 test/**/*.xml filter=lfs diff=lfs merge=lfs -text
+production/**/*.xml filter=lfs diff=lfs merge=lfs -text
