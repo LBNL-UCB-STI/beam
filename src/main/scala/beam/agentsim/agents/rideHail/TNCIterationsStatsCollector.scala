@@ -50,15 +50,10 @@ object RideHailStatsEntry {
   def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0, 0)
 
   def apply(sumOfRequestedRides: Long = 0, sumOfWaitingTimes: Long = 0, sumOfIdlingVehicles: Long = 0, sumOfActivityEndEvents: Long = 0): RideHailStatsEntry = new RideHailStatsEntry(sumOfRequestedRides, sumOfWaitingTimes, sumOfIdlingVehicles, sumOfActivityEndEvents)
-  def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = {
-    val collection = rideHailStats.flatten
 
-    if (collection.isEmpty) {
-      empty
-    } else {
-      collection.reduce((e1, e2) => e1.aggregate(e2))
-    }
-  }
+  def aggregate(first: RideHailStatsEntry, second: RideHailStatsEntry) = first.aggregate(second)
+
+  def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = rideHailStats.flatten.reduceOption(aggregate).getOrElse(empty)
 }
 
 
