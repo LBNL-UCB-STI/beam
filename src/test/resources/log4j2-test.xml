@@ -1,3 +1,20 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ea7bf73a22c0afcd6bd91b859d542c683e25e786be742e6c82a1d26f4d5a75b3
-size 740
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration package="log4j.test" status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Root>
+        <Logger name="beam.agentsim.agents.rideHail.RideHailDebugEventHandler" level="DEBUG">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <!--<Logger name="beam" level="DEBUG"-->
+        <!--additivity="false">-->
+        <!--<AppenderRef ref="Console"/>-->
+        <!--</Logger>-->
+    </Loggers>
+</Configuration>
