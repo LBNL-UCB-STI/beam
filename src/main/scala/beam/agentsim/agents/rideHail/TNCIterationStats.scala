@@ -277,20 +277,17 @@ when enabled
 
     if (!priorityQueue.isEmpty){
 
-      val scoreSum=priorityQueue.map( x=> x.score).sum
+      val scoreSum= priorityQueue.map(_.score).sum
 
-      val mapping = new java.util.ArrayList[WeightPair[RideHailingAgentLocation, java.lang.Double]]()
-      priorityQueue.foreach { vehicleLocationScore =>
-
-        mapping.add(
+      val mapping =
+      priorityQueue.map (vehicleLocationScore =>
           new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
-            vehicleLocationScore.score / scoreSum))
-      }
+            new java.lang.Double(vehicleLocationScore.score / scoreSum))).toList.asJava
 
       val enumDistribution = new EnumeratedDistribution(mapping)
-      val sample = enumDistribution.sample(idleVehicles.size)
+      val sample = enumDistribution.sample(maxNumberOfVehiclesToReposition.toInt, Array[RideHailingAgentLocation]())
 
-      (for (rideHailingAgentLocation <- sample; a = rideHailingAgentLocation.asInstanceOf[RideHailingAgentLocation]) yield a).toVector
+      sample.toVector
     } else {
       Vector()
     }
@@ -531,12 +528,9 @@ when enabled
                                        endTime: Double): RideHailStatsEntry = {
     val startTimeBin = getTimeBin(startTime)
     val endTimeBin = getTimeBin(endTime)
-
-    RideHailStatsEntry.aggregate(
-      (startTimeBin to endTimeBin)
-        .flatMap(timeBin =>
-          rideHailStats.collect { case (_, stats) => stats(timeBin) })
-        .toList)
+    val stats = (startTimeBin to endTimeBin).flatMap(timeBin =>
+    rideHailStats.collect { case (_, stats) => stats(timeBin) }).toList
+    RideHailStatsEntry.aggregate(stats)
   }
 
   // TODO: implement according to description
