@@ -35,24 +35,21 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   // fix the KEEP_PRICE_LEVEL_FIXED_AT_ONE price levels below
   // define other strategies for this?
 
-
-  // TODO: load following parameters directly from config (add them there)zz
-
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
-  val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories = rideHaillingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
+  val timeBinSize = rideHailingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories = rideHailingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
-  val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
+  val surgeLevelAdaptionStep = rideHailingConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel = rideHailingConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy = rideHaillingConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy = rideHailingConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
