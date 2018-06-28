@@ -29,7 +29,7 @@ class NetworkCoordinator(beamConfig: BeamConfig, val transitVehicles: Vehicles) 
       transportNetwork.write(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile) // Needed because R5 closes DB on write
       logger.info(s"Create the MATSim network from R5 network")
-      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig.beam.routing.r5.osmMapdbFile)
+      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
       rmNetBuilder.buildMNet()
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
