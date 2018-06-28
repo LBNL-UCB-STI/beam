@@ -38,7 +38,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
-    private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
+    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -57,14 +57,14 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.resetStats();
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
-        rideHailingWaitingStats.resetStats();
+        rideHailWaitingStats.resetStats();
     }
 
     @Override
     public void handleEvent(Event event) {
 
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
-            rideHailingWaitingStats.processStats(event);
+            rideHailWaitingStats.processStats(event);
             modeChoseStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             fuelUsageStats.processStats(event);
@@ -74,7 +74,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
-            rideHailingWaitingStats.processStats(event);
+            rideHailWaitingStats.processStats(event);
         }
     }
 
@@ -84,7 +84,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event,"TNC0");
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
-        rideHailingWaitingStats.createGraph(event);
+        rideHailWaitingStats.createGraph(event);
     }
 
      // helper methods
