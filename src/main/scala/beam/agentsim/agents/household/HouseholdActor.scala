@@ -4,7 +4,6 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
-
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
@@ -126,7 +125,7 @@ object HouseholdActor {
         transportNetwork, router, rideHailManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle,None,None)
+      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle, None, None)
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)

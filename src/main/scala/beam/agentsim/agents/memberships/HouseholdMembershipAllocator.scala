@@ -10,7 +10,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
 
 case class HouseholdMembershipAllocator(households: Households,
-                                        implicit val population: org.matsim.api.core.v01.population.Population){
+                                        implicit val population: org.matsim.api.core.v01.population.Population) {
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
@@ -26,15 +26,15 @@ case class HouseholdMembershipAllocator(households: Households,
   }
 
 
-  private val vehicleAllocationsByRank: TrieMap[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = TrieMap[Id[Household],
+  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] = TrieMap[Id[Household],
     mutable
-  .Map[Id[Person],Id[Vehicle]]]()
+    .Map[Id[Person], Id[Vehicle]]]()
 
 
-  def lookupVehicleForRankedPerson(person: Id[Person]): Option[Id[Vehicle]]={
+  def lookupVehicleForRankedPerson(person: Id[Person]): Option[Id[Vehicle]] = {
     val household = memberships(person)
-    vehicleAllocationsByRank.getOrElseUpdate(household.getId,{
-      val vehicleRes = mutable.Map[Id[Person],Id[Vehicle]]()
+    vehicleAllocationsByRank.getOrElseUpdate(household.getId, {
+      val vehicleRes = mutable.Map[Id[Person], Id[Vehicle]]()
 
       val householdVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds).toIndexedSeq
       for (i <- householdVehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {

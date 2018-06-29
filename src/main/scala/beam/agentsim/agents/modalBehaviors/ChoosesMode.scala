@@ -39,7 +39,7 @@ trait ChoosesMode {
   onTransition {
     case (PerformingActivity | Waiting | WaitingForTransitReservationConfirmation) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
-        case Some(CAR | BIKE | DRIVE_TRANSIT)  =>
+        case Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
           context.parent ! mobilityStatusInquiry(id)
         case None =>
@@ -50,7 +50,7 @@ trait ChoosesMode {
       }
   }
 
-  when(ChoosingMode) ( transform {
+  when(ChoosingMode)(transform {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
@@ -59,7 +59,7 @@ trait ChoosesMode {
         case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
-        case Some(DRIVE_TRANSIT)=>
+        case Some(DRIVE_TRANSIT) =>
           val tour = _experiencedBeamPlan.getTourContaining(nextAct)
           val tripIndex = tour.tripIndexOfElement(nextAct)
           if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
@@ -107,8 +107,8 @@ trait ChoosesMode {
           makeRequestWith(Vector(), Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
-        case Some(mode @ (CAR | BIKE)) =>
-          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
+        case Some(mode@(CAR | BIKE)) =>
+          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case l: Leg => Some(l)
             case _ => None
           }
@@ -128,7 +128,7 @@ trait ChoosesMode {
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), choosesModeData.personData.currentTourPersonalVehicle) match {
-            case (0,_) =>
+            case (0, _) =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
             // At the end of the tour, only drive home a vehicle that we have also taken away from there.
             case (LastTripIndex, Some(currentTourPersonalVehicleId)) =>
@@ -152,7 +152,7 @@ trait ChoosesMode {
 
   } using completeChoiceIfReady)
 
-  when(WaitingForReservationConfirmation) (transform {
+  when(WaitingForReservationConfirmation)(transform {
     case Event(ReservationResponse(_, Right(response)), choosesModeData: ChoosesModeData) =>
       val triggers = response.triggersToSchedule
       log.debug("scheduling triggers from reservation responses: {}", triggers)
@@ -175,7 +175,7 @@ trait ChoosesMode {
   case object FinishingModeChoice extends BeamAgentState
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailResult), _, _), _, _, _) =>
+    case FSM.State(_, choosesModeData@ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailResult), _, _), _, _, _) =>
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val combinedItinerariesForChoice = rideHailResult.proposals.flatMap(x => x.responseRideHail2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
@@ -222,8 +222,8 @@ trait ChoosesMode {
       } else {
         val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex).getCoord)
         val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).getCoord)
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,origin,10000)))
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,destination,10000)))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin, 10000)))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, 10000)))
       }
 
       def availableAlternatives = {
@@ -264,15 +264,20 @@ trait ChoosesMode {
 }
 
 object ChoosesMode {
+
   case class ChoosesModeData(personData: BasePersonData, pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              routingResponse: Option[RoutingResponse] = None,
                              rideHailResult: Option[RideHailInquiryResponse] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
+
     override def currentLegPassengerScheduleIndex: Int = personData.currentLegPassengerScheduleIndex
+
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
+
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+
     override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
   }
 

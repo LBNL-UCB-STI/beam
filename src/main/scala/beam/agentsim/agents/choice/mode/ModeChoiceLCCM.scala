@@ -77,9 +77,9 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       }
 
       val classMembershipInputData = lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
-        if(theClassName.equalsIgnoreCase("class4")){
-          val i = 0
-        }
+//        if(theClassName.equalsIgnoreCase("class4")){
+//          val i = 0
+//        }0
         val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility(modeChoiceInputData)
         val surplusAttrib = Map("surplus" -> modeChoiceExpectedMaxUtility)
         AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)

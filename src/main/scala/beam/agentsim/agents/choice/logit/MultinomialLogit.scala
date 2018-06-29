@@ -60,9 +60,9 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) ex
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
 //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
     val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    if(util == Double.NaN){
-      val i = 0
-    }
+//    if(util == Double.NaN){
+//      val i = 0
+//    }
     util
   }
 }
@@ -119,7 +119,7 @@ object UtilityParam {
       case "multiplier" =>
         Multiplier
       case _ =>
-        throw new RuntimeException(s"Unknown Utility Parameter Type ${str}")
+        throw new RuntimeException(s"Unknown Utility Parameter Type $str")
     }
   }
 }

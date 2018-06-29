@@ -25,9 +25,10 @@ object Memberships {
   }
 
   object RankedGroup {
+
     case class MemberWithRank[T <: Identifiable[T]](memberId: Id[T], rank: Option[Int])
 
-    implicit def rankedHousehold(household: Household)(implicit population: org.matsim.api.core.v01.population.Population): RankedGroup[Person,Household] = new RankedGroup[Person,Household] {
+    implicit def rankedHousehold(household: Household)(implicit population: org.matsim.api.core.v01.population.Population): RankedGroup[Person, Household] = new RankedGroup[Person, Household] {
 
       override def lookupMemberRank(member: Id[Person]): Option[Int] = {
         population.getPersonAttributes.getAttribute(member.toString, "rank")
@@ -48,14 +49,10 @@ object Memberships {
       override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector.map(memb => MemberWithRank(memb
         .getId,
         lookupMemberRank
-      (memb.getId))).sortWith(sortByRank)
+        (memb.getId))).sortWith(sortByRank)
 
     }
-
   }
-
-
-
 
 }
 
