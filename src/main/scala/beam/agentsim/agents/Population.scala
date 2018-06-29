@@ -20,8 +20,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicles
 
-import scala.collection.{JavaConverters, mutable}
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 
 class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
