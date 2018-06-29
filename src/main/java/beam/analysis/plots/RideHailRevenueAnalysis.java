@@ -17,18 +17,17 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Paths;
 
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
-public class RideHailingRevenueAnalysis implements ControlerListener, IterationEndsListener {
+public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
 
     private RideHailSurgePricingManager surgePricingManager;
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
     @Inject
-    public RideHailingRevenueAnalysis(RideHailSurgePricingManager surgePricingManager) {
+    public RideHailRevenueAnalysis(RideHailSurgePricingManager surgePricingManager) {
         this.surgePricingManager = surgePricingManager;
     }
 
@@ -40,21 +39,21 @@ public class RideHailingRevenueAnalysis implements ControlerListener, IterationE
         // for next iteration
         surgePricingManager.updateRevenueStats();
 
-        ArrayBuffer<?> data = surgePricingManager.rideHailingRevenue();
+        ArrayBuffer<?> data = surgePricingManager.rideHailRevenue();
 
         createGraph(data);
 
-        writeRideHailingRevenueCsv(data);
+        writeRideHailRevenueCsv(data);
 
         rideHailRevenueAnalytics(data);
     }
 
     private void createGraph(ArrayBuffer<?> data) {
         DefaultCategoryDataset dataSet = createDataset(data);
-        drawRideHailingRevenueGraph(dataSet);
+        drawRideHailRevenueGraph(dataSet);
     }
 
-    private void drawRideHailingRevenueGraph(DefaultCategoryDataset dataSet) {
+    private void drawRideHailRevenueGraph(DefaultCategoryDataset dataSet) {
 
         JFreeChart chart = ChartFactory.createLineChart(
                 "Ride Hail Revenue",
@@ -84,7 +83,7 @@ public class RideHailingRevenueAnalysis implements ControlerListener, IterationE
         return dataset;
     }
 
-    private void writeRideHailingRevenueCsv(ArrayBuffer<?> data) {
+    private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
             String fileName = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));

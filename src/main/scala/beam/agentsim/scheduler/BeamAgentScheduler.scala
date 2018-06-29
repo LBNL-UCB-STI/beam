@@ -10,7 +10,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
-import beam.utils.DebugLib
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -123,12 +122,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       started = true
       doSimStep(0.0)
 
-    case DoSimStep(newNow: Double) => {
+    case DoSimStep(newNow: Double) =>
       doSimStep(newNow)
-    }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
-    // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailingManager")).isEmpty){
+    // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailManager")).isEmpty){
       // DebugLib.emptyFunctionForSettingBreakPoint()
      // }
 
@@ -137,7 +135,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       }
       val completionTickOpt = triggerIdToTick.get(triggerId)
       if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse.containsKey(completionTickOpt.get)) {
-        log.error(s"Received bad completion notice ${notice} from ${sender().path}")
+        log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
         awaitingResponse.remove(completionTickOpt.get, triggerIdToScheduledTrigger(triggerId))
         triggerIdToScheduledTrigger -= triggerId
@@ -159,7 +157,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         })
 
     case Monitor =>
-      log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+      log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString")
       awaitingResponse.values().forEach(x=>log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
@@ -204,7 +202,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
-            log.info("Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(10 * (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (Math.pow(1000, 3))) / 10.0 + "(GB)")
+            log.info("Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) / Math.pow(1000, 3)) / 10.0 + "(GB)")
           }
           doSimStep(nowInSeconds + 1.0)
         }
