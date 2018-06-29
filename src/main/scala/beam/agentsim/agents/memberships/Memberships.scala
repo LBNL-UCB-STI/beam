@@ -40,8 +40,7 @@ object Memberships {
         }
       }
 
-      override val members: Seq[Person] = JavaConverters.asScalaBuffer(household.getMemberIds).map(population.getPersons
-        .get(_))
+      override val members: Seq[Person] = JavaConverters.asScalaBuffer(household.getMemberIds).map(population.getPersons.get)
 
       /**
         * Members sorted by rank.
