@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.FileOutputStream
+import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
@@ -10,6 +10,7 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.BeamRouter.UpdateTravelTime
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -29,6 +30,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
@@ -146,6 +148,14 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
+    if (isWarmMode(beamConfig)) {
+      val warmIteration = getWarmIteration(beamConfig)
+      if(warmIteration >= 0) {
+        val warmPath = Paths.get(beamConfig.beam.warmStart.parentRun, "ITERS", s"it.$warmIteration").toString
+        beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmPath, warmIteration))
+      }
+    }
+
     beamServices.controler.run()
 
     if (isMetricsEnable()) Kamon.shutdown()
@@ -188,6 +198,41 @@ trait BeamHelper extends LazyLogging {
       }
     }
   }
+
+  def isWarmMode(beamConfig: BeamConfig): Boolean = {
+    beamConfig.beam.warmStart.enabled
+  }
+
+  def isWarmIteration(parentRun: String, itr: Int): Boolean = {
+    val linkStats = Paths.get(parentRun, "ITERS", s"it.$itr", s"$itr.linkstats.csv.gz")
+    Files.exists(linkStats)
+  }
+
+  def getWarmIteration(beamConfig: BeamConfig): Int = {
+    val parentRun = beamConfig.beam.warmStart.parentRun
+    val warmIteration = beamConfig.beam.warmStart.iterationToUse
+
+    def getWarmIter(itr: Int): Int = if (itr < 0 || isWarmIteration(parentRun, itr)) itr else getWarmIter(itr - 1)
+
+    val itrIndex = if (warmIteration < 0) {
+      val itrBaseDir = Paths.get(parentRun, "ITERS")
+      getWarmIter(new File(itrBaseDir.toUri).list().size - 1)
+    } else {
+      if (Files.isDirectory(Paths.get(parentRun, "ITERS", s"it.$warmIteration")) &&
+        isWarmIteration(parentRun, warmIteration))
+        warmIteration
+      else
+        -1
+    }
+
+    itrIndex
+  }
+
+  def getWarmTravelTime(warmPath: String, warmIteration: Int): TravelTime = {
+    Paths.get(warmPath, s"$warmIteration.linkstats.csv.gz").toFile
+    null
+  }
+
 
 }
 
