@@ -4,6 +4,7 @@ import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import java.util
 import java.util.zip.GZIPInputStream
 
+import beam.router.LinkTravelTimeContainer.LinkTravelTime
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -12,9 +13,6 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 
-// map is a map from slotId -> TraveTime
-case class LinkTravelTime(link: Id[Link], map: util.HashMap[Int, Double])
-
 class LinkTravelTimeContainer(fileName: String,
                               timeBinSizeInSeconds: Int) extends TravelTime with LazyLogging {
 
@@ -22,13 +20,11 @@ class LinkTravelTimeContainer(fileName: String,
 
 
 
-  def loadLinkStats() = {
+  def loadLinkStats(): Unit = {
     logger.debug(s"Stats fileName -> $fileName is being loaded")
 
-    val fileStream = new FileInputStream(fileName)
-    val gzipStream = new GZIPInputStream(fileStream)
-    val decoder = new InputStreamReader(gzipStream)
-    val bufferedReader = new BufferedReader(decoder)
+    val gzipStream = new GZIPInputStream(new FileInputStream(fileName))
+    val bufferedReader = new BufferedReader( new InputStreamReader(gzipStream))
 
     var line: String = null
 
@@ -53,17 +49,15 @@ class LinkTravelTimeContainer(fileName: String,
             val map = new util.HashMap[Int, Double]()
             map.put(hour.toDouble.toInt, travelTime.toDouble)
 
-            val linkTravelTime = new LinkTravelTime(_linkId, map)
+            val linkTravelTime = LinkTravelTime(_linkId, map)
             linkTravelTimeMap.put(_linkId, linkTravelTime)
           }
         }
       }
-
     }
 
     logger.debug("LinkTravelTimeMap is initialized")
   }
-
 
 
   def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
@@ -85,4 +79,9 @@ class LinkTravelTimeContainer(fileName: String,
   }
 
   loadLinkStats()
+}
+
+object LinkTravelTimeContainer {
+  // map is a map from slotId -> TraveTime
+  case class LinkTravelTime(link: Id[Link], map: util.HashMap[Int, Double])
 }

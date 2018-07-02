@@ -15,7 +15,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
   def init(): Unit = {
     if (isWarmMode) {
-      if (Files.isDirectory(Paths.get(beamConfig.beam.warmStart.parentRun))) {
+      if (Files.isDirectory(Paths.get(parentRun))) {
         val warmIteration = getWarmIteration
         if (warmIteration >= 0) {
           val warmPath = Paths.get(beamConfig.beam.warmStart.parentRun, "ITERS", s"it.$warmIteration").toString
@@ -23,7 +23,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
         }
       }
     } else {
-      logger.warn(s"Warm mode initialization faile, not a valid parent run ( $parentRun )")
+      logger.warn(s"Warm mode initialization failed, not a valid parent run ( $parentRun )")
     }
   }
 
