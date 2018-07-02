@@ -1,9 +1,8 @@
 package beam.sim
 
 import java.lang.Double
-import java.util
 import java.util.Random
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
@@ -12,31 +11,25 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
-import beam.agentsim.agents.rideHail.RideHailManager.{RideHailAllocationManagerTimeout}
-import beam.agentsim.agents.rideHail.RideHailManager.NotifyIterationEnds
-import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailAgent, RideHailManager}
+import beam.agentsim.agents.rideHail.RideHailManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.rideHail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.QuadTreeBounds
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.infrastructure.QuadTreeBounds
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.{InitTransit, UpdateTravelTime}
-import beam.router.r5.{LinkTravelTime, LinkTravelTimeContainer, R5RoutingWorker}
+import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils.{DebugActorWithTimer, DebugLib, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
-import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.gbl.MatsimRandom
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
@@ -189,13 +182,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       // Here we should send the UpdateTravelTimes message to R5RoutingWorker with the loaded linkstats
       // 1. Create LinkTravelTimeContainer with the filename linkstats
       // 2. Send that object as a message UpdateTravelTimes parameter to the R5RoutingWorker
-      val fileName = "C:/ns/beam-projects/beam-master/output/beamville/beamville__2018-05-14_03-02-57/ITERS/it.0/0.linkstats.csv.gz"
-      val binSize = 3600
-      val linkTravelTimeContainer = new LinkTravelTimeContainer(fileName, binSize)
 
-
-      beamServices.beamRouter ! UpdateTravelTime(linkTravelTimeContainer)
-
+      new BeamWarmStart(beamServices).init()
 
       log.info(s"Transit schedule has been initialized")
 
