@@ -17,15 +17,15 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
   args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
 }
 ######################################################################################################
 
-factor.to.scale.personal.back <- 20
+factor.to.scale.personal.back <- 35
 factor.to.scale.transit.back <- 2
 plot.congestion <- F
 
@@ -92,7 +92,7 @@ if(plot.congestion){
   rm('links')
 }
 
-ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
+ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit.back)
 
 setkey(ev,type)
 
@@ -101,7 +101,8 @@ en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/e
 setkey(en,vehicleType)
 en <- u(en)
 ## Energy Density in MJ/liter or MJ/kWh
-en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(34.2,35.8,3.6))
+# https://en.wikipedia.org/wiki/Gasoline_gallon_equivalent
+en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(31.81905,36.14286,3.6))
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
 ev[,pmt:=num_passengers*length/1609]
 ev[is.na(pmt),pmt:=0]
@@ -146,8 +147,8 @@ for(fact in factors){
   p <- ggplot(toplot,aes(x=hr,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+facet_wrap(~the.factor)
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
   pdf.scale <- .6
-  ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
-  write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
+  ggsave(pp(plots.dir,'mode-split-by-hour-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+  write.csv(toplot,file=pp(plots.dir,'mode-split-by-hour-',fact,'.csv'))
 
   target <- data.frame(tripmode=rep(c('Car','Walk','Transit','TNC'),length(u(toplot$the.factor))),
                        perc=rep(c(79,4,13,5),length(u(toplot$the.factor))),
@@ -156,13 +157,15 @@ for(fact in factors){
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
 
   # Accessibility
-  pdf.scale <- .8
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
-  ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
-  ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
-  ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  if(!all(is.nan(mc[1]$access))){
+    pdf.scale <- .8
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
+    ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
+    ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
+    ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  }
 }
 rm('mc')
 
@@ -182,7 +185,7 @@ for(fact in factors){
     streval(pp('pt[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
   }
 
-  toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
+  toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt),vmt=sum(length)/1609,mpg=sum(length)/1609/sum(fuel/3.78)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
   if(nrow(en)>30){
     toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
@@ -192,7 +195,7 @@ for(fact in factors){
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']
-  toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back]
+  toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back*10]
   toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),pmt:=pmt*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
@@ -205,6 +208,7 @@ for(fact in factors){
   p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e6,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot.ag$ag.mode)),mode.colors$key)]))
   ggsave(pp(plots.dir,'energy-by-mode-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+  write.csv(toplot.ag,file=pp(plots.dir,'energy-by-mode-',fact,'.csv'))
 
   per.pmt <- toplot[,.(energy=sum(energy)/sum(pmt)),by=c('the.factor','tripmode')]
   per.pmt[,tripmode:=pretty.modes(tripmode)]

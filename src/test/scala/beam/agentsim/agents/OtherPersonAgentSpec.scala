@@ -24,7 +24,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
@@ -54,7 +54,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
+  """).withFallback(testConfig("test/input/beamville/beam.conf")))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
@@ -104,8 +104,8 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
     it("should also work when the first bus is late") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car)
-      val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car)
+      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car,None,None)
+      val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car,None,None)
 
       vehicles.put(bus.getId, bus)
       vehicles.put(tram.getId, tram)

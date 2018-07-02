@@ -1,6 +1,6 @@
 # BEAM
 
-[![Build Status](https://beam-ci.tk/job/beam/badge/icon)](https://beam-ci.tk/job/beam/)
+[![Build Status](https://beam-ci.tk/job/master/badge/icon)](https://beam-ci.tk/job/master/)
 [![Documentation Status](https://readthedocs.org/projects/beam/badge/?version=latest)](http://beam.readthedocs.io/en/latest/?badge=latest)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of research studies in sustainable transportation at Lawrence Berkeley National Laboratory and the UC Berkeley Institute for Transportation Studies.  

@@ -8,18 +8,18 @@ import akka.util.Timeout
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.vehicles.VehicleUtils
 import org.mockito.Mockito._
+import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FunSpecLike}
 
 class HouseholdActorSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString( """
   akka.loggers = ["akka.testkit.TestEventListener"]
   akka.log-dead-letters = 10
-  """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
+  """).withFallback(testConfig("test/input/beamville/beam.conf")))) with FunSpecLike
   with MockitoSugar with ImplicitSender{
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)

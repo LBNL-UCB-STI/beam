@@ -4,7 +4,7 @@ import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.rideHail.RideHailingAgent._
+import beam.agentsim.agents.rideHail.RideHailAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -18,6 +18,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.vehicles.Vehicle
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -34,6 +35,12 @@ object DrivesVehicle {
 
   case class StopDriving()
 
+  case class AddFuel(fuelInJoules: Double)
+
+  case object GetBeamVehicleFuelLevel
+
+  case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
+
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
@@ -44,20 +51,33 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
-      val currentVehicleUnderControl = data.currentVehicle.head
-      // If no manager is set, we ignore
-      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
-      data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
-        beamServices.personRefs.get(pv.personId).foreach { personRef =>
-          logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-          scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
-        }
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          // If no manager is set, we ignore
+          data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
+            case Some(currentLeg) =>
+              beamServices.vehicles(currentVehicleUnderControl).manager.foreach(_ ! NotifyResourceIdle(currentVehicleUnderControl, beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
+
+
+              beamServices.vehicles(currentVehicleUnderControl).useFuel(currentLeg.travelPath.distanceInM)
+
+
+              data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
+                beamServices.personRefs.get(pv.personId).foreach { personRef =>
+                  logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
+                  scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
+                }
+              }
+              eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
+              eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
+                beamServices.vehicles(currentVehicleUnderControl).getType,
+                data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg, beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)))
+            case None =>
+              log.error("Current Leg is not available.")
+          }
+        case None =>
+          log.error("Current Vehicle is not available.")
       }
-      eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-      eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
-        beamServices.vehicles(currentVehicleUnderControl).getType,
-        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
         val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
@@ -69,23 +89,38 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
 
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
-      stay
+      //      val currentVehicleUnderControl = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption
+      log.debug("DrivesVehicle.IgnoreEndLegTrigger: vehicleId(" + id + "),tick(" + tick + "),triggerId(" + triggerId + "),data(" + data + ")")
+      stay replying CompletionNotice(triggerId, Vector())
 
-    case Event(Interrupt(), data) =>
-      goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex)
+    case Event(Interrupt(interruptId, tick), data) =>
+      val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
+      goto(DrivingInterrupted) replying InterruptedAt(interruptId, data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id, tick)
 
   }
 
   when(DrivingInterrupted) {
     case Event(StopDriving(), LiterallyDrivingData(data, legEndingAt)) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
-      val currentVehicleUnderControl = data.currentVehicle.head
-      // If no manager is set, we ignore
-      beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
-      eventsManager.processEvent(new PathTraversalEvent(legEndingAt, currentVehicleUnderControl,
-        beamServices.vehicles(currentVehicleUnderControl).getType,
-        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
+      data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
+        case Some(currentLeg) =>
+
+          if (data.passengerSchedule.schedule(currentLeg).riders.nonEmpty) {
+            log.debug("DrivingInterrupted.StopDriving with rider: " + data.currentVehicle.head)
+          }
+          assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
+          data.currentVehicle.headOption match {
+            case Some(currentVehicleUnderControl) =>
+              // If no manager is set, we ignore
+              beamServices.vehicles(currentVehicleUnderControl).manager.foreach(_ ! NotifyResourceIdle(currentVehicleUnderControl, beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
+              eventsManager.processEvent(new PathTraversalEvent(legEndingAt, currentVehicleUnderControl,
+                beamServices.vehicles(currentVehicleUnderControl).getType,
+                data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg, beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)))
+            case None =>
+              log.error("Current Vehicle is not available.")
+          }
+        case None =>
+          log.error("Current Leg is not available.")
+      }
       self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
       goto(PassengerScheduleEmptyInterrupted) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]
     case Event(Resume(), _) =>
@@ -104,15 +139,23 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
+      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_, _) => 0L)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+    case Event(Interrupt(_, _), _) =>
+      stash()
+      stay
   }
 
   when(WaitingToDriveInterrupted) {
     case Event(Resume(), _) =>
       goto(WaitingToDrive)
+
+    case Event(TriggerWithId(StartLegTrigger(_, _), _), _) =>
+      stash()
+      stay
+
   }
 
   val drivingBehavior: StateFunction = {
@@ -127,10 +170,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         scheduler ! ScheduleTrigger(NotifyLegStartTrigger(leg.startTime, leg), sender())
         scheduler ! ScheduleTrigger(NotifyLegEndTrigger(leg.endTime, leg), sender())
       })
-      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      if (stateName == Driving && legs.contains(currentLeg)) {
-        scheduler ! ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender())
+
+      data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).headOption match {
+        case Some(currentLeg) =>
+          if (stateName == Driving && legs.contains(currentLeg)) {
+            scheduler ! ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender())
+          }
+        case None =>
+          log.warning("Driver did not find a leg at currentLegPassengerScheduleIndex.")
       }
+
       stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
 
     case Event(RemovePassengerFromTrip(id), data) =>
@@ -138,6 +187,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case (leg, manifest) =>
           (leg, manifest.copy(riders = manifest.riders - id, alighters = manifest.alighters - id.vehicleId, boarders = manifest.boarders - id.vehicleId))
       })).asInstanceOf[T]
+
+
+    case Event(AddFuel(fuelInJoules), data) =>
+      val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
+      currentVehicleUnderControl.addFuel(fuelInJoules)
+      stay()
+
+    case Event(GetBeamVehicleFuelLevel, data) =>
+      // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
+      // also position is not accurate (TODO: interpolate?)
+      val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
+
+      //      val lastLocationVisited = SpaceTime(new Coord(0, 0), 0) // TODO: don't ask for this here - TNC should keep track of it?
+      // val lastLocationVisited = currentLeg.travelPath.endPoint
+
+      sender() ! BeamVehicleFuelLevelUpdate(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get)
+      stay()
   }
 
   private def hasRoomFor(passengerSchedule: PassengerSchedule, req: ReservationRequest, vehicle: BeamVehicle) = {

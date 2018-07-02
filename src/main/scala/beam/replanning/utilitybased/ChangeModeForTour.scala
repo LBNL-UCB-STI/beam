@@ -31,8 +31,8 @@ class ChangeModeForTour(beamServices: BeamServices,
   val random = new Random(3004568)
   val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
 
-  val DefaultRideHailCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
+  val DefaultRideHailCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile)
+  val DefaultRideHailCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute)
 
   val stageActivitytypes = new CompositeStageActivityTypes()
 
@@ -154,7 +154,7 @@ class ChangeModeForTour(beamServices: BeamServices,
       stageActivitytypes)).toIndexedSeq
 
     rankedAlternatives.foreach({ case (tourIdx, alts) =>
-      val denom = Math.abs(alts.values.map(Math.exp(_)).sum)
+      val denom = Math.abs(alts.values.map(Math.exp).sum)
       val altIter = alts.map { x => new Pair[BeamMode, java.lang.Double](x._1, Math.exp(x._2) / denom) }
       val dist = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(altIter.toBuffer))
       val choice = dist.sample()

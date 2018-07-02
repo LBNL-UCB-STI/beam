@@ -18,50 +18,49 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class GraphRideHailingRevenue implements ControlerListener, IterationEndsListener {
+import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
-    RideHailSurgePricingManager surgePricingManager;
+public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
 
-    OutputDirectoryHierarchy outputDirectoryHiearchy;
+    private RideHailSurgePricingManager surgePricingManager;
+
+    private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
     @Inject
-    public GraphRideHailingRevenue(RideHailSurgePricingManager surgePricingManager){
+    public RideHailRevenueAnalysis(RideHailSurgePricingManager surgePricingManager) {
         this.surgePricingManager = surgePricingManager;
     }
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
 
-        this.outputDirectoryHiearchy = event.getServices().getControlerIO();
+        outputDirectoryHiearchy = event.getServices().getControlerIO();
 
         // for next iteration
-        this.surgePricingManager.updateRevenueStats();
+        surgePricingManager.updateRevenueStats();
 
-        this.createGraph();
+        ArrayBuffer<?> data = surgePricingManager.rideHailRevenue();
 
+        createGraph(data);
+
+        writeRideHailRevenueCsv(data);
+
+        rideHailRevenueAnalytics(data);
     }
 
-
-    public void createGraph(){
-
-
-
-        ArrayBuffer<Object> data = surgePricingManager.rideHailingRevenue();
-
+    private void createGraph(ArrayBuffer<?> data) {
         DefaultCategoryDataset dataSet = createDataset(data);
-        drawRideHailingRevenueGraph(dataSet);
-
-        writeRideHailingRevenueCsv(data);
+        drawRideHailRevenueGraph(dataSet);
     }
 
-    public void drawRideHailingRevenueGraph(DefaultCategoryDataset dataSet) {
+    private void drawRideHailRevenueGraph(DefaultCategoryDataset dataSet) {
 
         JFreeChart chart = ChartFactory.createLineChart(
                 "Ride Hail Revenue",
-                "iteration","revenue($)",
+                "iteration", "revenue($)",
                 dataSet,
                 PlotOrientation.VERTICAL,
-                false,true,false);
+                false, true, false);
 
         String graphImageFile = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.png");
         try {
@@ -71,22 +70,20 @@ public class GraphRideHailingRevenue implements ControlerListener, IterationEnds
         }
     }
 
-    private DefaultCategoryDataset createDataset(ArrayBuffer<Object> data) {
+    private DefaultCategoryDataset createDataset(ArrayBuffer<?> data) {
 
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
         Iterator iterator = data.iterator();
-        for(int i=0; iterator.hasNext(); i++){
-            Double revenue = (Double)iterator.next();
+        for (int i = 0; iterator.hasNext(); i++) {
+            Double revenue = (Double) iterator.next();
             dataset.addValue(revenue, "revenue", "" + i);
         }
 
         return dataset;
     }
 
-    private void writeRideHailingRevenueCsv(ArrayBuffer<Object> data) {
-
-
+    private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
             String fileName = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
@@ -95,16 +92,14 @@ public class GraphRideHailingRevenue implements ControlerListener, IterationEnds
             out.newLine();
 
             Iterator iterator = data.iterator();
-            for(int i=0; iterator.hasNext(); i++){
-                Double revenue = (Double)iterator.next();
+            for (int i = 0; iterator.hasNext(); i++) {
+                Double revenue = (Double) iterator.next();
                 out.write(i + "," + revenue);
                 out.newLine();
             }
 
             out.flush();
             out.close();
-
-
 
         } catch (IOException e) {
             e.printStackTrace();

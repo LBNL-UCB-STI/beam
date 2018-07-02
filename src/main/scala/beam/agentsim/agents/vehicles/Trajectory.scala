@@ -24,6 +24,7 @@ object Trajectory {
   }
 
 }
+
 /**
   * Describe trajectory as vector of coordinates with time for each coordinate
   */
@@ -31,10 +32,10 @@ class Trajectory(val path: Vector[SpaceTime]) {
 
   private var _path: Vector[SpaceTime] = path
 
-  def coordinateSystem = defaultCoordinateSystem
+  def coordinateSystem: String = defaultCoordinateSystem
 
-  protected[agentsim] def append(newTrajectory: Trajectory) = {
-    this.synchronized{
+  protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
+    this.synchronized {
       _path = _path ++ newTrajectory._path
     }
   }
@@ -42,7 +43,7 @@ class Trajectory(val path: Vector[SpaceTime]) {
   def location(time: Double): SpaceTime = {
     require(_path.nonEmpty)
     val timeL = Math.floor(time).toLong
-    _path.search[SpaceTime](SpaceTime(0, 0,timeL))(SpaceTime.orderingByTime) match {
+    _path.search[SpaceTime](SpaceTime(0, 0, timeL))(SpaceTime.orderingByTime) match {
       case found: Found =>
         SpaceTime(_path(found.foundIndex).loc, timeL)
       case InsertionPoint(closestIndex) =>
@@ -67,14 +68,14 @@ class Trajectory(val path: Vector[SpaceTime]) {
       SpaceTime(xInterpolator.value(time), yInterpolator.value(time), timeL)
     } else if (closestPosition == _path.size) {
       SpaceTime(_path.last.loc, timeL)
-    } else if (_path.nonEmpty){
+    } else if (_path.nonEmpty) {
       SpaceTime(_path.head.loc, timeL)
     } else {
       SpaceTime(_path.head.loc, timeL)
     }
   }
 
-  def computePath(time: Double) = {
+  def computePath(time: Double): Double = {
     val searchFor = SpaceTime(0, 0, Math.floor(time).toLong)
     val currentPath = _path.search[SpaceTime](searchFor)(SpaceTime.orderingByTime) match {
       case Found(foundIndex) =>

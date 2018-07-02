@@ -60,22 +60,22 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) ex
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
 //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
     val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    if(util == Double.NaN){
-      val i = 0
-    }
+//    if(util == Double.NaN){
+//      val i = 0
+//    }
     util
   }
 }
 object MultinomialLogit{
-  def apply(theData: Vector[MnlData]): MultinomialLogit = {
+  def apply(theData: IndexedSeq[MnlData]): MultinomialLogit = {
     val theParams = theData.groupBy(_.alternative).map{ mnlData =>
       mnlData._1 -> mnlData._2.map { paramData =>
         UtilityParam(paramData.paramName, paramData.paramValue, UtilityParam.StringToUtilityParamType(paramData.paramType))
       }
     }
-    MultinomialLogit(theParams.map{ case (altName, utilParams) =>
+    MultinomialLogit(theParams.map { case (altName, utilParams) =>
       altName -> AlternativeParams(altName, utilParams.map(utilParam => utilParam.paramName -> utilParam).toMap)
-    }.toMap)
+    })
   }
 
   class MnlData(
@@ -119,7 +119,7 @@ object UtilityParam {
       case "multiplier" =>
         Multiplier
       case _ =>
-        throw new RuntimeException(s"Unknown Utility Parameter Type ${str}")
+        throw new RuntimeException(s"Unknown Utility Parameter Type $str")
     }
   }
 }

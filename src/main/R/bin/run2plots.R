@@ -12,13 +12,15 @@ load.libraries(c('maptools','sp'))
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
 
-factor.to.scale.personal.back <- 200 # should be a command line arg
+factor.to.scale.personal.back <- 20 # should be a command line arg
+factor.to.scale.transit.back <- 5 # should be a command line arg
 
 option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-02/ridehail-price/runs/run.RideHailPrice_base/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/base_2018-04-17_15-36-19/'
+  #args<-'/Users/critter/Documents/beam/beam-output/sf-light-25k_2018-02-13_15-04-19/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T)
@@ -61,7 +63,7 @@ rm('evs')
 rm('vehs')
 rm('pops')
 
-ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
+ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit.back)
 
 veh[,is.transit:=grepl(":",vehicle)]
 
@@ -104,6 +106,14 @@ ggsave(pp(plots.dir,'transit-boarding.pdf'),p,width=10*pdf.scale,height=8*pdf.sc
 p <- ggplot(toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'),.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency','iter')],aes(x=hour,y=n,fill=agency))+geom_bar(stat='identity')+facet_wrap(iter~agency)+labs(x="Hour",y="# Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
 pdf.scale <- .8
 ggsave(pp(plots.dir,'transit-boarding-big-4.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+toplot.norm <- toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'),.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency','iter')]
+toplot.norm.max <- toplot.norm[,.(max=max(n)),by=c('agency','iter')]
+toplot.norm <- join.on(toplot.norm,toplot.norm.max,c('agency','iter'),c('agency','iter'))
+toplot.norm[,n.norm:=n/max]
+p <- ggplot(toplot.norm,aes(x=hour,y=n.norm,fill=agency))+geom_bar(stat='identity')+facet_wrap(iter~agency)+labs(x="Hour",y="Normalized Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
+pdf.scale <- .8
+ggsave(pp(plots.dir,'transit-boarding-big-4-normalized.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(access,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
 pdf.scale <- .8

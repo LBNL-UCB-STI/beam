@@ -3,7 +3,8 @@ package beam.integration
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{BeamConfigUtils, FileUtils}
+import beam.utils.FileUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -14,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for three iterations with LCCM without exceptions" in {
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
+    val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass",  ConfigValueFactory.fromAnyRef("ModeChoiceLCCM"))
       .resolve()

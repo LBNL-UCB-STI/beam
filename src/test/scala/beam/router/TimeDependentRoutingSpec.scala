@@ -17,7 +17,8 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -34,7 +35,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with WordSpecLike with Matchers
+class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", testConfig("test/input/beamville/beam.conf"))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
@@ -83,21 +84,21 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTime == 76)
+      assert(carOption.totalTravelTimeInSecs == 76)
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       val response2 = expectMsgType[RoutingResponse]
       assert(response2.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTime < 7) // isn't exactly 0, probably rounding errors?
+      assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == CAR))
       val carOption3 = response3.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption3.totalTravelTime < 2071) // isn't exactly 2000, probably rounding errors?
+      assert(carOption3.totalTravelTimeInSecs < 2071) // isn't exactly 2000, probably rounding errors?
     }
 
     "find an equilibrium between my estimation and my experience when I report my self-decided link travel times back to it" in {
@@ -115,7 +116,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
       // but taking me 2000s (a lot) for each link.
       // Then route again.
       // Like a one-person iterated dynamic traffic assignment.
-      def estimatedTotalTravelTime = carOption.totalTravelTime
+      def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
       def longerTravelTimes(enterTime: Long, linkId: Int) = 2000
       def experiencedTotalTravelTime = (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
       // This ^^ is the travel time which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link

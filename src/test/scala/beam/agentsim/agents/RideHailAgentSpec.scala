@@ -9,8 +9,8 @@ import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterReso
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.rideHail.RideHailingAgent
-import beam.agentsim.agents.rideHail.RideHailingAgent._
+import beam.agentsim.agents.rideHail.RideHailAgent
+import beam.agentsim.agents.rideHail.RideHailAgent._
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
@@ -23,7 +23,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.Person
@@ -37,12 +37,12 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 
-class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
+class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
   """
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
+  """).withFallback(testConfig("test/input/beamville/beam.conf")))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
@@ -72,12 +72,12 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
 
-  describe("A RideHailingAgent") {
+  describe("A RideHailAgent") {
 
-    def moveTo30000(scheduler: ActorRef, rideHailingAgent: ActorRef) = {
+    def moveTo30000(scheduler: ActorRef, rideHailAgent: ActorRef) = {
       expectMsgType[RegisterResource]
 
-      scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailingAgent)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgent)
       scheduler ! ScheduleTrigger(TestTrigger(28800), self)
       scheduler ! StartSchedule(0)
       expectMsgType[CheckInResource] // Idle agent is idle
@@ -95,10 +95,11 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
           BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 38800), SpaceTime(0.0, 0.0, 48800), 10000))
         ))
       personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
-      rideHailingAgent ! Interrupt()
-      expectMsg(InterruptedWhileIdle())
-      rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
-      rideHailingAgent ! Resume()
+      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]),30000)
+      expectMsgClass(classOf[InterruptedWhileIdle])
+      //expectMsg(InterruptedWhileIdle(_,_))
+      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+      rideHailAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
       expectMsgType[VehicleEntersTrafficEvent]
@@ -111,26 +112,26 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
 
-      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+      val rideHailAgent = TestFSMRef(new RideHailAgent(Id.create("1", classOf[RideHailAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 
-      var trigger = moveTo30000(scheduler, rideHailingAgent)
+      var trigger = moveTo30000(scheduler, rideHailAgent)
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailingAgent ! Interrupt()
+      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]),30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
-      assert(rideHailingAgent.stateName == DrivingInterrupted)
+      assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // Still, I tell it to resume
-      rideHailingAgent ! Resume()
+      rideHailAgent ! Resume()
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -155,7 +156,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      rideHailingAgent ! Finish
+      rideHailAgent ! Finish
       expectMsgType[CompletionNotice]
     }
 
@@ -163,29 +164,29 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
 
-      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+      val rideHailAgent = TestFSMRef(new RideHailAgent(Id.create("1", classOf[RideHailAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 
-      var trigger = moveTo30000(scheduler, rideHailingAgent)
+      var trigger = moveTo30000(scheduler, rideHailAgent)
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailingAgent ! Interrupt()
+      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]),30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
-      assert(rideHailingAgent.stateName == DrivingInterrupted)
+      assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // I tell it to do nothing instead
-      rideHailingAgent ! StopDriving()
-      assert(rideHailingAgent.stateName == IdleInterrupted)
+      rideHailAgent ! StopDriving()
+      assert(rideHailAgent.stateName == IdleInterrupted)
 
-      rideHailingAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
+      rideHailAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -197,7 +198,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      rideHailingAgent ! Finish
+      rideHailAgent ! Finish
       expectMsgType[CompletionNotice]
     }
 
@@ -205,15 +206,15 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
 
-      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+      val rideHailAgent = TestFSMRef(new RideHailAgent(Id.create("1", classOf[RideHailAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 
-      var trigger = moveTo30000(scheduler, rideHailingAgent)
+      var trigger = moveTo30000(scheduler, rideHailAgent)
       scheduler ! ScheduleTrigger(TestTrigger(40000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -223,10 +224,10 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[VehicleEntersTrafficEvent]
 
       trigger = expectMsgType[TriggerWithId] // 40000
-      rideHailingAgent ! Interrupt()
+      rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]),30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
-      assert(rideHailingAgent.stateName == DrivingInterrupted)
+      assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
     }
