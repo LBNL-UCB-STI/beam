@@ -1,19 +1,19 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager
+import beam.agentsim.agents.rideHail.RideHailManager
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false // TODO: this should be true - change back later!
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
+    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, RideHailManager.radiusInMeters)
 
-    rideHailingAgentLocation match {
+    rideHailAgentLocation match {
       case Some((agentLocation, _)) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
       case None => None
     }
@@ -22,18 +22,18 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
 /*
-    var result = Map[Id[RideHailingInquiry], VehicleAllocation]()
+    var result = Map[Id[RideHailInquiry], VehicleAllocation]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
-    for ((rideHailingInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
+    for ((rideHailInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
-          if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
-            alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
-            vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId,rideHailingAgentLocation.currentLocation))
+        for ((rideHailAgentLocation, distance) <- rideHailManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation, rideHailManager.radius)) {
+          if (!alreadyUsedVehicles.contains(rideHailAgentLocation.vehicleId)) {
+            alreadyUsedVehicles.add(rideHailAgentLocation.vehicleId)
+            vehicleAllocation = Some(VehicleAllocation(rideHailAgentLocation.vehicleId,rideHailAgentLocation.currentLocation))
             break
           }
         }
@@ -41,9 +41,9 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
       vehicleAllocation match {
         case Some(vehicleAllocation) =>
-          result += (rideHailingInquiry -> vehicleAllocation)
-          rideHailingManager.lockVehicle(vehicleAllocation.vehicleId)
-        case None => result += (rideHailingInquiry -> None)
+          result += (rideHailInquiry -> vehicleAllocation)
+          rideHailManager.lockVehicle(vehicleAllocation.vehicleId)
+        case None => result += (rideHailInquiry -> None)
       }
     }
     result
@@ -52,8 +52,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailingManager.getIdleVehicles().size >= 2) {
-      val iter = rideHailingManager.getIdleVehicles().iterator
+    if (rideHailManager.getIdleVehicles().size >= 2) {
+      val iter = rideHailManager.getIdleVehicles().iterator
       val (vehicleIdA, vehicleLocationA) = iter.next()
       val (vehicleIdB, vehicleLocationB) = iter.next()
       Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))

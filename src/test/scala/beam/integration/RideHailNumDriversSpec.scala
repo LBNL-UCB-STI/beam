@@ -17,7 +17,7 @@ class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper 
       val modeChoice = numDriversAsFractionOfPopulation.map(tc => new StartWithCustomConfig(
         baseConfig
           .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable"))
-          .withValue("beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(tc))
+          .withValue("beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(tc))
       ).groupedCount)
 
       val tc = modeChoice

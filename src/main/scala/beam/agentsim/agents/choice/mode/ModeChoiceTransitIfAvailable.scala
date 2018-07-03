@@ -5,6 +5,8 @@ import beam.router.Modes
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * BEAM
   */
@@ -12,12 +14,9 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
 
   override def clone(): ModeChoiceCalculator = new ModeChoiceTransitIfAvailable(beamServices)
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]) = {
-    var containsTransitAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach { alt =>
-      if (alt._1.tripClassifier.isTransit) {
-        containsTransitAlt = containsTransitAlt :+ alt._2
-      }
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+    val containsTransitAlt = alternatives.zipWithIndex.collect {
+      case(trip, idx) if trip.tripClassifier.isTransit => idx
     }
     if (containsTransitAlt.nonEmpty) {
       Some(alternatives(containsTransitAlt.head))

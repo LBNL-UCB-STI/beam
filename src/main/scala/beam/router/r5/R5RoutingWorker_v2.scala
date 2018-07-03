@@ -838,10 +838,10 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-          var legs: Seq[BeamLeg] = Nil
+          val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
           tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (departureTimeTo, to)) =>
             val duration = tripSchedule.arrivals(to) - departureTimeFrom
-            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
+            legs += BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
           }
           (tripVehId, (route, legs))
         }

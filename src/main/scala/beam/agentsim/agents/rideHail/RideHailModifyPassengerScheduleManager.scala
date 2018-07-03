@@ -3,8 +3,8 @@ package beam.agentsim.agents.rideHail
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, InterruptedAt, ModifyPassengerSchedule, Resume}
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailAllocationManagerTimeout, RideHailingInquiry}
+import beam.agentsim.agents.rideHail.RideHailAgent.{Interrupt, InterruptedAt, ModifyPassengerSchedule, Resume}
+import beam.agentsim.agents.rideHail.RideHailManager.{RideHailAllocationManagerTimeout, RideHailInquiry}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -17,11 +17,11 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable.ListBuffer
 import scala.collection.{concurrent, mutable}
 
-class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailingManager: ActorRef, val rideHailAllocationManagerTimeoutInSeconds:Double,val scheduler: ActorRef) {
+class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHailManager: ActorRef, val rideHailAllocationManagerTimeoutInSeconds:Double, val scheduler: ActorRef) {
 
-  val interruptIdToModifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
-  val vehicleIdToModifyPassengerScheduleStatus = mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
-  val resourcesNotCheckedIn=mutable.Set[Id[Vehicle]]()
+  private val interruptIdToModifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
+  private val vehicleIdToModifyPassengerScheduleStatus = mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
+  private val resourcesNotCheckedIn = mutable.Set[Id[Vehicle]]()
 
   private def add(rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit = {
     interruptIdToModifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId, rideHailModifyPassengerScheduleStatus)
@@ -94,8 +94,8 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     }
   }
 
-  private def sendMessage(rideHailingAgent:ActorRef, message: Any): Unit ={
-      rideHailingAgent.tell(message,rideHailingManager)
+  private def sendMessage(rideHailAgent: ActorRef, message: Any): Unit ={
+      rideHailAgent.tell(message,rideHailManager)
       log.debug("sendMessages:" + message.toString)
   }
 
@@ -204,7 +204,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
 
     val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
-    val timerMessage = ScheduleTrigger(timerTrigger, rideHailingManager)
+    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
     nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId, Vector(timerMessage))
   }
 
@@ -249,7 +249,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule),tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
-  def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef,inquiryId: Option[Id[RideHailingInquiry]]):Unit={
+  def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef,inquiryId: Option[Id[RideHailInquiry]]):Unit={
     log.debug("RideHailModifyPassengerScheduleManager- reserveVehicle request: " + vehicleId)
     sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,inquiryId),tick,vehicleId,rideHailAgent,InterruptOrigin.RESERVATION)
   }

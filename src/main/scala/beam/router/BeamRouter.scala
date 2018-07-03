@@ -24,6 +24,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -37,7 +38,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       "servicePath [%s] is not a valid relative actor path" format servicePath)
   }
 
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
   // private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
@@ -58,7 +59,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   }
 
 
-  override def receive = {
+  override def receive: PartialFunction[Any, Unit] = {
     case InitTransit(scheduler) =>
       // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
       val f = Future.sequence(nodes.map { address =>

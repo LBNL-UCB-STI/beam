@@ -20,7 +20,7 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailingWaitingStats implements IGraphStats {
+public class RideHailWaitingStats implements IGraphStats {
 
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
@@ -30,7 +30,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
 
-    private Map<String, Event> rideHailingWaiting = new HashMap<>();
+    private Map<String, Event> rideHailWaiting = new HashMap<>();
 
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
 
@@ -38,7 +38,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     public void resetStats() {
         lastMaximumTime = 0;
 
-        rideHailingWaiting.clear();
+        rideHailWaiting.clear();
         hoursTimesMap.clear();
     }
 
@@ -52,7 +52,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
-                rideHailingWaiting.put(personId.toString(), event);
+                rideHailWaiting.put(personId.toString(), event);
             }
         } else if(event instanceof PersonEntersVehicleEvent) {
 
@@ -60,14 +60,14 @@ public class RideHailingWaitingStats implements IGraphStats {
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if(rideHailingWaiting.containsKey(personId.toString())) {
+            if(rideHailWaiting.containsKey(personId.toString())) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(_personId);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
-                processRideHailingWaitingTimes(modeChoiceEvent, difference);
+                processRideHailWaitingTimes(modeChoiceEvent, difference);
 
                 // Remove the personId from the list of ModeChoiceEvent
-                rideHailingWaiting.remove(_personId);
+                rideHailWaiting.remove(_personId);
             }
         }
     }
@@ -92,7 +92,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
 
 
-    private void processRideHailingWaitingTimes(Event event, double waitingTime) {
+    private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
         //waitingTime = Math.ceil(waitingTime / 60);
