@@ -31,7 +31,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         private static final String yAxisTitle = "# mode chosen";
         private static final String fileName = "realized_mode";
         private static List<String> personIdList = new ArrayList<>();
-        private static Map<String, Integer> modeCount = new HashMap<>();
         private Logger log = LoggerFactory.getLogger(this.getClass());
 
 
@@ -53,21 +52,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             if (modesFrequencyDataset != null)
                 createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
-            hourModeFrequency.keySet().stream().forEach (
-                hour -> {
-                    Map<String, Integer> hourData = hourModeFrequency.get(hour);
-                    hourData.keySet().stream().forEach(mode -> {
-                        Integer count = modeCount.get(mode);
-                        if(count != null){
-                            modeCount.put(mode, count+hourData.get(mode));
-                        }
-                        else{
-                            modeCount.put(mode, hourData.get(mode));
-                        }
-                    });
-                }
-            );
-
             writeToCSV(event);
         }
 
@@ -81,7 +65,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             hourModeFrequency.clear();
             modesChosen.clear();
             personIdList.clear();
-            modeCount.clear();
         }
 
         private void processRealizedMode(Event event) {
@@ -180,28 +163,49 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         }
 
-    private void writeToCSV(IterationEndsEvent event ) throws IOException {
+        private void writeToCSV(IterationEndsEvent event ) {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName+".csv");
+            String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName+".csv");
 
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            String heading = modeCount.keySet()
-                    .stream()
-                    .sorted().reduce((x,y) -> x+","+y).get();
-            out.write(heading);
-            out.newLine();
-            String data= modeCount.keySet()
-                    .stream()
-                    .sorted().map(mode -> modeCount.get(mode).toString()).reduce((x,y) -> x+","+y ).get();
-            out.write(data);
-            out.newLine();
-            out.flush();
-        } catch (IOException e) {
-            log.error("CSV generation failed.", e);
+                Set<String> modes = new TreeSet<>();
+
+                hourModeFrequency.keySet().stream().forEach(hour -> hourModeFrequency.get(hour).keySet().stream().forEach(mode -> modes.add(mode)));
+
+                String heading = modes.stream().reduce((x,y) -> x+","+y).get();
+                out.write("hours,"+heading);
+                out.newLine();
+
+                int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().getAsInt();
+
+                for(int hour = 0;hour <= max; hour++){
+                    Map<String, Integer> modeCount = hourModeFrequency.get(hour);
+                    StringBuilder builder = new StringBuilder(hour+1+"");
+                    if (modeCount != null){
+                        for(String mode : modes){
+                            if(modeCount.get(mode) !=null){
+                                builder.append(","+modeCount.get(mode));
+                            }
+                            else{
+                                builder.append(",0");
+                            }
+                        }
+                    }
+                    else {
+                        for(String mode: modes){
+                            builder.append(",0");
+                        }
+                    }
+                    out.write(builder.toString());
+                    out.newLine();
+                }
+                out.flush();
+            } catch (IOException e) {
+                log.error("CSV generation failed.", e);
+                }
         }
-    }
 
-    }
+}
 
 
