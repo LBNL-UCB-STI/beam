@@ -128,7 +128,9 @@ object Population {
           powerTrain,
           matsimVehicle,
           vehicleAttribute,
-          Car)
+          Car,
+          None,
+          None) // TODO: Asif load from config (later csv).
       }).toMap
     houseHoldVehicles
   }

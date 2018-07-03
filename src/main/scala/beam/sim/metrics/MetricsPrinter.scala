@@ -18,9 +18,12 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
 //    val buffer: LongBuffer = LongBuffer.allocate(100000)
 //  }
 
+  import context._
   def receive = {
     case Print(ins, exs) =>
       ()
+    case _ =>
+      logger.debug("Printer not subscribed.")
 //    case Subscribe(category, selection) =>
 //      Kamon.metrics.subscribe(category, selection, self)
 //

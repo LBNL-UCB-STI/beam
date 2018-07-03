@@ -30,6 +30,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_START_COORDINATE_Y = "start.y";
     public final static String ATTRIBUTE_END_COORDINATE_X = "end.x";
     public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
+    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "end_leg_fuel_level";
 
     private final VehicleType vehicleType;
     private final String vehicleId;
@@ -37,16 +38,18 @@ public class PathTraversalEvent extends Event {
     private final String fuel;
     private final Integer numPass;
     private final Integer capacity;
+    private final double endLegFuelLevel;
 
     private final RoutingModel.BeamLeg beamLeg;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg) {
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double endLegFuelLevel) {
         super(time);
         this.vehicleType = vehicleType;
         this.vehicleId = vehicleId.toString();
         this.mode = beamLeg.mode().value();
         this.beamLeg = beamLeg;
         this.numPass = numPass;
+        this.endLegFuelLevel = endLegFuelLevel;
         if (vehicleType.getCapacity()!=null) {
             this.capacity = vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom();
         }else{
@@ -79,6 +82,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_START_COORDINATE_Y, Double.toString(beamLeg.travelPath().startPoint().loc().getY()));
         attr.put(ATTRIBUTE_END_COORDINATE_X, Double.toString(beamLeg.travelPath().endPoint().loc().getX()));
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(beamLeg.travelPath().endPoint().loc().getY()));
+        attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
         return attr;
     }
 

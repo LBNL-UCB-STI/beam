@@ -28,7 +28,8 @@ import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
  * <p>
  * Created by sfeygin on 11/8/16.
  */
-public class SFBayPT2MATSim {
+public class
+SFBayPT2MATSim {
 
     private String outputDir;
     private String apiKey;

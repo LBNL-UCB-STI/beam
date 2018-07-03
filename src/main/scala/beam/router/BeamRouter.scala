@@ -106,8 +106,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 * be used to decide what type of vehicle to assign
 *
 */
-
-
 }
 
 object BeamRouter {
@@ -122,6 +120,14 @@ object BeamRouter {
   case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime)
 
   case class UpdateTravelTime(travelTime: TravelTime)
+
+  case class R5Network(transportNetwork:  TransportNetwork)
+
+  case object GetTravelTime
+
+  case class MATSimNetwork(network: Network)
+
+  case object GetMatSimNetwork
 
   /**
     * It is use to represent a request object

@@ -1,9 +1,28 @@
 package beam.sim.metrics
 
 import akka.util.Helpers.toRootLowerCase
+import beam.utils.FileUtils
+import kamon.context.Context
+import kamon.trace.Span
+
+import scala.collection.mutable
 
 object Metrics {
+
   var level: String = "off"
+
+  var runName: String = "beam"
+
+  var iterationNumber: Int = 0
+
+  val currentSpans: mutable.Map[String, Span] = mutable.Map()
+
+  var currentContext: Context = null
+
+  def setCurrentContext(context: Context) = currentContext = context
+
+  def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
+    "iteration-num" -> s"$iterationNumber")
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
 

@@ -774,7 +774,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
           //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
           val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
-            matSimTransitVehicle, None, TransitVehicle)
+            matSimTransitVehicle, None, TransitVehicle, None, None)
           beamServices.vehicles += (transitVehId -> vehicle)
 
         case _ =>

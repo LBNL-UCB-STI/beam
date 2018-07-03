@@ -8,7 +8,11 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import sun.net.www.content.image.png;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -23,7 +27,7 @@ public class DeadHeadingStats implements IGraphStats {
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private String fileName = null;
+    private String fileNameBase = "rideHail";
     private String graphTitle = null;
     private static final int DEFAULT_OCCURRENCE=1;
 
@@ -42,6 +46,7 @@ public class DeadHeadingStats implements IGraphStats {
         if (graphType.equalsIgnoreCase("TNC0")) {
             CategoryDataset tnc0DeadHeadingDataset = buildDeadHeadingDatasetTnc0ForGraph();
             createDeadHeadingGraphTnc0(tnc0DeadHeadingDataset, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+            writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
         } else {
             List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
             for (String graphName : graphNamesList) {
@@ -169,8 +174,8 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
-        fileName = getGraphFileName(graphName);
-        graphTitle = getTitle(graphName);
+        String fileName = getFileName(graphName,"png");
+        String graphTitle = getTitle(graphName);
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, deadHeadingTNC0XAxisTitle, deadHeadingTNC0YAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
@@ -181,8 +186,8 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
-        fileName = getGraphFileName(graphName);
-        graphTitle = getTitle(graphName);
+        String fileName = getFileName(graphName,"png");
+        String graphTitle = getTitle(graphName);
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, deadHeadingXAxisTitle, deadHeadingYAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
@@ -350,13 +355,13 @@ public class DeadHeadingStats implements IGraphStats {
         return validCase;
     }
 
-    private String getGraphFileName(String graphName) {
+    private String getFileName(String graphName,String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            return "tnc_passenger_per_trip.png";
+            return fileNameBase+"PassengersPerTrip."+extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-            return "tnc_deadheading_distance.png";
+            return fileNameBase+"DeadheadDistance."+extension;
         } else {
-            return "passenger_per_trip_" + graphName + ".png";
+            return fileNameBase+"PassengersPerTrip."+extension;
         }
     }
     private String getTitle(String graphName) {
@@ -368,6 +373,57 @@ public class DeadHeadingStats implements IGraphStats {
             return "Number of Passengers per Trip [Car]";
         } else {
             return "Number of Passengers per Trip [" + graphName + "]";
+        }
+    }
+    private void writeToCSV(int iterationNumber, String graphName) throws IOException {
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName,"csv"));
+        BufferedWriter out = null;
+        try {
+            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+            String heading = "hour,numPassengers,vkt";
+            out.write(heading);
+            out.newLine();
+
+            HashSet<Integer> passengerCategories = new HashSet<Integer>();
+            int maxHour = Integer.MIN_VALUE;
+            int minHour = Integer.MAX_VALUE;
+            Iterator iter = deadHeadingsTnc0Map.keySet().iterator();
+            while(iter.hasNext()){
+                int nextHour = (Integer)iter.next();
+                if(nextHour>maxHour)maxHour=nextHour;
+                if(nextHour<minHour)minHour=nextHour;
+                Iterator keyIter = ((Map<Integer,Double>)deadHeadingsTnc0Map.get(nextHour)).keySet().iterator();
+                while(keyIter.hasNext()){
+                    passengerCategories.add((Integer)keyIter.next());
+                }
+            }
+
+            Double vkt = null;
+            for (Integer hour = minHour; hour <= maxHour; hour++) {
+                Iterator keyIter = passengerCategories.iterator();
+                while(keyIter.hasNext()){
+                    Integer passengerKey = (Integer)keyIter.next();
+                    if(deadHeadingsTnc0Map.containsKey(hour)) {
+                        if (((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).containsKey(passengerKey)) {
+                            vkt = ((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).get(passengerKey);
+                        } else {
+                            vkt = 0.0;
+                        }
+                    }else {
+                        vkt = 0.0;
+                    }
+                    out.write(hour.toString()+","+passengerKey.toString()+","+vkt.toString());
+                    out.newLine();
+                }
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (out != null) {
+                out.close();
+            }
         }
     }
 }

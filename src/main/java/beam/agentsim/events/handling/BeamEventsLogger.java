@@ -167,14 +167,14 @@ public class BeamEventsLogger {
         }
     }
 
-    public Map<String, String> getAttributes(Event event) {
-        Map<String, String> attributes = event.getAttributes();
+    public HashSet<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
+        HashSet<String> keySet = new HashSet<>(eventAttributes.keySet());
         //Remove attribute from each event class for SHORT logger level
         if (getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())) {
             eventFields = (List) eventFieldsToDropWhenShort.get(event.getClass());
             // iterate through the key set
             for (String key : eventFields) {
-                attributes.remove(key);
+                keySet.remove(key);
             }
         }
         //Add attribute from each event class for VERBOSE logger level
@@ -185,7 +185,7 @@ public class BeamEventsLogger {
 //                attributes.putAll(event.getVer);
 //            }
         }
-        return attributes;
+        return keySet;
     }
 
     public void overrideDefaultLoggerSetup() {

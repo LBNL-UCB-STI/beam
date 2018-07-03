@@ -7,7 +7,7 @@ import java.util.Properties
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
+import beam.analysis.plots.{GraphSurgePricing, RideHailingRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -26,15 +26,13 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import kamon.prometheus.PrometheusReporter
 import kamon.zipkin.ZipkinReporter
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.api.core.v01.population.{Person, PopulationFactory}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
-import org.matsim.households.{Household, Households, HouseholdsImpl}
+import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
@@ -110,7 +108,7 @@ trait BeamHelper extends LazyLogging {
         addControlerListenerBinding().to(classOf[BeamSim])
 
         addControlerListenerBinding().to(classOf[GraphSurgePricing])
-        addControlerListenerBinding().to(classOf[GraphRideHailingRevenue])
+        addControlerListenerBinding().to(classOf[RideHailingRevenueAnalysis])
 
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
@@ -155,16 +153,17 @@ trait BeamHelper extends LazyLogging {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
-
-//    if (isMetricsEnable()) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
+    val beamConfig = BeamConfig(config)
+    level = beamConfig.beam.metrics.level
+    runName = beamConfig.beam.agentsim.simulationName
+    if (isMetricsEnable()) Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
+
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-
-    val beamConfig = BeamConfig(config)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
@@ -186,6 +185,9 @@ trait BeamHelper extends LazyLogging {
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
     beamServices.controler.run()
+
+    //if (isMetricsEnable()) Kamon.shutdown() //No more start or shutdown in 1.0 -> http://kamon.io/documentation/1.x/recipes/migrating-from-kamon-0.6/#no-more-kamonstart
+
     (matsimConfig, outputDirectory)
   }
 
