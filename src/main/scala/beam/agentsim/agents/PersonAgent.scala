@@ -290,15 +290,19 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     // Non-empty trips with me as driver
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if nextLeg.asDriver =>
 
-      val (tick, triggerId) = releaseTickAndTriggerId()
+//      val (tick, triggerId) = releaseTickAndTriggerId()
       val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
 
-      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
+      scheduler ! CompletionNotice(_currentTriggerId.get, Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self)))
 
-      val stateToGo = if(!currentVehicle.isEmpty && beamServices.vehicles(currentVehicle.head).beamVehicleType.idString.equals("car")){
-        ReleasingParkingSpot
+      val ooo = beamServices.vehicles(nextLeg.beamVehicleId)
+      print()
+
+      val (stateToGo, currentTick) = if(beamServices.vehicles(nextLeg.beamVehicleId).beamVehicleType.idString.equals("car")){
+        (ReleasingParkingSpot, _currentTick.get)
       } else {
-        WaitingToDrive
+        val (currentTick, _) = releaseTickAndTriggerId()
+        (WaitingToDrive, currentTick)
       }
 
 //      goto(WaitingToDrive) using data.copy(
@@ -311,7 +315,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
             fa =>
               throw new RuntimeException(s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned."),
             fb => {
-              eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), nextLeg.beamVehicleId))
+              eventsManager.processEvent(new PersonEntersVehicleEvent(currentTick, Id.createPersonId(id), nextLeg.beamVehicleId))
             })
           nextLeg.beamVehicleId +: currentVehicle
         } else {

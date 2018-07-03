@@ -54,7 +54,6 @@ class BeamMobsim @Inject()(
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var rideHailingAgents: Seq[ActorRef] = Nil
-  val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
   var memoryLoggingTimerActorRef:ActorRef=_
   var memoryLoggingTimerCancellable:Cancellable=_
 /*
@@ -88,7 +87,9 @@ class BeamMobsim @Inject()(
       private val parkingManager = context.actorOf(ZonalParkingManager.props(beamServices,  beamServices.beamRouter, tazTreeMap, ParkingStockAttributes(100)), "ParkingManager")
       context.watch(parkingManager)
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, parkingManager, eventsManager), "population")
+
       context.watch(population)
+      //TODO Place cars
       Await.result(population ? Identify(0), timeout.duration)
 
       private val numRideHailAgents = math.round(scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)

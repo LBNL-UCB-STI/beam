@@ -71,6 +71,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           log.error("Current Vehicle is not available.")
       }
 
+      data.currentVehicle
+
+
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
         if(data.hasParkingBehaviors){
           holdTickAndTriggerId(tick, triggerId)

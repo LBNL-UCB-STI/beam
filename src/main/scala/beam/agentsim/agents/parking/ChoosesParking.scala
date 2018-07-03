@@ -63,22 +63,7 @@ trait ChoosesParking {
         17.0, NoNeed, lastLeg.beamLeg.endTime, nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble)
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
-    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-
-//      val veh = beamServices
-//        .vehicles(
-//          data.currentVehicle.head)
-
-//      veh.stall.foreach{ stall =>
-////        val nextLeg = data.passengerSchedule.schedule.head._1
-//        val distance = beamServices.geo.distInMeters(stall.location, newLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
-//        val cost = stall.cost
-//        val energyCharge: Double = 0.0 //TODO
-//        val valueOfTime: Double = getValueOfTime
-//        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
-//        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
-//      }
-
+    case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
     case Event(StateTimeout, data@ChoosesParkingData(_)) =>
@@ -88,17 +73,20 @@ trait ChoosesParking {
 
     case Event(StateTimeout, data@BasePersonData(_, _,_,_,_,_,_,_,_)) =>
 
+      val (tick, _) = releaseTickAndTriggerId()
 
-      parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
-      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+      val currVeh = data.currentVehicle.head
 
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
 
+      val stall = veh.stall
 
-
+      print()
       veh.stall.foreach{ stall =>
-        val tick: Double = ??? //TODO
+        parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
+        beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+//        val tick: Double = _currentTick.getOrElse(0)
         val nextLeg = data.passengerSchedule.schedule.head._1
         val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
         val cost = stall.cost
