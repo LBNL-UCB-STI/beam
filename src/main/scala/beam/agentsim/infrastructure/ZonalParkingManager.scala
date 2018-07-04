@@ -107,6 +107,8 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
               selectStallWithCharger(inquiry,500.0)
           }
       })
+    case um =>
+      print()
   }
 
   private def maybeCreateNewStall(attrib: StallAttributes,atLocation: Location, withCost: Double, stallValues: Option[StallValues]): Option[ParkingStall] = {
@@ -122,6 +124,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     resources.put(stall.id,stall)
     val stallValues = pooledResources(stall.attributes)
     pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall - 1))
+    val ssender = sender()
     sender() ! ParkingInquiryResponse(stall)
   }
 

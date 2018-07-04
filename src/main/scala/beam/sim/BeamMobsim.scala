@@ -13,7 +13,8 @@ import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAg
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, NoNeed}
 import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -36,7 +37,7 @@ import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
-
+import scala.collection.JavaConverters._
 /**
   * AgentSim.
   *
@@ -56,6 +57,8 @@ class BeamMobsim @Inject()(
   var rideHailingAgents: Seq[ActorRef] = Nil
   var memoryLoggingTimerActorRef:ActorRef=_
   var memoryLoggingTimerCancellable:Cancellable=_
+
+  var initParkingVeh: Seq[ActorRef] = Nil
 /*
   var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
@@ -89,7 +92,7 @@ class BeamMobsim @Inject()(
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, parkingManager, eventsManager), "population")
 
       context.watch(population)
-      //TODO Place cars
+
       Await.result(population ? Identify(0), timeout.duration)
 
       private val numRideHailAgents = math.round(scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
@@ -118,6 +121,33 @@ class BeamMobsim @Inject()(
         context.watch(rideHailingAgentRef)
         scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
         rideHailingAgents :+= rideHailingAgentRef
+      }
+
+      val personsMapScala = scenario.getPopulation.getPersons.asScala
+      scenario.getHouseholds.getHouseholds.asScala.foreach{case (_, houseHold) =>
+        val personId = houseHold.getMemberIds.get(0)
+        val person = personsMapScala.get(personId).get
+
+        val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+        val personSelectedPlan = person.getSelectedPlan
+
+        houseHold.getVehicleIds.asScala.foreach{ vehId =>
+          val vehicle = beamServices.vehicles.get(vehId)
+          val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
+            parkingManager ! ParkingInquiry(personId, personInitialLocation,
+              personInitialLocation, "home", 0, NoNeed, 0, 0) //TODO personSelectedPlan.getType is null
+
+            def receive = {
+              case ParkingInquiryResponse(stall) =>
+                vehicle.foreach{beamvehicle =>
+                  beamvehicle.useParkingStall(stall)
+                }
+                context.stop(self)
+              //TODO deal with timeouts and errors
+            }
+          }))
+          initParkingVeh :+= initParkingVehicle
+        }
       }
 
       log.info(s"Initialized ${beamServices.personRefs.size} people")
@@ -185,6 +215,9 @@ class BeamMobsim @Inject()(
       private def cleanupRideHailingAgents(): Unit = {
         rideHailingAgents.foreach(_ ! Finish)
         rideHailingAgents = Nil
+
+        initParkingVeh.foreach(context.stop(_))
+        initParkingVeh = Nil
       }
 
       private def cleanupVehicle(): Unit = {

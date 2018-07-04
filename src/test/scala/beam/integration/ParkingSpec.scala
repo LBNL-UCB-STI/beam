@@ -47,8 +47,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   val defaultEvents = runAndCollectEvents("default")
-//  val emptyEvents = runAndCollectEvents("empty")
-//  val expensiveEvents = runAndCollectEvents("expensive")
+  val emptyEvents = runAndCollectEvents("empty")
+  val expensiveEvents = runAndCollectEvents("expensive")
 //  val limitedEvents = runAndCollectEvents("limited")
 
   "Parking system " must {
@@ -57,25 +57,32 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       parkingEvents.size should be > 0
     }
 
-    "arrival and departure should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" in {
 
       val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
-      val parkEvents = defaultEvents.count(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-      val leavingParkEvents = defaultEvents.count(e => LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
+//      val parkEvents = defaultEvents.count(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+//      val leavingParkEvents = defaultEvents.count(e => LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
+//
+//      val nuCars = defaultEvents
+//        .map(e => Option(e.getAttributes.get("vehicle_id")))
+//        .filter(_.isDefined)
+//        .map(e => Try(e.get.toInt))
+//        .filter(_.isSuccess)
+//        .map(_.get)
+//        .toSet
+//        .size
 
-      val noCars = defaultEvents
-        .map(e => Option(e.getAttributes.get("vehicle_id")))
-        .filter(_.isDefined)
-        .map(e => Try(e.get.toInt))
-        .filter(_.isSuccess)
-        .map(_.get)
-        .toSet
-        .size
+//      val veh1Events = defaultEvents.filter{e =>
+//        val vehId = e.getAttributes.get("vehicle_id")
+//        null != vehId && "1".equals(vehId)
+//      }
+//      println(veh1Events)
+//
+//      println(s"Total cars: $nuCars")
+//      println(s"ParkEvents: $parkEvents")
+//      println(s"LeavingParkEvents: $leavingParkEvents")
 
-      println(s"Total cars: $noCars")
-      println(s"ParkEvents: $parkEvents")
-      println(s"LeavingParkEvents: $leavingParkEvents")
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()){ case (c, ev) =>
         val vehId = ev.getAttributes.get("vehicle_id")
@@ -87,8 +94,12 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val res = groupedByVehicle.map{ case (id, x) =>
         val (parkEvents, leavingEvents) = x.partition(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
-        parkEvents.size shouldEqual leavingEvents.size
-        (id, parkEvents zip leavingEvents)
+        //First and last park events won't match
+        val parkEventsWithoutLast = parkEvents.dropRight(1)
+        val leavingParkEventsWithoutFirst = leavingEvents.tail
+
+        parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
+        (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }
 
       val isSameArrivalAndDeparture = res.forall{ case (_, array) =>
@@ -105,13 +116,13 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       isSameArrivalAndDeparture shouldBe true
     }
 
-//    "expensive parking should reduce driving" in {
-//      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//
-//      parkingEvents.size should be > emptyParkingEvents.size
-//    }
-//
+    "expensive parking should reduce driving" in {
+      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+
+      parkingEvents.size should be > emptyParkingEvents.size
+    }
+
 //    "limited parking access should reduce driving" in {
 //      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
 //      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
