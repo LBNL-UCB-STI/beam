@@ -37,32 +37,32 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
           if(optionalPath.isPresent) {
             runPath = optionalPath.get().toString
-            val warmIteration = getWarmIteration(runPath)
-            if (warmIteration >= 0) {
-              Paths.get(runPath, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
-            } else {
-              logger.warn(s"Warm mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
-              null
+            getWarmIteration(runPath) match {
+              case Some(warmIteration) =>
+                Some(Paths.get(runPath, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
+              case None =>
+                logger.warn(s"Warm mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
+                None
             }
           } else {
             logger.warn(s"Warm mode initialization failed, ITERS not found in parent run ( $srcPath )")
-            null
+            None
           }
 
         case "ABSOLUTE_PATH" =>
-          srcPath
+          Some(srcPath)
         case _ =>
           logger.warn(s"Warm mode initialization failed, not a valid path type ( $pathType )")
-          null
+          None
       }
 
-      if (warmPath != null) {
-        if (Files.exists(Paths.get(warmPath))) {
-          beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmPath))
+      warmPath match {
+        case Some(warmStatsPath) if Files.exists(Paths.get(warmStatsPath)) =>
+          beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmStatsPath))
           logger.info(s"Warm mode initialized successfully with ( $warmPath ) stats.")
-        } else {
-          logger.warn(s"Warm mode initialization failed, stats not found at path ( $warmPath )")
-        }
+        case Some(warmStatsPath) =>
+          logger.warn(s"Warm mode initialization failed, stats not found at path ( $warmStatsPath )")
+        case None =>
       }
     }
   }
@@ -85,13 +85,13 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
-  private def getWarmIteration(itrBaseDir: String): Int = {
+  private def getWarmIteration(itrBaseDir: String): Option[Int] = {
 
     def getWarmIter(itr: Int): Int = if (itr < 0 || isWarmIteration(itrBaseDir.toString, itr)) itr else getWarmIter(itr - 1)
 
     val itrIndex = getWarmIter(new File(itrBaseDir).list().length - 1)
 
-    itrIndex
+    Some(itrIndex).filter(_ >= 0)
   }
 
   private def isWarmIteration(itrBaseDir: String, itr: Int): Boolean = {
