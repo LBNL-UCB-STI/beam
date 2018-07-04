@@ -139,9 +139,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val result = try {
       getPlan(profileRequest)
     } catch {
-      case IllegalStateException =>
+      case _: IllegalStateException =>
         new ProfileResponse
-      case ArrayIndexOutOfBoundsException =>
+      case _: ArrayIndexOutOfBoundsException =>
         new ProfileResponse
     }
     log.debug(s"# options found = ${result.options.size()}")
