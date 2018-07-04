@@ -99,6 +99,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     }
                     modesChosen.add("others");
                 }
+                personIdList.remove(personId);
                 hourData.put(mode, frequency);
                 hourModeFrequency.put(hour, hourData);
 
