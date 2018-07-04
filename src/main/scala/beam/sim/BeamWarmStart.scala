@@ -41,10 +41,11 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
             if (warmIteration >= 0) {
               Paths.get(runPath, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
             } else {
-              logger.warn(s"Warm mode initialization failed, not a valid parent run ( $srcPath )")
+              logger.warn(s"Warm mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
               null
             }
           } else {
+            logger.warn(s"Warm mode initialization failed, ITERS not found in parent run ( $srcPath )")
             null
           }
 
@@ -58,6 +59,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
       if (warmPath != null) {
         if (Files.exists(Paths.get(warmPath))) {
           beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmPath))
+          logger.info(s"Warm mode initialized successfully with ( $warmPath ) stats.")
         } else {
           logger.warn(s"Warm mode initialization failed, stats not found at path ( $warmPath )")
         }
