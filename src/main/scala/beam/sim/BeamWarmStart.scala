@@ -6,11 +6,10 @@ import java.nio.file.{Files, Paths}
 import beam.router.BeamRouter.UpdateTravelTime
 import beam.router.LinkTravelTimeContainer
 import beam.utils.FileUtils.downloadFile
-import beam.utils.UnzipUtility
+import beam.utils.UnzipUtility.unzip
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
-import org.apache.commons.io.FilenameUtils
-import org.apache.commons.io.FilenameUtils.getExtension
+import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.router.util.TravelTime
 
 class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
@@ -28,20 +27,27 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
           if (isArchive(srcPath)) {
             var archivePath = srcPath
             if (isS3Url(srcPath)) {
-              archivePath = Paths.get(getTempDirectoryPath, FilenameUtils.getName(srcPath)).toString
+              archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
               downloadFile(srcPath, archivePath)
             }
-            runPath = Paths.get(getTempDirectoryPath, FilenameUtils.getBaseName(srcPath)).toString
-            UnzipUtility.unzip(archivePath, getTempDirectoryPath, true)
+            runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
+            unzip(archivePath, getTempDirectoryPath, true)
           }
+          val optionalPath = Files.walk(Paths.get(runPath)).filter(p => "ITERS".equals(getName(p.toString))).findFirst()
 
-          val warmIteration = getWarmIteration(runPath)
-          if (warmIteration >= 0) {
-            Paths.get(runPath, "ITERS", s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
+          if(optionalPath.isPresent) {
+            runPath = optionalPath.get().toString
+            val warmIteration = getWarmIteration(runPath)
+            if (warmIteration >= 0) {
+              Paths.get(runPath, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
+            } else {
+              logger.warn(s"Warm mode initialization failed, not a valid parent run ( $srcPath )")
+              null
+            }
           } else {
-            logger.warn(s"Warm mode initialization failed, not a valid parent run ( $srcPath )")
             null
           }
+
         case "ABSOLUTE_PATH" =>
           srcPath
         case _ =>
@@ -77,13 +83,11 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
-  private def getWarmIteration(parentRun: String): Int = {
-
-    val itrBaseDir = Paths.get(parentRun, "ITERS")
+  private def getWarmIteration(itrBaseDir: String): Int = {
 
     def getWarmIter(itr: Int): Int = if (itr < 0 || isWarmIteration(itrBaseDir.toString, itr)) itr else getWarmIter(itr - 1)
 
-    val itrIndex = getWarmIter(new File(itrBaseDir.toUri).list().length - 1)
+    val itrIndex = getWarmIter(new File(itrBaseDir).list().length - 1)
 
     itrIndex
   }
