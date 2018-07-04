@@ -182,8 +182,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       // Here we should send the UpdateTravelTimes message to R5RoutingWorker with the loaded linkstats
       // 1. Create LinkTravelTimeContainer with the filename linkstats
       // 2. Send that object as a message UpdateTravelTimes parameter to the R5RoutingWorker
-
-      new BeamWarmStart(beamServices).init()
+      if(beamServices.iterationNumber == 0) new BeamWarmStart(beamServices).init()
 
       log.info(s"Transit schedule has been initialized")
 
