@@ -31,7 +31,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
               downloadFile(srcPath, archivePath)
             }
             runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
-            unzip(archivePath, getTempDirectoryPath, true)
+            unzip(archivePath, runPath, false)
           }
           val optionalPath = Files.walk(Paths.get(runPath)).filter(p => "ITERS".equals(getName(p.toString))).findFirst()
 
