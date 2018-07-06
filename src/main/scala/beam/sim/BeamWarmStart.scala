@@ -20,6 +20,8 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   private val pathType = beamConfig.beam.warmStart.pathType
   private val srcPath = beamConfig.beam.warmStart.path
 
+  val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
+
   def init(): Unit = {
     if (isWarmMode) {
 
@@ -75,8 +77,6 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
       }
     }
   }
-
-  def isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
 
   private def isS3Url(source: String): Boolean = {
     assert(source != null)
