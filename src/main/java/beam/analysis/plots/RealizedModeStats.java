@@ -11,7 +11,6 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -32,8 +31,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         private static final String fileName = "realized_mode";
         private static List<String> personIdList = new ArrayList<>();
         private Logger log = LoggerFactory.getLogger(this.getClass());
-
-
+        private static  Map<ModePerson,Integer> hourPerson = new HashMap<>();
         @Override
         public void processStats(Event event) {
             processRealizedMode(event);
@@ -65,8 +63,24 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             hourModeFrequency.clear();
             modesChosen.clear();
             personIdList.clear();
+            hourPerson.clear();
         }
 
+
+    class ModePerson {
+        private String mode;
+        private String person;
+        public ModePerson(String mode, String person){
+            this.mode = mode;
+            this.person = person;
+        }
+        public String getMode(){
+            return mode;
+        }
+        public String getPerson(){
+            return person;
+        }
+    }
         private void processRealizedMode(Event event) {
             if(event.getEventType() == ModeChoiceEvent.EVENT_TYPE) {
                 int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
@@ -76,39 +90,82 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 tags.put("stats-type", "mode-choice");
                 tags.put("hour", "" + (hour + 1));
                 countOccurrenceJava(mode, 1, ShortLevel(), tags);
-                modesChosen.add(mode);
+
                 Map<String, Integer> hourData = hourModeFrequency.get(hour);
                 Integer frequency = 1;
-                if (hourData != null) {
-                    frequency = hourData.get(mode);
-                    if (frequency != null) {
-                        frequency++;
-                    } else {
-                        frequency = 1;
-                    }
-                } else {
-                    hourData = new HashMap<>();
-                }
-                if(personIdList.contains(personId)){
-                    Integer replanning = hourData.get("others");
-                    if(replanning == null){
-                        hourData.put("others",1);
-                    }
-                    else {
-                        hourData.put("others",++replanning);
-                    }
-                    modesChosen.add("others");
-                }
-                personIdList.remove(personId);
-                hourData.put(mode, frequency);
-                hourModeFrequency.put(hour, hourData);
+                Integer replanning = 1;
+                hourPerson.put(new ModePerson(mode, personId), hour);
 
+                if(personIdList.contains(personId)){
+                    if(hourData != null) {
+                        replanning = hourData.get("others");
+                        if (replanning != null) {
+                            replanning++;
+                        } else {
+                            replanning = 1;
+                        }
+                    }
+                    else{
+                        hourData = new HashMap<>();
+                    }
+                    hourData.put("others",replanning);
+                    modesChosen.add("others");
+                    personIdList.remove(personId);
+                }
+                else {
+                    if (hourData != null) {
+                        frequency = hourData.get(mode);
+                        if (frequency != null) {
+                            frequency++;
+                        } else {
+                            frequency = 1;
+                        }
+                    } else {
+                        hourData = new HashMap<>();
+                    }
+                    hourData.put(mode, frequency);
+                    modesChosen.add(mode);
+                }
+                hourModeFrequency.put(hour, hourData);
             }
             if(event.getEventType() == ReplanningEvent.EVENT_TYPE){
                 Map<String, String> attributes = event.getAttributes();
                 if(attributes != null){
                     String person = attributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
                     personIdList.add(person);
+                    int hour = -1;
+                    String mode = null;
+                    for(ModePerson mP : hourPerson.keySet()){
+                        Integer h = hourPerson.get(mP);
+                        if(person.equals(mP.getPerson())){
+                            hour = h;
+                            mode = mP.getMode();
+                        }
+                    }
+                    if(mode != null && hour != -1) {
+                        hourPerson.remove(new ModePerson(mode,person));
+                        Map<String,Integer> hourMode = hourModeFrequency.get(hour);
+                        if(hourMode != null) {
+                            int frequency = hourMode.get(mode);
+                            frequency--;
+                            hourMode.put(mode, frequency);
+                            if(frequency == 0){
+                                final String checkMode = mode;
+                                boolean check = hourModeFrequency.keySet().stream()
+                                        .map(h -> hourModeFrequency.get(h))
+                                        .filter(hM -> hourMode != null)
+                                        .anyMatch(hM -> hourMode.get(checkMode) !=null &&  hourMode.get(checkMode) != 0);
+                                if(!check) {
+                                    hourModeFrequency.keySet().stream().forEach(h -> {
+                                        Map<String,Integer> map = hourModeFrequency.get(h);
+                                        map.remove(checkMode);
+                                        hourModeFrequency.put(h,map);
+                                    });
+                                    modesChosen.remove(mode);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
