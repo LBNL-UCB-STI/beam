@@ -47,6 +47,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
 
+
     @Override
     public void resetStats() {
         lastMaximumTime = 0;
@@ -177,6 +178,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         hoursTimesMap.put(hour, timeList);
     }
 
+//    TODO only two significant digits needed this means, 682 enough, no digits there
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
 
@@ -346,7 +348,6 @@ public class RideHailingWaitingStats implements IGraphStats {
 
             Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
-
             legends.add( legend + "_sec");
         }
         //Collections.sort(legends);
