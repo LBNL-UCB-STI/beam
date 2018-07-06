@@ -128,7 +128,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     } else {
                         hourData = new HashMap<>();
                     }
-
                     hourData.put("others", replanning);
                     Map<String, Integer> hourMode = hourModeFrequency.get(modeHour);
                     if (hourMode != null) {
