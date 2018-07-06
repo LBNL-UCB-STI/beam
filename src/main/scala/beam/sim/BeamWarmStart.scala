@@ -25,7 +25,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   def init(): Unit = {
     if (isWarmMode) {
 
-      val warmPath = pathType match {
+      val warmStartPath = pathType match {
         case "PARENT_RUN" =>
           val runPath = if (isArchive(srcPath)) {
             var archivePath = srcPath
@@ -65,10 +65,10 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
           None
       }
 
-      warmPath match {
+      warmStartPath match {
         case Some(warmStatsPath) if Files.exists(Paths.get(warmStatsPath)) =>
           beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmStatsPath))
-          logger.info(s"Warm mode initialized successfully with ( $warmPath ) stats.")
+          logger.info(s"Warm mode initialized successfully with ( $warmStartPath ) stats.")
 
         case Some(warmStatsPath) =>
           logger.warn(s"Warm mode initialization failed, stats not found at path ( $warmStatsPath )")
