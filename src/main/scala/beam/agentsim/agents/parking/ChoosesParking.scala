@@ -36,14 +36,6 @@ import scala.concurrent.duration.Duration
   * BEAM
   */
 object ChoosesParking {
-//  case class ChoosesParkingData(personData: BasePersonData) extends DrivingData {
-//    override def currentVehicle: VehicleStack = personData.currentVehicle
-//    override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
-//    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
-//    override def hasParkingBehaviors: Boolean = true
-//    override def currentLegPassengerScheduleIndex: Int = -1
-//    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
-//  }
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
 }
