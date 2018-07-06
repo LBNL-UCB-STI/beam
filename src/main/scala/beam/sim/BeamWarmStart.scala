@@ -29,7 +29,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
         case "PARENT_RUN" =>
           val runPath = if (isZipArchive(srcPath)) {
             var archivePath = srcPath
-            if (isS3Url(srcPath)) {
+            if (isS3OutputBucketUrl(srcPath)) {
               archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
               downloadFile(srcPath, archivePath)
             }
@@ -78,7 +78,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     }
   }
 
-  private def isS3Url(source: String): Boolean = {
+  private def isS3OutputBucketUrl(source: String): Boolean = {
     assert(source != null)
     source.startsWith("https://s3.us-east-2.amazonaws.com/beam-outputs/")
   }
