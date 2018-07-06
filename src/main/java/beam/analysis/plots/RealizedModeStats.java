@@ -146,7 +146,10 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                         hourPerson.remove(new ModePerson(mode,person));
                         Map<String,Integer> hourMode = hourModeFrequency.get(hour);
                         if(hourMode != null) {
-                            int frequency = hourMode.get(mode);
+                            Integer frequency = hourMode.get(mode);
+                            if(frequency == null){
+                                return;
+                            }
                             frequency--;
                             hourMode.put(mode, frequency);
                             if(frequency == 0){
