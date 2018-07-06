@@ -45,7 +45,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
           iterOption match {
             case Some(iterBase) =>
 
-              getWarmIteration(iterBase) match {
+              getWarmStartIteration(iterBase) match {
                 case Some(warmIteration) =>
                   Some(Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
                 case None =>
@@ -67,7 +67,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
       warmStartPath match {
         case Some(warmStatsPath) if Files.exists(Paths.get(warmStatsPath)) =>
-          beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmStatsPath))
+          beamServices.beamRouter ! UpdateTravelTime(getTravelTime(warmStatsPath))
           logger.info(s"Warm mode initialized successfully with ( $warmStartPath ) stats.")
 
         case Some(warmStatsPath) =>
@@ -88,22 +88,22 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     "zip".equalsIgnoreCase(getExtension(source))
   }
 
-  private def getWarmTravelTime(statsFile: String): TravelTime = {
+  private def getTravelTime(statsFile: String): TravelTime = {
     val binSize = beamConfig.beam.agentsim.agents.rideHail.surgePricing.timeBinSize
 
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
-  private def getWarmIteration(itrBaseDir: String): Option[Int] = {
+  private def getWarmStartIteration(itrBaseDir: String): Option[Int] = {
 
-    def getWarmIter(itr: Int): Int = if (itr < 0 || isWarmIteration(itrBaseDir.toString, itr)) itr else getWarmIter(itr - 1)
+    def getWarmStartIter(itr: Int): Int = if (itr < 0 || isWarmStartIteration(itrBaseDir.toString, itr)) itr else getWarmStartIter(itr - 1)
 
-    val itrIndex = getWarmIter(new File(itrBaseDir).list().length - 1)
+    val itrIndex = getWarmStartIter(new File(itrBaseDir).list().length - 1)
 
     Some(itrIndex).filter(_ >= 0)
   }
 
-  private def isWarmIteration(itrBaseDir: String, itr: Int): Boolean = {
+  private def isWarmStartIteration(itrBaseDir: String, itr: Int): Boolean = {
     val linkStats = Paths.get(itrBaseDir, s"it.$itr", s"$itr.linkstats.csv.gz")
     Files.exists(linkStats)
   }
