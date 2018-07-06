@@ -27,7 +27,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
       val warmStartPath = pathType match {
         case "PARENT_RUN" =>
-          val runPath = if (isArchive(srcPath)) {
+          val runPath = if (isZipArchive(srcPath)) {
             var archivePath = srcPath
             if (isS3Url(srcPath)) {
               archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
@@ -83,7 +83,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     source.startsWith("https://s3.us-east-2.amazonaws.com/beam-outputs/")
   }
 
-  private def isArchive(source: String): Boolean = {
+  private def isZipArchive(source: String): Boolean = {
     assert(source != null)
     "zip".equalsIgnoreCase(getExtension(source))
   }
