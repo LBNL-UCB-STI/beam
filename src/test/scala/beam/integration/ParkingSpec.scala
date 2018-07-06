@@ -46,10 +46,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     collectEvents(filePath)
   }
 
+    val limitedEvents = runAndCollectEvents("limited")
   val defaultEvents = runAndCollectEvents("default")
   val emptyEvents = runAndCollectEvents("empty")
   val expensiveEvents = runAndCollectEvents("expensive")
-//  val limitedEvents = runAndCollectEvents("limited")
 
   "Parking system " must {
     "guarantee at least some parking used " in {
