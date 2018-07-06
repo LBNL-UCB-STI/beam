@@ -12,6 +12,8 @@ import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.router.util.TravelTime
 
+import scala.compat.java8.StreamConverters._
+
 class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   private val beamConfig = beamServices.beamConfig
   // beamConfig.beam.warmStart.pathType=PARENT_RUN, ABSOLUTE_PATH
@@ -23,34 +25,39 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
       val warmPath = pathType match {
         case "PARENT_RUN" =>
-          var runPath = srcPath
-          if (isArchive(srcPath)) {
+          val runPath = if (isArchive(srcPath)) {
             var archivePath = srcPath
             if (isS3Url(srcPath)) {
               archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
               downloadFile(srcPath, archivePath)
             }
-            runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
+            val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
             unzip(archivePath, runPath, false)
-          }
-          val optionalPath = Files.walk(Paths.get(runPath)).filter(p => "ITERS".equals(getName(p.toString))).findFirst()
-
-          if(optionalPath.isPresent) {
-            runPath = optionalPath.get().toString
-            getWarmIteration(runPath) match {
-              case Some(warmIteration) =>
-                Some(Paths.get(runPath, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
-              case None =>
-                logger.warn(s"Warm mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
-                None
-            }
+            runPath
           } else {
-            logger.warn(s"Warm mode initialization failed, ITERS not found in parent run ( $srcPath )")
-            None
+            srcPath
+          }
+
+          val iterOption = Files.walk(Paths.get(runPath)).toScala[Stream].map(_.toString).find(p => "ITERS".equals(getName(p)))
+
+          iterOption match {
+            case Some(iterBase) =>
+
+              getWarmIteration(iterBase) match {
+                case Some(warmIteration) =>
+                  Some(Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
+                case None =>
+                  logger.warn(s"Warm mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
+                  None
+              }
+            case None =>
+              logger.warn(s"Warm mode initialization failed, ITERS not found in parent run ( $srcPath )")
+              None
           }
 
         case "ABSOLUTE_PATH" =>
-          Some(srcPath)
+          Files.walk(Paths.get(srcPath)).toScala[Stream].map(_.toString).find(_.endsWith(".linkstats.csv.gz"))
+
         case _ =>
           logger.warn(s"Warm mode initialization failed, not a valid path type ( $pathType )")
           None
@@ -60,8 +67,10 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
         case Some(warmStatsPath) if Files.exists(Paths.get(warmStatsPath)) =>
           beamServices.beamRouter ! UpdateTravelTime(getWarmTravelTime(warmStatsPath))
           logger.info(s"Warm mode initialized successfully with ( $warmPath ) stats.")
+
         case Some(warmStatsPath) =>
           logger.warn(s"Warm mode initialization failed, stats not found at path ( $warmStatsPath )")
+
         case None =>
       }
     }
