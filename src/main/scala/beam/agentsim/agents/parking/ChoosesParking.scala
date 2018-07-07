@@ -63,6 +63,7 @@ trait ChoosesParking extends {
     case Event(StateTimeout, data) =>
       parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
       beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+      releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data@BasePersonData(_, _,_,_,_,_,_,_,_)) =>
@@ -171,9 +172,7 @@ trait ChoosesParking extends {
 
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg), self)))
 
-      val currVehicle = beamServices
-        .vehicles(
-          data.currentVehicle.head)
+      val currVehicle = beamServices.vehicles(data.currentVehicle.head)
       currVehicle.stall
         .foreach{ stall =>
           val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
@@ -181,7 +180,7 @@ trait ChoosesParking extends {
         }
 
       goto(WaitingToDrive) using data.copy(currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
-        restOfCurrentTrip = newRestOfTrip.toList,passengerSchedule = newPassengerSchedule)
+        restOfCurrentTrip = newRestOfTrip.toList,passengerSchedule = newPassengerSchedule,currentLegPassengerScheduleIndex = 0)
   }
 
   def calculateScore(walkingDistance: Double, cost: Double, energyCharge: Double, valueOfTime: Double): Double = 0.0 //TODO

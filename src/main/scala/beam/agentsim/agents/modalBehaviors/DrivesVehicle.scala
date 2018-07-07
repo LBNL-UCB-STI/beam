@@ -135,7 +135,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .foreach(eventsManager.processEvent)
 
        val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
-      if(_currentTick.isDefined)releaseTickAndTriggerId()
+//      if(_currentTick.isDefined)releaseTickAndTriggerId()
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 
