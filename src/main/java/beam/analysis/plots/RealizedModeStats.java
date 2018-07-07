@@ -116,7 +116,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
                 if (mode != null && modeHour != -1) {
                     hourPerson.remove(new ModePerson(mode,person));
-                    System.out.println(hourPerson);
                     Integer replanning = 1;
                     if (hourData != null) {
                         replanning = hourData.get("others");
