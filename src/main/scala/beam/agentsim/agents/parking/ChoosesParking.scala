@@ -129,9 +129,11 @@ trait ChoosesParking extends {
         val currentPoint = nextLeg.travelPath.startPoint
         val finalPoint = nextLeg.travelPath.endPoint
 
-        // get route from customer to stall
+        // get route from customer to stall, add body for backup in case car route fails
+        val carStreetVeh = StreetVehicle(data.currentVehicle.head, currentPoint, CAR, true)
+        val bodyStreetVeh = StreetVehicle(data.currentVehicle.last, currentPoint,WALK,true)
         val futureVehicle2StallResponse = router ? RoutingRequest(currentPoint.loc, beamServices.geo.utm2Wgs(stall.location),
-          DiscreteTime(currentPoint.time.toInt), Vector(), Vector(StreetVehicle(data.currentVehicle.head, currentPoint, CAR, true)), true, false)
+          DiscreteTime(currentPoint.time.toInt), Vector(), Vector(carStreetVeh,bodyStreetVeh), true, false)
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
         val futureStall2DestinationResponse = router ? RoutingRequest(beamServices.geo.utm2Wgs(stall.location), finalPoint.loc,
@@ -150,12 +152,15 @@ trait ChoosesParking extends {
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-
-      if(responses._1.itineraries.isEmpty){
-        val i = 0
+      // If no car leg returned, then the person walks to the parking spot and we force an early exit
+      // from the vehicle below.
+      val leg1 = if(responses._1.itineraries.filter(_.tripClassifier == CAR).isEmpty){
+        logDebug(s"no CAR leg returned by router, walking car there instead")
+        responses._1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+      }else{
+        responses._1.itineraries.filter(_.tripClassifier == CAR).head.legs.head
       }
-      // Update start time the walk leg
-      val leg1 = responses._1.itineraries.head.legs.head
+      // Update start time of the second leg
       var leg2 = responses._2.itineraries.head.legs.head
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
 
@@ -179,7 +184,14 @@ trait ChoosesParking extends {
           eventsManager.processEvent(new ParkEvent(tick, stall, distance, data.currentVehicle.head))
         }
 
-      goto(WaitingToDrive) using data.copy(currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+      val newVehicle = if(leg1.beamLeg.mode==CAR){
+        data.currentVehicle
+      }else{
+        currVehicle.unsetDriver()
+        data.currentVehicle.drop(1)
+      }
+
+      goto(WaitingToDrive) using data.copy(currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)), currentVehicle = newVehicle,
         restOfCurrentTrip = newRestOfTrip.toList,passengerSchedule = newPassengerSchedule,currentLegPassengerScheduleIndex = 0)
   }
 
