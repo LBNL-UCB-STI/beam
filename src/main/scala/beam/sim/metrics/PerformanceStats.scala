@@ -22,7 +22,7 @@ class PerformanceStats {
     combined
   }
 
-  def reset: Unit = {
+  def reset(): Unit = {
     totalTime = 0
     numberOfStats = 0
   }

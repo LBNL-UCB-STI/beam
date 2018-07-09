@@ -36,7 +36,7 @@ object BridgeTollDefaults {
     alternatives.map { alt =>
       alt.tripClassifier match {
         case CAR =>
-          BigDecimal(alt.toBeamTrip().legs.map { beamLeg =>
+          BigDecimal(alt.toBeamTrip.legs.map { beamLeg =>
             if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
               beamLeg.travelPath.linkIds.filter(tollPrices.contains).map(tollPrices).sum
             } else {

@@ -34,8 +34,7 @@ class ChangeModeForTour(beamServices: BeamServices,
   private val rideHailConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute)
-
+  val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
@@ -50,7 +49,7 @@ class ChangeModeForTour(beamServices: BeamServices,
     (for {alt <- alternativesForTour} yield {
       alt -> JavaConverters.collectionAsScalaIterable(tour.getTrips).map(trip => {
         val timeDist = getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
-        if (alt.isTransit()) {
+        if (alt.isTransit) {
           modeChoiceCalculator.utilityOf(
             if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
             else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
@@ -76,7 +75,7 @@ class ChangeModeForTour(beamServices: BeamServices,
       case BeamMode.CAR => distance * (drivingCostConfig.defaultLitersPerMeter / drivingCostConfig.defaultLitersPerGallon) * drivingCostConfig.defaultPricePerGallon
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL => distance * DefaultRideHailCostPerMile.toDouble * (1/1609.34)  // 1 mile = 1609.34
-      case a: BeamMode if a.isTransit() => TransitFareDefaults.faresByMode(beamMode)
+      case a: BeamMode if a.isTransit => TransitFareDefaults.faresByMode(beamMode)
     }
   }
 
@@ -88,15 +87,15 @@ class ChangeModeForTour(beamServices: BeamServices,
       case BeamMode.CAR => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
       case WALK => tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
       case RIDE_HAIL => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute.toDouble
-      case a: BeamMode if a.isTransit() => tripDistanceInMeters / transitSpeedDefault
+      case a: BeamMode if a.isTransit => tripDistanceInMeters / transitSpeedDefault
     }
   }
 
   def rankAlternatives(plan: Plan,
                        attributesOfIndividual: AttributesOfIndividual): Map[Int, Map[BeamMode, Double]] = {
     val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
-    val subtours = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
-    subtours.zipWithIndex.map({ case (tour, idx) =>
+    val subTours = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
+    subTours.zipWithIndex.map({ case (tour, idx) =>
       idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
     }).toMap
   }
@@ -116,7 +115,7 @@ class ChangeModeForTour(beamServices: BeamServices,
       }
     }
 
-    if (mode.isTransit()) {
+    if (mode.isTransit) {
       legs.foreach(leg => leg.setMode(WALK_TRANSIT.value))
     } else {
       chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(plan.getPerson.getId, subtour, plan)

@@ -14,7 +14,7 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsTransitAlt = alternatives.zipWithIndex.collect {
-      case (trip, idx) if trip.tripClassifier.isTransit() => idx
+      case (trip, idx) if trip.tripClassifier.isTransit => idx
     }
     if (containsTransitAlt.nonEmpty) {
       Some(alternatives(containsTransitAlt.head))

@@ -8,11 +8,11 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager) extends BasicEventH
 
   eventsManager.addHandler(this)
 
-  def getTNCIdlingTimes():Set[WaitingEvent]={
+  def getTNCIdlingTimes:Set[WaitingEvent]={
     ???
   }
 
-  def getTNCPassengerWaitingTimes():Set[WaitingEvent]={
+  def getTNCPassengerWaitingTimes:Set[WaitingEvent]={
     ???
   }
 

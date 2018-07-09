@@ -78,7 +78,7 @@ object Metrics {
   /**
     * Returns true if associated string is a valid level else false
     */
-  def isMetricsEnable(): Boolean = metricLevel != OffLevel
+  def isMetricsEnable: Boolean = metricLevel != OffLevel
 
   def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
 }

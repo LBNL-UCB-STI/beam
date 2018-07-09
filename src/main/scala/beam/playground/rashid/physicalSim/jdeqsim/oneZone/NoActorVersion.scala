@@ -30,7 +30,7 @@ object NoActorVersion extends LazyLogging {
     
     eventsManager.finishProcessing()
 
-    logger.debug(s"${countEnterLinkEvents.getLinkEnterCount()}")
+    logger.debug(s"${countEnterLinkEvents.getLinkEnterCount}")
   }
   
   

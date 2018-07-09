@@ -36,7 +36,7 @@ object RoutingModel {
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
-    def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
+    def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
 
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
@@ -71,7 +71,7 @@ object RoutingModel {
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
-    override def toString(): String = {
+    override def toString: String = {
       s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
@@ -136,7 +136,7 @@ object RoutingModel {
     */
   case class BeamPath(linkIds: IndexedSeq[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
-    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+    def toShortString = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
   }
 

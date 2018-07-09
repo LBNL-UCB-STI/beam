@@ -245,7 +245,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         }
       } else {
         limitedWarn(stopIdx)
-        createDummyEdge
+        createDummyEdge()
       }
     }.toVector.distinct
     edgeIds

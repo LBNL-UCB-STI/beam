@@ -17,7 +17,7 @@ import scala.collection.immutable
 object Modes {
 
   sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
-    def isTransit(): Boolean = isR5TransitMode(this)
+    def isTransit: Boolean = isR5TransitMode(this)
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {

@@ -265,7 +265,7 @@ class RideHailManager(
         val travelProposal = TravelProposal(rideHailLocation, timeToCustomer, cost, Option(FiniteDuration
         (customerTripPlan.totalTravelTimeInSecs, TimeUnit.SECONDS)), rideHailAgent2CustomerResponseMod,
           rideHail2DestinationResponseMod)
-        pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
+        pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip))
         log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
           s"$shortDistanceToRideHailAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
 
@@ -355,8 +355,8 @@ class RideHailManager(
 
           val (vehicleId, destinationLocation) = repositionVehicle
 
-          if (getIdleVehicles().contains(vehicleId)) {
-            val rideHailAgentLocation = getIdleVehicles()(vehicleId)
+          if (getIdleVehicles.contains(vehicleId)) {
+            val rideHailAgentLocation = getIdleVehicles(vehicleId)
 
            // println("RHM: tick(" + tick + ")" + vehicleId + " - " + rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
 
@@ -531,7 +531,7 @@ class RideHailManager(
   }
 
   private def getRideHailAgentLocation(vehicleId:Id[Vehicle]):RideHailAgentLocation={
-    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles(vehicleId))
+    getIdleVehicles.getOrElse(vehicleId,inServiceRideHailVehicles(vehicleId))
   }
 
 
@@ -545,7 +545,7 @@ class RideHailManager(
       updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule(vehicleId)._2.get.schedule.head._1,tick)
     }
 
-    getIdleVehicles()(vehicleId)
+    getIdleVehicles(vehicleId)
   }
 
 
@@ -555,7 +555,7 @@ class RideHailManager(
 
     val rideHailAgentLocation=getRideHailAgentLocation(vehicleId)
 
-    getIdleVehicles().put(vehicleId,rideHailAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
+    getIdleVehicles.put(vehicleId,rideHailAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
   }
 
 
@@ -648,7 +648,7 @@ class RideHailManager(
   }
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
-    getLinks() match {
+    getLinks match {
       case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).getFreespeed)
       case None => None
     }
@@ -696,15 +696,15 @@ class RideHailManager(
 
   // TODO: move to some utility class,   e.g. geo
   private def getDirectionCoordVector(startCoord:Coord, endCoord:Coord): Coord ={
-    new Coord(endCoord.getX()-startCoord.getX(),endCoord.getY()-startCoord.getY())
+    new Coord(endCoord.getX-startCoord.getX,endCoord.getY-startCoord.getY)
   }
 
   private def getCoord(startCoord:Coord,directionCoordVector:Coord): Coord ={
-    new Coord(startCoord.getX()+directionCoordVector.getX(),startCoord.getY()+directionCoordVector.getY())
+    new Coord(startCoord.getX+directionCoordVector.getX,startCoord.getY+directionCoordVector.getY)
   }
 
   private def scaleDirectionVector(directionCoordVector:Coord, scalingFactor:Double):Coord={
-    new Coord(directionCoordVector.getX()*scalingFactor,directionCoordVector.getY()*scalingFactor)
+    new Coord(directionCoordVector.getX*scalingFactor,directionCoordVector.getY*scalingFactor)
   }
 
   private def getMATSimLink(linkId: Int): Link = {
@@ -725,7 +725,7 @@ class RideHailManager(
 
 
   // TODO: make integers
-  def getLinks(): Option[util.Map[Id[Link], _ <: Link]] = {
+  def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
     matsimNetwork match {
       case Some(network) => Some(network.getLinks)
       case None => None
@@ -866,7 +866,7 @@ class RideHailManager(
 
   def getVehicleFuelLevel(vehicleId: Id[Vehicle]): Double = vehicleFuelLevel(vehicleId)
 
-  def getIdleVehicles(): collection.concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation] = {
+  def getIdleVehicles: collection.concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation] = {
     availableRideHailVehicles
   }
 

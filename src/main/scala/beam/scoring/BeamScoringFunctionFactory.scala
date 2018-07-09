@@ -60,7 +60,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
         // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
 
-        val logsum = math.log(person.getPlans().asScala
+        val logsum = math.log(person.getPlans.asScala
           .map(plan => plan.getAttributes.getAttribute("scores").asInstanceOf[MapStringDouble].data(attributes.modalityStyle.get))
           .map(score => math.exp(score))
           .sum)

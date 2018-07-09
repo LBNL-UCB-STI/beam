@@ -120,7 +120,7 @@ import TazOutput._
 
     val tazVizJson = Json.toJson(tazVizArray.filter(i => i.taz > 0l))
 
-    new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close }
+    new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close() }
 
   }
 

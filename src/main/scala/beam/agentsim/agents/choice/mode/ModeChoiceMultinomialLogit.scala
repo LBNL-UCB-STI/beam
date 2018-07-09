@@ -37,7 +37,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val inputData = bestInGroup.map{ mct =>
         val theParams = Map("cost"->mct.cost.toDouble,"time"->mct.time)
-        val transferParam = if (mct.mode.isTransit()) {
+        val transferParam = if (mct.mode.isTransit) {
           Map("transfer" -> mct.numTransfers.toDouble)
         }else{
           Map()
@@ -93,7 +93,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
           altAndIdx._1.legs.foreach { leg =>
-            if (leg.beamLeg.mode.isTransit() && leg.beamVehicleId != vehId) {
+            if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
               vehId = leg.beamVehicleId
               nVeh = nVeh + 1
             }

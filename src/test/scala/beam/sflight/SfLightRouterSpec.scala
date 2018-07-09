@@ -57,7 +57,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
 
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       //      assertMakesSense(carOption)
-      val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
+      val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
       actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
@@ -75,7 +75,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
 
-      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip()
+      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip
       inside(walkTrip) {
         case BeamTrip(legs, _) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
@@ -104,7 +104,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
           assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
           assert(response.itineraries.exists(_.tripClassifier == CAR))
 
-          val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip()
+          val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip
           inside(walkTrip) {
             case BeamTrip(legs, _) =>
               legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
@@ -114,7 +114,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
               }
           }
 
-          val carTrip = response.itineraries.find(_.tripClassifier == CAR).get.toBeamTrip()
+          val carTrip = response.itineraries.find(_.tripClassifier == CAR).get.toBeamTrip
           assertMakesSense(carTrip)
           inside(carTrip) {
             case BeamTrip(legs, _) =>

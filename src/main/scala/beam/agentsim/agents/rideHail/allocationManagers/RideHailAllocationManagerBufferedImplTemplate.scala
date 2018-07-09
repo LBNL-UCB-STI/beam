@@ -52,8 +52,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailManager.getIdleVehicles().size >= 2) {
-      val iter = rideHailManager.getIdleVehicles().iterator
+    if (rideHailManager.getIdleVehicles.size >= 2) {
+      val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, vehicleLocationA) = iter.next()
       val (vehicleIdB, vehicleLocationB) = iter.next()
       Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))

@@ -48,7 +48,7 @@ object FileUtils extends LazyLogging {
     ""
   }
 
-  def getFormatedDateString() = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
+  def getFormatedDateString = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
 
   def decompress(compressed: Array[Byte]): Option[String] = Try {
     val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))

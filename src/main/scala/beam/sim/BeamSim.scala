@@ -94,7 +94,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      modalityStyleStats.processData(scenario.getPopulation(), event)
+      modalityStyleStats.processData(scenario.getPopulation, event)
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))

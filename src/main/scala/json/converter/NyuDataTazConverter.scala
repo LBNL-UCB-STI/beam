@@ -95,7 +95,7 @@ object NyuDataTazConverter extends App{
     val tazVizJson = Json.toJson(tazVizArray.filter(_.taz > 0l))
     println(s"Converted: ${tazVizJson.toString()}")
 
-    new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close }
+    new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close() }
 
   }
 
