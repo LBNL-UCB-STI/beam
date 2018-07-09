@@ -41,34 +41,32 @@ import TazOutput._
   case class Features(properties: Properties, geometry: Geometry)
 
   //Reads
-  implicit val propertiesReads = Json.reads[Properties]
-  implicit val featuresReads: Reads[Seq[Features]] = new Reads[Seq[Features]] {
-    override def reads(json: JsValue): JsResult[Seq[Features]] = {
-      try{
-        val featuresArray = (json \ "features").as[JsArray]
-        val features = featuresArray.value.map{ featureJson =>
-          val properties = (featureJson \ "properties").validate[Properties].get
-          val geometryJson = (featureJson \ "geometry")
-          val _type = (geometryJson \ "type").as[String]
-          val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
+  implicit val propertiesReads: Reads[Properties] = Json.reads[Properties]
+  implicit val featuresReads: Reads[Seq[Features]] = (json: JsValue) => {
+    try {
+      val featuresArray = (json \ "features").as[JsArray]
+      val features = featuresArray.value.map { featureJson =>
+        val properties = (featureJson \ "properties").validate[Properties].get
+        val geometryJson = featureJson \ "geometry"
+        val _type = (geometryJson \ "type").as[String]
+        val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
 
-          val coordinates = coordinatesArray.value.map{coordinatesItem =>
-            val coordinatesJson = coordinatesItem.as[JsArray]
-            val lat = coordinatesJson.apply(0).as[Double]
-            val lon = coordinatesJson.apply(1).as[Double]
-            Coordinates(lat, lon)
-          }
-
-          val geometry = Geometry(_type, coordinates)
-
-          Features(properties, geometry)
+        val coordinates = coordinatesArray.value.map { coordinatesItem =>
+          val coordinatesJson = coordinatesItem.as[JsArray]
+          val lat = coordinatesJson.apply(0).as[Double]
+          val lon = coordinatesJson.apply(1).as[Double]
+          Coordinates(lat, lon)
         }
-        JsSuccess(features)
-      }catch{
-        case e: Exception =>
-          e.printStackTrace()
-          JsError()
+
+        val geometry = Geometry(_type, coordinates)
+
+        Features(properties, geometry)
       }
+      JsSuccess(features)
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        JsError()
     }
   }
 
@@ -113,7 +111,7 @@ import TazOutput._
       val coordinates = Array(Array(f.geometry.coordinates.map { coordinates =>
         Array(coordinates.lat, coordinates.lon)
       }.toArray))
-      val geometry = new TazGeometry("MultiPolygon", coordinates)
+      val geometry = TazGeometry("MultiPolygon", coordinates)
       val geoJsonString = Json.toJson(geometry).toString()
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
