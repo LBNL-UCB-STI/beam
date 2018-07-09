@@ -10,22 +10,22 @@ import scala.io.Source
   * BEAM
   */
 object BridgeTollDefaults {
-  val tollPricesBeamVille: Map[Int, Double] = Map(
-    1 -> 1,
-    200 -> 1
-  )
-
-  // source: https://www.transit.wiki/
-  val tollPricesSFBay: Map[Int, Double] = Map(
-    1191692 -> 5,
-    502 -> 5,
-    998142 -> 5,
-    722556 -> 5,
-    1523426 -> 5,
-    1053032 -> 5,
-    1457468 -> 7,
-    668214 -> 5
-  )
+//  val tollPricesBeamVille: Map[Int, Double] = Map(
+//    1 -> 1,
+//    200 -> 1
+//  )
+//
+//  // source: https://www.transit.wiki/
+//  val tollPricesSFBay: Map[Int, Double] = Map(
+//    1191692 -> 5,
+//    502 -> 5,
+//    998142 -> 5,
+//    722556 -> 5,
+//    1523426 -> 5,
+//    1053032 -> 5,
+//    1457468 -> 7,
+//    668214 -> 5
+//  )
 
   private var tollPrices: Map[Int, Double] = _
 
