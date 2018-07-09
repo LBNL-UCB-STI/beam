@@ -73,12 +73,14 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       val planElementsIterator = person.getSelectedPlan.getPlanElements.iterator()
       while(planElementsIterator.hasNext){
         val planElement = planElementsIterator.next()
-        if(planElement.isInstanceOf[Activity]){
-          val coord = planElement.asInstanceOf[Activity].getCoord
-          minX = if(minX == null || minX > coord.getX) coord.getX else minX
-          maxX = if(maxX == null || maxX < coord.getX) coord.getX else maxX
-          minY = if(minY == null || minY > coord.getY) coord.getY else minY
-          maxY = if(maxY == null || maxY < coord.getY) coord.getY else maxY
+        planElement match {
+          case activity: Activity =>
+            val coord = activity.getCoord
+            minX = if (minX == null || minX > coord.getX) coord.getX else minX
+            maxX = if (maxX == null || maxX < coord.getX) coord.getX else maxX
+            minY = if (minY == null || minY > coord.getY) coord.getY else minY
+            maxY = if (maxY == null || maxY < coord.getY) coord.getY else maxY
+          case _ =>
         }
       }
     }

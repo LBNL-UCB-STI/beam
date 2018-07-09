@@ -174,6 +174,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
                 transitModes = Vector(mode)
                 streetVehicles = Vector(
                   StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true))
+              case None =>
             }
             val response = within(60 second) {
               router ! RoutingRequest(origin, destination, time, transitModes, streetVehicles)

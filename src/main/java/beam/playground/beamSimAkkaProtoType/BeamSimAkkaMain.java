@@ -1,28 +1,21 @@
 package beam.playground.beamSimAkkaProtoType;
 
-import java.util.concurrent.TimeUnit;
-
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
+import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;
+import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.api.core.v01.population.Population;
 import org.matsim.api.core.v01.population.PopulationFactory;
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.events.EventsUtils;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.scenario.ScenarioUtils;
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.util.Timeout;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
-import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;
-import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
 
 public class BeamSimAkkaMain {
 
