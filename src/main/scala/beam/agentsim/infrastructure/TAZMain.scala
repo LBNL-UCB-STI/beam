@@ -295,10 +295,10 @@ object TAZTreeMap {
       .toArray
   }
 
-  private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
-    (1 to elems.length) zip elems map {
-      case (index, elem) => elem.copy(id = s"${id}_$index")
-    } toArray
+  private def addSuffix(_id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
+    (1 to elems.length).zip(elems).map {
+      case (index, elem) => elem.copy(id = s"${_id}_$index")
+    }.toArray
   }
 
   private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {

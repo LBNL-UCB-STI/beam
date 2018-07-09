@@ -5,6 +5,7 @@ import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 
 
 /**

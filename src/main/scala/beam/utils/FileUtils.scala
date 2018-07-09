@@ -16,7 +16,7 @@ import scala.util.Try
   */
 object FileUtils extends LazyLogging {
 
-  val runStartTime = getFormatedDateString
+  val runStartTime = getDateString
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): Unit = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
@@ -48,7 +48,7 @@ object FileUtils extends LazyLogging {
     ""
   }
 
-  def getFormatedDateString = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
+  private def getDateString: String = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
 
   def decompress(compressed: Array[Byte]): Option[String] = Try {
     val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
