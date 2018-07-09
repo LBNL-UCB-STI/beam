@@ -83,7 +83,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       }
     }
 
-    new QuadTreeBounds(minX, minY, maxX, maxY)
+    QuadTreeBounds(minX, minY, maxX, maxY)
   }
 
 

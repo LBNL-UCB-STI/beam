@@ -256,7 +256,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
      val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
      var interruptMessageStatus=InterruptMessageStatus.UNDEFINED
 
-     val rideHailModifyPassengerScheduleStatus = new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId, vehicleId, modifyPassengerSchedule, interruptOrigin, tick, rideHailAgent, interruptMessageStatus)
+     val rideHailModifyPassengerScheduleStatus = RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId, vehicleId, modifyPassengerSchedule, interruptOrigin, tick, rideHailAgent, interruptMessageStatus)
 
      val withVehicleIdStats=getWithVehicleIds(vehicleId)
      val processInterrupt=containsPendingReservations(vehicleId)
@@ -288,7 +288,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
     var rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
-    var deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]();
+    var deleteItems=mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
     log.debug("BEFORE checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + rideHailModifyPassengerScheduleStatusSet)
     rideHailModifyPassengerScheduleStatusSet.foreach{
       rideHailModifyPassengerScheduleStatus =>

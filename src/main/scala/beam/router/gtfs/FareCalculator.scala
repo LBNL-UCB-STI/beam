@@ -97,7 +97,7 @@ class FareCalculator(directory: String) {
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasFares(_)).map(_.getAbsolutePath).foreach(p => {
+      directory.toFile.listFiles(hasFares _).map(_.getAbsolutePath).foreach(p => {
         val feed = GTFSFeed.fromFile(p)
         loadFares(feed)
         feed.close()
