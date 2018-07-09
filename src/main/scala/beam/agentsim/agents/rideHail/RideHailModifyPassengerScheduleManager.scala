@@ -265,7 +265,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
      add(rideHailModifyPassengerScheduleStatus)
 
 
-     if (!getWithVehicleIds(vehicleId).filter(_.status!=InterruptMessageStatus.UNDEFINED).isEmpty && interruptOrigin==InterruptOrigin.RESERVATION){
+     if (getWithVehicleIds(vehicleId).exists(_.status != InterruptMessageStatus.UNDEFINED) && interruptOrigin==InterruptOrigin.RESERVATION){
        DebugLib.emptyFunctionForSettingBreakPoint()
      }
 
@@ -284,8 +284,8 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
 
    }
 
-  def containsPendingReservations(vehicleId:Id[Vehicle]): Boolean ={
-    getWithVehicleIds(vehicleId).filter(_.interruptOrigin==InterruptOrigin.RESERVATION).isEmpty
+  def containsPendingReservations(vehicleId:Id[Vehicle]): Boolean = {
+    !getWithVehicleIds(vehicleId).exists(_.interruptOrigin == InterruptOrigin.RESERVATION)
   }
 
   def checkInResource(vehicleId:Id[Vehicle], availableIn: Option[SpaceTime]): Unit ={
