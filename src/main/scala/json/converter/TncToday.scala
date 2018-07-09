@@ -54,14 +54,14 @@ object TncToday {
 
     val groupedByTaz = data.groupBy(_.taz)
     val roundAtThree = roundAt(3) _
-    groupedByTaz.map{case (taz, statsByTaz) =>
-        val byDay = statsByTaz.groupBy(_.day_of_week)
-        byDay.map{case (day, statsByDay) =>
-          val totalDropoffs = statsByDay.foldLeft(0d){case (a, b) => roundAtThree(a + b.dropoffs)}
-          val totalPickups = statsByDay.foldLeft(0d){case (a, b) => roundAtThree(a + b.pickups)}
-          TazStatsTotals(taz, day, totalDropoffs, totalPickups)
-        }
-      }.flatten.toSeq
+    groupedByTaz.flatMap { case (taz, statsByTaz) =>
+      val byDay = statsByTaz.groupBy(_.day_of_week)
+      byDay.map { case (day, statsByDay) =>
+        val totalDropoffs = statsByDay.foldLeft(0d) { case (a, b) => roundAtThree(a + b.dropoffs) }
+        val totalPickups = statsByDay.foldLeft(0d) { case (a, b) => roundAtThree(a + b.pickups) }
+        TazStatsTotals(taz, day, totalDropoffs, totalPickups)
+      }
+    }.toSeq
   }
 
   def statsAndTotalsToJson(data: Seq[TazStats]): (String, String) = {

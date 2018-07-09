@@ -291,8 +291,7 @@ object TAZTreeMap {
   }
 
   private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    groupedRepeatedTaz.map(i => addSuffix(i._1, i._2))
-      .flatten
+    groupedRepeatedTaz.flatMap(i => addSuffix(i._1, i._2))
       .toArray
   }
 
