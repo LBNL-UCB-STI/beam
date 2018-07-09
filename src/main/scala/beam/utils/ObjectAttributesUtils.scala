@@ -13,7 +13,7 @@ object ObjectAttributesUtils {
     new ObjectAttributes
   }
 
-  def writeObjectAttributesToCSV(objAttr:ObjectAttributes,csvFilePath: String)={
+  def writeObjectAttributesToCSV(objAttr:ObjectAttributes,csvFilePath: String): Unit ={
     // TODO: implement
   }
 

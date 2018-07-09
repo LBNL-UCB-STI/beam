@@ -16,7 +16,7 @@ import scala.util.Try
   */
 object FileUtils extends LazyLogging {
 
-  val runStartTime = getDateString
+  val runStartTime: String = getDateString
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): Unit = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)

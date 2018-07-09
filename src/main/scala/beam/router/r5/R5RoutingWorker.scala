@@ -26,7 +26,7 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
-import com.google.common.cache.{CacheBuilder, CacheLoader}
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -39,7 +39,7 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
-  val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
+  val distanceThresholdToIgnoreWalking: Int = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   // Let the dispatcher on which the Future in receive will be running
@@ -87,13 +87,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
-    override def load(key: R5Request) = {
+  val cache: LoadingCache[R5Request, ProfileResponse] = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
+    override def load(key: R5Request): ProfileResponse = {
       getPlanFromR5(key)
     }
   })
 
-  def getPlanUsingCache(request: R5Request) = {
+  def getPlanUsingCache(request: R5Request): ProfileResponse = {
     var plan = latencyIfNonNull("cache-router-time", Metrics.VerboseLevel) {cache.getIfPresent(request)}
     if(plan == null) {
       val planWithTime = measure(cache.get(request))

@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 
 
 class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) extends Actor with ActorLogging{
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     case Tick ⇒
       log.info(DebugLib.gcAndGetMemoryLogMessage("Memory use after GC: "))
       rideHailManager ! DebugRideHailManagerDuringExecution

@@ -26,7 +26,7 @@ object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
 
-  private def validateExperimentConfig(experiment: ExperimentDef) = {
+  private def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
     }

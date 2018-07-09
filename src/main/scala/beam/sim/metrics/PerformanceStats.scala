@@ -4,7 +4,7 @@ class PerformanceStats {
   var totalTime: Long = 0
   var numberOfStats: Int = 0
 
-  def avg = if (numberOfStats > 0) totalTime / numberOfStats else -1L
+  def avg: Long = if (numberOfStats > 0) totalTime / numberOfStats else -1L
 
   def avgSec: Double = avg / 1000.0
 

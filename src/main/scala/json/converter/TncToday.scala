@@ -79,7 +79,7 @@ object TncToday {
     (statsOutData, outDataTotalsJson)
   }
 
-  def saveJsonStructure(data: java.util.List[TazStats], statsOut: String, statsTotalsOut: String) = {
+  def saveJsonStructure(data: java.util.List[TazStats], statsOut: String, statsTotalsOut: String): Unit = {
     val (outData, outDataTotalsJson) = statsAndTotalsToJson(data.asScala)
 
     saveTo(statsOut, outData)

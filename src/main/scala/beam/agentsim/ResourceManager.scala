@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
+import akka.util.Timeout
 import beam.agentsim.Resource._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
@@ -18,7 +19,7 @@ import scala.concurrent.ExecutionContext
   */
 
 trait Resource[R] extends Identifiable[R] {
-  protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   var manager: Option[ActorRef] = None
 
@@ -32,7 +33,7 @@ trait Resource[R] extends Identifiable[R] {
   def checkInResource[T](whenWhere: Option[SpaceTime], executionContext: ExecutionContext)(implicit e: Id[T] => Id[R]): Unit = {
     manager match {
       case Some(managerRef) =>
-        implicit val ec = executionContext
+        implicit val ec: ExecutionContext = executionContext
         val response = managerRef ? CheckInResource(getId, whenWhere)
         response.mapTo[CheckInResourceAck].map {
           case CheckInSuccess =>

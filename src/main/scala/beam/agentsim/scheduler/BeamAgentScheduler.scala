@@ -73,7 +73,7 @@ object BeamAgentScheduler {
 
 class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxWindow: Double) extends Actor with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private var started = false
 

@@ -14,12 +14,14 @@ import kamon.metric.{Entity, EntitySnapshot}
 class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) extends Actor with LazyLogging {
   var iterationNumber = 0
   var metricStore: Map[Entity, EntitySnapshot] = null
-  val collectionContext = new CollectionContext {
+  val collectionContext: CollectionContext {
+    val buffer: LongBuffer
+  } = new CollectionContext {
     val buffer: LongBuffer = LongBuffer.allocate(100000)
   }
 
   import context._
-  def receive = {
+  def receive: PartialFunction[Any, Unit] = {
     case Subscribe(category, selection) if(Metrics.isMetricsEnable) =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)

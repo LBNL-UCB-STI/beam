@@ -21,11 +21,11 @@ object TazOutput {
   case class TazStats(taz: Long, day_of_week: Int, time: String, dropoffs: Double, pickups: Double)
   case class TazStatsTotals(taz: Long, day_of_week: Int, dropoffs: Double, pickups: Double)
 
-  implicit val tazGeometryWrites = Json.format[TazGeometry]
-  implicit val tazVizWrites = Json.format[TazViz]
+  implicit val tazGeometryWrites: OFormat[TazGeometry] = Json.format[TazGeometry]
+  implicit val tazVizWrites: OFormat[TazViz] = Json.format[TazViz]
 
-  implicit val tazStatsFormat = Json.format[TazStats]
-  implicit val tazStatsTotalsFormat = Json.format[TazStatsTotals]
+  implicit val tazStatsFormat: OFormat[TazStats] = Json.format[TazStats]
+  implicit val tazStatsTotalsFormat: OFormat[TazStatsTotals] = Json.format[TazStatsTotals]
 }
 
 //Converter from https://data.sfgov.org/Geographic-Locations-and-Boundaries/Traffic-Analysis-Zones/j4sj-j2nf/data#revert

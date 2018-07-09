@@ -217,7 +217,7 @@ object TAZTreeMap {
     res
   }
 
-  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String) = {
+  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
         Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y))
@@ -263,7 +263,7 @@ object TAZTreeMap {
       println(s"Total all TAZ $allNonRepeatedTaz.length")
 
       for(t <- allNonRepeatedTaz){
-        val tazToWrite = new HashMap[String, Object]()
+        val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
        //
        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))

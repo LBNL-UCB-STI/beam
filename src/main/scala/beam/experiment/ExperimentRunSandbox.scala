@@ -12,16 +12,16 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
 
   lazy val runConfig: Config = buildRunConfig
 
-  def runDirectory = Paths.get(experimentBaseDir.toString,
+  def runDirectory: Path = Paths.get(experimentBaseDir.toString,
     "runs", s"run.${experimentRun.name}"
   )
 
-  def modeChoiceParametersXmlPath = Paths.get(runDirectory.toString, "modeChoiceParameters.xml")
+  def modeChoiceParametersXmlPath: Path = Paths.get(runDirectory.toString, "modeChoiceParameters.xml")
 
-  def runBeamScriptPath = Paths.get(runDirectory.toString, "runBeam.sh")
+  def runBeamScriptPath: Path = Paths.get(runDirectory.toString, "runBeam.sh")
 
 
-  def beamConfPath = {
+  def beamConfPath: Path = {
     projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
   }
 
@@ -29,11 +29,11 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
     *
     * @return path to an output folder relatively to project root
     */
-  def beamOutputDir = {
+  def beamOutputDir: Path = {
     projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
   }
 
-  def buildRunConfig = {
+  def buildRunConfig: Config = {
     // set critical properties
     // beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
     // beam.outputs.baseOutputDirectory
@@ -49,7 +49,7 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
     runConfig
   }
 
-  def modeChoiceConfigIfDefined = {
+  def modeChoiceConfigIfDefined: Map[_ <: String, String] = {
     experimentDef.header.modeChoiceTemplate match {
       case "" =>
         Map()

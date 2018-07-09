@@ -28,7 +28,17 @@ class PopulationWriterCSV(val coordinateTransformation: CoordinateTransformation
     *
     **/
 
-    val handler = new PopulationWriterHandler {
+    val handler: PopulationWriterHandler {
+      def writePerson(person: Person, out: BufferedWriter): Unit
+
+      def endPlans(out: BufferedWriter): Unit
+
+      def writeSeparator(out: BufferedWriter): Unit
+
+      def startPlans(plans: Population, out: BufferedWriter): Unit
+
+      def writeHeaderAndStartElement(out: BufferedWriter): Unit
+    } = new PopulationWriterHandler {
       override def writeHeaderAndStartElement(out: BufferedWriter): Unit = out.write("id,type,x,y,end.time,customAttributes\n")
 
       override def writeSeparator(out: BufferedWriter): Unit = out.flush()

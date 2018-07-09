@@ -18,7 +18,7 @@ object Metrics {
 
   var currentContext: TraceContext = null
 
-  def setCurrentContext(context: TraceContext) = currentContext = context
+  def setCurrentContext(context: TraceContext): Unit = currentContext = context
 
   def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
     "iteration-num" -> s"$iterationNumber")
@@ -80,5 +80,5 @@ object Metrics {
     */
   def isMetricsEnable: Boolean = metricLevel != OffLevel
 
-  def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
+  def isRightLevel(level: MetricLevel): Boolean = level <= metricLevel && level != OffLevel
 }

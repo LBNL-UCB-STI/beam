@@ -18,7 +18,7 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
 
   def this() = this("", "", null, null, new java.util.LinkedList())
 
-  def combinationsOfLevels() = {
+  def combinationsOfLevels(): List[ExperimentRun] = {
 
     val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
     val runs = cartesian(values).toList
@@ -39,15 +39,15 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
     *
     * @return list of distinct (factor_title, param_name)
     */
-  def getDynamicParamNamesPerFactor = {
+  def getDynamicParamNamesPerFactor: List[(String, String)] = {
     factors.asScala.flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))).distinct.toList
   }
 
-  def getRunScriptTemplate = {
+  def getRunScriptTemplate: String = {
     getTemplate(runExperimentScript, "runBeam.sh.tpl")
   }
 
-  def getBatchRunScriptTemplate = {
+  def getBatchRunScriptTemplate: String = {
     getTemplate(batchRunScript, "batchRunExperiment.sh.tpl")
   }
 

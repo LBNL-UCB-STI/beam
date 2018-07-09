@@ -3,6 +3,7 @@ package beam.agentsim.agents.rideHail
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
@@ -37,23 +38,23 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
-  val timeBinSize = rideHailConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
-  val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
-  val surgeLevelAdaptionStep = rideHailConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel = rideHailConfig.surgePricing.minimumSurgeLevel
+  val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
+  val timeBinSize: Int = rideHailConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories: Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val numberOfTimeBins: Int = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
+  val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy = rideHailConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-  val rideHailRevenue = ArrayBuffer[Double]()
+  val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
 
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
