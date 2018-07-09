@@ -4,7 +4,6 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
-
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
@@ -37,10 +36,10 @@ object HouseholdActor {
   }
 
 
-  def props(beamServices: BeamServices, modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
+  def props(beamServices: BeamServices, modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
             homeCoord: Coord): Props = {
-    Props(new HouseholdActor(beamServices, modeChoiceCalculator, schedulerRef, transportNetwork, router, rideHailingManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, homeCoord))
+    Props(new HouseholdActor(beamServices, modeChoiceCalculator, schedulerRef, transportNetwork, router, rideHailManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -102,7 +101,7 @@ object HouseholdActor {
                        schedulerRef: ActorRef,
                        transportNetwork: TransportNetwork,
                        router: ActorRef,
-                       rideHailingManager: ActorRef,
+                       rideHailManager: ActorRef,
                        eventsManager: EventsManager,
                        val population: org.matsim.api.core.v01.population.Population,
                        id: Id[households.Household],
@@ -123,10 +122,10 @@ object HouseholdActor {
       val attributes = AttributesOfIndividual(person, household, vehicles)
       person.getCustomAttributes.put("beam-attributes", attributes)
       val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(attributes),
-        transportNetwork, router, rideHailingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
+        transportNetwork, router, rideHailManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle,None,None)
+      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle, None, None)
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)

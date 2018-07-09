@@ -31,10 +31,10 @@ class ChangeModeForTour(beamServices: BeamServices,
   val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
 
   private val drivingCostConfig = beamServices.beamConfig.beam.agentsim.agents.drivingCost
-  private val rideHailingConfig = beamServices.beamConfig.beam.agentsim.agents.rideHailing
+  private val rideHailConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMile = BigDecimal(rideHailingConfig.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(rideHailingConfig.defaultCostPerMinute)
+  val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
+  val DefaultRideHailCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute)
 
 
   val stageActivityTypes = new CompositeStageActivityTypes()

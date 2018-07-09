@@ -6,8 +6,6 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
-import scala.collection.mutable.ArrayBuffer
-
 /**
   * BEAM
   */

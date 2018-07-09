@@ -37,23 +37,23 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHailingConfig = beamConfig.beam.agentsim.agents.rideHailing
-  val timeBinSize = rideHailingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories = rideHailingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
+  val timeBinSize = rideHailConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
-  val surgeLevelAdaptionStep = rideHailingConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel = rideHailingConfig.surgePricing.minimumSurgeLevel
+  val surgeLevelAdaptionStep = rideHailConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel = rideHailConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy = rideHailingConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy = rideHailConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-  val rideHailingRevenue = ArrayBuffer[Double]()
+  val rideHailRevenue = ArrayBuffer[Double]()
 
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
@@ -116,13 +116,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
         }
       }
     }
-    updatePreviousIterationRevenuesAndResetCurrent
+    updatePreviousIterationRevenuesAndResetCurrent()
   }
 
   //Method to avoid code duplication
   private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
-      for (j <- 0 until binArray.size) {
+      for (j <- binArray.indices) {
         val surgePriceBin = binArray.apply(j)
         val updatedBin = updateFn(surgePriceBin)
         binArray.update(j, updatedBin)
@@ -130,7 +130,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     }
   }
 
-  def updatePreviousIterationRevenuesAndResetCurrent = {
+  def updatePreviousIterationRevenuesAndResetCurrent(): Unit = {
     updateForAllElements(surgePriceBins) { surgePriceBin =>
       val updatedPrevIterRevenue = surgePriceBin.currentIterationRevenue
       surgePriceBin.copy(previousIterationRevenue = updatedPrevIterRevenue, currentIterationRevenue = 0)
@@ -170,13 +170,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   // TODO: print revenue each iteration out
 
 
-  def updateRevenueStats() = {
+  def updateRevenueStats(): Unit = {
     // TODO: is not functioning properly yet
-    rideHailingRevenue.append(getCurrentIterationRevenueSum)
-    //rideHailingRevenue.foreach(println)
+    rideHailRevenue.append(getCurrentIterationRevenueSum)
+    //rideHailRevenue.foreach(println)
   }
 
-  private def getCurrentIterationRevenueSum(): Double = {
+  private def getCurrentIterationRevenueSum: Double = {
     var sum: Double = 0
     surgePriceBins.values.foreach { i =>
       for (j <- 0 until i.size - 1) {
@@ -189,11 +189,11 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
-  def incrementIteration() = {
+  def incrementIteration(): Unit = {
     iteration += 1
   }
 
-  def getIterationNumber() = {
+  def getIterationNumber: Int = {
     iteration
   }
 }

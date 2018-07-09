@@ -7,7 +7,6 @@ import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.population.Person
 
 import scala.util.Random
 
@@ -38,7 +37,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_,_,_,Some(modalityStyle),_) =>
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _) =>
               new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")
