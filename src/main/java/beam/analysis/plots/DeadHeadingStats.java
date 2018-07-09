@@ -8,7 +8,6 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import sun.net.www.content.image.png;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -27,7 +26,7 @@ public class DeadHeadingStats implements IGraphStats {
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private String fileNameBase = "rideHail";
+    private static final String fileNameBase = "rideHail";
     private String graphTitle = null;
     private static final int DEFAULT_OCCURRENCE=1;
 
@@ -79,7 +78,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     public int getBucketCountAgainstMode(int bucketIndex, String mode) {
-        double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(mode), mode);
+        double[][] dataset = buildDeadHeadingDataset(deadHeadingsMap.get(mode), mode);
         double[] hoursData = dataset[bucketIndex];
         double count = 0;
         for (double hourData : hoursData) {
@@ -89,7 +88,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     public int getPassengerPerTripCountForSpecificHour(int bucketIndex, String mode, int hour) {
-        double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(mode), mode);
+        double[][] dataset = buildDeadHeadingDataset(deadHeadingsMap.get(mode), mode);
         double[] hoursData = dataset[bucketIndex];
         return (int) Math.ceil(hoursData[hour]);
     }
@@ -110,7 +109,7 @@ public class DeadHeadingStats implements IGraphStats {
             updateDeadHeadingTNCMap(length,hour,_num_passengers);
         }
     }
-    private boolean updateDeadHeadingTNCMap(double length,int hour,Integer _num_passengers){
+    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers){
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -127,7 +126,6 @@ public class DeadHeadingStats implements IGraphStats {
         }
 
         deadHeadingsTnc0Map.put(hour, hourData);
-        return true;
     }
     private Integer getPathTraversalEventNumOfPassengers(Event event, Map<String, String> eventAttributes){
         String num_passengers = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
@@ -139,7 +137,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
         return _num_passengers;
     }
-    public boolean updateNumPassengerInDeadHeadingsMap(int hour,String graphName,Integer _num_passengers){
+    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers){
 
         Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
         Map<Integer, Integer> hourData = null;
@@ -162,7 +160,6 @@ public class DeadHeadingStats implements IGraphStats {
         }
         deadHeadings.put(hour, hourData);
         deadHeadingsMap.put(graphName, deadHeadings);
-        return true;
     }
 
     private String getGraphNameAgainstModeAndVehicleId(String mode,String vehicle_id){
@@ -292,7 +289,7 @@ public class DeadHeadingStats implements IGraphStats {
         hours.addAll(data.keySet());
         Collections.sort(hours);
         int maxHour = hours.get(hours.size() - 1);
-        Integer maxPassengers = null;
+        Integer maxPassengers;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             maxPassengers = CAR_MAX_PASSENGERS;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
@@ -300,7 +297,7 @@ public class DeadHeadingStats implements IGraphStats {
         } else {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
-        double dataset[][] = null;
+        double dataset[][];
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC) || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             dataset = new double[maxPassengers + 1][maxHour + 1];
             for (int i = 0; i <= maxPassengers; i++) {
@@ -332,7 +329,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     private CategoryDataset buildDeadHeadingDataForGraph(String mode) {
-        double[][] dataset = buildDeadHeadingDataset(this.deadHeadingsMap.get(mode), mode);
+        double[][] dataset = buildDeadHeadingDataset(deadHeadingsMap.get(mode), mode);
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 
@@ -377,53 +374,35 @@ public class DeadHeadingStats implements IGraphStats {
     }
     private void writeToCSV(int iterationNumber, String graphName) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, getFileName(graphName,"csv"));
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "hour,numPassengers,vkt";
             out.write(heading);
             out.newLine();
 
-            HashSet<Integer> passengerCategories = new HashSet<Integer>();
+            HashSet<Integer> passengerCategories = new HashSet<>();
             int maxHour = Integer.MIN_VALUE;
             int minHour = Integer.MAX_VALUE;
-            Iterator iter = deadHeadingsTnc0Map.keySet().iterator();
-            while(iter.hasNext()){
-                int nextHour = (Integer)iter.next();
-                if(nextHour>maxHour)maxHour=nextHour;
-                if(nextHour<minHour)minHour=nextHour;
-                Iterator keyIter = ((Map<Integer,Double>)deadHeadingsTnc0Map.get(nextHour)).keySet().iterator();
-                while(keyIter.hasNext()){
-                    passengerCategories.add((Integer)keyIter.next());
-                }
+            for (Integer nextHour : deadHeadingsTnc0Map.keySet()) {
+                if (nextHour > maxHour) maxHour = nextHour;
+                if (nextHour < minHour) minHour = nextHour;
+                passengerCategories.addAll(deadHeadingsTnc0Map.get(nextHour).keySet());
             }
 
-            Double vkt = null;
+            Double vkt;
             for (Integer hour = minHour; hour <= maxHour; hour++) {
-                Iterator keyIter = passengerCategories.iterator();
-                while(keyIter.hasNext()){
-                    Integer passengerKey = (Integer)keyIter.next();
-                    if(deadHeadingsTnc0Map.containsKey(hour)) {
-                        if (((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).containsKey(passengerKey)) {
-                            vkt = ((Map<Integer, Double>) deadHeadingsTnc0Map.get(hour)).get(passengerKey);
-                        } else {
-                            vkt = 0.0;
-                        }
-                    }else {
+                for (Integer passengerKey : passengerCategories) {
+                    if (deadHeadingsTnc0Map.containsKey(hour)) {
+                        vkt = deadHeadingsTnc0Map.get(hour).getOrDefault(passengerKey, 0.0);
+                    } else {
                         vkt = 0.0;
                     }
-                    out.write(hour.toString()+","+passengerKey.toString()+","+vkt.toString());
+                    out.write(hour.toString() + "," + passengerKey.toString() + "," + vkt.toString());
                     out.newLine();
                 }
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 }
