@@ -39,11 +39,11 @@ object TncToday {
         val byHours = statsByDay.map(e => (e.time, e)).toMap
         val allHours = (0 to 23).map { h =>
           val hs = "%02d:00:00".format(h)
-          byHours.get(hs).getOrElse(TazStats(tazId, day, hs, 0d, 0d))
+          byHours.getOrElse(hs, TazStats(tazId, day, hs, 0d, 0d))
         }
         (day, allHours)
       }
-      val allDaysWithAllHours = (0 to 6).map(i => (i, groupedByDayWithAllData.get(i).getOrElse(generateDataForDay(i, tazId)))).toMap
+      val allDaysWithAllHours = (0 to 6).map(i => (i, groupedByDayWithAllData.getOrElse(i, generateDataForDay(i, tazId)))).toMap
       (tazId, allDaysWithAllHours.values.flatten)
     }.values.flatten.toSeq
   }

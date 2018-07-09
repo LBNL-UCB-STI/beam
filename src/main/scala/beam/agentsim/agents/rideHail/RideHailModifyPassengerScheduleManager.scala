@@ -42,13 +42,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
       vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]())
     }
 
-    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).get
+    vehicleIdToModifyPassengerScheduleStatus(vehicleId)
   }
 
   private def removeWithInterruptId(interruptId: Id[Interrupt]): Option[RideHailModifyPassengerScheduleStatus] = {
     interruptIdToModifyPassengerScheduleStatus.remove(interruptId) match {
       case Some(rideHailModifyPassengerScheduleStatus) =>
-        val set = vehicleIdToModifyPassengerScheduleStatus.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+        val set = vehicleIdToModifyPassengerScheduleStatus(rideHailModifyPassengerScheduleStatus.vehicleId)
         set -= rideHailModifyPassengerScheduleStatus
         Some(rideHailModifyPassengerScheduleStatus)
       case None =>
