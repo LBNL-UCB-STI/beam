@@ -183,7 +183,8 @@ class RepositioningLowWaitingTimes(val rideHailingManager: RideHailingManager, t
             spatialPlot.addString(StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50))
             //spatialPlot.addString(StringToPlot("B", firstRepositionCoordsOfDay.get._2, Color.BLACK, 50))
 
-            spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, (tick / 3600 * 100).toInt / 100.0 + "locationOfAgentsInitally.png"))
+            val iteration = "it." + rideHailingManager.beamServices.iterationNumber
+            spatialPlot.writeImage(rideHailingManager.beamServices.matsimServices.getControlerIO.getIterationFilename(rideHailingManager.beamServices.iterationNumber, (tick / 3600 * 100).toInt / 100.0 + "locationOfAgentsInitally.png").replace(iteration,iteration+"/rideHailDebugging"))
 
             //if (!boundsCalculator.isDefined) {
             //  boundsCalculator = Some(spatialPlot.getBoundsCalculator())

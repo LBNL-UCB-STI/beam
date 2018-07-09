@@ -4,11 +4,11 @@ import java.awt.{BasicStroke, Color, Font, Graphics2D}
 import java.awt.geom.Point2D
 import java.awt.Stroke
 import java.awt.image.BufferedImage
-import java.io.File
-import javax.imageio.ImageIO
+import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.agentsim.infrastructure.QuadTreeBounds
-import org.matsim.api.core.v01.Coord
+import beam.agentsim.agents.rideHail.RideHailingAgent
+import javax.imageio.ImageIO
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.Random
 
@@ -16,6 +16,7 @@ import scala.util.Random
 case class PointToPlot(val coord:Coord, val color:Color, val size:Int)
 case class LineToPlot(val startCoord:Coord, val endCoord:Coord,  val color:Color, val stroke:Int)
 case class StringToPlot(val text:String,val coord:Coord, val color:Color, val fontSize:Int)
+case class RideHailAgentInitCoord(val agentId: Id[RideHailingAgent], val coord: Coord)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
@@ -58,6 +59,8 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
 
   val stringsToPlot= collection.mutable.ListBuffer[StringToPlot]()
 
+  val rideHailAgentInitCoordBuffer= collection.mutable.ListBuffer[RideHailAgentInitCoord]()
+
   val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
   var boundsCalculator=new BoundsCalculator
@@ -88,6 +91,21 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
   def addPoint(point: PointToPlot) = {
     pointsToPlot+=point
     boundsCalculator.addPoint(point.coord)
+  }
+
+  def addAgentWithCoord(rideHailAgentInitCoord: RideHailAgentInitCoord): Unit = {
+    rideHailAgentInitCoordBuffer += rideHailAgentInitCoord
+  }
+
+  def writeCSV(path: String): Unit ={
+    val out = new BufferedWriter(new FileWriter(path))
+    val heading = "rideHailAgentID,xCoord,yCoord"
+    out.write(heading)
+    rideHailAgentInitCoordBuffer.foreach(rideHailAgentInitCoord => {
+      val line = "\n"+rideHailAgentInitCoord.agentId + "," + rideHailAgentInitCoord.coord.getX  + "," + rideHailAgentInitCoord.coord.getY
+      out.write(line)
+    })
+    out.close()
   }
 
   def writeImage(path: String): Unit ={
@@ -121,7 +139,10 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
       graphics2d.drawString(stringToPlot.text,projectedCoord.getX.toInt, projectedCoord.getY.toInt)
     }
 
-    ImageIO.write(bufferedImage, "PNG", new File(path));
+    val index = path.lastIndexOf("/")
+    val outDir = new File(path.substring(0, index))
+    if(!outDir.exists()) outDir.mkdirs()
+    ImageIO.write(bufferedImage, "PNG", new File(path))
   }
 
 

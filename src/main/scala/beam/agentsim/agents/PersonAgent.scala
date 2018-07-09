@@ -12,7 +12,7 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.ReserveRideHailEvent
+import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
@@ -202,6 +202,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
     scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     goto(Waiting) using data
+
   }
 
   when(WaitingForReservationConfirmation) {
@@ -209,11 +210,17 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), _), data: BasePersonData) =>
       logWarn(s"replanning because ${firstErrorResponse.errorCode}")
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
+      holdTickAndTriggerId(tick,triggerId)
       goto(ChoosingMode) using ChoosesModeData(data,isWithinTripReplanning = true)
     case Event(RideHailingResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailingResponse(_, _, Some(error), _), data: BasePersonData) =>
       logWarn(s"replanning because ${error.errorCode}")
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
+      holdTickAndTriggerId(tick,triggerId)
       goto(ChoosingMode) using ChoosesModeData(data,isWithinTripReplanning = true)
   }
 

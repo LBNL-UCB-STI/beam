@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Scenario;
@@ -42,6 +43,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
+    private IGraphStats realizedModeStats = new RealizedModeStats();
 
 
     // No Arg Constructor
@@ -69,14 +71,19 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         rideHailingWaitingStats.resetStats();
         //generalStats.resetStats();
         rideHailingWaitingSingleStats.resetStats();
+        realizedModeStats.resetStats();
     }
 
     @Override
     public void handleEvent(Event event) {
+        if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE)) {
+            realizedModeStats.processStats(event);
+        }
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
             rideHailingWaitingStats.processStats(event);
             rideHailingWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
+            realizedModeStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             //generalStats.processStats(event);
             fuelUsageStats.processStats(event);
@@ -102,6 +109,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event,"TNC0");
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
+        realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
     }
 

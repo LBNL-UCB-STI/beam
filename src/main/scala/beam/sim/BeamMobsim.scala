@@ -2,7 +2,6 @@ package beam.sim
 
 import java.awt.Color
 import java.lang.Double
-import java.util
 import java.util.Random
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import java.util.stream.Stream
@@ -13,7 +12,6 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.rideHail.RideHailingManager.NotifyIterationEnds
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
@@ -21,12 +19,10 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.QuadTreeBounds
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.InitTransit
+import beam.router.BeamRouter.{InitTransit, Location, RoutingResponse}
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils._
@@ -204,10 +200,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         rideHailingAgents :+= rideHailingAgentRef
 
         rideHailinitialLocationSpatialPlot.addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
+        rideHailinitialLocationSpatialPlot.addAgentWithCoord(RideHailAgentInitCoord(rideHailingAgentPersonId,rideInitialLocation))
       }
-
+      rideHailinitialLocationSpatialPlot.writeCSV(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv"))
       rideHailinitialLocationSpatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png"))
-
 
       log.info(s"Initialized ${beamServices.personRefs.size} people")
       log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
