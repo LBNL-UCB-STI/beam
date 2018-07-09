@@ -15,7 +15,7 @@ public class GraphTestUtil {
     static final String BUS = "bus";
     static final String SUBWAY = "subway";
     static final String DRIVE_TRANS = "drive_transit";
-    static final String RIDE_HAIL = "ride_hail";
+    static final String RIDE_HAIL = "ride_hailing";
     static final String WALK_TRANS = "walk_transit";
 
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
