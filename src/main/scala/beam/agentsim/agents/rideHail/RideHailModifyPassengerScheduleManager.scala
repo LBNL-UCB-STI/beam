@@ -199,7 +199,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     printState()
 
 
-    assert((vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.filter(x=>x.size!=0)).size==resourcesNotCheckedIn.filter(x=>getWithVehicleIds(x).size!=0).size)
+    assert(vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.size != 0)==resourcesNotCheckedIn.count(x => getWithVehicleIds(x).size != 0))
 
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning==0)
 
@@ -323,7 +323,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
       resourcesNotCheckedIn.remove(vehicleId)
     }
     // only something new, if all undefined (no pending query)
-    if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.filter(_.status==InterruptMessageStatus.UNDEFINED).size==rideHailModifyPassengerScheduleStatusSet.size){
+    if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.count(_.status == InterruptMessageStatus.UNDEFINED)==rideHailModifyPassengerScheduleStatusSet.size){
       sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
     }
 
