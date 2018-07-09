@@ -22,7 +22,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
 
   import context._
   def receive: PartialFunction[Any, Unit] = {
-    case Subscribe(category, selection) if(Metrics.isMetricsEnable) =>
+    case Subscribe(category, selection) if Metrics.isMetricsEnable =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)
     case _ =>
@@ -59,7 +59,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           histograms.foreach { case (e, s) => text += toHistogramString(e, s) }
           counters.foreach { case (e, s) => text += toCounterString(e, s) }
         } else {
-          ins.foreach { case i =>
+          ins.foreach { i =>
             histograms.filterKeys(_.name == i).foreach { case (e, s) =>
               text += toHistogramString(e, s)
             }
@@ -69,7 +69,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           logger.info(
              s"""
              |=======================================================================================
-             | Performance Benchmarks (iteration no: ${iterationNumber})
+             | Performance Benchmarks (iteration no: $iterationNumber)
              $text
              |
              |=======================================================================================

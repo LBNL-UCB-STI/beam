@@ -157,9 +157,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
               // process reservation request
               selectedForModifyPassengerSchedule=Some(reservationStatus)
 
-            } else (
-              log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
-              )
+            } else log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
           }
 
         } else {
