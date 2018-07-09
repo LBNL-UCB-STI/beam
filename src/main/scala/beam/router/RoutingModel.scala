@@ -136,7 +136,7 @@ object RoutingModel {
     */
   case class BeamPath(linkIds: IndexedSeq[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
-    def toShortString = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+    def toShortString = if(linkIds.nonEmpty){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
   }
 

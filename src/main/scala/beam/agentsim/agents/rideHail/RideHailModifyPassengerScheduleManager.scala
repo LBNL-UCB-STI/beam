@@ -319,21 +319,16 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter, val rideHa
     rideHailModifyPassengerScheduleStatusSet=getWithVehicleIds(vehicleId)
 
 
-    if (rideHailModifyPassengerScheduleStatusSet.size==0){
+    if (rideHailModifyPassengerScheduleStatusSet.isEmpty){
       resourcesNotCheckedIn.remove(vehicleId)
     }
     // only something new, if all undefined (no pending query)
-    if (!rideHailModifyPassengerScheduleStatusSet.isEmpty && rideHailModifyPassengerScheduleStatusSet.count(_.status == InterruptMessageStatus.UNDEFINED)==rideHailModifyPassengerScheduleStatusSet.size){
+    if (rideHailModifyPassengerScheduleStatusSet.nonEmpty && rideHailModifyPassengerScheduleStatusSet.count(_.status == InterruptMessageStatus.UNDEFINED)==rideHailModifyPassengerScheduleStatusSet.size){
       sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
     }
 
     log.debug("AFTER checkin.removeWithVehicleId("+ rideHailModifyPassengerScheduleStatusSet.size  +"):" + getWithVehicleIds(vehicleId))
   }
-
-
-
-
-
 }
 
 object InterruptMessageStatus extends Enumeration {
