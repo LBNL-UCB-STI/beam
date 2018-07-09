@@ -89,7 +89,7 @@ object TAZCreatorScript extends App {
 
 
   //Test Write File
-  if (null != args && 3 == args.size){
+  if (null != args && 3 == args.length){
     println("Running conversion")
     val pathFileShape = args(0)
     val tazIdName = args(1)
@@ -244,7 +244,7 @@ object TAZTreeMap {
       val tazs = features.asScala.map(featureToCsvTaz(_, tazIDFieldName))
         .filter(_.isDefined)
         .map(_.get).toArray
-      println(s"Total TAZ ${tazs.size}")
+      println(s"Total TAZ $tazs.length")
 
       val groupedTazs = groupTaz(tazs)
       println(s"Total grouped TAZ ${groupedTazs.size}")
@@ -254,13 +254,13 @@ object TAZTreeMap {
       println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
 
       val clearedTaz = clearRepeatedTaz(repeatedTaz)
-      println(s"Total repeated cleared TAZ ${clearedTaz.size}")
+      println(s"Total repeated cleared TAZ $clearedTaz.length")
 
       val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
-      println(s"Total non repeated TAZ ${nonRepeated.size}")
+      println(s"Total non repeated TAZ $nonRepeated.length")
 
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
-      println(s"Total all TAZ ${allNonRepeatedTaz.size}")
+      println(s"Total all TAZ $allNonRepeatedTaz.length")
 
       for(t <- allNonRepeatedTaz){
         val tazToWrite = new HashMap[String, Object]()
@@ -296,7 +296,7 @@ object TAZTreeMap {
   }
 
   private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
-    (1 to elems.size) zip elems map {
+    (1 to elems.length) zip elems map {
       case (index, elem) => elem.copy(id = s"${id}_$index")
     } toArray
   }
