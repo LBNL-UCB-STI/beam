@@ -52,7 +52,7 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
   }
 
   private def getTemplate(script: String, resourceScript: String) = {
-    if(script != None) {
+    if(script != null) {
       val scriptFile = Paths.get(script).toAbsolutePath
       if (!Files.exists(scriptFile)) {
         throw new IllegalArgumentException("No template script found " + scriptFile.toString)

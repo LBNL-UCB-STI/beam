@@ -339,7 +339,7 @@ object InterruptOrigin extends Enumeration {
   val RESERVATION, REPOSITION = Value
 }
 
-case class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val modifyPassengerSchedule: ModifyPassengerSchedule, val interruptOrigin: InterruptOrigin.Value, val tick:Double, val rideHailAgent:ActorRef, var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED)
+case class RideHailModifyPassengerScheduleStatus(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], modifyPassengerSchedule: ModifyPassengerSchedule, interruptOrigin: InterruptOrigin.Value, tick:Double, rideHailAgent:ActorRef, var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED)
 
 
 case class RepositionVehicleRequest(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)
