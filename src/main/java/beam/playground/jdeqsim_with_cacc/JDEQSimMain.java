@@ -19,20 +19,37 @@ public class JDEQSimMain {
 
         Scenario scenario = ScenarioUtils.loadScenario(config);
 
+        // TODO: add function like
+        // getTravelTime(percentageOfCACC on link) -> result=freeFlow*pct -> linear
+
+
         EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
         CountEnterLinkEvents countEnterLinkEvents = new CountEnterLinkEvents();
+
+        // TODO: add eventHandler, which
+            // simple: print out %of cacc on link, freeFlowTravelTime, travelTimeWithTraffic
+            // create graphs
+
+
         eventsManager.addHandler(countEnterLinkEvents);
         EventWriterXML eventsWriter=new EventWriterXML("Y:\\tmp3\\matsim\\scenarios\\equil\\output\\events.xml");
         eventsManager.addHandler(eventsWriter);
         eventsManager.initProcessing();
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
+
+
+        // TODO: include mapping from person (=vehicle) to isCacc HashMap<key=vehicleId,value=Boolean>
+
+        // TODO: pass vehicle to isCACC mapping to JDEQSim
+
+
         JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager);
 
         jdeqSimulation.run();
 
         //eventsManager.finishProcessing();
-        System.out.println(countEnterLinkEvents.getLinkEnterCount());
+        System.out.println("enter link count: " +  countEnterLinkEvents.getLinkEnterCount());
         eventsWriter.closeFile();
     }
 

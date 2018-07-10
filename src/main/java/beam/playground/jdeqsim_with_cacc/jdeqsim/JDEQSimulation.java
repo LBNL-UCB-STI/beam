@@ -49,6 +49,7 @@ public class JDEQSimulation implements Mobsim {
 	private final JDEQSimConfigGroup config;
 	protected Scenario scenario;
 	private final EventsManager events;
+	private HashMap<String,Boolean> isCACCVehicle;
 
 	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
 
@@ -78,14 +79,16 @@ public class JDEQSimulation implements Mobsim {
 			Road.getAllRoads().put(link.getId(), road);
 		}
 
-		Random random=MatsimRandom.getRandom();
+
 
 		// TODO: remember which vehicles are cavs or provide from main program
-        // use same for doing analysis on how many vehicles are on network which are cavs
-        //
+		// use same for doing analysis on how many vehicles are on network which are cavs
+		//
+		Random random=MatsimRandom.getRandom();
+
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
-			new Vehicle(scheduler, person, activityDurationInterpretation,random.nextBoolean()); // the vehicle registers itself to the scheduler
+			new Vehicle(scheduler, person, activityDurationInterpretation,isCACCVehicle.get(person.getId())); // the vehicle registers itself to the scheduler
 		}
 
 		scheduler.startSimulation();
