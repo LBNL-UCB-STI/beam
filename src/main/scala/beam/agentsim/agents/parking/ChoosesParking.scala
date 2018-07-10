@@ -60,21 +60,11 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data) =>
-      parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
-      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
-      releaseTickAndTriggerId()
-      goto(WaitingToDrive) using data
-
     case Event(StateTimeout, data@BasePersonData(_, _,_,_,_,_,_,_,_)) =>
-
       val (tick, _) = releaseTickAndTriggerId()
-
       val currVeh = data.currentVehicle.head
-
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
-
       val stall = veh.stall
 
       print()
@@ -90,7 +80,12 @@ trait ChoosesParking extends {
         val score = calculateScore(distance, cost, energyCharge, valueOfTime)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
       }
+      goto(WaitingToDrive) using data
 
+    case Event(StateTimeout, data) =>
+      parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
+      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+      releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
   when(ChoosingParkingSpot) {
