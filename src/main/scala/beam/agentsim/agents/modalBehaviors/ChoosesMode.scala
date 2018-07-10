@@ -50,7 +50,7 @@ trait ChoosesMode {
       }
   }
 
-  when(ChoosingMode)(transform {
+  when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
@@ -152,7 +152,7 @@ trait ChoosesMode {
 
   } using completeChoiceIfReady)
 
-  when(WaitingForReservationConfirmation)(transform {
+  when(WaitingForReservationConfirmation)(stateFunction = transform {
     case Event(ReservationResponse(_, Right(response)), choosesModeData: ChoosesModeData) =>
       val triggers = response.triggersToSchedule
       log.debug("scheduling triggers from reservation responses: {}", triggers)
