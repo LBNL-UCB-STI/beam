@@ -38,12 +38,12 @@ public class Main_equil {
 		Random rand = new Random();
 
 		Config config = ConfigUtils.loadConfig(
-				"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
+				"Y:\\tmp3\\matsim\\scenarios\\equil\\config.xml");
 		
 		Scenario scenario = ScenarioUtils.loadScenario(config);
 		
 		Network network= scenario.getNetwork();
-		
+
 		Person personOne = scenario.getPopulation().getPersons().get(Id.createPersonId("1"));
 
 		

@@ -1,14 +1,14 @@
-package beam.playground.jdeqsim_vs_qsim;
+package beam.playground.jdeqsim_with_cacc;
 
 import beam.playground.jdeqsim.CountEnterLinkEvents;
+import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimConfigGroup;
+import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.algorithms.EventWriterXML;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.scenario.ScenarioUtils;
 
 public class JDEQSimMain {
