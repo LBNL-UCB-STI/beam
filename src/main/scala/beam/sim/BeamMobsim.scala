@@ -135,23 +135,26 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
       val activityLocationsSpatialPlot = new SpatialPlot(1100, 1100, 50)
 
-      scenario.getPopulation.getPersons.values().forEach(x =>
-        x.getSelectedPlan.getPlanElements.forEach(y =>
-          if (y.isInstanceOf[Activity]) {
-            val z = y.asInstanceOf[Activity]
-            activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
-          }
+      if(beamServices.matsimServices != null) {
+
+        scenario.getPopulation.getPersons.values().forEach(x =>
+          x.getSelectedPlan.getPlanElements.forEach(y =>
+            if (y.isInstanceOf[Activity]) {
+              val z = y.asInstanceOf[Activity]
+              activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
+            }
+          )
         )
-      )
 
-      scenario.getPopulation.getPersons.values().forEach(x => {
-        val personInitialLocation: Coord = x.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        activityLocationsSpatialPlot.addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
+        scenario.getPopulation.getPersons.values().forEach(x => {
+          val personInitialLocation: Coord = x.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+          activityLocationsSpatialPlot.addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
+        }
+        )
+
+
+        activityLocationsSpatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "activityLocations.png"))
       }
-      )
-
-      activityLocationsSpatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "activityLocations.png"))
-
 
       scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
@@ -201,9 +204,11 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         rideHailinitialLocationSpatialPlot.addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
         rideHailinitialLocationSpatialPlot.addAgentWithCoord(RideHailAgentInitCoord(rideHailAgentPersonId,rideInitialLocation))
       }
-      rideHailinitialLocationSpatialPlot.writeCSV(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv"))
-      rideHailinitialLocationSpatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png"))
 
+      if(beamServices.matsimServices != null) {
+        rideHailinitialLocationSpatialPlot.writeCSV(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv"))
+        rideHailinitialLocationSpatialPlot.writeImage(beamServices.matsimServices.getControlerIO.getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png"))
+      }
       log.info(s"Initialized ${beamServices.personRefs.size} people")
       log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
       log.info(s"Initialized ${numRideHailAgents} ride hailing agents")
