@@ -6,16 +6,16 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingRequest, RideHailingResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.rideHail.RideHailManager.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
@@ -25,7 +25,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
@@ -46,7 +46,6 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
-import beam.utils.TestConfigUtils.testConfig
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -157,8 +156,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1, 2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), true)))))
 
       // The agent will ask for a ride, and we will answer.
-      val inquiry = expectMsgType[RideHailingRequest]
-      personActor ! RideHailingResponse(inquiry, None, None)
+      val inquiry = expectMsgType[RideHailRequest]
+      personActor ! RideHailResponse(inquiry, None, None)
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]

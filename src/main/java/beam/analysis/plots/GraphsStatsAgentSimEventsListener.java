@@ -40,7 +40,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
-    private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
+    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
@@ -68,7 +68,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.resetStats();
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
-        rideHailingWaitingStats.resetStats();
+        rideHailWaitingStats.resetStats();
         //generalStats.resetStats();
         rideHailingWaitingSingleStats.resetStats();
         realizedModeStats.resetStats();
@@ -80,7 +80,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             realizedModeStats.processStats(event);
         }
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
-            rideHailingWaitingStats.processStats(event);
+            rideHailWaitingStats.processStats(event);
             rideHailingWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
             realizedModeStats.processStats(event);
@@ -93,7 +93,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
-            rideHailingWaitingStats.processStats(event);
+            rideHailWaitingStats.processStats(event);
             rideHailingWaitingSingleStats.processStats(event);
         }
     }
@@ -102,7 +102,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         modeChoseStats.createGraph(event);
         fuelUsageStats.createGraph(event);
 
-        rideHailingWaitingStats.createGraph(event);
+        rideHailWaitingStats.createGraph(event);
         rideHailingWaitingSingleStats.createGraph(event);
 
 

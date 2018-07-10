@@ -6,7 +6,7 @@ import java.awt.Stroke
 import java.awt.image.BufferedImage
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.agentsim.agents.rideHail.RideHailingAgent
+import beam.agentsim.agents.rideHail.RideHailAgent
 import javax.imageio.ImageIO
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -16,7 +16,7 @@ import scala.util.Random
 case class PointToPlot(val coord:Coord, val color:Color, val size:Int)
 case class LineToPlot(val startCoord:Coord, val endCoord:Coord,  val color:Color, val stroke:Int)
 case class StringToPlot(val text:String,val coord:Coord, val color:Color, val fontSize:Int)
-case class RideHailAgentInitCoord(val agentId: Id[RideHailingAgent], val coord: Coord)
+case class RideHailAgentInitCoord(val agentId: Id[RideHailAgent], val coord: Coord)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 

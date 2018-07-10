@@ -1,6 +1,6 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingAgentLocation
+import beam.agentsim.agents.rideHail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
@@ -48,7 +48,7 @@ case class TNCIterationStats(
     * }
     */
   def reposition(
-                  vehiclesToReposition: Vector[RideHailingAgentLocation],
+                  vehiclesToReposition: Vector[RideHailAgentLocation],
                   repositionCircleRadiusInMeters: Double,
                   tick: Double,
                   timeHorizonToConsiderForIdleVehiclesInSec: Double,
@@ -231,12 +231,12 @@ case class TNCIterationStats(
   }
 
 
-  def getVehiclesCloseToIdlingAreas(idleVehicles: Vector[RideHailingAgentLocation],
+  def getVehiclesCloseToIdlingAreas(idleVehicles: Vector[RideHailAgentLocation],
                                     maxNumberOfVehiclesToReposition: Double,
                                     tick: Double,
                                     timeHorizonToConsiderForIdleVehiclesInSec: Double,
                                     thresholdForMinimumNumberOfIdlingVehicles: Int, beamServices: BeamServices)
-  : Vector[RideHailingAgentLocation] = {
+  : Vector[RideHailAgentLocation] = {
     var priorityQueue =
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) =>
         vls1.score.compare(vls2.score))
@@ -272,7 +272,7 @@ case class TNCIterationStats(
 
 //TODO: figure out issue with this code, why ERROR:
 more rideHailVehicle interruptions in process than should be possible: rideHailVehicle-22 -> further errors surpressed (debug later if this is still relevant)
-03:34:58.103 [beam-actor-system-akka.actor.default-dispatcher-9] ERROR beam.agentsim.agents.rideHail.RideHailingManager -
+03:34:58.103 [beam-actor-system-akka.actor.default-dispatcher-9] ERROR beam.agentsim.agents.rideHail.RideHailManager -
 when enabled
 
     if (!priorityQueue.isEmpty){
@@ -281,11 +281,11 @@ when enabled
 
       val mapping =
       priorityQueue.map (vehicleLocationScore =>
-          new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
+          new WeightPair(vehicleLocationScore.rideHailAgentLocation,
             new java.lang.Double(vehicleLocationScore.score / scoreSum))).toList.asJava
 
       val enumDistribution = new EnumeratedDistribution(mapping)
-      val sample = enumDistribution.sample(maxNumberOfVehiclesToReposition.toInt, Array[RideHailingAgentLocation]())
+      val sample = enumDistribution.sample(maxNumberOfVehiclesToReposition.toInt, Array[RideHailAgentLocation]())
 
       sample.toVector
     } else {
@@ -299,7 +299,7 @@ when enabled
 
     //printTAZForVehicles(idleVehicles)
 
-    head.map(_.rideHailingAgentLocation)
+    head.map(_.rideHailAgentLocation)
       .toVector
   }
 
@@ -313,12 +313,12 @@ when enabled
   // the longer the waiting time in future, the l
   // just look at smaller repositioning
   def getVehiclesWhichAreBiggestCandidatesForIdling(
-                                                     idleVehicles: Vector[RideHailingAgentLocation],
+                                                     idleVehicles: Vector[RideHailAgentLocation],
                                                      maxNumberOfVehiclesToReposition: Double,
                                                      tick: Double,
                                                      timeHorizonToConsiderForIdleVehiclesInSec: Double,
                                                      thresholdForMinimumNumberOfIdlingVehicles: Int)
-  : Vector[RideHailingAgentLocation] = {
+  : Vector[RideHailAgentLocation] = {
 
     // TODO: convert to non sorted, as priority queue not needed anymore
     val priorityQueue =
@@ -364,18 +364,18 @@ when enabled
 
     val scoreSum=priorityQueue.map( x=> x.score).sum
 
-    val mapping = new java.util.ArrayList[WeightPair[RideHailingAgentLocation, java.lang.Double]]()
+    val mapping = new java.util.ArrayList[WeightPair[RideHailAgentLocation, java.lang.Double]]()
     priorityQueue.foreach { vehicleLocationScore =>
 
       mapping.add(
-        new WeightPair(vehicleLocationScore.rideHailingAgentLocation,
+        new WeightPair(vehicleLocationScore.rideHailAgentLocation,
           vehicleLocationScore.score / scoreSum))
     }
 
     val enumDistribution = new EnumeratedDistribution(mapping)
     val sample = enumDistribution.sample(idleVehicles.size)
 
-    (for (rideHailingAgentLocation <- sample; a = rideHailingAgentLocation.asInstanceOf[RideHailingAgentLocation]) yield a).toVector
+    (for (rideHailAgentLocation <- sample; a = rideHailAgentLocation.asInstanceOf[RideHailAgentLocation]) yield a).toVector
     } else {
       Vector()
     }
@@ -391,20 +391,20 @@ when enabled
     head
       .filter(vehicleLocationScores =>
         vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles)
-      .map(_.rideHailingAgentLocation)
+      .map(_.rideHailAgentLocation)
       .toVector
   }
 
-  private def printTAZForVehicles(rideHailingAgentLocations: Vector[RideHailingAgentLocation]): Unit = {
+  private def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
     log.debug("vehicle located at TAZs:")
-    rideHailingAgentLocations.foreach(x => log.debug(s"s${x.vehicleId} -> ${
+    rideHailAgentLocations.foreach(x => log.debug(s"s${x.vehicleId} -> ${
       tazTreeMap.getTAZ(x.currentLocation.loc.getX,
         x.currentLocation.loc.getY).tazId
     }"))
   }
 
   def demandRatioInCircleToOutside(
-                                    vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation],
+                                    vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
                                     circleSize: Double,
                                     tick: Double,
                                     timeWindowSizeInSecForDecidingAboutRepositioning: Double): Double = {
@@ -439,7 +439,7 @@ when enabled
   val maxRadiusInMeters = 10 * 1000
 
   def getUpdatedCircleSize(
-                            vehiclesToReposition: Vector[RideHailingManager.RideHailingAgentLocation],
+                            vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
                             circleRadiusInMeters: Double,
                             tick: Double,
                             timeWindowSizeInSecForDecidingAboutRepositioning: Double,
@@ -606,7 +606,7 @@ object TNCIterationStats {
 }
 
 case class VehicleLocationScores(
-                                  rideHailingAgentLocation: RideHailingAgentLocation,
+                                  rideHailAgentLocation: RideHailAgentLocation,
                                   score: Double)
 
 case class TazScore(taz: TAZ, score: Double)

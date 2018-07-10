@@ -14,8 +14,6 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-
-
 /**
   * BEAM
   */
@@ -30,9 +28,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
 
-      val groupedByMode = modeCostTimeTransfers.sortBy(_.mode.value).groupBy(_.mode)
+      val groupedByMode: Map[BeamMode, Seq[ModeCostTimeTransfer]] = modeCostTimeTransfers.groupBy(_.mode)
 
-      val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
+      val bestInGroup = groupedByMode.map { case (_, modeCostTimeSegment) =>
         // Which dominates at $18/hr
         modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.minBy(_._1)._2
       }

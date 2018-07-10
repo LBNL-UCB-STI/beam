@@ -20,7 +20,7 @@ public class PersonTravelTimeTest {
         /**
          * 0 index represent CAR count
          * 1 index represent DriveTran count
-         * 2 index represent RideHailing count
+         * 2 index represent RideHail count
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
@@ -28,7 +28,7 @@ public class PersonTravelTimeTest {
         int actualResultOfMode[] = {
                 personTravelTimeStats.getAvgCountForSpecificHour(CAR, 6),
                 personTravelTimeStats.getAvgCountForSpecificHour(DRIVE_TRANS, 6),
-                personTravelTimeStats.getAvgCountForSpecificHour(RIDE_HAILING, 6),
+                personTravelTimeStats.getAvgCountForSpecificHour(RIDE_HAIL, 6),
                 personTravelTimeStats.getAvgCountForSpecificHour(WALK, 6),
                 personTravelTimeStats.getAvgCountForSpecificHour(WALK_TRANS, 6)
         };

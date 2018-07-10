@@ -154,7 +154,7 @@ class ChangeModeForTour(beamServices: BeamServices,
       stageActivitytypes)).toIndexedSeq
 
     rankedAlternatives.foreach({ case (tourIdx, alts) =>
-      val denom = Math.abs(alts.values.map(Math.exp(_)).sum)
+      val denom = Math.abs(alts.values.map(Math.exp).sum)
       val altIter = alts.map { x => new Pair[BeamMode, java.lang.Double](x._1, Math.exp(x._2) / denom) }
       val dist = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(altIter.toBuffer))
       val choice = dist.sample()

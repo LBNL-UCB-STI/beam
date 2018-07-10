@@ -60,7 +60,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-  var rideHailingRevenue = ArrayBuffer[Double]()
+  val rideHailRevenue = ArrayBuffer[Double]()
 
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
@@ -123,13 +123,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
         }
       }
     }
-    updatePreviousIterationRevenuesAndResetCurrent
+    updatePreviousIterationRevenuesAndResetCurrent()
   }
 
   //Method to avoid code duplication
   private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
-      for (j <- 0 until binArray.size) {
+      for (j <- binArray.indices) {
         val surgePriceBin = binArray.apply(j)
         val updatedBin = updateFn(surgePriceBin)
         binArray.update(j, updatedBin)
@@ -137,7 +137,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     }
   }
 
-  def updatePreviousIterationRevenuesAndResetCurrent = {
+  def updatePreviousIterationRevenuesAndResetCurrent(): Unit = {
     updateForAllElements(surgePriceBins) { surgePriceBin =>
       val updatedPrevIterRevenue = surgePriceBin.currentIterationRevenue
       surgePriceBin.copy(previousIterationRevenue = updatedPrevIterRevenue, currentIterationRevenue = 0)
@@ -177,13 +177,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   // TODO: print revenue each iteration out
 
 
-  def updateRevenueStats() = {
+  def updateRevenueStats(): Unit = {
     // TODO: is not functioning properly yet
-    rideHailingRevenue.append(getCurrentIterationRevenueSum)
-    //rideHailingRevenue.foreach(println)
+    rideHailRevenue.append(getCurrentIterationRevenueSum)
+    //rideHailRevenue.foreach(println)
   }
 
-  private def getCurrentIterationRevenueSum(): Double = {
+  private def getCurrentIterationRevenueSum: Double = {
     var sum: Double = 0
     surgePriceBins.values.foreach { i =>
       for (j <- 0 until i.size - 1) {
@@ -201,14 +201,14 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
-  def incrementIteration() = {
+  def incrementIteration(): Unit = {
     iteration += 1
     surgePricingLevelCount = 0
     totalSurgePricingLevel = 0
     maxSurgePricingLevel = 0
   }
 
-  def getIterationNumber() = {
+  def getIterationNumber: Int = {
     iteration
   }
 }

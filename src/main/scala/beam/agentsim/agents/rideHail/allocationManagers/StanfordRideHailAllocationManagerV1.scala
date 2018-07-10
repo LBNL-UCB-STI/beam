@@ -1,10 +1,12 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.{RideHailNetworkAPI, RideHailingManager}
+import beam.agentsim.agents.rideHail.{RideHailManager, RideHailNetworkAPI}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
 
 /*
@@ -17,7 +19,7 @@ TODO: changing previous allocation should work
 TODO: repositioning vehicles should be able to get duty any time
 
  */
-class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingManager, val rideHailNetworkApi: RideHailNetworkAPI) extends RideHailResourceAllocationManager {
+class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager, val rideHailNetworkApi: RideHailNetworkAPI) extends RideHailResourceAllocationManager {
   val isBufferedRideHailAllocationMode = false
 
 
@@ -30,10 +32,10 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
    */
 
   override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)
+    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters)
 
-    rideHailingAgentLocation match {
-      case Some(rideHailingAgentLocation) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
+    rideHailAgentLocation match {
+      case Some(rideHailLocation) => Some(VehicleAllocation(rideHailLocation.vehicleId, rideHailLocation.currentLocation))
       case None => None
     }
   }
@@ -43,23 +45,23 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]()
-    var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
-    for ((vehicleAllocationRequest, vehicleAllocation) <- allocationsDuringReservation) {
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+    val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
+    for ((vehicleAllocationRequest, _) <- allocationsDuringReservation) {
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for (rideHailingAgentLocation <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)) {
-          if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
-            alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
-            vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
+        for (rideHailAgentLocation <- rideHailManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters)) {
+          if (!alreadyUsedVehicles.contains(rideHailAgentLocation.vehicleId)) {
+            alreadyUsedVehicles.add(rideHailAgentLocation.vehicleId)
+            vehicleAllocation = Some(VehicleAllocation(rideHailAgentLocation.vehicleId, rideHailAgentLocation.currentLocation))
             break
           }
         }
       }
 
-      result = result :+ (vehicleAllocationRequest, vehicleAllocation)
+      result += ((vehicleAllocationRequest, vehicleAllocation))
     }
     result
   }
@@ -69,8 +71,8 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     This method is called periodically, e.g. every 60 seconds to reposition ride hailing vehicles, e.g. towards areas of higher demand
    */
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailingManager.getIdleVehicles.size >= 2) {
-      val iter = rideHailingManager.getIdleVehicles.iterator
+    if (rideHailManager.getIdleVehicles.size >= 2) {
+      val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, _) = iter.next()
       val (_, vehicleLocationB) = iter.next()
       Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
@@ -86,7 +88,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
 /*
   API available to implement allocation manager
  */
-  def apiExamples(vehicleAllocationRequest: VehicleAllocationRequest) = {
+  def apiExamples(vehicleAllocationRequest: VehicleAllocationRequest): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
 
     // network operations
     val linkId = 5
@@ -101,10 +103,9 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
 
     // RHM
-    val rideHailAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters).get
-    rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radiusInMeters)
-    rideHailingManager.getIdleVehicles
-
+    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters).get
+    rideHailManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
+    rideHailManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters)
+    rideHailManager.getIdleVehicles
   }
 }

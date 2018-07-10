@@ -13,7 +13,7 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
   }
 
 // TODO RW/Asif: how to make sure no one ever can call this?
-def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
   log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     //???
   return allocationsDuringReservation

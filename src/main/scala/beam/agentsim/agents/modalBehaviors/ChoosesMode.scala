@@ -1,7 +1,6 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.FSM
-import akka.actor.FSM.Failure
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -9,14 +8,12 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode._
-import beam.agentsim.agents.rideHail.RideHailingManager._
-import beam.agentsim.agents.rideHail.RideHailingManager
+import beam.agentsim.agents.rideHail.RideHailManager.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
@@ -54,7 +51,7 @@ trait ChoosesMode {
       }
   }
 
-  when(ChoosingMode) ( transform {
+  when(ChoosingMode)(transform {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
@@ -63,7 +60,7 @@ trait ChoosesMode {
         case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
-        case Some(DRIVE_TRANSIT)=>
+        case Some(DRIVE_TRANSIT) =>
           val tour = _experiencedBeamPlan.getTourContaining(nextAct)
           val tripIndex = tour.tripIndexOfElement(nextAct)
           if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
@@ -81,7 +78,7 @@ trait ChoosesMode {
       }
 
       def makeRideHailRequest(): Unit = {
-        rideHailingManager ! RideHailingRequest(RideHailingInquiry, bodyVehiclePersonId,
+        rideHailManager ! RideHailRequest(RideHailInquiry, bodyVehiclePersonId,
           currentActivity(choosesModeData.personData).getCoord, departTime, nextAct.getCoord)
       }
 
@@ -121,9 +118,9 @@ trait ChoosesMode {
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
-        case Some(mode @ (CAR | BIKE)) =>
+        case Some(mode@(CAR | BIKE)) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
+          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case l: Leg => Some(l)
             case _ => None
           }
@@ -174,7 +171,7 @@ trait ChoosesMode {
       }
       val newPersonData = choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         routingResponse = responsePlaceholders.routingResponse, rideHail2TransitRoutingResponse = responsePlaceholders.rideHail2TransitRoutingResponse,
-        rideHail2TransitRoutingRequestId = requestId, rideHailingResult = responsePlaceholders.rideHailingResult,
+        rideHail2TransitRoutingRequestId = requestId, rideHailResult = responsePlaceholders.rideHailResult,
         rideHail2TransitAccessResult = responsePlaceholders.rideHail2TransitAccessResult,
         rideHail2TransitEgressResult = responsePlaceholders.rideHail2TransitEgressResult
         )
@@ -193,25 +190,25 @@ trait ChoosesMode {
         val egressId = if(egressSegment.map(_.travelPath.distanceInM).sum > 0){makeRideHailRequestFromBeamLeg(egressSegment)}else{None}
         choosesModeData.copy(rideHail2TransitRoutingResponse = Some(driveTransitTrip.get),
           rideHail2TransitAccessInquiryId = accessId, rideHail2TransitEgressInquiryId = egressId,
-          rideHail2TransitAccessResult = if(accessId.isEmpty){Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))}else{None},
-          rideHail2TransitEgressResult = if(egressId.isEmpty){Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError))}else{None}
+          rideHail2TransitAccessResult = if(accessId.isEmpty){Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))}else{None},
+          rideHail2TransitEgressResult = if(egressId.isEmpty){Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))}else{None}
         )
       }else{
         choosesModeData.copy(rideHail2TransitRoutingResponse = Some(EmbodiedBeamTrip.empty),
-          rideHail2TransitAccessResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)),
-          rideHail2TransitEgressResult = Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)))
+          rideHail2TransitAccessResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
+          rideHail2TransitEgressResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
       }
       stay() using newPersonData
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
-    case Event(theRideHailingResult: RideHailingResponse, choosesModeData: ChoosesModeData) =>
-      val newPersonData = Some(theRideHailingResult.request.requestId) match {
+    case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
+      val newPersonData = Some(theRideHailResult.request.requestId) match {
         case choosesModeData.rideHail2TransitAccessInquiryId =>
-          choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailingResult))
+          choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailResult))
         case choosesModeData.rideHail2TransitEgressInquiryId =>
-          choosesModeData.copy(rideHail2TransitEgressResult = Some(theRideHailingResult))
+          choosesModeData.copy(rideHail2TransitEgressResult = Some(theRideHailResult))
         case _ =>
-          choosesModeData.copy(rideHailingResult = Some(theRideHailingResult))
+          choosesModeData.copy(rideHailResult = Some(theRideHailResult))
       }
       stay() using newPersonData
 
@@ -220,24 +217,24 @@ trait ChoosesMode {
   def isRideHailToTransitResponse(response: RoutingResponse): Boolean = {
     response.itineraries.exists(_.vehiclesInTrip.contains(dummyRHVehicle.id))
   }
-  def shouldAttemptRideHail2Transit(driveTransitTrip: Option[EmbodiedBeamTrip], rideHail2TransitResult: Option[RideHailingResponse]): Boolean = {
+  def shouldAttemptRideHail2Transit(driveTransitTrip: Option[EmbodiedBeamTrip], rideHail2TransitResult: Option[RideHailResponse]): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs.exists(_.beamLeg.mode.isMassTransit()) &&
-      rideHail2TransitResult.getOrElse(RideHailingResponse.dummy).error.isEmpty
+      rideHail2TransitResult.getOrElse(RideHailResponse.dummy).error.isEmpty
   }
   def makeRideHailRequestFromBeamLeg(legs: Vector[BeamLeg]): Option[Int] = {
-    val inquiry = RideHailingRequest(RideHailingInquiry, bodyVehiclePersonId,
+    val inquiry = RideHailRequest(RideHailInquiry, bodyVehiclePersonId,
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc), DiscreteTime(legs.head.startTime.toInt),
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc))
-    rideHailingManager ! inquiry
+    rideHailManager ! inquiry
     Some(inquiry.requestId)
   }
 
   case object FinishingModeChoice extends BeamAgentState
 
-  def createRideHail2TransitItin(rideHail2TransitAccessResult: RideHailingResponse, rideHail2TransitEgressResult: RideHailingResponse,
+  def createRideHail2TransitItin(rideHail2TransitAccessResult: RideHailResponse, rideHail2TransitEgressResult: RideHailResponse,
                                  driveTransitTrip: EmbodiedBeamTrip): Option[EmbodiedBeamTrip] = {
     if(rideHail2TransitAccessResult.error.isEmpty){
-      val tncAccessLeg = rideHail2TransitAccessResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.dropRight(1)
+      val tncAccessLeg = rideHail2TransitAccessResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.dropRight(1)
       // Replacing drive access leg with TNC changes the travel time.
       val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get.toInt -
         tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
@@ -250,7 +247,7 @@ trait ChoosesMode {
         val startTimeBufferForWaiting = math.min(extraWaitTimeBuffer,math.max(300.0,rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5)) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
         val accessAndTransit = tncAccessLeg.map(leg => leg.copy(leg.beamLeg.updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.longValue()))) ++ driveTransitTrip.legs.tail
         val fullTrip = if(rideHail2TransitEgressResult.error.isEmpty){
-          accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHailing2Dest.itineraries.head.legs.tail
+          accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.tail
         }else{
           accessAndTransit
         }
@@ -262,11 +259,11 @@ trait ChoosesMode {
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult),
+    case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailResult),
     Some(rideHail2TransitRoutingResponse),_,Some(rideHail2TransitAccessResult), _,Some(rideHail2TransitEgressResult),_,_,_,_), _, _, _) =>
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, rideHail2TransitRoutingResponse)
-      val rideHailItinerary = if(rideHailingResult.travelProposal.isDefined){rideHailingResult.travelProposal.get.responseRideHailing2Dest.itineraries}else{Vector()}
+      val rideHailItinerary = if(rideHailResult.travelProposal.isDefined){rideHailResult.travelProposal.get.responseRideHail2Dest.itineraries}else{Vector()}
       val combinedItinerariesForChoice = rideHailItinerary ++ routingResponse.itineraries ++ rideHail2TransitIinerary.toVector
     //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
       val filteredItinerariesForChoice = personData.currentTourMode match {
@@ -318,13 +315,13 @@ trait ChoosesMode {
       } else {
         val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex).getCoord)
         val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).getCoord)
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,origin,10000)))
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,destination,10000)))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin, 10000)))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, 10000)))
       }
 
       def availableAlternatives = {
         val theModes = data.routingResponse.get.itineraries.map(_.tripClassifier).distinct
-        if (data.rideHailingResult.isDefined && data.rideHailingResult.get.error.isEmpty) {
+        if (data.rideHailResult.isDefined && data.rideHailResult.get.error.isEmpty) {
           theModes :+ RIDE_HAIL
         } else {
           theModes
@@ -336,10 +333,11 @@ trait ChoosesMode {
 
       val personalVehicleUsed = data.availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip).headOption
 
-      var availablePersonalStreetVehicles = data.availablePersonalStreetVehicles
-      if (personalVehicleUsed.nonEmpty) {
-        availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed.get)
+      val availablePersonalStreetVehicles = if (personalVehicleUsed.nonEmpty) {
+        data.availablePersonalStreetVehicles.filterNot(_.id == personalVehicleUsed.get)
       }
+      else data.availablePersonalStreetVehicles
+
       availablePersonalStreetVehicles.foreach { veh =>
         context.parent ! ReleaseVehicleReservation(id, veh.id)
         context.parent ! CheckInResource(veh.id, None)
@@ -355,39 +353,44 @@ trait ChoosesMode {
 }
 
 object ChoosesMode {
+
   case class ChoosesModeData(personData: BasePersonData,
                              pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              routingResponse: Option[RoutingResponse] = None,
-                             rideHailingResult: Option[RideHailingResponse] = None,
+                             rideHailResult: Option[RideHailResponse] = None,
                              rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
                              rideHail2TransitRoutingRequestId: Option[Int] = None,
-                             rideHail2TransitAccessResult: Option[RideHailingResponse] = None,
+                             rideHail2TransitAccessResult: Option[RideHailResponse] = None,
                              rideHail2TransitAccessInquiryId: Option[Int] = None,
-                             rideHail2TransitEgressResult: Option[RideHailingResponse] = None,
+                             rideHail2TransitEgressResult: Option[RideHailResponse] = None,
                              rideHail2TransitEgressInquiryId: Option[Int] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None,
                              isWithinTripReplanning: Boolean = false
                             ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
+
     override def currentLegPassengerScheduleIndex: Int = personData.currentLegPassengerScheduleIndex
+
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
+
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+
     override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
   }
   case class ChoosesModeResponsePlaceholders(routingResponse: Option[RoutingResponse] = None,
-                                             rideHailingResult: Option[RideHailingResponse] = None,
+                                             rideHailResult: Option[RideHailResponse] = None,
                                              rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
-                                             rideHail2TransitAccessResult: Option[RideHailingResponse] = None,
-                                             rideHail2TransitEgressResult: Option[RideHailingResponse] = None
+                                             rideHail2TransitAccessResult: Option[RideHailResponse] = None,
+                                             rideHail2TransitEgressResult: Option[RideHailResponse] = None
                                             )
   def makeResponsePlaceholders(withRouting: Boolean = false, withRideHail: Boolean = false, withRideHailTransit: Boolean = false): ChoosesModeResponsePlaceholders = {
     ChoosesModeResponsePlaceholders(
       routingResponse = if(withRouting){ None }else{ Some(RoutingResponse(Vector()))},
-      rideHailingResult = if(withRideHail){ None }else{ Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)) },
+      rideHailResult = if(withRideHail){ None }else{ Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)) },
       rideHail2TransitRoutingResponse = if(withRideHailTransit){ None }else{ Some(EmbodiedBeamTrip.empty)},
-      rideHail2TransitAccessResult = if(withRideHailTransit){ None }else{ Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)) },
-      rideHail2TransitEgressResult = if(withRideHailTransit){ None }else{ Some(RideHailingResponse.dummyWithError(RideHailNotRequestedError)) }
+      rideHail2TransitAccessResult = if(withRideHailTransit){ None }else{ Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)) },
+      rideHail2TransitEgressResult = if(withRideHailTransit){ None }else{ Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)) }
     )
   }
 

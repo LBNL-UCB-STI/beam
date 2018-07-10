@@ -27,7 +27,7 @@ public class DeadHeadingStats implements IGraphStats {
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private String fileNameBase = "rideHail";
+    private static final String fileNameBase = "rideHail";
     private String graphTitle = null;
     private static final int DEFAULT_OCCURRENCE = 1;
 
@@ -197,7 +197,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    private boolean updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
+    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers){
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -214,7 +214,6 @@ public class DeadHeadingStats implements IGraphStats {
         }
 
         deadHeadingsTnc0Map.put(hour, hourData);
-        return true;
     }
 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
@@ -405,7 +404,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    public boolean updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers) {
+    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers){
 
         Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
         Map<Integer, Integer> hourData = null;
@@ -428,7 +427,6 @@ public class DeadHeadingStats implements IGraphStats {
         }
         deadHeadings.put(hour, hourData);
         deadHeadingsMap.put(graphName, deadHeadings);
-        return true;
     }
 
     private void createDeadHeadingPassengerPerTripGraph(IterationEndsEvent event, String graphType) throws IOException {

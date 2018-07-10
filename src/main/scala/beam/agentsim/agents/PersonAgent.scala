@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingRequest, RideHailingResponse}
+import beam.agentsim.agents.rideHail.RideHailManager.{ReserveRide, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -37,9 +37,9 @@ object PersonAgent {
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
 
-  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
+  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
   trait PersonData extends DrivingData
@@ -116,7 +116,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends
   DrivesVehicle[PersonData] with ChoosesMode with Stash {
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
@@ -214,9 +214,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick,triggerId)
       goto(ChoosingMode) using ChoosesModeData(data,isWithinTripReplanning = true)
-    case Event(RideHailingResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
+    case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
-    case Event(RideHailingResponse(_, _, Some(error), _), data: BasePersonData) =>
+    case Event(RideHailResponse(_, _, Some(error), _), data: BasePersonData) =>
       logWarn(s"replanning because ${error.errorCode}")
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
@@ -329,7 +329,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
 
-      rideHailingManager ! RideHailingRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
+      rideHailManager ! RideHailRequest(ReserveRide, VehiclePersonId(bodyId, id, Some(self)), beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt, beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc))
 
       eventsManager.processEvent(new ReserveRideHailEvent(_currentTick.getOrElse(departAt.atTime), id, departAt.atTime, nextLeg.beamLeg.travelPath.startPoint.loc, legSegment.last.beamLeg.travelPath.endPoint.loc))

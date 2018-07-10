@@ -5,7 +5,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.rideHail.RideHailUtils
-import beam.agentsim.agents.rideHail.RideHailingAgent._
+import beam.agentsim.agents.rideHail.RideHailAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -37,8 +37,10 @@ object DrivesVehicle {
   case class StopDriving(tick: Double)
 
   case class AddFuel(fuelInJoules: Double)
+
   case object GetBeamVehicleFuelLevel
-  case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel:Double)
+
+  case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
 
 }
 
@@ -72,7 +74,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
               eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
               eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
                 beamServices.vehicles(currentVehicleUnderControl).getType,
-                data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg,beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)))
+                data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg, beamServices.vehicles(currentVehicleUnderControl).fuelLevel.getOrElse(-1.0)))
             case None =>
               log.error("Current Leg is not available.")
           }
@@ -98,7 +100,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case ev@Event(Interrupt(interruptId,tick), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
-      goto(DrivingInterrupted) replying InterruptedAt(interruptId,data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id,tick)
+      goto(DrivingInterrupted) replying InterruptedAt(interruptId, data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id, tick)
 
   }
 
@@ -164,7 +166,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
+      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_, _) => 0L)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
@@ -236,10 +238,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       // also position is not accurate (TODO: interpolate?)
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
 
-      val lastLocationVisited=SpaceTime(new Coord(0,0),0) // TODO: don't ask for this here - TNC should keep track of it?
+      //      val lastLocationVisited = SpaceTime(new Coord(0, 0), 0) // TODO: don't ask for this here - TNC should keep track of it?
       // val lastLocationVisited = currentLeg.travelPath.endPoint
 
-      sender() !  BeamVehicleFuelLevelUpdate(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get)
+      sender() ! BeamVehicleFuelLevelUpdate(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get)
       stay()
   }
 
