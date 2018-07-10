@@ -22,6 +22,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
   /**
     * check whether warmStart mode is enabled.
+    *
     * @return true if warm start enabled, otherwise false.
     */
   val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
@@ -74,7 +75,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
       warmStartPath match {
         case Some(statsPath) =>
-          if(Files.exists(Paths.get(statsPath))) {
+          if (Files.exists(Paths.get(statsPath))) {
             beamServices.beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
             logger.info(s"Warm start mode initialized successfully from stats located at $warmStartPath.")
           } else {
