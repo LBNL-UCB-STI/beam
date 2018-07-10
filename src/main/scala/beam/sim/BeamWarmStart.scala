@@ -20,8 +20,15 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   private val pathType = beamConfig.beam.warmStart.pathType
   private val srcPath = beamConfig.beam.warmStart.path
 
+  /**
+    * check whether warmStart mode is enabled.
+    * @return true if warm start enabled, otherwise false.
+    */
   val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
 
+  /**
+    * initialize warm start mode.
+    */
   def init(): Unit = {
     if (isWarmMode) {
 
