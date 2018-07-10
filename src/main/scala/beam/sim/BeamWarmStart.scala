@@ -97,7 +97,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   }
 
   private def getTravelTime(statsFile: String): TravelTime = {
-    val binSize = beamConfig.beam.agentsim.agents.rideHail.surgePricing.timeBinSize
+    val binSize = beamConfig.beam.agentsim.timeBinSize
 
     new LinkTravelTimeContainer(statsFile, binSize)
   }
