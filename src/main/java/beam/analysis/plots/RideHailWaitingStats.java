@@ -169,10 +169,10 @@ public class RideHailWaitingStats implements IGraphStats {
         BufferedWriter out = null;
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "WaitingTime\\Hour";
-            for (int hours = 1; hours <= 24; hours++) {
-                heading += "," + hours;
-            }
+            String heading = "WaitingTime,Hour,Count";
+//            for (int hours = 1; hours <= 24; hours++) {
+//                heading += "," + hours;
+//            }
             out.write(heading);
             out.newLine();
 
@@ -183,14 +183,17 @@ public class RideHailWaitingStats implements IGraphStats {
 
                 Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
-                out.write(_category + "");
+                //out.write(_category + "");
                 String line = "";
                 for (int i = 0; i < 24; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
-                    line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
+                    line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
+
+                    line = _category + "," + (i + 1) + "," + line;
                     out.write(line);
+                    out.newLine();
                 }
-                out.newLine();
+                //out.newLine();
             }
             out.flush();
             out.close();
