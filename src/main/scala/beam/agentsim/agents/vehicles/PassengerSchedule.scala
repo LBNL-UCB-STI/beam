@@ -29,9 +29,21 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
 }
 
+//Specialized copy of Ordering.by[Tuple2] so we can control compare
+//Also has the benefit of not requiring allocation of a Tuple2, which turned out to be costly at scale
+object BeamLegOrdering extends Ordering[BeamLeg] {
+  def compare(a:BeamLeg, b:BeamLeg): Int = {
+    val compare1 = java.lang.Long.compare(a.startTime, b.startTime)
+    if (compare1 != 0) return compare1
+    val compare2 = java.lang.Long.compare(a.duration, b.duration)
+    if (compare2 != 0) return compare2
+    0
+  }
+}
+
 
 object PassengerSchedule {
-  def apply(): PassengerSchedule = new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(Ordering.by(x=>(x.startTime,x.duration))))
+  def apply(): PassengerSchedule = new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 }
 
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
