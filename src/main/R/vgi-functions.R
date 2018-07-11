@@ -1,32 +1,48 @@
 
+load.scenarios <- function(){
+  scenarios <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/Scaling_factors_for_forecast_and_EV_counts_July24_2017.csv'))
+  scenarios <- melt(scenarios[,list(Electric.Utility,Vehicle_category,
+                                    Low_2025_energy_propCED15_2080,Low_2025_energy_propCED15_5050,Low_2025_energy_propCED15_8020,Low_2025_energy_propCED15_4060,Low_2025_energy_propCED15_6040,
+                                    Mid_2025_energy_propCED15_2080,Mid_2025_energy_propCED15_5050,Mid_2025_energy_propCED15_8020,Mid_2025_energy_propCED15_4060,Mid_2025_energy_propCED15_6040,
+                                    High_2025_energy_propCED15_2080,High_2025_energy_propCED15_5050,High_2025_energy_propCED15_8020,High_2025_energy_propCED15_4060,High_2025_energy_propCED15_6040
+                                    )],id.vars=c('Electric.Utility','Vehicle_category'))
+  scenarios[,penetration:=unlist(lapply(str_split(variable,"_"),function(ll){ ll[1] }))]
+  scenarios[,veh.type.split:=unlist(lapply(str_split(variable,"_"),function(ll){ ifelse(length(ll)==4,ll[4],ll[5]) }))]
+  scenarios[,':='(veh.type=Vehicle_category,Vehicle_category=NULL)]
+  scenarios
+}  
   gap.analysis <- function(the.df){
     setkey(the.df,hr,final.type,veh.type,constraint)
     gap <- the.df[,list(max.en=cumul.energy[1],min.en=cumul.energy[2],gap=cumul.energy[1]-cumul.energy[2],plugged.in.capacity=plugged.in.capacity[1]),by=c('hr','final.type','veh.type')]
+    gap[gap<0,min.en:=max.en]
+    gap[gap<0,gap:=0]
     gap[,hr.cal:=(hr-1)%%24+1]
     gap[,max.norm:=max.en-min(max.en),by=c('final.type','veh.type')]
-    gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
-    gap <- gap[hr>28]
-    setkey(gap,final.type,veh.type,hr.cal)
-    gap[hr>30 & hr.cal>=23]
-    max.start <- gap[hr>30 & hr.cal>=23,list(maxstart=diff(max.en)),by=c('final.type','veh.type')]
+    #gap[hr.cal<=4 & hr>32,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
+    gap <- gap[hr>=30]
+    setkey(gap,final.type,veh.type,hr)
+    gap[hr>32 & hr.cal%in%4:5]
+    max.start <- gap[hr>32 & hr.cal%in%4:5,list(maxstart=diff(max.en)),by=c('final.type','veh.type')]
     gap <- join.on(gap,max.start,c('final.type','veh.type'))
     gap[,max.norm:=max.norm-min(max.norm)+maxstart,by=c('final.type','veh.type')]
     gap[,min.norm:=max.norm-gap]
-    min.start <- gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
+    min.start <- gap[hr>32 & hr.cal%in%4:5,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
     gap <- join.on(gap,min.start,c('final.type','veh.type'))
     gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
     gap
   }
+  # the.gap <- copy(gap.weekday)
+  # the.day <- the.wday
   scale.the.gap <- function(the.gap,cp.day.norm,the.day){
     day.name <- names(wdays[wdays==the.day])
     the.gap <- join.on(the.gap,cp.day.norm[wday==day.name],'final.type','type','norm.load')
     the.gap[,max.norm:=max.norm*norm.load]
     the.gap[,min.norm:=max.norm-gap*norm.load]
     the.gap[,plugged.in.capacity:=plugged.in.capacity*norm.load]
-    min.start <- the.gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
+    min.start <- the.gap[hr>32 & hr.cal%in%4:5,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
     the.gap <- join.on(the.gap,min.start,c('final.type','veh.type'))
     the.gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
-    the.gap 
+    the.gap[hr<54] 
   }
 
 repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
