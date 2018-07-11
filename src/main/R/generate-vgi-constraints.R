@@ -1,5 +1,5 @@
 
-load.libraries(c('Hmisc','sqldf','GEOquery'))
+load.libraries(c('Hmisc','sqldf','GEOquery','stringr'))
 
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/debug.R')
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-functions.R')
@@ -43,11 +43,11 @@ out.dirs <- list(  'vmt-68k' = c('/Users/critter/Documents/beam/beam-output/cali
 #out.dirs <- list( 'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0) )
 #out.dirs <- list( 'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) )
 
-out.dirs <- list(  'base' = c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0)
+out.dirs <- list(  'base' = c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0) )
                  #'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-28_00-19-21-morework100/',0),
                   #'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0),
                    #'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) 
-                 )
+                 #)
 
 #out.dirs <- list(  #'var-1' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-29_10-37-29-variance-1/',0),
                  #'var-2' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-29_10-37-34-variance-2/',0)
