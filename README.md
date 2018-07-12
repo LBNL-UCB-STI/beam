@@ -13,7 +13,7 @@ or
 
 try running BEAM with our simple [getting started guide](http://beam.readthedocs.io/en/latest/users.html#getting-started) 
 
-or 
+or  
 
 check out the [developer guide](http://beam.readthedocs.io/en/latest/developers.html) to start getting serious about power using or contributing.
 
