@@ -3,14 +3,10 @@ package beam.agentsim.agents.rideHail
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.router.r5.NetworkCoordinator
-import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
-import org.matsim.api.core.v01.events.{
-  Event,
-  PersonEntersVehicleEvent,
-  PersonLeavesVehicleEvent
-}
+import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -55,31 +51,38 @@ class RideHailPassengersEventsSpec
     }
 
     "keep passengers right count" in {
-      val events = TrieMap[String, Int]()
+      val events = TrieMap[String, Tuple3[Int, Int, Int]]()
 
       initialSetup(new BasicEventHandler {
 
         override def handleEvent(event: Event): Unit = {
           event match {
             case traversalEvent: PathTraversalEvent =>
-              val id = traversalEvent.getAttributes.get(
-                PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-              events.getOrElse(id, 0) shouldBe traversalEvent.getAttributes
-                .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-                .toInt
-            case enterEvent: PersonEntersVehicleEvent =>
+              val id = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+              val numPass = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+              val v = events.getOrElse(id, Tuple3(0, 0, 0))
+
+              events.put(id, v.copy(_3 = v._3 + numPass))
+
+              Set(numPass, 0) should contain(v._1 - v._2)
+
+            case enterEvent: PersonEntersVehicleEvent if enterEvent.getVehicleId.toString.startsWith("rideHail") && !enterEvent.getPersonId.toString.contains("Agent") =>
               val id = enterEvent.getVehicleId.toString
-              events.update(id, events.getOrElse(id, 0) + 1)
-            case leavesEvent: PersonLeavesVehicleEvent =>
+              val v = events.getOrElse(id, Tuple3(0, 0, 0))
+              events.put(id, v.copy(_1 = v._1 + 1))
+
+            case leavesEvent: PersonLeavesVehicleEvent if leavesEvent.getVehicleId.toString.startsWith("rideHail") =>
               val id = leavesEvent.getVehicleId.toString
-              events.update(id, events(id) - 1)
+              val v = events.getOrElse(id, Tuple3(0, 0, 0))
+              events.put(id, v.copy(_2 = v._2 + 1))
+
             case _ =>
           }
         }
         Unit
       })
 
-      events.isEmpty shouldBe true
+      events.forall(t => t._2._1 == t._2._2 && t._2._1 == t._2._3) shouldBe true
     }
 
     "keep single seat count" in {
