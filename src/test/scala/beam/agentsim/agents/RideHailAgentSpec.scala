@@ -190,10 +190,11 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      expectMsgType[NotifyResourceIdle]
+//      expectMsgType[NotifyResourceIdle]
+      expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
-      expectMsgType[CheckInResource]
+//      expectMsgType[CheckInResource]
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
