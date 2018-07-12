@@ -92,13 +92,13 @@ class RideHailPassengersEventsSpec
 
         override def handleEvent(event: Event): Unit = {
           event match {
-            case enterEvent: PersonEntersVehicleEvent =>
+            case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
               val id = enterEvent.getVehicleId.toString
-              events.getOrElse(id, 0) should be <= 1
-              events.update(id, events.getOrElse(id, 0) + 1)
+              events.get(id) shouldBe None
+              events.put(id, 1)
             case leavesEvent: PersonLeavesVehicleEvent =>
               val id = leavesEvent.getVehicleId.toString
-              events.update(id, events(id) - 1)
+              events.remove(id)
             case _ =>
           }
         }
