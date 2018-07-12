@@ -95,26 +95,22 @@ trait BeamHelper extends LazyLogging {
       }
     })
 
-  def runBeamWithConfigFile(configFileName: Option[String]): Unit = {
-    val (config, cfgFile) = configFileName match {
-      case Some(fileName) =>
-        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
-      case _ =>
-        throw new InvalidPathException("null", "invalid configuration file.")
-    }
+  def runBeamWithConfigFile(configFileName: String): Unit = {
+    assert(configFileName != null, "Argument is null: configFileName")
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
-    props.setProperty("configFile", cfgFile)
+    props.setProperty("configFile", configFileName)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
-    Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+    Files.copy(Paths.get(configFileName), Paths.get(outputDirectory, "beam.conf"))
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
@@ -134,13 +130,13 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
+    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator.loadNetwork()
+
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(networkCoordinator.network)
 
     samplePopulation(scenario, beamConfig, matsimConfig)
-
-    val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
-    networkCoordinator.loadNetwork()
-    scenario.setNetwork(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
 

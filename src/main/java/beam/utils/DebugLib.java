@@ -88,4 +88,9 @@ public class DebugLib {
         System.gc();
         return message + Math.round(10 * (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (Math.pow(1000, 3))) / 10.0 + "(GB)";
     }
+
+    public static void whileTrue(){
+        System.out.print("starting DebugLib.whileTrue");
+        while(true){}
+    }
 }

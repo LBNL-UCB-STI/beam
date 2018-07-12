@@ -11,10 +11,10 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, RideHailManager.radiusInMeters)
+    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters)
 
     rideHailAgentLocation match {
-      case Some((agentLocation, _)) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
+      case Some(agentLocation) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
       case None => None
     }
 
@@ -52,10 +52,10 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailManager.getIdleVehicles().size >= 2) {
-      val iter = rideHailManager.getIdleVehicles().iterator
-      val (vehicleIdA, vehicleLocationA) = iter.next()
-      val (vehicleIdB, vehicleLocationB) = iter.next()
+    if (rideHailManager.getIdleVehicles.size >= 2) {
+      val iter = rideHailManager.getIdleVehicles.iterator
+      val (vehicleIdA, _) = iter.next()
+      val (_, vehicleLocationB) = iter.next()
       Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
     } else {
       Vector()

@@ -30,10 +30,6 @@ public class R5MnetBuilder {
 
     private final TransportNetwork r5Network;
     private Network mNetowrk = null;  // MATSim mNetowrk
-    //TODO - the CRS should be settable not hard coded
-    private String fromCRS = "EPSG:4326";  // WGS84
-    private String toCRS = "EPSG:26910";  // UTM10N
-    private GeotoolsTransformation transform = new GeotoolsTransformation(this.fromCRS, this.toCRS);
     private String osmFile;
 
     private HashMap<Coord, Id<Node>> nodeMap = new HashMap<>();  // Maps x,y Coord to node ID
@@ -53,12 +49,13 @@ public class R5MnetBuilder {
         this.mNetowrk = NetworkUtils.createNetwork();
     }
 
-    public void buildMNet() {
+    public void buildMNet(String fromCRS, String toCRS) {
+        GeotoolsTransformation transform = new GeotoolsTransformation(fromCRS, toCRS);
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
         OSM osm = new OSM(this.osmFile);
         Map<Long, Way> ways = osm.ways;
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
-        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
+        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, transform, true);
         while (cursor.advance()) {
             log.debug(cursor.getEdgeIndex());
             log.debug(cursor);
@@ -87,10 +84,10 @@ public class R5MnetBuilder {
 //			double speed = cursor.getSpeedMs();
             // Get start and end coordinates for the edge
             Coordinate tempFromCoord = cursor.getGeometry().getCoordinate();
-            Coord fromCoord = transformCRS(new Coord(tempFromCoord.x, tempFromCoord.y));  // MATSim coord
+            Coord fromCoord = transform.transform(new Coord(tempFromCoord.x, tempFromCoord.y));  // MATSim coord
             Coordinate[] tempCoords = cursor.getGeometry().getCoordinates();
             Coordinate tempToCoord = tempCoords[tempCoords.length - 1];
-            Coord toCoord = transformCRS(new Coord(tempToCoord.x, tempToCoord.y));
+            Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
             // Add R5 start and end nodes to the MATSim network
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = this.getOrMakeNode(fromCoord);
@@ -142,14 +139,6 @@ public class R5MnetBuilder {
             this.nodeMap.put(coord, id);
         }
         return dummyNode;
-    }
-
-    /*
-    Tranforms from WGS84 to UTM 26910
-    /TODO - this helper is not needed now that we have this.transform. But setTransform() needs to be updated
-     */
-    private Coord transformCRS(Coord coord) {
-        return transform.transform(coord);
     }
 
     /**

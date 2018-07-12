@@ -55,7 +55,7 @@ class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFacto
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)

@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -40,6 +41,14 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         surgePricingManager.updateRevenueStats();
 
         ArrayBuffer<?> data = surgePricingManager.rideHailRevenue();
+
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+        if (model == null)
+            model = new RideHailDistanceRowModel();
+        model.setMaxSurgePricingLevel(surgePricingManager.maxSurgePricingLevel());
+        model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
+        model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
 
         createGraph(data);
 
@@ -94,6 +103,11 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
             Iterator iterator = data.iterator();
             for (int i = 0; iterator.hasNext(); i++) {
                 Double revenue = (Double) iterator.next();
+                RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(i);
+                if (model == null)
+                    model = new RideHailDistanceRowModel();
+                model.setRideHailRevenue(revenue);
+                GraphUtils.RIDE_HAIL_REVENUE_MAP.put(i, model); //this map is used in RideHailStats.java
                 out.write(i + "," + revenue);
                 out.newLine();
             }

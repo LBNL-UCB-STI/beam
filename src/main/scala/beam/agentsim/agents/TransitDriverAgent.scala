@@ -49,9 +49,12 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends
   DrivesVehicle[TransitDriverData] {
-  override val id: Id[TransitDriverAgent] = transitDriverId
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "
+
+  override val id: Id[TransitDriverAgent] = transitDriverId
 
   startWith(Uninitialized, TransitDriverData())
 
