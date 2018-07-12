@@ -18,6 +18,7 @@ trait GenericEventsSpec
 
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _
+  protected var networkCoordinator: NetworkCoordinator = _
 
   override def beforeAll(): Unit = {
 
@@ -28,7 +29,7 @@ trait GenericEventsSpec
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val scenario =
