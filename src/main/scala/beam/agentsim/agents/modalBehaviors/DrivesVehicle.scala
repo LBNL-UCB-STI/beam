@@ -10,7 +10,7 @@ import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel
@@ -62,6 +62,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
                 beamServices.vehicles(currentVehicleUnderControl).getType,
                 data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
+              if(data.hasParkingBehaviors) {
+                val localData = data
+                print()
+              }
             case None =>
               log.error("Current Leg is not available.")
           }
@@ -82,6 +86,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
         }
       } else {
+        if(data.hasParkingBehaviors){
+          //Throwing parkEvent after last PathTraversal
+          val vehId = data.currentVehicle.head
+          beamServices.vehicles(data.currentVehicle.head).stall.foreach{stall =>
+            val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+            val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+            eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
+          }
+        }
         holdTickAndTriggerId(tick, triggerId)
         self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
         goto(PassengerScheduleEmpty) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]

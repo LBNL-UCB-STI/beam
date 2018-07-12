@@ -91,10 +91,6 @@ trait ChoosesParking extends {
   when(ChoosingParkingSpot) {
     case Event(ParkingInquiryResponse(stall), data) =>
 
-      if(stall.attributes.tazId.toString.equalsIgnoreCase("na")){
-        val i = 0
-      }
-
       val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       beamServices.vehicles(data.currentVehicle.head).useParkingStall(stall)
@@ -110,11 +106,11 @@ trait ChoosesParking extends {
       val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
-        val (tick, triggerId) = releaseTickAndTriggerId()
+        val (_, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
-        //data for event
-        val vehId = data.currentVehicle.head
-        eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId))
+
+//        val vehId = data.currentVehicle.head
+//        eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
 
         goto(WaitingToDrive) using data
       } else {
