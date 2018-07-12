@@ -108,14 +108,14 @@ class RideHailPassengersEventsSpec
       events.isEmpty shouldBe true
     }
 
-    "all passangers leave" in {
+    "all passengers leave" in {
       val events = mutable.Set[String]()
 
       initialSetup(new BasicEventHandler {
 
         override def handleEvent(event: Event): Unit = {
           event match {
-            case enterEvent: PersonEntersVehicleEvent =>
+            case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
               val vid = enterEvent.getVehicleId.toString
               val uid = enterEvent.getPersonId.toString
               events += s"$vid.$uid"
