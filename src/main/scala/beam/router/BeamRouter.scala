@@ -15,7 +15,7 @@ import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
+import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
@@ -88,7 +88,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       }
 
       mode match {
-        case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
+        case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
           val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
           matSimTransitVehicle.getType.setDescription(mode.value)
           val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain
