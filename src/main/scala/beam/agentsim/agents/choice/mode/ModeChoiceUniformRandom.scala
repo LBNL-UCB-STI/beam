@@ -10,7 +10,7 @@ import beam.sim.BeamServices
   */
 class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
     } else {
@@ -19,5 +19,6 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+
   override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
 }

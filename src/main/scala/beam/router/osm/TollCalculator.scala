@@ -8,7 +8,7 @@ import com.conveyal.osmlib.OSMEntity.Tag
 import com.conveyal.osmlib.{OSM, Way}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.Map
+import scala.collection.mutable
 
 
 class TollCalculator(val directory: String) {
@@ -18,8 +18,8 @@ class TollCalculator(val directory: String) {
   /**
     * agencies is a Map of FareRule by agencyId
     */
-  val ways: Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
-    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[java.lang.Long, Toll]]
+  val ways: mutable.Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
+    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[mutable.Map[java.lang.Long, Toll]]
   } else {
     val ways = fromDirectory(dataDirectory)
     val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
@@ -28,8 +28,8 @@ class TollCalculator(val directory: String) {
     ways
   }
 
-  def fromDirectory(directory: Path): Map[java.lang.Long, Toll] = {
-    var ways: Map[java.lang.Long, Toll] = Map()
+  def fromDirectory(directory: Path): mutable.Map[java.lang.Long, Toll] = {
+    var ways: mutable.Map[java.lang.Long, Toll] = mutable.Map()
 
     /**
       * Checks whether its a osm.pbf feed and has fares data.
@@ -56,7 +56,7 @@ class TollCalculator(val directory: String) {
     }
 
     def wayToToll(w: Way) = {
-      Toll(tagToChange(w.tags.asScala.filter(_.key == "charge").headOption))
+      Toll(tagToChange(w.tags.asScala.find(_.key == "charge")))
     }
 
     def tagToChange(tag: Option[Tag]) = {
@@ -64,7 +64,7 @@ class TollCalculator(val directory: String) {
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM(_))
+      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM)
     }
 
     ways
@@ -146,13 +146,13 @@ object TollCalculator {
       } else {
         "y"
       }
-      if (dateTokens.length == 1) new DiscreteDate(dType, dateTokens(0)) else new DateRange(dType, dateTokens(0), dateTokens(1))
+      if (dateTokens.length == 1) DiscreteDate(dType, dateTokens(0)) else DateRange(dType, dateTokens(0), dateTokens(1))
     }
 
-    def isMonth(m: String) = months.contains(m.toLowerCase)
+    def isMonth(m: String): Boolean = months.contains(m.toLowerCase)
 
-    def isDay(d: String) = days.contains(d.toLowerCase)
+    def isDay(d: String): Boolean = days.contains(d.toLowerCase)
 
-    def isHour(h: String) = h.contains(":") || events.exists(h.contains(_))
+    def isHour(h: String): Boolean = h.contains(":") || events.exists(h.contains)
   }
 }

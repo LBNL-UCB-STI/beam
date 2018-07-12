@@ -8,13 +8,13 @@ import beam.sim.BeamServices
   * BEAM
   */
 object BridgeTollDefaults {
-  val tollPricesBeamVille = Map[Int, Double](
+  val tollPricesBeamVille: Map[Int, Double] = Map(
     1 -> 1,
     200 -> 1
   )
 
   // source: https://www.transit.wiki/
-  val tollPricesSFBay = Map[Int, Double](
+  val tollPricesSFBay: Map[Int, Double] = Map(
     1191692 -> 5,
     502 -> 5,
     998142 -> 5,
@@ -38,9 +38,7 @@ object BridgeTollDefaults {
         case CAR =>
           BigDecimal(alt.toBeamTrip().legs.map { beamLeg =>
             if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-              beamLeg.travelPath.linkIds.filter(tollPrices.contains(_)).map{ linkId =>
-                tollPrices.get(linkId).get
-              }.sum
+              beamLeg.travelPath.linkIds.filter(tollPrices.contains).map(tollPrices).sum
             } else {
               0
             }
@@ -49,6 +47,5 @@ object BridgeTollDefaults {
           BigDecimal(0)
       }
     }
-
   }
 }

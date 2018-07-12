@@ -1,19 +1,26 @@
 package beam.analysis.plots;
 
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.data.category.CategoryDataset;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 public class GraphUtils {
     private static final List<Color> colors = new ArrayList<>();
     private static final Color DEFAULT_BACK_GROUND = new Color(255, 255, 255);
+    /**
+     * Map < iteration number, ride hailing revenue>
+     */
+    public static Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
+
     static {
         colors.add(Color.GREEN);
         colors.add(Color.BLUE);
@@ -34,9 +41,20 @@ public class GraphUtils {
                 graphTitle, xAxisTitle, yAxisTitle,
                 dataset, orientation, legend, toolTips, urls);
         chart.setBackgroundPaint(DEFAULT_BACK_GROUND);
-
         return chart;
     }
+
+    public static void setColour(JFreeChart chart, int colorCode){
+        CategoryPlot plot = (CategoryPlot)chart.getPlot();
+        plot.setBackgroundPaint(SystemColor.inactiveCaption);//change background color
+
+        //set  bar chart color
+        ((BarRenderer)plot.getRenderer()).setBarPainter(new StandardBarPainter());
+
+        BarRenderer renderer = (BarRenderer)chart.getCategoryPlot().getRenderer();
+        renderer.setSeriesPaint(0, colors.get(colorCode));
+    }
+
     public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount){
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
@@ -46,6 +64,7 @@ public class GraphUtils {
         }
         plot.setFixedLegendItems(legendItems);
     }
+
     public static void plotLegendItems(CategoryPlot plot, int dataSetRowCount){
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {

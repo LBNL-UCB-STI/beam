@@ -105,9 +105,38 @@ object TAZCreatorScript extends App {
 }
 
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
+
+  val stringIdToTAZMapping=collection.mutable.HashMap[String,TAZ]()
+
+
+  def getTAZs(): Iterable[TAZ] ={
+    tazQuadTree.values().asScala
+  }
+
+  for (taz:TAZ <- tazQuadTree.values().asScala){
+    stringIdToTAZMapping.put(taz.tazId.toString,taz)
+  }
+
   def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
+  }
+
+  def getTAZ(tazId:String): Option[TAZ] ={
+    stringIdToTAZMapping.get(tazId)
+  }
+
+  def getTAZ(tazId:Id[TAZ]): Option[TAZ] ={
+    stringIdToTAZMapping.get(tazId.toString)
+  }
+
+  def getTAZInRadius(x: Double, y: Double, radius:Double): util.Collection[TAZ] = {
+    // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
+    tazQuadTree.getDisk(x,y,radius)
+  }
+
+  def getTAZInRadius(loc: Coord, radius:Double): util.Collection[TAZ] = {
+    tazQuadTree.getDisk(loc.getX,loc.getY,radius)
   }
 }
 
@@ -315,7 +344,7 @@ object TAZTreeMap {
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 case class CsvTaz(id: String, coordX: Double, coordY: Double)
 
-class TAZ(val tazId: Id[TAZ],val coord: Coord){
+case class TAZ(val tazId: Id[TAZ],val coord: Coord){
   def this(tazIdString: String, coord: Coord) {
     this(Id.create(tazIdString,classOf[TAZ]),coord)
   }

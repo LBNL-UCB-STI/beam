@@ -77,9 +77,9 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       }
 
       val classMembershipInputData = lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
-        if(theClassName.equalsIgnoreCase("class4")){
-          val i = 0
-        }
+//        if(theClassName.equalsIgnoreCase("class4")){
+//          val i = 0
+//        }0
         val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility(modeChoiceInputData)
         val surplusAttrib = Map("surplus" -> modeChoiceExpectedMaxUtility)
         AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
@@ -136,7 +136,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       ModeChoiceData(altAndIdx._1.tripClassifier, tourType, vehicleTime, walkTime, waitTime, bikeTime, totalCost.toDouble, altAndIdx._2)
     }
 
-    val groupedByMode = modeChoiceAlternatives.sortBy(_.mode.value).groupBy(_.mode)
+    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] = modeChoiceAlternatives.groupBy(_.mode)
     val bestInGroup = groupedByMode.map { case (_, alts) =>
       // Which dominates at $18/hr for total time
       alts.map { alt => ((alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost, alt) }.minBy(_._1)._2
