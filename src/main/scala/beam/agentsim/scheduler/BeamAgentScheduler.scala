@@ -57,15 +57,15 @@ object BeamAgentScheduler {
     // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
     //   smaller tick => then higher priority value => then lower triggerId
     def compare(that: ScheduledTrigger): Int =
-      that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
-        case 0 =>
-          priority compare that.priority match {
-            case 0 =>
-              that.triggerWithId.triggerId compare triggerWithId.triggerId
-            case c => c
-          }
-        case c => c
-      }
+    java.lang.Double.compare(that.triggerWithId.trigger.tick, triggerWithId.trigger.tick) match {
+      case 0 =>
+        java.lang.Integer.compare(priority, that.priority) match {
+          case 0 =>
+            java.lang.Long.compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
+          case c => c
+        }
+      case c => c
+    }
   }
 
   def SchedulerProps(beamConfig: BeamConfig, stopTick: Double = 3600.0 * 24.0, maxWindow: Double = 1.0): Props = {
