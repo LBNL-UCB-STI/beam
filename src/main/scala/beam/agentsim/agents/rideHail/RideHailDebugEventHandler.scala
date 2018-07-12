@@ -15,17 +15,11 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
   private var rideHailEvents = mutable.ArrayBuffer[Event]()
 
   override def handleEvent(event: Event): Unit = {
-
     collectRideHailEvents(event)
-
   }
-
-
-
 
   override def reset(iteration: Int): Unit = {
     //TODO: fix execution for last iteration
-
     collectAbnormalities()
   }
 

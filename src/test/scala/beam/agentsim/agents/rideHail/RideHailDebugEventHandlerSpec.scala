@@ -11,10 +11,9 @@ class RideHailDebugEventHandlerSpec extends GenericEventsSpec with Matchers {
 
       processHandlers(List(debugHandler))
 
-
       val rhAbnorms = debugHandler.collectAbnormalities()
 
-      rhAbnorms should not be empty
+      rhAbnorms shouldBe empty
       //TODO: add value assertions
     }
   }
