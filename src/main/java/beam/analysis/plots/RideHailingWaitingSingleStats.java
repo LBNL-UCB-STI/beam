@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -40,10 +41,10 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
-    RideHailingWaitingSingleStats(BeamServices beamServices) {
+    RideHailingWaitingSingleStats(BeamConfig beamConfig) {
 
-        endTime = Time.parseTime(beamServices.beamConfig().matsim().modules().qsim().endTime());
-        timeBinSizeInSec = beamServices.beamConfig().beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
+        endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
+        timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
     }

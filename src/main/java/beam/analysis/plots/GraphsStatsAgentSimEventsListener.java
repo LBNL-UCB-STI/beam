@@ -5,6 +5,7 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
@@ -47,19 +48,18 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener() {
+    public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
+        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             Scenario scenario, BeamServices beamServices) {
+                                             Scenario scenario, BeamConfig beamConfig) {
+        this(beamConfig);
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
-
-        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamServices);
-
     }
 
     @Override

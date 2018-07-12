@@ -2,6 +2,8 @@ package beam.analysis.plot.graph;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.config.BeamConfig;
+import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
@@ -22,7 +24,8 @@ public class GraphTestUtil {
     private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/test/input/beamville/transitVehicles.xml";
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
 
-    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener();
+    private static BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf"));
+    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(beamconfig);
     static boolean simRunFlag = false;
 
     public synchronized static void createDummySimWithXML() {
