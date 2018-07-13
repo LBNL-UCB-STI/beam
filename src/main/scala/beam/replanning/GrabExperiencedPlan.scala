@@ -18,23 +18,30 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
   override def init(replanningContext: ReplanningContext): Unit = {}
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
-    val experiencedPlan = person.getSelectedPlan.getCustomAttributes.get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY).asInstanceOf[Plan]
-    if(experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0){
+    val experiencedPlan = person.getSelectedPlan.getCustomAttributes
+      .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
+      .asInstanceOf[Plan]
+    if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
       // BeamMobsim needs activities with coords
-      val plannedActivities = person.getSelectedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
-      val experiencedActivities = experiencedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
+      val plannedActivities =
+        person.getSelectedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
+      val experiencedActivities =
+        experiencedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
       plannedActivities.zip(experiencedActivities).foreach {
         case (plannedActivity: Activity, experiencedActivity: Activity) =>
           experiencedActivity.setCoord(plannedActivity.getCoord)
-        case  (_, _) =>
+        case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
       val selectedPlanAttributes = person.getSelectedPlan.getAttributes
-      attributes.putAttribute("modality-style", selectedPlanAttributes.getAttribute("modality-style"))
+      attributes.putAttribute(
+        "modality-style",
+        selectedPlanAttributes.getAttribute("modality-style")
+      )
       attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
       person.addPlan(experiencedPlan)
-    }else{
+    } else {
       person.addPlan(person.getSelectedPlan)
     }
   }

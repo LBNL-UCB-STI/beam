@@ -5,4 +5,3 @@ trait Trigger {
 }
 
 case class TriggerWithId(trigger: Trigger, triggerId: Long)
-

@@ -38,7 +38,6 @@ import org.xml.sax.InputSource
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-
 object TAZCreatorScript extends App {
 
   /*
@@ -77,26 +76,24 @@ object TAZCreatorScript extends App {
   println(shapeFile)
 
   println(taz.getId(-120.8043534,+35.5283106))
-*/
+   */
 
   //TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
-
 
 //  println("HELLO WORLD")
 //  val path = "d:/shape_out.csv.gz"
 //  val mapTaz = TAZTreeMap.fromCsv(path)
 //  print(mapTaz)
 
-
   //Test Write File
-  if (null != args && 3 == args.size){
+  if (null != args && 3 == args.size) {
     println("Running conversion")
     val pathFileShape = args(0)
     val tazIdName = args(1)
     val destination = args(2)
 
     println("Process Started")
-    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
+    TAZTreeMap.shapeFileToCsv(pathFileShape, tazIdName, destination)
     println("Process Terminate...")
   } else {
     println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
@@ -106,57 +103,68 @@ object TAZCreatorScript extends App {
 
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
-  val stringIdToTAZMapping=collection.mutable.HashMap[String,TAZ]()
+  val stringIdToTAZMapping = collection.mutable.HashMap[String, TAZ]()
 
-
-  def getTAZs(): Iterable[TAZ] ={
+  def getTAZs(): Iterable[TAZ] = {
     tazQuadTree.values().asScala
   }
 
-  for (taz:TAZ <- tazQuadTree.values().asScala){
-    stringIdToTAZMapping.put(taz.tazId.toString,taz)
+  for (taz: TAZ <- tazQuadTree.values().asScala) {
+    stringIdToTAZMapping.put(taz.tazId.toString, taz)
   }
 
   def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
-    tazQuadTree.getClosest(x,y)
+    tazQuadTree.getClosest(x, y)
   }
 
-  def getTAZ(tazId:String): Option[TAZ] ={
+  def getTAZ(tazId: String): Option[TAZ] = {
     stringIdToTAZMapping.get(tazId)
   }
 
-  def getTAZ(tazId:Id[TAZ]): Option[TAZ] ={
+  def getTAZ(tazId: Id[TAZ]): Option[TAZ] = {
     stringIdToTAZMapping.get(tazId.toString)
   }
 
-  def getTAZInRadius(x: Double, y: Double, radius:Double): util.Collection[TAZ] = {
+  def getTAZInRadius(x: Double, y: Double, radius: Double): util.Collection[TAZ] = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
-    tazQuadTree.getDisk(x,y,radius)
+    tazQuadTree.getDisk(x, y, radius)
   }
 
-  def getTAZInRadius(loc: Coord, radius:Double): util.Collection[TAZ] = {
-    tazQuadTree.getDisk(loc.getX,loc.getY,radius)
+  def getTAZInRadius(loc: Coord, radius: Double): util.Collection[TAZ] = {
+    tazQuadTree.getDisk(loc.getX, loc.getY, radius)
   }
 }
 
 object TAZTreeMap {
+
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
   }
 
-  private def initQuadTreeFromShapeFile(shapeFilePath: String, tazIDFieldName: String): QuadTree[TAZ] = {
+  private def initQuadTreeFromShapeFile(
+    shapeFilePath: String,
+    tazIDFieldName: String
+  ): QuadTree[TAZ] = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
-    val features: util.Collection[SimpleFeature] =     shapeFileReader.getFeatureSet
+    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
 
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
 
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
+          val taz = new TAZ(
+            f.getAttribute(tazIDFieldName).asInstanceOf[String],
+            new Coord(g.getCoordinate.x, g.getCoordinate.y)
+          )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
       }
@@ -164,7 +172,9 @@ object TAZTreeMap {
     tazQuadTree
   }
 
-  private def quadTreeExtentFromShapeFile(features: util.Collection[SimpleFeature]): QuadTreeBounds = {
+  private def quadTreeExtentFromShapeFile(
+    features: util.Collection[SimpleFeature]
+  ): QuadTreeBounds = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue
@@ -204,7 +214,12 @@ object TAZTreeMap {
 
     val lines = readCsvFile(csvFile)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
 
     for (l <- lines) {
       val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY))
@@ -215,9 +230,11 @@ object TAZTreeMap {
 
   }
 
-  private def readerFromFile(filePath: String): java.io.Reader  = {
-    if(filePath.endsWith(".gz")){
-      new InputStreamReader(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+  private def readerFromFile(filePath: String): java.io.Reader = {
+    if (filePath.endsWith(".gz")) {
+      new InputStreamReader(
+        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
+      )
     } else {
       new FileReader(filePath)
     }
@@ -226,21 +243,21 @@ object TAZTreeMap {
   private def readCsvFile(filePath: String): Seq[CsvTaz] = {
     var mapReader: ICsvMapReader = null
     val res = ArrayBuffer[CsvTaz]()
-    try{
+    try {
       mapReader = new CsvMapReader(readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var flag = true
-      var line: java.util.Map[String, String] = mapReader.read(header:_*)
-      while(null != line){
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
         val id = line.get("taz")
         val coordX = line.get("coord-x")
         val coordY = line.get("coord-y")
         res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble))
-        line = mapReader.read(header:_*)
+        line = mapReader.read(header: _*)
       }
 
-    } finally{
-      if(null != mapReader)
+    } finally {
+      if (null != mapReader)
         mapReader.close()
     }
     res
@@ -254,25 +271,31 @@ object TAZTreeMap {
     }
   }
 
-  def shapeFileToCsv(shapeFilePath: String, tazIDFieldName: String , writeDestinationPath: String): Unit = {
+  def shapeFileToCsv(
+    shapeFilePath: String,
+    tazIDFieldName: String,
+    writeDestinationPath: String
+  ): Unit = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
     lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
 
-    var mapWriter: ICsvMapWriter   = null
+    var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
-        CsvPreference.STANDARD_PREFERENCE)
+      mapWriter =
+        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
-      mapWriter.writeHeader(header:_*)
+      mapWriter.writeHeader(header: _*)
 
-      val tazs = features.asScala.map(featureToCsvTaz(_, tazIDFieldName))
+      val tazs = features.asScala
+        .map(featureToCsvTaz(_, tazIDFieldName))
         .filter(_.isDefined)
-        .map(_.get).toArray
+        .map(_.get)
+        .toArray
       println(s"Total TAZ ${tazs.size}")
 
       val groupedTazs = groupTaz(tazs)
@@ -291,28 +314,29 @@ object TAZTreeMap {
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
-      for(t <- allNonRepeatedTaz){
+      for (t <- allNonRepeatedTaz) {
         val tazToWrite = new HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
-       //
-       val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+        //
+        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
         val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
         tazToWrite.put(header(1), tcoord.getX.toString)
         tazToWrite.put(header(2), tcoord.getY.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
-      if( mapWriter != null ) {
+      if (mapWriter != null) {
         mapWriter.close()
       }
     }
   }
 
-  private def getProcessors: Array[CellProcessor]  = {
+  private def getProcessors: Array[CellProcessor] = {
     Array[CellProcessor](
       new UniqueHashCode(), // Id (must be unique)
       new NotNull(), // Coord X
-      new NotNull()) // Coord Y
+      new NotNull()
+    ) // Coord Y
   }
 
   private def groupTaz(csvSeq: Array[CsvTaz]): Map[String, Array[CsvTaz]] = {
@@ -320,9 +344,7 @@ object TAZTreeMap {
   }
 
   private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    groupedRepeatedTaz.map(i => addSuffix(i._1, i._2))
-      .flatten
-      .toArray
+    groupedRepeatedTaz.map(i => addSuffix(i._1, i._2)).flatten.toArray
   }
 
   private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
@@ -332,10 +354,10 @@ object TAZTreeMap {
   }
 
   private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {
-    elems.reduce{ (a, b) =>
+    elems.reduce { (a, b) =>
       val comparison1 = (a, Math.abs(referencePoint - a.coordY))
       val comparison2 = (b, Math.abs(referencePoint - b.coordY))
-      val closest = Seq(comparison1, comparison2) minBy(_._2)
+      val closest = Seq(comparison1, comparison2) minBy (_._2)
       closest._1
     }
   }
@@ -344,10 +366,8 @@ object TAZTreeMap {
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 case class CsvTaz(id: String, coordX: Double, coordY: Double)
 
-case class TAZ(val tazId: Id[TAZ],val coord: Coord){
+case class TAZ(val tazId: Id[TAZ], val coord: Coord) {
   def this(tazIdString: String, coord: Coord) {
-    this(Id.create(tazIdString,classOf[TAZ]),coord)
+    this(Id.create(tazIdString, classOf[TAZ]), coord)
   }
 }
-
-

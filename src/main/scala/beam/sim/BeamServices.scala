@@ -38,11 +38,10 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
-  var rideHailIterationHistoryActor:ActorRef
+  var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  var matsimServices:MatsimServices
-
+  var matsimServices: MatsimServices
 
   var iterationNumber = -1
   def startNewIteration
@@ -51,17 +50,23 @@ trait BeamServices extends ActorInject {
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-  val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+
+  val registry: ActorRef =
+    Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-  val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
+
+  val dates: DateUtils = DateUtils(
+    ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+    ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+  )
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  var matsimServices:MatsimServices =_
+  var matsimServices: MatsimServices = _
 
   def clearAll = {
     personRefs.clear

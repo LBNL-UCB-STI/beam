@@ -24,5 +24,4 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with Int
 //    }
 //  }
 
-
 }

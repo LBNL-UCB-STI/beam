@@ -18,10 +18,10 @@ import scala.io.Source
 import scala.xml.XML
 import beam.utils.TestConfigUtils.testOutputDir
 
-class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAfterAll{
+class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   private val BASE_PATH = new File("").getAbsolutePath
-  private val OUTPUT_DIR_PATH = BASE_PATH + "/"+testOutputDir+"linkstats-test"
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-test"
   private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/0.events_linkStatsTest.xml"
   private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
 
@@ -30,17 +30,19 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
   private val TFHOURS = 25;
   private val TYPESTATS = 3;
 
-  private var fileCsvPath : String = ""
+  private var fileCsvPath: String = ""
 
   override def beforeAll(): Unit = {
     val _config = ConfigUtils.createConfig()
-    val overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
-    val outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+    val overwriteExistingFiles =
+      OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
 
     //Read network
     val sc = ScenarioUtils.createScenario(_config)
     val network = sc.getNetwork()
-    val nwr= new MatsimNetworkReader(network)
+    val nwr = new MatsimNetworkReader(network)
     nwr.readFile(NETWORK_FILE_PATH)
 
     //Start traveltime calculator
@@ -62,7 +64,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     fileCsvPath = outputDirectoryHierarchy.getIterationFilename(0, Controler.FILENAME_LINKSTATS)
     new File(fileCsvPath).getParentFile.mkdirs()
 
-    beamCalcLinkStats.addData(volumes,  travelTimeCalculator.getLinkTravelTimes())
+    beamCalcLinkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes())
     beamCalcLinkStats.writeFile(fileCsvPath)
   }
 
@@ -71,14 +73,15 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     "Output file contain all links * 25 Hours * 3 StatType" in {
       val expetedResult = countLinksFromFileXML(NETWORK_FILE_PATH) * TFHOURS * TYPESTATS
       val actualResult = gzToBufferedSource(fileCsvPath).getLines().size
-      expetedResult shouldBe (actualResult -1)
+      expetedResult shouldBe (actualResult - 1)
     }
 
     "Each link contains 75 records" in {
       val expetedResult = TFHOURS * TYPESTATS
-      val map = mapGroupRecordForLinks(0,fileCsvPath)
-      map.foreach {case(key, value) =>
-        value.size shouldBe expetedResult
+      val map = mapGroupRecordForLinks(0, fileCsvPath)
+      map.foreach {
+        case (key, value) =>
+          value.size shouldBe expetedResult
       }
     }
   }
@@ -88,10 +91,10 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
   }
 
   def countLinksFromFileXML(pathFile: String) = {
-    (XML.loadFile(pathFile)\\"network"\"links"\"_").length;
+    (XML.loadFile(pathFile) \\ "network" \ "links" \ "_").length;
   }
 
-  def mapGroupRecordForLinks(i:Int, pathFile: String) = {
+  def mapGroupRecordForLinks(i: Int, pathFile: String) = {
     val bufferedSource = gzToBufferedSource(pathFile)
     val buffer = ArrayBuffer[String]()
     val lines = bufferedSource.getLines()

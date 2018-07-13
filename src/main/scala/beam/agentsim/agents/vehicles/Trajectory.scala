@@ -12,10 +12,12 @@ import org.matsim.core.utils.geometry.transformations.TransformationFactory
 import scala.collection.Searching.{Found, InsertionPoint, _}
 
 object Trajectory {
+
   @Inject
   var beamConfig: BeamConfig = _
 
-  lazy val transformer: CoordinateTransformation = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+  lazy val transformer: CoordinateTransformation = TransformationFactory
+    .getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
 
   def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
@@ -56,7 +58,8 @@ class Trajectory(val path: Vector[SpaceTime]) {
   private def interpolateLocation(time: Double, closestPosition: Int) = {
     val timeL = Math.floor(time).toLong
     if (closestPosition > -1 && closestPosition < _path.size) {
-      val (prev, next) = (Math.max(0, closestPosition - 1), Math.min(closestPosition + 1, _path.length))
+      val (prev, next) =
+        (Math.max(0, closestPosition - 1), Math.min(closestPosition + 1, _path.length))
       val trajectorySegment = _path.slice(prev, next).toArray
       val timeFunction = _path.slice(prev, next).map(_.time.toDouble).toArray
       val xFunc = trajectorySegment.map(_.loc.getX)
@@ -86,11 +89,14 @@ class Trajectory(val path: Vector[SpaceTime]) {
         val interpolatedTail = interpolateLocation(time, closestPosition = insertionPoint)
         knownPath :+ interpolatedTail
     }
-    currentPath.sliding(2).map(pair => {
-      val head = MGC.coord2Point(pair.head.loc)
-      val last = MGC.coord2Point(pair.last.loc)
-      val distance = head.distance(last)
-      distance
-    }).sum
+    currentPath
+      .sliding(2)
+      .map(pair => {
+        val head = MGC.coord2Point(pair.head.loc)
+        val last = MGC.coord2Point(pair.last.loc)
+        val distance = head.distance(last)
+        distance
+      })
+      .sum
   }
 }

@@ -8,22 +8,22 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
 
   val isBufferedRideHailAllocationMode = false
 
-  def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
+  def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): Option[VehicleAllocation] = {
     None
   }
 
 // TODO RW/Asif: how to make sure no one ever can call this?
-def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-  log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
+  def allocateVehicles(
+    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+    log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     //???
-  return allocationsDuringReservation
+    return allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     Vector()
   }
 }
-
-
-
-

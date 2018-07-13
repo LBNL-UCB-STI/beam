@@ -17,32 +17,37 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
   }
 
   private def keepOnlyActivities(): Unit = {
-    scenario.getPopulation.getPersons.values().forEach(person => {
-      val cleanedPlans: ArrayBuffer[Plan] = ArrayBuffer()
-      person.getPlans.forEach(plan => {
-        val cleanedPlan = scenario.getPopulation.getFactory.createPlan()
-        plan.getPlanElements.forEach {
-          case activity: Activity =>
-            cleanedPlan.addActivity(activity)
-          case _ => // don't care for legs just now
-        }
-        cleanedPlan.setScore(null)
-        cleanedPlans += cleanedPlan
+    scenario.getPopulation.getPersons
+      .values()
+      .forEach(person => {
+        val cleanedPlans: ArrayBuffer[Plan] = ArrayBuffer()
+        person.getPlans.forEach(plan => {
+          val cleanedPlan = scenario.getPopulation.getFactory.createPlan()
+          plan.getPlanElements.forEach {
+            case activity: Activity =>
+              cleanedPlan.addActivity(activity)
+            case _ => // don't care for legs just now
+          }
+          cleanedPlan.setScore(null)
+          cleanedPlans += cleanedPlan
+        })
+        person.setSelectedPlan(null)
+        person.getPlans.clear()
+        cleanedPlans.foreach(person.addPlan)
       })
-      person.setSelectedPlan(null)
-      person.getPlans.clear()
-      cleanedPlans.foreach(person.addPlan)
-    })
   }
 
   def assignInitialModalityStyles(): Unit = {
     val allStyles = List("class1", "class2", "class3", "class4", "class5", "class6")
     val rand = new Random()
-    scenario.getPopulation.getPersons.values().forEach(person => {
-      person.getPlans.forEach(plan => {
-        plan.getAttributes.putAttribute("modality-style",SwitchModalityStyle.getRandomElement(allStyles,rand))
+    scenario.getPopulation.getPersons
+      .values()
+      .forEach(person => {
+        person.getPlans.forEach(plan => {
+          plan.getAttributes
+            .putAttribute("modality-style", SwitchModalityStyle.getRandomElement(allStyles, rand))
+        })
       })
-    })
   }
 
 }

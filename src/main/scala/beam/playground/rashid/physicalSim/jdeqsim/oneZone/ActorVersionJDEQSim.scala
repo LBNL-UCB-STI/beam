@@ -5,13 +5,15 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
 
 object ActorVersionJDEQSim {
-  
-  class ActorJDEQSim extends Actor{
-    @deprecated ("See beam.agentsim.sim.AgentsimServices", "2.0")
+
+  class ActorJDEQSim extends Actor {
+
+    @deprecated("See beam.agentsim.sim.AgentsimServices", "2.0")
     def receive = {
       case "start" => {
         val config = ConfigUtils.loadConfig(
-      "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
+          "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml"
+        )
 
         val scenario = ScenarioUtils.loadScenario(config)
 
@@ -20,29 +22,30 @@ object ActorVersionJDEQSim {
         //val countEnterLinkEvents = new CountEnterLinkEvents()
         //eventsManager.addHandler(countEnterLinkEvents)
         //eventsManager.initProcessing()
-    
+
         //val jdeqSimConfigGroup = new JDEQSimConfigGroup()
         //val jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
-    
+
         //jdeqSimulation.run()
-        
+
         //eventsManager.finishProcessing()
-    
+
         //println(countEnterLinkEvents.getLinkEnterCount())
-        
+
       }
-      case i:Int => println("Number: " + i)
+      case i: Int => println("Number: " + i)
     }
   }
 
-  class EventManager extends Actor{
+  class EventManager extends Actor {
+
     def receive = {
-      case s:String => println("String: " + s)
-      case i:Int => println("Number: " + i)
+      case s: String => println("String: " + s)
+      case i: Int    => println("Number: " + i)
     }
   }
-  
+
   val system = ActorSystem("SimpleSystem")
-  val jdeqsimActor = system.actorOf(Props[ActorJDEQSim],"ActorJDEQSim")
-  val eventManagerActor = system.actorOf(Props[EventManager],"EventManager")
+  val jdeqsimActor = system.actorOf(Props[ActorJDEQSim], "ActorJDEQSim")
+  val eventManagerActor = system.actorOf(Props[EventManager], "EventManager")
 }

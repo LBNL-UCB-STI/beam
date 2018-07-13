@@ -29,7 +29,9 @@ trait Resource[R] extends Identifiable[R] {
     * @param e         implicit conversion to the [[Resource]]'s type for the [[Id]]
     * @tparam T Any ID type
     */
-  def checkInResource[T](whenWhere: Option[SpaceTime], executionContext: ExecutionContext)(implicit e: Id[T] => Id[R]): Unit = {
+  def checkInResource[T](whenWhere: Option[SpaceTime], executionContext: ExecutionContext)(
+    implicit e: Id[T] => Id[R]
+  ): Unit = {
     manager match {
       case Some(managerRef) =>
         implicit val ec = executionContext
@@ -43,6 +45,7 @@ trait Resource[R] extends Identifiable[R] {
         throw new RuntimeException(s"Resource manager not defined for resource $getId")
     }
   }
+
   def registerResource[T](newManager: ActorRef)(implicit e: Id[T] => Id[R]): Unit = {
     manager = Some(newManager)
     manager.foreach(_ ! RegisterResource(getId))
@@ -73,10 +76,13 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  case class NotifyResourceIdle(resourceId: Id[_], whenWhere: SpaceTime, passengerSchedule: PassengerSchedule)
+  case class NotifyResourceIdle(
+    resourceId: Id[_],
+    whenWhere: SpaceTime,
+    passengerSchedule: PassengerSchedule
+  )
 
   case class AssignManager(managerRef: ActorRef)
-
 
 }
 

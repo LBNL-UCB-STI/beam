@@ -9,12 +9,13 @@ import com.google.common.io.Resources
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
-
-case class ExperimentDef(@BeanProperty var runExperimentScript: String,
-                         @BeanProperty var batchRunScript: String,
-                         @BeanProperty var header: Header,
-                         @BeanProperty var defaultParams:  java.util.Map[String, Object],
-                         @BeanProperty var factors: java.util.List[Factor]) {
+case class ExperimentDef(
+  @BeanProperty var runExperimentScript: String,
+  @BeanProperty var batchRunScript: String,
+  @BeanProperty var header: Header,
+  @BeanProperty var defaultParams: java.util.Map[String, Object],
+  @BeanProperty var factors: java.util.List[Factor]
+) {
 
   def this() = this("", "", null, null, new java.util.LinkedList())
 
@@ -31,7 +32,9 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
     if (list.isEmpty) {
       Iterator(Seq())
     } else {
-      list.head.iterator.flatMap { i => cartesian(list.tail).map(i +: _) }
+      list.head.iterator.flatMap { i =>
+        cartesian(list.tail).map(i +: _)
+      }
     }
   }
 
@@ -40,7 +43,12 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
     * @return list of distinct (factor_title, param_name)
     */
   def getDynamicParamNamesPerFactor() = {
-    factors.asScala.flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))).distinct.toList
+    factors.asScala
+      .flatMap(
+        f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))
+      )
+      .distinct
+      .toList
   }
 
   def getRunScriptTemplate() = {
@@ -52,7 +60,7 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
   }
 
   private def getTemplate(script: String, resourceScript: String) = {
-    if(script != None) {
+    if (script != None) {
       val scriptFile = Paths.get(script).toAbsolutePath
       if (!Files.exists(scriptFile)) {
         throw new IllegalArgumentException("No template script found " + scriptFile.toString)
@@ -62,7 +70,9 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
 
     Resources.toString(Resources.getResource(resourceScript), Charsets.UTF_8)
   }
-  def getTemplateConfigParentDirAsString: String = Paths.get(header.beamTemplateConfPath).getParent.toAbsolutePath.toString
+
+  def getTemplateConfigParentDirAsString: String =
+    Paths.get(header.beamTemplateConfPath).getParent.toAbsolutePath.toString
 }
 
 case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Factor)]) {
@@ -87,14 +97,18 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
   }
 }
 
-case class Header(@BeanProperty var title: String,
-                  @BeanProperty var author: String,
-                  @BeanProperty var beamTemplateConfPath: String,
-                  @BeanProperty var modeChoiceTemplate: String,
-                  @BeanProperty var params: java.util.Map[String, Object]) {
+case class Header(
+  @BeanProperty var title: String,
+  @BeanProperty var author: String,
+  @BeanProperty var beamTemplateConfPath: String,
+  @BeanProperty var modeChoiceTemplate: String,
+  @BeanProperty var params: java.util.Map[String, Object]
+) {
   def this() = this("", "", "", "", new java.util.HashMap())
 }
-case class BaseScenario(@BeanProperty var title: String,
-                        @BeanProperty var params: java.util.Map[String, Object]) {
+case class BaseScenario(
+  @BeanProperty var title: String,
+  @BeanProperty var params: java.util.Map[String, Object]
+) {
   def this() = this("", new java.util.HashMap())
 }
