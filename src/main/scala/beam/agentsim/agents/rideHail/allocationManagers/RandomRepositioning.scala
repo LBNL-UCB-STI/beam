@@ -5,7 +5,7 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RepositioningWithLowWaitingTimes(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager {
+class RandomRepositioning(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
@@ -19,10 +19,14 @@ class RepositioningWithLowWaitingTimes(val rideHailManager: RideHailManager) ext
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailManager.getIdleVehicles().size >= 2) {
-      val origin = rideHailManager.getIdleVehicles().values.toVector
+
+    val repositioningShare=rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
+    val fleetSize = rideHailManager.resources.size
+    val numVechilesToReposition=(repositioningShare*fleetSize).toInt
+    if (rideHailManager.getIdleVehicles.size >= 2) {
+      val origin=rideHailManager.getIdleVehicles.values.toVector
       val destination = scala.util.Random.shuffle(origin)
-      for ((o, d) <- origin zip destination) yield (o.vehicleId, d.currentLocation.loc) //.splitAt(4)._1
+      (for ((o, d) <- (origin zip destination)) yield (o.vehicleId, d.currentLocation.loc)).splitAt(numVechilesToReposition)._1
     } else {
       Vector()
     }

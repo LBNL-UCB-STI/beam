@@ -33,7 +33,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Ignore}
 
 import scala.collection.concurrent.TrieMap
 
@@ -69,7 +69,7 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
 
   case class TestTrigger(tick: Double) extends Trigger
 
-  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
   describe("A RideHailAgent") {
@@ -135,7 +135,7 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      expectMsgType[NotifyResourceIdle]
+//      expectMsgType[NotifyResourceIdle]
 
       expectMsgType[VehicleLeavesTrafficEvent]
 
@@ -148,7 +148,7 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
       expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[CheckInResource]
+//      expectMsgType[CheckInResource]
 
       trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -183,17 +183,18 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // I tell it to do nothing instead
-      rideHailAgent ! StopDriving()
+      rideHailAgent ! StopDriving(30000)
       assert(rideHailAgent.stateName == IdleInterrupted)
 
       rideHailAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      expectMsgType[NotifyResourceIdle]
+//      expectMsgType[NotifyResourceIdle]
+      expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
-      expectMsgType[CheckInResource]
+//      expectMsgType[CheckInResource]
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -218,7 +219,7 @@ class RideHailAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.
       scheduler ! ScheduleTrigger(TestTrigger(40000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      expectMsgType[NotifyResourceIdle]
+//      expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]

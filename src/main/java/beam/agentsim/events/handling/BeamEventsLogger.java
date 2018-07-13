@@ -3,6 +3,7 @@ package beam.agentsim.events.handling;
 import beam.agentsim.events.LoggerLevels;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ReplanningEvent;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import com.google.common.collect.ArrayListMultimap;
@@ -47,6 +48,7 @@ public class BeamEventsLogger {
         // Registry of BEAM events that can be logged by BeamEventLogger
         allLoggableEvents.add(PathTraversalEvent.class);
         allLoggableEvents.add(ModeChoiceEvent.class);
+        allLoggableEvents.add(ReplanningEvent.class);
 
         // Registry of MATSim events that can be logged by BeamEventLogger
         allLoggableEvents.add(ActivityEndEvent.class);

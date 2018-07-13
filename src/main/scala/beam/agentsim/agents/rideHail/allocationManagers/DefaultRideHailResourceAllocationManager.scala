@@ -1,6 +1,5 @@
 package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.allocationManagers.VehicleAllocationRequest
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle

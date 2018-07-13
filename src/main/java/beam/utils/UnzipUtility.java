@@ -25,6 +25,7 @@ public class UnzipUtility {
      * destDirectory (will be created if does not exists)
      * @param zipFilePath Source directory for zip file
      * @param destDirectory Target directory for unzipping.
+     *
      * @throws IOException Error on failure.
      */
     public static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
@@ -56,6 +57,7 @@ public class UnzipUtility {
      *
      * @param zipIn input file
      * @param filePath target directory
+     *
      * @throws IOException error on failure
      */
     private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
