@@ -30,9 +30,9 @@ object TazOutput {
 
 //Converter from https://data.sfgov.org/Geographic-Locations-and-Boundaries/Traffic-Analysis-Zones/j4sj-j2nf/data#revert
 // to expected format for https://github.com/sfcta/tncstoday
-object SfGovTazConverter extends App{
+object SfGovTazConverter extends App {
 
-import TazOutput._
+  import TazOutput._
 
   //Input structure
   case class Properties(area: String, name: String, taz: String)
@@ -44,15 +44,15 @@ import TazOutput._
   implicit val propertiesReads = Json.reads[Properties]
   implicit val featuresReads: Reads[Seq[Features]] = new Reads[Seq[Features]] {
     override def reads(json: JsValue): JsResult[Seq[Features]] = {
-      try{
+      try {
         val featuresArray = (json \ "features").as[JsArray]
-        val features = featuresArray.value.map{ featureJson =>
+        val features = featuresArray.value.map { featureJson =>
           val properties = (featureJson \ "properties").validate[Properties].get
           val geometryJson = (featureJson \ "geometry")
           val _type = (geometryJson \ "type").as[String]
           val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
 
-          val coordinates = coordinatesArray.value.map{coordinatesItem =>
+          val coordinates = coordinatesArray.value.map { coordinatesItem =>
             val coordinatesJson = coordinatesItem.as[JsArray]
             val lat = coordinatesJson.apply(0).as[Double]
             val lon = coordinatesJson.apply(1).as[Double]
@@ -64,7 +64,7 @@ import TazOutput._
           Features(properties, geometry)
         }
         JsSuccess(features)
-      }catch{
+      } catch {
         case e: Exception =>
           e.printStackTrace()
           JsError()
@@ -75,23 +75,29 @@ import TazOutput._
   println(s"Taz Converter")
 
   def parseArgs() = {
-    args.sliding(2, 1).toList.collect {
-      case Array("--input", inputName: String) if inputName.trim.nonEmpty => ("input", inputName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+    args
+      .sliding(2, 1)
+      .toList
+      .collect {
+        case Array("--input", inputName: String) if inputName.trim.nonEmpty => ("input", inputName)
+        //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
+        case arg @ _ => throw new IllegalArgumentException(arg.mkString(" "))
+      }
+      .toMap
   }
 
   val argsMap = parseArgs()
 
   val inputFilePath = argsMap.get("input")
-  val mContent = inputFilePath.map{p =>
+
+  val mContent = inputFilePath.map { p =>
     val source = scala.io.Source.fromFile(p, "UTF-8")
-    val lines = try source.mkString finally source.close()
+    val lines = try source.mkString
+    finally source.close()
     lines
   }
 
-  mContent.map {s =>
+  mContent.map { s =>
     val res = Json.parse(s)
     val featuresRes = res.validate[Seq[Features]].get
 

@@ -11,7 +11,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
 trait GenericEventsSpec
-  extends WordSpecLike
+    extends WordSpecLike
     with IntegrationSpecCommon
     with BeamHelper
     with BeforeAndAfterAll {
@@ -21,7 +21,6 @@ trait GenericEventsSpec
   protected var networkCoordinator: NetworkCoordinator = _
 
   override def beforeAll(): Unit = {
-
 
     val beamConfig = BeamConfig(baseConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
@@ -38,16 +37,15 @@ trait GenericEventsSpec
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(baseConfig, scenario, networkCoordinator.transportNetwork))
+      module(baseConfig, scenario, networkCoordinator.transportNetwork)
+    )
 
-    beamServices =
-      injector.getInstance(classOf[BeamServices])
-    eventManager =
-      injector.getInstance(classOf[EventsManager])
+    beamServices = injector.getInstance(classOf[BeamServices])
+    eventManager = injector.getInstance(classOf[EventsManager])
   }
 
   def processHandlers(eventHandlers: List[BasicEventHandler]): Unit = {
-    for(eventHandler <- eventHandlers)
+    for (eventHandler <- eventHandlers)
       eventManager.addHandler(eventHandler)
 
     beamServices.controler.run()

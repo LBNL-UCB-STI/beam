@@ -6,8 +6,10 @@ import beam.agentsim.scheduler.BeamAgentScheduler.Monitor
 
 import scala.concurrent.duration._
 
+class DebugActorWithTimer(val rideHailManager: ActorRef, val scheduler: ActorRef)
+    extends Actor
+    with ActorLogging {
 
-class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) extends Actor with ActorLogging{
   def receive = {
     case Tick ⇒
       log.info(DebugLib.gcAndGetMemoryLogMessage("Memory use after GC: "))
@@ -15,10 +17,6 @@ class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) 
       scheduler ! Monitor
   }
 
-
-
-
 }
 
 case object Tick
-

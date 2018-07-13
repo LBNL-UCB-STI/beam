@@ -13,7 +13,7 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
 
   def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
-      case(trip, idx) if trip.tripClassifier == CAR  => idx
+      case (trip, idx) if trip.tripClassifier == CAR => idx
     }
     if (containsDriveAlt.nonEmpty) {
       Some(alternatives(containsDriveAlt.head))
@@ -26,5 +26,10 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
 
-  override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
+  override def utilityOf(
+    mode: Modes.BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int
+  ): Double = 0.0
 }

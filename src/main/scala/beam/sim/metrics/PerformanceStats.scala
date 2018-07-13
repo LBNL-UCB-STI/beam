@@ -27,7 +27,7 @@ class PerformanceStats {
     numberOfStats = 0
   }
 
-  override def toString: String = s"$numberOfStats (average time: $avgSec [sec]; total time: $totalSec [sec])"
-
+  override def toString: String =
+    s"$numberOfStats (average time: $avgSec [sec]; total time: $totalSec [sec])"
 
 }

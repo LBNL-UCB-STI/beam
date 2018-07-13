@@ -19,18 +19,30 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
     if (exists(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE))) {
-      logger.info(s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      logger.info(
+        s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
+      )
+      transportNetwork =
+        TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       network = NetworkUtils.createNetwork()
       new MatsimNetworkReader(network).readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-    } else {  // Need to create the unpruned and pruned networks from directory
-      logger.info(s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(Paths.get(beamConfig.beam.routing.r5.directory).toFile, true, false) // Uses the new signature Andrew created
+    } else { // Need to create the unpruned and pruned networks from directory
+      logger.info(
+        s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
+      )
+      transportNetwork = TransportNetwork.fromDirectory(
+        Paths.get(beamConfig.beam.routing.r5.directory).toFile,
+        true,
+        false
+      ) // Uses the new signature Andrew created
       transportNetwork.write(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile) // Needed because R5 closes DB on write
+      transportNetwork = TransportNetwork.read(
+        Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
+      ) // Needed because R5 closes DB on write
       logger.info(s"Create the MATSim network from R5 network")
-      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig.beam.routing.r5.osmMapdbFile)
-      rmNetBuilder.buildMNet("EPSG:4326",beamConfig.beam.spatial.localCRS)
+      val rmNetBuilder =
+        new R5MnetBuilder(transportNetwork, beamConfig.beam.routing.r5.osmMapdbFile)
+      rmNetBuilder.buildMNet("EPSG:4326", beamConfig.beam.spatial.localCRS)
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
       new NetworkWriter(network).write(beamConfig.matsim.modules.network.inputNetworkFile)

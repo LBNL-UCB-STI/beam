@@ -1,5 +1,3 @@
 package beam.agentsim.infrastructure
 
-class ShapFileToCSVTAZScript {
-
-}
+class ShapFileToCSVTAZScript {}

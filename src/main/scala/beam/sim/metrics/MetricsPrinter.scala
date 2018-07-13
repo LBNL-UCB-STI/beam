@@ -11,16 +11,20 @@ import kamon.metric.instrument.CollectionContext
 import kamon.metric.instrument.Time.{Milliseconds, Nanoseconds}
 import kamon.metric.{Entity, EntitySnapshot}
 
-class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) extends Actor with LazyLogging {
+class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String])
+    extends Actor
+    with LazyLogging {
   var iterationNumber = 0
   var metricStore: Map[Entity, EntitySnapshot] = null
+
   val collectionContext = new CollectionContext {
     val buffer: LongBuffer = LongBuffer.allocate(100000)
   }
 
   import context._
+
   def receive = {
-    case Subscribe(category, selection) if(Metrics.isMetricsEnable()) =>
+    case Subscribe(category, selection) if (Metrics.isMetricsEnable()) =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)
     case _ =>
@@ -30,7 +34,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
 
   def subscribed: Receive = {
     case tickSnapshot: TickMetricSnapshot =>
-      if(metricStore == null) {
+      if (metricStore == null) {
         metricStore = tickSnapshot.metrics
       } else {
         metricStore = metricStore.map(m => {
@@ -47,25 +51,27 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
       }
 
     case Print(ins, exs) =>
-      if(metricStore != null) {
+      if (metricStore != null) {
         val counters = metricStore.filterKeys(_.category == "counter")
-        val histograms = metricStore.filterKeys(h => h.category == "histogram" && ins.contains(h.name))
+        val histograms =
+          metricStore.filterKeys(h => h.category == "histogram" && ins.contains(h.name))
 
         var text = ""
 
-        if(ins == null) {
+        if (ins == null) {
           histograms.foreach { case (e, s) => text += toHistogramString(e, s) }
-          counters.foreach { case (e, s) => text += toCounterString(e, s) }
+          counters.foreach { case (e, s)   => text += toCounterString(e, s) }
         } else {
-          ins.foreach { case i =>
-            histograms.filterKeys(_.name == i).foreach { case (e, s) =>
-              text += toHistogramString(e, s)
-            }
+          ins.foreach {
+            case i =>
+              histograms.filterKeys(_.name == i).foreach {
+                case (e, s) =>
+                  text += toHistogramString(e, s)
+              }
           }
         }
-        if(text != null && !text.isEmpty) {
-          logger.info(
-             s"""
+        if (text != null && !text.isEmpty) {
+          logger.info(s"""
              |=======================================================================================
              | Performance Benchmarks (iteration no: ${iterationNumber})
              $text
