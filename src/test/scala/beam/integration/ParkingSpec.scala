@@ -1,6 +1,6 @@
 package beam.integration
 
-import beam.agentsim.events.{LeavingParkingEventAttrs, ParkEventAttrs, PathTraversalEvent}
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
@@ -10,7 +10,6 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
 
 class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon with EventsFileHandlingCommon {
 
@@ -31,25 +30,39 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
+    runAndCollectForIterations(parkingScenario, 1).head
+  }
+
+  def runAndCollectForIterations(parkingScenario: String, iterations: Int):  Seq[Queue[Event]] = {
+
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
       .withValue("beam.agentsim.taz.parking", ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv"))
       .withValue("beam.outputs.events.overrideWritingLevels", ConfigValueFactory.fromAnyRef("beam.agentsim.events.ParkEvent:VERBOSE, beam.agentsim.events.LeavingParkingEvent:VERBOSE, org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR, org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonEntersVehicleEvent:REGULAR, org.matsim.api.core.v01.events.PersonLeavesVehicleEvent:REGULAR, beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE"))
+      .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(iterations))
       .resolve()
 
     val matsimConfig = runBeamWithConfig(config)._1
-
-    val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    println(s"Events filePath $filePath")
-
-    collectEvents(filePath)
+    val queueEvents = ArrayBuffer[Queue[Event]]()
+    for(i <- 0 until iterations){
+      val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
+      queueEvents.append(collectEvents(filePath))
+    }
+    queueEvents
   }
 
   lazy val limitedEvents = runAndCollectEvents("limited")
   lazy val defaultEvents = runAndCollectEvents("default")
   lazy val emptyEvents = runAndCollectEvents("empty")
   lazy val expensiveEvents = runAndCollectEvents("expensive")
+
+  lazy val filterForCarMode: Seq[Event] => Int = { events =>
+    events.filter { e =>
+      val mMode = Option(e.getAttributes.get("mode"))
+      e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
+    }.size
+  }
 
   "Parking system " must {
     "guarantee at least some parking used " in {
@@ -58,26 +71,6 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "departure and arrival should be from same parking 4 tuple" in {
-//      val parkEvents = defaultEvents.count(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//      val leavingParkEvents = defaultEvents.count(e => LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
-
-//      val nuCars = defaultEvents
-//        .map(e => Option(e.getAttributes.get("vehicle_id")))
-//        .filter(_.isDefined)
-//        .map(e => Try(e.get.toInt))
-//        .filter(_.isSuccess)
-//        .map(_.get)
-//        .toSet
-//        .size
-//      val veh1Events = defaultEvents.filter{e =>
-//        val vehId = e.getAttributes.get("vehicle_id")
-//        null != vehId && "1".equals(vehId)
-//      }
-//      println(veh1Events)
-//
-//      println(s"Total cars: $nuCars")
-//      println(s"ParkEvents: $parkEvents")
-//      println(s"LeavingParkEvents: $leavingParkEvents")
 
       val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
@@ -148,38 +141,63 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "expensive parking should reduce driving" in {
-//      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//      val emptyParkingEvents = emptyEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//
-//      parkingEvents.size should be > emptyParkingEvents.size
-      pending
+
+      val iterations = 10
+      val defaultIterations = runAndCollectForIterations("default", iterations)
+      val expensiveIterations = runAndCollectForIterations("expensive", iterations)
+
+      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
+      val expensiveModeChoiceCarCount = expensiveIterations.map(filterForCarMode)
+
+//      println(s"Default iterations ${defaultModeChoiceCarCount}")
+//      println(s"Expensive iterations ${expensiveModeChoiceCarCount}")
+
+      defaultModeChoiceCarCount.last > expensiveModeChoiceCarCount.last shouldBe true
+    }
+
+    "empty parking access should reduce driving" in {
+      val iterations = 10
+      val defaultIterations = runAndCollectForIterations("default", iterations)
+      val emptyIterations = runAndCollectForIterations("empty", iterations)
+
+      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
+      val emptyModeChoiceCarCount = emptyIterations.map(filterForCarMode)
+
+//      println(s"Default iterations ${defaultModeChoiceCarCount}")
+//      println(s"Limited iterations ${emptyModeChoiceCarCount}")
+
+      defaultModeChoiceCarCount.last > emptyModeChoiceCarCount.last shouldBe true
     }
 
     "limited parking access should reduce driving" in {
-//      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//      val limitedParkingEvents = limitedEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
-//
-//      parkingEvents.size should be > limitedParkingEvents.size
-      pending
+      val iterations = 10
+      val defaultIterations = runAndCollectForIterations("default", iterations)
+      val limitedIterations = runAndCollectForIterations("limited", iterations)
+
+      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
+      val limitedModeChoiceCarCount = limitedIterations.map(filterForCarMode)
+
+      println(s"Default iterations ${defaultModeChoiceCarCount}")
+      println(s"Limited iterations ${limitedModeChoiceCarCount}")
+
+      defaultModeChoiceCarCount.last > limitedModeChoiceCarCount.last shouldBe true
+
     }
 
     "limited parking access should increase VMT" in {
-      val defaultPathTraversalEvents = defaultEvents.filter{e =>
+      def filterPathTraversalForCar(e: Event): Boolean = {
         PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
-        "Car".equalsIgnoreCase(e.getAttributes.get("vehicle_type")) &&
-        e.getAttributes.get("vehicle_id").matches("\\d+")
+          "Car".equalsIgnoreCase(e.getAttributes.get("vehicle_type")) &&
+          e.getAttributes.get("vehicle_id").matches("\\d+")
       }
+      val defaultPathTraversalEvents = defaultEvents.filter(filterPathTraversalForCar)
 
       val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0){case (acc, ev) =>
           val currLength = ev.getAttributes.get("length").toDouble
           acc + currLength
       }
 
-      val limitedPathTraversalEvents = limitedEvents.filter{e =>
-        PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
-          "Car".equalsIgnoreCase(e.getAttributes.get("vehicle_type")) &&
-          e.getAttributes.get("vehicle_id").matches("\\d+")
-      }
+      val limitedPathTraversalEvents = limitedEvents.filter(filterPathTraversalForCar)
 
       val limitedPathLength = limitedPathTraversalEvents.foldLeft(0.0){case (acc, ev) =>
         val currLength = ev.getAttributes.get("length").toDouble
@@ -188,34 +206,5 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
       limitedPathLength should be > defaultPathLength
     }
-
-    "when parking expensive then after several iterations we expect fewer people to choose drive mode due to poor experiences" in {
-
-      val parkingScenario = "expensive"
-      val iterations = 2
-
-      val config = baseConfig
-        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-        .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
-        .withValue("beam.agentsim.taz.parking", ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv"))
-        .withValue("beam.outputs.events.overrideWritingLevels", ConfigValueFactory.fromAnyRef("beam.agentsim.events.ParkEvent:VERBOSE, beam.agentsim.events.LeavingParkingEvent:VERBOSE"))
-        .withValue("matsim.modules.controler.firstIteration", ConfigValueFactory.fromAnyRef(iterations))
-        .resolve()
-
-      val matsimConfig = runBeamWithConfig(config)._1
-      val queueEvents = ArrayBuffer[Queue[Event]]()
-      for(i <- 0 to iterations){
-        val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-        queueEvents.append(collectEvents(filePath))
-      }
-
-      val queueParkingEvents = queueEvents.map(_.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType)).size)
-      (queueParkingEvents.dropRight(1) zip queueParkingEvents.tail).forall{ case (prev, next) =>
-          prev < next
-      } shouldBe true
-
-      pending
-    }
-
   }
 }
