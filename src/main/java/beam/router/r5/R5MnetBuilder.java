@@ -93,10 +93,10 @@ public class R5MnetBuilder {
 //			double speed = cursor.getSpeedMs();
             // Get start and end coordinates for the edge
             Coordinate tempFromCoord = cursor.getGeometry().getCoordinate();
-            Coord fromCoord = transformCRS(new Coord(tempFromCoord.x, tempFromCoord.y));  // MATSim coord
+            Coord fromCoord = transform.transform(new Coord(tempFromCoord.x, tempFromCoord.y));  // MATSim coord
             Coordinate[] tempCoords = cursor.getGeometry().getCoordinates();
             Coordinate tempToCoord = tempCoords[tempCoords.length - 1];
-            Coord toCoord = transformCRS(new Coord(tempToCoord.x, tempToCoord.y));
+            Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
             // Add R5 start and end nodes to the MATSim network
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = this.getOrMakeNode(fromCoord);
@@ -148,14 +148,6 @@ public class R5MnetBuilder {
             this.nodeMap.put(coord, id);
         }
         return dummyNode;
-    }
-
-    /*
-    Tranforms from WGS84 to UTM 26910
-    /TODO - this helper is not needed now that we have this.transform. But setTransform() needs to be updated
-     */
-    private Coord transformCRS(Coord coord) {
-        return transform.transform(coord);
     }
 
     /**

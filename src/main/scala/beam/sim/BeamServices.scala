@@ -38,8 +38,10 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
+  var rideHailIterationHistoryActor:ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
+  var matsimServices:MatsimServices
 
 
   var iterationNumber: Int = -1
@@ -56,8 +58,10 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
+  var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+  var matsimServices:MatsimServices =_
 
   def clearAll(): Unit = {
     personRefs.clear

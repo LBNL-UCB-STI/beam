@@ -82,7 +82,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
@@ -174,6 +174,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
                 transitModes = Vector(mode)
                 streetVehicles = Vector(
                   StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true))
+
               case None =>
             }
             val response = within(60 second) {

@@ -2,7 +2,10 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
@@ -39,13 +42,21 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
+    //private IGraphStats generalStats = new RideHailStats();
+    private IGraphStats rideHailingWaitingSingleStats;
+    private IGraphStats realizedModeStats = new RealizedModeStats();
+
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener() {
+    public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
+        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
     }
 
     // Constructor
-    public GraphsStatsAgentSimEventsListener(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario) {
+    public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
+                                             OutputDirectoryHierarchy controlerIO,
+                                             Scenario scenario, BeamConfig beamConfig) {
+        this(beamConfig);
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
@@ -58,15 +69,23 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
         rideHailWaitingStats.resetStats();
+        //generalStats.resetStats();
+        rideHailingWaitingSingleStats.resetStats();
+        realizedModeStats.resetStats();
     }
 
     @Override
     public void handleEvent(Event event) {
-
+        if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE)) {
+            realizedModeStats.processStats(event);
+        }
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
+            realizedModeStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
+            //generalStats.processStats(event);
             fuelUsageStats.processStats(event);
             deadHeadingStats.processStats(event);
         } else if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)) {
@@ -75,16 +94,23 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
             rideHailWaitingStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
         }
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
         modeChoseStats.createGraph(event);
         fuelUsageStats.createGraph(event);
+
+        rideHailWaitingStats.createGraph(event);
+        rideHailingWaitingSingleStats.createGraph(event);
+
+
         deadHeadingStats.createGraph(event,"TNC0");
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
-        rideHailWaitingStats.createGraph(event);
+        realizedModeStats.createGraph(event);
+        //generalStats.createGraph(event);
     }
 
      // helper methods

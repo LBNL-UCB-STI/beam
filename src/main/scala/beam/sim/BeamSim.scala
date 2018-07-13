@@ -6,11 +6,12 @@ import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{ActorSystem, Identify}
+import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.rideHail.TNCWaitingTimesCollector
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.CollectRideHailStats
+import beam.agentsim.agents.rideHail.{RideHailDebugEventHandler, RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -48,8 +49,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+  private var rideHailIterationHistoryActor:ActorRef=_
 
-  private var tncWaitingTimes: TNCWaitingTimesCollector = _
+  private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
+  val rideHailIterationHistoryActorName="rideHailIterationHistoryActor"
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
@@ -74,6 +77,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 
+    beamServices.matsimServices=event.getServices
+
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
       transportNetwork,
@@ -83,11 +88,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig)
 
-    createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
+    createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario, beamServices.beamConfig)
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    tncWaitingTimes = new TNCWaitingTimesCollector(eventsManager)
+    rideHailIterationHistoryActor = actorSystem.actorOf(RideHailIterationHistoryActor.props(eventsManager, beamServices, transportNetwork),rideHailIterationHistoryActorName)
+    tncIterationsStatsCollector = new TNCIterationsStatsCollector(eventsManager,beamServices,rideHailIterationHistoryActor,transportNetwork)
+
+    // report inconsistencies in output:
+    //new RideHailDebugEventHandler(eventsManager)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -98,7 +107,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-      tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
+     // rideHailIterationHistoryActor ! CollectRideHailStats
+      tncIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
     val physsimFuture = Future {

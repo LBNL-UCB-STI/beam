@@ -43,21 +43,23 @@ object RideHailAgent {
   case object Idle extends BeamAgentState
   case object IdleInterrupted extends BeamAgentState
 
-  case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
+  case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Int] = None)
 
-  case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
+  case class ModifyPassengerScheduleAck(msgId: Option[Int] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Double)
   case class Resume()
 
   case class InterruptedAt(interruptId: Id[Interrupt],passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle], tick: Double)
   case class InterruptedWhileIdle(interruptId: Id[Interrupt],vehicleId:Id[Vehicle],tick: Double)
-
 }
 
 class RideHailAgent(override val id: Id[RideHailAgent], val scheduler: ActorRef, vehicle: BeamVehicle, initialLocation: Coord,
                     val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
   extends BeamAgent[RideHailAgentData] with DrivesVehicle[RideHailAgentData] with Stash {
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+
   override def logPrefix(): String = s"RideHailAgent $id: "
 
   startWith(Uninitialized, RideHailAgentData())
@@ -75,60 +77,73 @@ class RideHailAgent(override val id: Id[RideHailAgent], val scheduler: ActorRef,
   }
 
   when(Idle) {
-    case Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+      log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(IdleInterrupted) {
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+    case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
       goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule,vehicle.id)
-    case Event(Resume(), _) =>
+    case ev@Event(Resume(), _) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
-    case Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+    case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+      val (tick, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailAgentData]
-    case Event(Interrupt(_,_), _) =>
+    case ev@Event(Interrupt(_,_), data) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+    case ev@Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailAgentData]
-    case Event(ModifyPassengerSchedule(_, _), _) =>
+    case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-    case Event(Resume(), _) =>
+    case ev@Event(Resume(), _) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-
-
+    case ev@Event(Interrupt(_,_), data) =>
+      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      stash()
+      stay()
   }
 
   val myUnhandled: StateFunction =  {
 
-    case Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+    case ev@Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stay replying CompletionNotice(triggerId)
 
-    case Event(IllegalTriggerGoToError(reason), _) =>
+    case ev@Event(IllegalTriggerGoToError(reason), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop(Failure(reason))
 
-    case Event(Finish, _) =>
+    case ev@Event(Finish, _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop
 
     case event@Event(_,_) =>
-      log.warning("unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
+      log.warning(s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
       stay()
   }
 

@@ -11,7 +11,7 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.vehicles.Vehicles
 
-class NetworkCoordinator(beamConfig: BeamConfig, val transitVehicles: Vehicles) extends LazyLogging {
+class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
   var transportNetwork: TransportNetwork = _
   var network: Network = _

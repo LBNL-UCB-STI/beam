@@ -35,7 +35,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def id: Id[_]
 
-  protected implicit val timeout: util.Timeout = util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
 
