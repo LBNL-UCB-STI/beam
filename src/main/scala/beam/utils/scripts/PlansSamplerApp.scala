@@ -2,6 +2,7 @@ package beam.utils.scripts
 
 import java.util
 
+import beam.router.Modes
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.scripts.PopulationAttrib.Rank
@@ -15,7 +16,8 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.algorithms.{ChooseRandomLegMode, PermissibleModesCalculatorImpl}
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -37,8 +39,7 @@ import scala.io.Source
 import scala.util.Random
 
 
-
-case class SynthHousehold(householdId: Id[Household], numPersons: Int, cars: Int, hhIncome: Double, coord: Coord)
+case class SynthHousehold(householdId: Id[Household], numPersons: Int, vehicles: Int, hhIncome: Double, coord: Coord)
 
 sealed trait HouseholdAttrib extends EnumEntry
 
@@ -54,7 +55,6 @@ object HouseholdAttrib extends Enum[HouseholdAttrib] {
 
 }
 
-
 sealed trait PopulationAttrib extends EnumEntry
 
 object PopulationAttrib extends Enum[PopulationAttrib] {
@@ -63,6 +63,21 @@ object PopulationAttrib extends Enum[PopulationAttrib] {
 
   case object Rank extends PopulationAttrib with LowerCamelcase
 
+  case object AvailableModes extends PopulationAttrib with LowerCamelcase
+
+}
+
+sealed trait ModeAvailTypes extends EnumEntry
+
+object ModeAvailTypes extends Enum[ModeAvailTypes]{
+
+  override def values: immutable.IndexedSeq[ModeAvailTypes] = findValues
+
+//  case object Sometimes extends ModeAvailTypes with Lowercase
+
+  case object Always extends ModeAvailTypes with Lowercase
+
+  case object Never extends ModeAvailTypes with Lowercase
 }
 
 trait HasXY[T] {
@@ -224,6 +239,7 @@ object PlansSampler {
 
   private var planQt: Option[QuadTree[Plan]] = None
   val conf: Config = ConfigUtils.createConfig()
+  val numAvailModes = Modes.BeamMode.availableModes.length
 
   val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
   val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -233,6 +249,7 @@ object PlansSampler {
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
+
 
   private var synthHouseholds = Vector[SynthHousehold]()
 
@@ -264,7 +281,7 @@ object PlansSampler {
     outDir = args(6)
   }
 
-  def snapPlanActivityLocsToNearestLink(plan: Plan): Plan = {
+  private def snapPlanActivityLocsToNearestLink(plan: Plan): Plan = {
 
     val allActivities = PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
 
@@ -275,7 +292,7 @@ object PlansSampler {
     plan
   }
 
-  def getClosestNPlans(spCoord: Coord, n: Int): Set[Plan] = {
+  private def getClosestNPlans(spCoord: Coord, n: Int): Set[Plan] = {
     val closestPlan = getClosestPlan(spCoord)
     var col = Set(closestPlan)
 
@@ -317,6 +334,16 @@ object PlansSampler {
     ret.toVector
   }
 
+  def addModeExclusions(person: Person)= {
+
+    val allModes: Seq[Modes.BeamMode] = Modes.BeamMode.availableModes
+    (0 to Random.nextInt(numAvailModes)).foreach{_=>
+      allModes.patch(Random.nextInt(numAvailModes),Nil,1)
+    }
+    val attr = person.getAttributes
+    //TODO: Add attributes here
+  }
+
   def run(): Unit = {
 
     val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
@@ -341,7 +368,7 @@ object PlansSampler {
       counter.incCounter()
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
-      (0 to sh.cars).foreach(x => {
+      (0 to sh.vehicles).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
         val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
         newVehicles.addVehicle(vehicle)

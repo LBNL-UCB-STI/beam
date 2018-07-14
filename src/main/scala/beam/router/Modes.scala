@@ -75,6 +75,8 @@ object Modes {
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
     val chainBasedModes = Seq(CAR, EV, BIKE)
+    val transitModes = Seq(BUS, FUNICULAR,GONDOLA,CABLE_CAR,FERRY,TRAM,TRANSIT,RAIL,SUBWAY,TRAM)
+    val availableModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean =BeamMode.chainBasedModes.contains(beamMode)
