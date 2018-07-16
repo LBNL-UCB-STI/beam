@@ -86,7 +86,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     }
   }
 
-  private def isS3OutputBucketUrl(source: String): Boolean = {
+  private def isOutputBucketUrl(source: String): Boolean = {
     assert(source != null)
     source.startsWith("https://s3.us-east-2.amazonaws.com/beam-outputs/")
   }
