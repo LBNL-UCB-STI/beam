@@ -36,7 +36,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   // TODO: probably test needs to be updated due to update in rideHailManager
   ignore should "contain all bus routes" in {
     val listTrips = getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle_id").groupBy(identity)
+    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle").groupBy(identity)
     listValueTagEventFile.size shouldBe listTrips.size
   }
 
@@ -48,7 +48,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   ignore should "contain the same bus trips entries" in {
     val listTrips = getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle_id").groupBy(identity).keys.toSeq
+    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle").groupBy(identity).keys.toSeq
     val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
     listTripsEventFile shouldBe listTrips
   }
@@ -64,7 +64,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val listTrips = getListIDsWithTag(new File("test/input/beamville/r5/bus/stop_times.txt"), "trip_id", 0).sorted
     val grouped = listTrips.groupBy(identity)
     val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
-    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle_id", Some("PathTraversal"))
+    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle", Some("PathTraversal"))
     val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1))
     val groupedXml = listTripsEventFile.groupBy(identity)
     val groupedXmlWithCount = groupedXml.map { case (k, v) => (k, v.size) }
