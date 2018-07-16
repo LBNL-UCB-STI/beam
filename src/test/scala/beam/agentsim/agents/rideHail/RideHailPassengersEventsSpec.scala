@@ -15,8 +15,6 @@ import org.scalatest.{Ignore, Matchers, WordSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-// TODO: probably test needs to be updated due to update in rideHailManager
-@Ignore
 class RideHailPassengersEventsSpec
     extends WordSpecLike
     with Matchers
