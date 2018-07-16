@@ -31,58 +31,65 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     * initialize warm start mode.
     */
   def init(): Unit = {
-    if (isWarmMode) {
+    if (!isWarmMode) return
 
-      val warmStartPath = pathType match {
-        case "PARENT_RUN" =>
-          val runPath = if (isZipArchive(srcPath)) {
-            var archivePath = srcPath
-            if (isS3OutputBucketUrl(srcPath)) {
-              archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
-              downloadFile(srcPath, archivePath)
-            }
-            val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
-            unzip(archivePath, runPath, false)
-            runPath
-          } else {
-            srcPath
-          }
+    getWarmStartPath match {
+      case Some(statsPath) =>
+        if (Files.exists(Paths.get(statsPath))) {
+          beamServices.beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
+          logger.info(s"Warm start mode initialized successfully from stats located at $statsPath.")
+        } else {
+          logger.warn(s"Warm start mode initialization failed, stats not found at path ( $statsPath )")
+        }
+      case None =>
+    }
+  }
 
-          val iterOption = Files.walk(Paths.get(runPath)).toScala[Stream].map(_.toString).find(p => "ITERS".equals(getName(p)))
+  private def getWarmStartPath = {
+    pathType match {
+      case "PARENT_RUN" =>
+        getWarmStartPath(getParentRunPath)
 
-          iterOption match {
-            case Some(iterBase) =>
+      case "ABSOLUTE_PATH" =>
+        Files.walk(Paths.get(srcPath)).toScala[Stream].map(_.toString).find(_.endsWith(".linkstats.csv.gz"))
 
-              getWarmStartIteration(iterBase) match {
-                case Some(warmIteration) =>
-                  Some(Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
-                case None =>
-                  logger.warn(s"Warm start mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
-                  None
-              }
-            case None =>
-              logger.warn(s"Warm start mode initialization failed, ITERS not found in parent run ( $srcPath )")
-              None
-          }
+      case _ =>
+        logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
+        None
+    }
+  }
 
-        case "ABSOLUTE_PATH" =>
-          Files.walk(Paths.get(srcPath)).toScala[Stream].map(_.toString).find(_.endsWith(".linkstats.csv.gz"))
+  private def getWarmStartPath(runPath: String) = {
+    val iterOption = Files.walk(Paths.get(runPath)).toScala[Stream].map(_.toString).find(p => "ITERS".equals(getName(p)))
 
-        case _ =>
-          logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
-          None
+    iterOption match {
+      case Some(iterBase) =>
+
+        getWarmStartIteration(iterBase) match {
+          case Some(warmIteration) =>
+            Some(Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
+          case None =>
+            logger.warn(s"Warm start mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
+            None
+        }
+      case None =>
+        logger.warn(s"Warm start mode initialization failed, ITERS not found in parent run ( $srcPath )")
+        None
+    }
+  }
+
+  private def getParentRunPath = {
+    if (isZipArchive(srcPath)) {
+      var archivePath = srcPath
+      if (isOutputBucketUrl(srcPath)) {
+        archivePath = Paths.get(getTempDirectoryPath, getName(srcPath)).toString
+        downloadFile(srcPath, archivePath)
       }
-
-      warmStartPath match {
-        case Some(statsPath) =>
-          if (Files.exists(Paths.get(statsPath))) {
-            beamServices.beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
-            logger.info(s"Warm start mode initialized successfully from stats located at $warmStartPath.")
-          } else {
-            logger.warn(s"Warm start mode initialization failed, stats not found at path ( $statsPath )")
-          }
-        case None =>
-      }
+      val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
+      unzip(archivePath, runPath, false)
+      runPath
+    } else {
+      srcPath
     }
   }
 
