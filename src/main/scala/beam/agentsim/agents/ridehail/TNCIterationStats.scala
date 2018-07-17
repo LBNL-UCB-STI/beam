@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import TNCIterationStats._
 
 case class TNCIterationStats(
                               rideHailStats: Map[String, List[Option[RideHailStatsEntry]]],
@@ -69,7 +70,7 @@ case class TNCIterationStats(
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-    if (tick > 36000) {
+    if (tick > BREAKPOINT_TIMEOUT_IN_MILLIS) {
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
@@ -573,6 +574,8 @@ when enabled
 }
 
 object TNCIterationStats {
+  private val BREAKPOINT_TIMEOUT_IN_MILLIS = 36000
+
   def merge(statsA: TNCIterationStats,
             statsB: TNCIterationStats): TNCIterationStats = {
 
