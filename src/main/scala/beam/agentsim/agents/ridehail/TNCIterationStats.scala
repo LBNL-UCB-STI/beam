@@ -60,7 +60,7 @@ case class TNCIterationStats(
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
-    val minScoreThresholdForRepositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
+    val minScoreThresholdForRepositioning = repositioningConfig.minScoreThresholdForRepositioning // helps weed out unnecessary repositioning
 
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
