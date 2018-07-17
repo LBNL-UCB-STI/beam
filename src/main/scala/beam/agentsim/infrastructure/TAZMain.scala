@@ -6,9 +6,8 @@ import java.util.ArrayList
 import java.util.zip.GZIPInputStream
 
 import beam.agentsim.agents.PersonAgent
-import beam.utils.scripts.HasXY.wgs2Utm
-import beam.utils.scripts.PlansSampler._
-import beam.utils.scripts.QuadTreeExtent
+import beam.utils.scripts.PlansSampler.{shapeFileReader, _}
+import beam.utils.scripts.{QuadTreeExtent, WGSConverter}
 import com.vividsolutions.jts.geom.Geometry
 import org.geotools.data.simple.SimpleFeatureIterator
 import org.geotools.data.{FileDataStore, FileDataStoreFinder}
@@ -21,6 +20,7 @@ import util.HashMap
 
 import beam.utils.ObjectAttributesUtils
 import beam.utils.scripts.HouseholdAttrib.HousingType
+import org.geotools.referencing.CRS
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
@@ -291,11 +291,15 @@ object TAZTreeMap {
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
+      val targetCrsNum = CRS.lookupEpsgCode(shapeFileReader.getCoordinateSystem,true)
+      val targetEPSG = "epsg:%s".format(targetCrsNum)
+
+      val wGSConverter =  WGSConverter("epsg:4326",targetEPSG)
       for(t <- allNonRepeatedTaz){
         val tazToWrite = new HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
        //
-       val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+       val transFormedCoord: Coord = wGSConverter.wgs2Utm.transform(new Coord(t.coordX, t.coordY))
         val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
         tazToWrite.put(header(1), tcoord.getX.toString)
         tazToWrite.put(header(2), tcoord.getY.toString)
