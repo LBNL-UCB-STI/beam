@@ -10,8 +10,8 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.CollectRideHailStats
-import beam.agentsim.agents.rideHail.{RideHailDebugEventHandler, RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.CollectRideHailStats
+import beam.agentsim.agents.ridehail.{RideHailDebugEventHandler, RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap

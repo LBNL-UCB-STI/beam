@@ -6,7 +6,7 @@ import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator

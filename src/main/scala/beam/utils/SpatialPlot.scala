@@ -6,7 +6,7 @@ import java.awt.Stroke
 import java.awt.image.BufferedImage
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.agentsim.agents.rideHail.RideHailAgent
+import beam.agentsim.agents.ridehail.RideHailAgent
 import javax.imageio.ImageIO
 import org.matsim.api.core.v01.{Coord, Id}
 

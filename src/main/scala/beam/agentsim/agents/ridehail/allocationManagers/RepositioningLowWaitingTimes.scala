@@ -1,9 +1,9 @@
-package beam.agentsim.agents.rideHail.allocationManagers
+package beam.agentsim.agents.ridehail.allocationManagers
 
 import java.awt.Color
 
-import beam.agentsim.agents.rideHail.RideHailManager.RideHailAgentLocation
-import beam.agentsim.agents.rideHail.{RideHailManager, TNCIterationStats}
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.{RideHailManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}

@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
