@@ -59,7 +59,7 @@ case class TNCIterationStats(
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
-    val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
+    val minScoreThresholdForRepositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
 
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
@@ -158,8 +158,8 @@ case class TNCIterationStats(
 
 
       // filter top N scores
-      // ignore scores smaller than minScoreThresholdForRespositioning
-      val tmp = scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score > minScoreThresholdForRespositioning && tazScore.score > 0)
+      // ignore scores smaller than minScoreThresholdForRepositioning
+      val tmp = scoredTAZInRadius.take(keepMaxTopNScores).filter(tazScore => tazScore.score > minScoreThresholdForRepositioning && tazScore.score > 0)
 
       if (tmp.size > 1) {
         DebugLib.emptyFunctionForSettingBreakPoint()
