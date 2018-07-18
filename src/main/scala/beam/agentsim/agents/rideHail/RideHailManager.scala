@@ -590,7 +590,12 @@ class RideHailManager(
       (rideHailAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    val result = distances2RideHailAgents.filter(x => availableRideHailVehicles.contains(x._1.vehicleId)).sortBy(_._2).map(_._1)
+    val result = distances2RideHailAgents.filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
+      .sorted((vehicleRadius1: (RideHailAgentLocation, Double),
+               vehicleRadius2: (RideHailAgentLocation, Double)) =>
+        java.lang.Double.compare(vehicleRadius1._2, vehicleRadius2._2)
+      )
+      .map(_._1)
     if (result.isEmpty) {
       val i = 0
     }
