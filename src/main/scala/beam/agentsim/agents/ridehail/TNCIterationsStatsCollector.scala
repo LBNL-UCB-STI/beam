@@ -317,8 +317,8 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
     // val numIdleVehicles = vehicles.count(_._2 < 1)
 
     log.info(s"$numAlwaysIdleVehicles rideHail vehicles (out of ${vehicles.size}) were never moved and $numIdleVehiclesWithoutPassenger vehicles were moved without a passenger, during whole day.")
-    log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).map(_._1).mkString(", ")}")
-    log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).map(_._1).mkString(", ")}")
+    log.info(s"Ride hail vehicles with no passengers: ${vehicles.filter(_._2 == 0).keys.mkString(", ")}")
+    log.info(s"Ride hail vehicles that never moved: ${vehicles.filter(_._2 == -1).keys.mkString(", ")}")
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {
