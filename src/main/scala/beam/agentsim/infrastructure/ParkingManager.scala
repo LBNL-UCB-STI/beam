@@ -4,7 +4,7 @@ import akka.actor.Actor
 import beam.agentsim.ResourceManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.ParkingStall.ChargingPreference
+import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
@@ -16,7 +16,7 @@ abstract class ParkingManager(tazTreeMap:TAZTreeMap, parkingStockAttributes: Par
 object ParkingManager{
   case class ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
                             activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference,
-                            arrivalTime: Long, parkingDuration: Double)
+                            arrivalTime: Long, parkingDuration: Double, reservedFor: ReservedParkingType = ParkingStall.Any )
   case class ParkingInquiryResponse(stall: ParkingStall)
 
   // Use this to pass data from CSV or config file into the manager

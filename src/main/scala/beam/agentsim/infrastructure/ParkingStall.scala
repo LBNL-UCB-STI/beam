@@ -12,7 +12,7 @@ class ParkingStall(val id: Id[ParkingStall], val attributes: StallAttributes, va
 }
 
 object ParkingStall{
-  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType)
+  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType, reservedFor: ReservedParkingType)
   case class StallValues(stall: Int, fee: Double)
 
   sealed trait ParkingType
@@ -85,6 +85,10 @@ object ParkingStall{
       case "Block" => Block
     }
   }
+
+  sealed trait ReservedParkingType
+  case object Any extends ReservedParkingType
+  case object RideHailManager extends ReservedParkingType
 
 //  lazy val PricingMap = Map[Int, PricingModel](
 //    1 -> Free, 2 -> FlatFee, 3 -> Block

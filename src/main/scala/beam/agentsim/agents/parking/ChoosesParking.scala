@@ -65,9 +65,7 @@ trait ChoosesParking extends {
       val currVeh = data.currentVehicle.head
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
-      val stall = veh.stall
 
-      print()
       veh.stall.foreach{ stall =>
         parkingManager ! CheckInResource(beamServices.vehicles(data.currentVehicle.head).stall.get.id,None)
         beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
