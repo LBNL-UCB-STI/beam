@@ -41,17 +41,17 @@ case class RideHailStatsEntry(sumOfRequestedRides: Long, sumOfWaitingTimes: Long
     RideHailStatsEntry((sumOfRequestedRides + other.sumOfRequestedRides) / 2, (sumOfWaitingTimes + other.sumOfWaitingTimes) / 2, (sumOfIdlingVehicles + other.sumOfIdlingVehicles) / 2, (sumOfActivityEndEvents + other.sumOfActivityEndEvents) / 2)
   }
 
-  def getDemandEstimate(): Double = {
+  def getDemandEstimate: Double = {
     sumOfRequestedRides + sumOfActivityEndEvents
   }
 }
 
 object RideHailStatsEntry {
-  def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0, 0)
+  def empty: RideHailStatsEntry = RideHailStatsEntry()
 
   def apply(sumOfRequestedRides: Long = 0, sumOfWaitingTimes: Long = 0, sumOfIdlingVehicles: Long = 0, sumOfActivityEndEvents: Long = 0): RideHailStatsEntry = new RideHailStatsEntry(sumOfRequestedRides, sumOfWaitingTimes, sumOfIdlingVehicles, sumOfActivityEndEvents)
 
-  def aggregate(first: RideHailStatsEntry, second: RideHailStatsEntry) = first.aggregate(second)
+  def aggregate(first: RideHailStatsEntry, second: RideHailStatsEntry): RideHailStatsEntry = first.aggregate(second)
 
   def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry = rideHailStats.flatten.reduceOption(aggregate).getOrElse(empty)
 }
@@ -279,7 +279,7 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       idlingBins ++= ((endingBin + 1) until numberOfTimeBins).map((_, endTazId)).toMap
     })
 
-    addMissingTaz
+    addMissingTaz()
 
     rideHailStats.foreach { items =>
 
@@ -300,15 +300,15 @@ class TNCIterationsStatsCollector(eventsManager: EventsManager, beamServices: Be
       }
     }
 
-    logIdlingStats
+    logIdlingStats()
   }
 
-  private def addMissingTaz = {
+  private def addMissingTaz(): Unit = {
     val remainingTaz = vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
     rideHailStats ++= remainingTaz.map(_ -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None))
   }
 
-  private def logIdlingStats = {
+  private def logIdlingStats(): Unit = {
     // -1 : Vehicles never encountered any ride hail path traversal
     val numAlwaysIdleVehicles = vehicles.count(_._2 == -1)
     // 0 : Vehicles with ride hail path traversal but num_pass were 0 (zero)

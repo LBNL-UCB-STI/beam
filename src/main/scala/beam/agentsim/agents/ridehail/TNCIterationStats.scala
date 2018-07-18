@@ -128,8 +128,8 @@ case class TNCIterationStats(
                 val waitingTimeScore = waitingTimeWeight * Math.pow(statsEntry.sumOfWaitingTimes,2) /
                   Math.pow(statsEntry.sumOfWaitingTimes + 1000.0,2)
 
-                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate(),2) /
-                  Math.pow(statsEntry.getDemandEstimate() + 10.0,2)
+                val demandScore = demandWeight *  Math.pow(statsEntry.getDemandEstimate,2) /
+                  Math.pow(statsEntry.getDemandEstimate + 10.0,2)
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
@@ -437,7 +437,7 @@ when enabled
     result
   }
 
-  val maxRadiusInMeters = 10 * 1000
+  private val maxRadiusInMeters = 10 * 1000
 
   def getUpdatedCircleSize(
                             vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
