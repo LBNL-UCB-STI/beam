@@ -129,7 +129,7 @@ public class PersonTravelTimeStats implements IGraphStats{
             List<Double> hourData = times.get(i);
             Double average = 0d;
             if (hourData != null) {
-                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
+                average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
             }
             travelTimes[i] = average;
         }
