@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
+import beam.agentsim.events.LeavingParkingEvent;
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.ParkEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import org.matsim.api.core.v01.Scenario;
@@ -39,6 +41,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
+    private IGraphStats vehicleParkingStats = new VehicleParkingStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -58,6 +61,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.resetStats();
+        vehicleParkingStats.resetStats();
     }
 
     @Override
@@ -75,6 +79,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
             rideHailingWaitingStats.processStats(event);
+        }  else if (event instanceof ParkEvent || event.getEventType().equalsIgnoreCase(ParkEvent.EVENT_TYPE)){
+            vehicleParkingStats.processStats(event);
+        } else if (event instanceof LeavingParkingEvent || event.getEventType().equalsIgnoreCase(LeavingParkingEvent.EVENT_TYPE)){
+            vehicleParkingStats.processStats(event);
         }
     }
 
@@ -85,6 +93,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.createGraph(event);
+        vehicleParkingStats.createGraph(event);
     }
 
      // helper methods
