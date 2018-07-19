@@ -121,15 +121,13 @@ public class RideHailWaitingStats implements IGraphStats {
     private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException{
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"rideHailIndividualWaitingTimes.csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
 
             out.write(heading);
             out.newLine();
 
-            for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList){
+            for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList) {
 
 
                 String line = rideHailWaitingIndividualStat.time + "," +
@@ -142,13 +140,8 @@ public class RideHailWaitingStats implements IGraphStats {
                 out.newLine();
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 
@@ -235,14 +228,12 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "WaitingTime(sec)\\Hour";
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
             for (int hours = 1; hours <= 24; hours++) {
-                heading += "," + hours;
+                heading.append(",").append(hours);
             }
-            out.write(heading);
+            out.write(heading.toString());
             out.newLine();
 
             List<Double> categories = getCategories();
@@ -253,7 +244,7 @@ public class RideHailWaitingStats implements IGraphStats {
                 Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
                 out.write(_category + "");
-                String line = "";
+                String line;
                 for (int i = 0; i < 24; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
@@ -262,13 +253,8 @@ public class RideHailWaitingStats implements IGraphStats {
                 out.newLine();
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 
