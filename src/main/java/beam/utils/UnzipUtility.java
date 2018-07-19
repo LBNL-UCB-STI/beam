@@ -1,8 +1,12 @@
 package beam.utils;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import static java.nio.file.Files.createDirectories;
+import static java.nio.file.Files.delete;
 
 /**
  * This predictedUtility extracts files and directories of a standard zip file to
@@ -25,29 +29,27 @@ public class UnzipUtility {
      * @throws IOException Error on failure.
      */
     public static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
-        File destDir = new File(destDirectory);
-        if (!destDir.exists()) {
-            boolean unused = destDir.mkdir();
-        }
+        createDirectories(Paths.get(destDirectory));
+
         ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath));
         ZipEntry entry = zipIn.getNextEntry();
         // iterates over entries in the zip file
         while (entry != null) {
             String filePath = destDirectory + File.separator + entry.getName();
             if (!entry.isDirectory()) {
+                createDirectories(Paths.get(filePath).getParent());
                 // if the entry is a file, extracts it
                 extractFile(zipIn, filePath);
             } else {
                 // if the entry is a directory, make the directory
-                File dir = new File(filePath);
-                boolean unused = dir.mkdir();
+                createDirectories(Paths.get(filePath));
             }
             zipIn.closeEntry();
             entry = zipIn.getNextEntry();
         }
         zipIn.close();
         if(delete){
-            boolean unused = new File(zipFilePath).delete();
+            delete(Paths.get(zipFilePath));
         }
     }
     /**

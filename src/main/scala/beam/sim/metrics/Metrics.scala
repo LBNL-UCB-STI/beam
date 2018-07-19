@@ -18,7 +18,7 @@ object Metrics {
 
   var currentContext: TraceContext = null
 
-  def setCurrentContext(context: TraceContext) = currentContext = context
+  def setCurrentContext(context: TraceContext): Unit = currentContext = context
 
   def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
     "iteration-num" -> s"$iterationNumber")
@@ -29,13 +29,13 @@ object Metrics {
     * Marker trait for annotating MetricLevel, which must be Int after erasure.
     */
   final case class MetricLevel(asInt: Int) extends AnyVal {
-    @inline final def >=(other: MetricLevel): Boolean = asInt >= other.asInt
+    @inline def >=(other: MetricLevel): Boolean = asInt >= other.asInt
 
-    @inline final def <=(other: MetricLevel): Boolean = asInt <= other.asInt
+    @inline def <=(other: MetricLevel): Boolean = asInt <= other.asInt
 
-    @inline final def >(other: MetricLevel): Boolean = asInt > other.asInt
+    @inline def >(other: MetricLevel): Boolean = asInt > other.asInt
 
-    @inline final def <(other: MetricLevel): Boolean = asInt < other.asInt
+    @inline def <(other: MetricLevel): Boolean = asInt < other.asInt
   }
 
 
@@ -78,7 +78,7 @@ object Metrics {
   /**
     * Returns true if associated string is a valid level else false
     */
-  def isMetricsEnable(): Boolean = metricLevel != OffLevel
+  def isMetricsEnable: Boolean = metricLevel != OffLevel
 
-  def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
+  def isRightLevel(level: MetricLevel): Boolean = level <= metricLevel && level != OffLevel
 }

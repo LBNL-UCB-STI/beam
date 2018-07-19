@@ -51,7 +51,7 @@ trait ChoosesMode {
       }
   }
 
-  when(ChoosingMode)(transform {
+  when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
