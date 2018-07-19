@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, InvalidPathException, Paths}
+import java.nio.file.{Files, Paths}
 import java.util.Properties
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager

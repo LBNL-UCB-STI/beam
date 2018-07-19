@@ -3,7 +3,6 @@ package beam.physsim.jdeqsim;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.events.handler.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

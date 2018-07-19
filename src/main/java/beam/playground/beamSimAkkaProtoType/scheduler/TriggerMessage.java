@@ -1,10 +1,9 @@
 package beam.playground.beamSimAkkaProtoType.scheduler;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import akka.actor.ActorRef;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
+
+import java.util.LinkedList;
 
 public class TriggerMessage implements Comparable<TriggerMessage> {
 

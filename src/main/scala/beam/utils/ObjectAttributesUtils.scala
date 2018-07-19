@@ -1,9 +1,8 @@
 package beam.utils
 
 import java.util
-import java.util.Collection
 
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader, ObjectAttributesXmlWriter}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader}
 
 
 object ObjectAttributesUtils {

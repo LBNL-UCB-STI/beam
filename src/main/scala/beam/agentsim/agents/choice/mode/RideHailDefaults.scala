@@ -1,10 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BUS, CAR, FERRY, RAIL, RIDE_HAIL, RIDE_HAIL_TRANSIT, SUBWAY, TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
-import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
 
 /**
   * RideHailDefaults

@@ -5,7 +5,6 @@ import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
-import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
 
 public class Charger extends UntypedActor {
 

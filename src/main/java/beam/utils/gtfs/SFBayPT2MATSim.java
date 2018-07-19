@@ -1,7 +1,6 @@
 package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
-import beam.sim.config.ConfigModule;
 import org.matsim.pt.utils.TransitScheduleValidator;
 import org.xml.sax.SAXException;
 

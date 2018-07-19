@@ -2,7 +2,6 @@ package beam.experiment
 
 import java.nio.file.{Files, Paths}
 
-import beam.experiment.ExperimentGenerator.experiment
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
 

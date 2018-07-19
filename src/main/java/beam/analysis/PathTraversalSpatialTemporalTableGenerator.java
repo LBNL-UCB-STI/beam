@@ -1,7 +1,6 @@
 package beam.analysis;
 
 import beam.agentsim.events.PathTraversalEvent;
-import beam.sim.common.GeoUtils;
 import beam.sim.common.GeoUtils$;
 import beam.utils.DebugLib;
 import com.google.common.collect.HashBasedTable;

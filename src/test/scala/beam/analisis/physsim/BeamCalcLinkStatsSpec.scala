@@ -4,6 +4,7 @@ import java.io.{BufferedInputStream, File, FileInputStream}
 import java.util.zip.GZIPInputStream
 
 import beam.utils.BeamCalcLinkStats
+import beam.utils.TestConfigUtils.testOutputDir
 import org.matsim.analysis.VolumesAnalyzer
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.{Controler, OutputDirectoryHierarchy}
@@ -16,7 +17,6 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.xml.XML
-import beam.utils.TestConfigUtils.testOutputDir
 
 class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAfterAll{
 

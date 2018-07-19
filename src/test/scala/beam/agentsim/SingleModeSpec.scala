@@ -24,7 +24,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
@@ -34,7 +34,6 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
-import beam.utils.TestConfigUtils.testConfig
 
 // TODO: probably test needs to be updated due to update in rideHailManager
 @Ignore

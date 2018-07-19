@@ -2,38 +2,20 @@ package beam.agentsim.infrastructure
 
 import java.io._
 import java.util
-import java.util.ArrayList
+import java.util.HashMap
 import java.util.zip.GZIPInputStream
 
-import beam.agentsim.agents.PersonAgent
 import beam.utils.scripts.HasXY.wgs2Utm
-import beam.utils.scripts.PlansSampler._
-import beam.utils.scripts.QuadTreeExtent
 import com.vividsolutions.jts.geom.Geometry
-import org.geotools.data.simple.SimpleFeatureIterator
-import org.geotools.data.{FileDataStore, FileDataStoreFinder}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.gis.ShapeFileReader
-import org.matsim.core.utils.misc.Counter
-import org.opengis.feature.simple.SimpleFeature
-import util.HashMap
-
-import beam.utils.ObjectAttributesUtils
-import beam.utils.scripts.HouseholdAttrib.HousingType
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
-import org.matsim.core.utils.io.IOUtils
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.supercsv.cellprocessor.ParseDouble
-import org.supercsv.cellprocessor.FmtBool
-import org.supercsv.cellprocessor.FmtDate
-import org.supercsv.cellprocessor.constraint.{LMinMax, NotNull, Unique, UniqueHashCode}
+import org.matsim.core.utils.gis.ShapeFileReader
+import org.opengis.feature.simple.SimpleFeature
+import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
-import org.supercsv.exception.SuperCsvConstraintViolationException
-import org.supercsv.util.CsvContext
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
-import org.xml.sax.InputSource
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer

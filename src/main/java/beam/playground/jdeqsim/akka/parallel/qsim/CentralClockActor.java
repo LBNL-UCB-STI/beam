@@ -1,11 +1,11 @@
 package beam.playground.jdeqsim.akka.parallel.qsim;
 
+import akka.actor.ActorRef;
+import akka.actor.UntypedActor;
+
 import java.math.BigInteger;
 import java.util.LinkedList;
 import java.util.Random;
-
-import akka.actor.ActorRef;
-import akka.actor.UntypedActor;
 
 public class CentralClockActor extends UntypedActor {
 

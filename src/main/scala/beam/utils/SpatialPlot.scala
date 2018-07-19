@@ -1,9 +1,8 @@
 package beam.utils
 
-import java.awt.{BasicStroke, Color, Font, Graphics2D}
 import java.awt.geom.Point2D
-import java.awt.Stroke
 import java.awt.image.BufferedImage
+import java.awt._
 import java.io.{BufferedWriter, File, FileWriter}
 
 import beam.agentsim.agents.rideHail.RideHailAgent

@@ -1,10 +1,8 @@
 package beam.utils
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.rideHail.RideHailManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.scheduler.BeamAgentScheduler.Monitor
-
-import scala.concurrent.duration._
 
 
 class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) extends Actor with ActorLogging{

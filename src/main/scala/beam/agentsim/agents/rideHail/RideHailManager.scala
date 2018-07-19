@@ -12,10 +12,9 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel}
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.rideHail.RideHailAgent._
-import beam.agentsim.agents.rideHail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.rideHail.RideHailManager._
+import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
+import beam.agentsim.agents.rideHail.RideHailManager.{RoutingResponses, _}
 import beam.agentsim.agents.rideHail.allocationManagers._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle

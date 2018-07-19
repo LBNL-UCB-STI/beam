@@ -1,7 +1,6 @@
 package beam.playground.jdeqsim.akka.parallel.qsim;
 
 import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Random;
 
 public class QFakeModel{

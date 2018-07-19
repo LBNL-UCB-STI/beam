@@ -2,9 +2,10 @@ package json.converter
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import scala.collection.JavaConverters._
 import json.converter.TazOutput._
 import play.api.libs.json.Json
+
+import scala.collection.JavaConverters._
 
 object TncToday {
 

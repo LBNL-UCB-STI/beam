@@ -1,18 +1,14 @@
 package beam.utils.scripts
 
-import java.io.BufferedWriter
-import java.io.IOException
+import java.io.{BufferedWriter, IOException}
 
 import beam.sim.MapStringDouble
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population, PopulationFactory}
+import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.core.api.internal.MatsimWriter
 import org.matsim.core.population.io.PopulationWriterHandler
 import org.matsim.core.utils.geometry.CoordinateTransformation
-import org.matsim.core.utils.io.AbstractMatsimWriter
-import org.matsim.core.utils.io.UncheckedIOException
-
-import scala.collection.JavaConverters._
+import org.matsim.core.utils.io.{AbstractMatsimWriter, UncheckedIOException}
 
 /**
   * BEAM

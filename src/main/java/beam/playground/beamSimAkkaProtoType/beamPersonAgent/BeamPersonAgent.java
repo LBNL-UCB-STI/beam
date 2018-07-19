@@ -1,33 +1,23 @@
 package beam.playground.beamSimAkkaProtoType.beamPersonAgent;
 
-import java.util.LinkedList;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
-import beam.utils.DebugLib;
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Plan;
-
 import akka.actor.ActorRef;
-import akka.actor.ReceiveTimeout;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.PluginMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReplyChargersInRadiusMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.RequestChargersInRadiusMessage;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargerReservationConfirmationMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReserveChargerMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugAckMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.*;
+import beam.playground.beamSimAkkaProtoType.scheduler.TriggerMessage;
+import beam.utils.DebugLib;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Plan;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
-import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
-import beam.playground.beamSimAkkaProtoType.scheduler.TriggerMessage;
+
+import java.util.LinkedList;
+import java.util.Random;
 
 public class BeamPersonAgent extends UntypedActor {
 

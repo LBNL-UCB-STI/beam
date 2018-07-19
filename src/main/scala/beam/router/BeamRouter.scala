@@ -31,7 +31,6 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.mobsim.qsim.pt.PassengerAccessEgress
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 

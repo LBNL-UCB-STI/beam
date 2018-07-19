@@ -1,8 +1,6 @@
 package beam.playground.beamSimAkkaProtoType;
 
-import akka.actor.ActorRef;
 import akka.event.LoggingAdapter;
-import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActStartMessage;
 
 public class GlobalLibAndConfig {
 

@@ -1,20 +1,18 @@
 package beam.analysis.via;
 
 
-        import java.io.BufferedWriter;
-        import java.io.IOException;
-        import java.io.OutputStreamWriter;
-        import java.io.PrintStream;
-        import java.util.HashMap;
-        import java.util.HashSet;
-        import java.util.Map;
+import beam.utils.DebugLib;
+import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.events.algorithms.EventWriter;
+import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.utils.io.IOUtils;
+import org.matsim.core.utils.io.UncheckedIOException;
 
-        import beam.utils.DebugLib;
-        import org.matsim.api.core.v01.events.Event;
-        import org.matsim.core.events.algorithms.EventWriter;
-        import org.matsim.core.events.handler.BasicEventHandler;
-        import org.matsim.core.utils.io.IOUtils;
-        import org.matsim.core.utils.io.UncheckedIOException;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 // for some reason via is expecting wait2link event, instead of vehicle enters traffic event (dec. 2017)
 // perhaps also has to do with the fact, that we are not using most uptodate matsim version

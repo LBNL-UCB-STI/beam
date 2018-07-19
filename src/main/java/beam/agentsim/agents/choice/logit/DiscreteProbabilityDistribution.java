@@ -1,11 +1,6 @@
 package beam.agentsim.agents.choice.logit;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 
 
 public class DiscreteProbabilityDistribution {

@@ -1,7 +1,6 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
-import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;

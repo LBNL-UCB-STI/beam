@@ -1,11 +1,10 @@
 package beam.playground.jdeqsim.akka;
 
+import akka.actor.UntypedActor;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
-
-import akka.actor.UntypedActor;
 
 public class JDEQSimActor extends UntypedActor {
 

@@ -1,6 +1,5 @@
 package beam.agentsim.agents.choice.logit;
 
-import java.util.Map;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
