@@ -228,11 +228,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
             Set<String> modes = getModesChosen();
 
-            String heading = modes.stream().reduce((x, y) -> x + "," + y).get();
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("hours," + heading);
             out.newLine();
 
-            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().getAsInt();
+            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
 
             for (int hour = 0; hour <= max; hour++) {
                 Map<String, Integer> modeCount = hourModeFrequency.get(hour);
@@ -240,7 +240,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 if (modeCount != null) {
                     for (String mode : modes) {
                         if (modeCount.get(mode) != null) {
-                            builder.append("," + modeCount.get(mode));
+                            builder.append(",").append(modeCount.get(mode));
                         } else {
                             builder.append(",0");
                         }
