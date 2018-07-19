@@ -73,6 +73,7 @@ class RideHailManager(
 
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
 
+  val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
   val tncIterationStats: Option[TNCIterationStats] = {
     val rideHailIterationHistoryActor = context.actorSelection("/user/rideHailIterationHistoryActor")
@@ -107,9 +108,6 @@ class RideHailManager(
 
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
-
-  var rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
-
 
   //TODO improve search to take into account time when available
   private val availableRideHailAgentSpatialIndex = {
@@ -179,9 +177,6 @@ class RideHailManager(
 
     case BeamVehicleFuelLevelUpdate(id, fuelLevel) =>
       vehicleFuelLevel.put(id, fuelLevel)
-
-    case Finish =>
-      log.info("received Finish message")
 
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)

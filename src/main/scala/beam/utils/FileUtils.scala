@@ -1,12 +1,15 @@
 package beam.utils
 
 import java.io.{ByteArrayInputStream, File}
+import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
+import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
 
 import scala.util.Try
@@ -59,5 +62,15 @@ object FileUtils extends LazyLogging {
     f(resource)
   } finally {
     resource.close()
+  }
+
+  def downloadFile(source: String): Unit = {
+    downloadFile(source, Paths.get(getTempDirectoryPath, getName(source)).toString)
+  }
+
+  def downloadFile(source: String, target: String): Unit = {
+    assert(source != null)
+    assert(target != null)
+    copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 }

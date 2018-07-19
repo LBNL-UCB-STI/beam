@@ -29,13 +29,13 @@ object Metrics {
     * Marker trait for annotating MetricLevel, which must be Int after erasure.
     */
   final case class MetricLevel(asInt: Int) extends AnyVal {
-    @inline final def >=(other: MetricLevel): Boolean = asInt >= other.asInt
+    @inline def >=(other: MetricLevel): Boolean = asInt >= other.asInt
 
-    @inline final def <=(other: MetricLevel): Boolean = asInt <= other.asInt
+    @inline def <=(other: MetricLevel): Boolean = asInt <= other.asInt
 
-    @inline final def >(other: MetricLevel): Boolean = asInt > other.asInt
+    @inline def >(other: MetricLevel): Boolean = asInt > other.asInt
 
-    @inline final def <(other: MetricLevel): Boolean = asInt < other.asInt
+    @inline def <(other: MetricLevel): Boolean = asInt < other.asInt
   }
 
 

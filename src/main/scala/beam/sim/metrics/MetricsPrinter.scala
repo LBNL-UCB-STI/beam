@@ -21,8 +21,8 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
   }
 
   import context._
-  def receive: PartialFunction[Any, Unit] = {
-    case Subscribe(category, selection) if Metrics.isMetricsEnable =>
+  def receive = {
+    case Subscribe(category, selection) if(Metrics.isMetricsEnable) =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)
     case _ =>

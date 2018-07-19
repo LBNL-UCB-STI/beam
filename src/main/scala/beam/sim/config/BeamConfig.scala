@@ -16,7 +16,8 @@ object BeamConfig {
     outputs        : BeamConfig.Beam.Outputs,
     physsim        : BeamConfig.Beam.Physsim,
     routing        : BeamConfig.Beam.Routing,
-    spatial        : BeamConfig.Beam.Spatial
+    spatial        : BeamConfig.Beam.Spatial,
+    warmStart      : BeamConfig.Beam.WarmStart
   )
   object Beam {
     case class Agentsim(
@@ -25,6 +26,8 @@ object BeamConfig {
       simulationName              : java.lang.String,
       taz                         : BeamConfig.Beam.Agentsim.Taz,
       thresholdForWalkingInMeters : scala.Int,
+      timeBinSize                 : scala.Int,
+      toll                        : BeamConfig.Beam.Agentsim.Toll,
       tuning                      : BeamConfig.Beam.Agentsim.Tuning
     )
     object Agentsim {
@@ -239,8 +242,7 @@ object BeamConfig {
             minimumSurgeLevel       : scala.Double,
             numberOfCategories      : scala.Int,
             priceAdjustmentStrategy : java.lang.String,
-            surgeLevelAdaptionStep  : scala.Double,
-            timeBinSize             : scala.Int
+            surgeLevelAdaptionStep  : scala.Double
           )
           object SurgePricing {
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing = {
@@ -248,8 +250,7 @@ object BeamConfig {
                 minimumSurgeLevel       = if(c.hasPathOrNull("minimumSurgeLevel")) c.getDouble("minimumSurgeLevel") else 0.1,
                 numberOfCategories      = if(c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
                 priceAdjustmentStrategy = if(c.hasPathOrNull("priceAdjustmentStrategy")) c.getString("priceAdjustmentStrategy") else "KEEP_PRICE_LEVEL_FIXED_AT_ONE",
-                surgeLevelAdaptionStep  = if(c.hasPathOrNull("surgeLevelAdaptionStep")) c.getDouble("surgeLevelAdaptionStep") else 0.1,
-                timeBinSize             = if(c.hasPathOrNull("timeBinSize")) c.getInt("timeBinSize") else 3600
+                surgeLevelAdaptionStep  = if(c.hasPathOrNull("surgeLevelAdaptionStep")) c.getDouble("surgeLevelAdaptionStep") else 0.1
               )
             }
           }
@@ -288,6 +289,17 @@ object BeamConfig {
         }
       }
             
+      case class Toll(
+        file : java.lang.String
+      )
+      object Toll {
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Toll = {
+          BeamConfig.Beam.Agentsim.Toll(
+            file = if(c.hasPathOrNull("file")) c.getString("file") else "/test/input/beamville/toll-prices.csv"
+          )
+        }
+      }
+            
       case class Tuning(
         fuelCapacityInJoules : scala.Double,
         rideHailPrice        : scala.Double,
@@ -314,6 +326,8 @@ object BeamConfig {
           simulationName              = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
           taz                         = BeamConfig.Beam.Agentsim.Taz(c.getConfig("taz")),
           thresholdForWalkingInMeters = if(c.hasPathOrNull("thresholdForWalkingInMeters")) c.getInt("thresholdForWalkingInMeters") else 100,
+          timeBinSize                 = if(c.hasPathOrNull("timeBinSize")) c.getInt("timeBinSize") else 3600,
+          toll                        = BeamConfig.Beam.Agentsim.Toll(c.getConfig("toll")),
           tuning                      = BeamConfig.Beam.Agentsim.Tuning(c.getConfig("tuning"))
         )
       }
@@ -388,7 +402,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory = !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
-          baseOutputDirectory           = if(c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "/test/output",
+          baseOutputDirectory           = if(c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
           events                        = BeamConfig.Beam.Outputs.Events(c.getConfig("events")),
           writeEventsInterval           = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
           writePlansInterval            = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
@@ -462,7 +476,7 @@ object BeamConfig {
           BeamConfig.Beam.Routing.Gtfs(
             crs           = if(c.hasPathOrNull("crs")) c.getString("crs") else "epsg:26910",
             operatorsFile = if(c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile") else "src/main/resources/GTFSOperators.csv",
-            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/test/output/gtfs"
+            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "output/gtfs"
           )
         }
       }
@@ -524,6 +538,21 @@ object BeamConfig {
       }
     }
           
+    case class WarmStart(
+      enabled  : scala.Boolean,
+      path     : java.lang.String,
+      pathType : java.lang.String
+    )
+    object WarmStart {
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
+        BeamConfig.Beam.WarmStart(
+          enabled  = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+          path     = if(c.hasPathOrNull("path")) c.getString("path") else "output",
+          pathType = if(c.hasPathOrNull("pathType")) c.getString("pathType") else "PARENT_RUN"
+        )
+      }
+    }
+          
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
         agentsim       = BeamConfig.Beam.Agentsim(c.getConfig("agentsim")),
@@ -533,7 +562,8 @@ object BeamConfig {
         outputs        = BeamConfig.Beam.Outputs(c.getConfig("outputs")),
         physsim        = BeamConfig.Beam.Physsim(c.getConfig("physsim")),
         routing        = BeamConfig.Beam.Routing(c.getConfig("routing")),
-        spatial        = BeamConfig.Beam.Spatial(c.getConfig("spatial"))
+        spatial        = BeamConfig.Beam.Spatial(c.getConfig("spatial")),
+        warmStart      = BeamConfig.Beam.WarmStart(c.getConfig("warmStart"))
       )
     }
   }
@@ -584,7 +614,7 @@ object BeamConfig {
             firstIteration   = if(c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
             lastIteration    = if(c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
             mobsim           = if(c.hasPathOrNull("mobsim")) c.getString("mobsim") else "metasim",
-            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/test/output/pt-tutorial",
+            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "output/pt-tutorial",
             overwriteFiles   = if(c.hasPathOrNull("overwriteFiles")) c.getString("overwriteFiles") else "overwriteExistingFiles"
           )
         }

@@ -47,7 +47,6 @@ class TransitDataDownloader {
             synchronized (TransitDataDownloader.class) {
                 if (instance == null) {
                     instance = new TransitDataDownloader(apiKey);
-
                 }
             }
         }
@@ -93,7 +92,7 @@ class TransitDataDownloader {
         });
 
         while (true) {
-            if (!(!threadpool.isShutdown())) break;
+            if (threadpool.isShutdown()) break;
         }
 
         return ops;
@@ -132,36 +131,33 @@ class TransitDataDownloader {
             @Override
             public void completed(Content result) {
                 InputStream in = result.asStream();
-                FileOutputStream out;
                 File outDirPath = new File(outDir + File.separator);
-                if (!outDirPath.exists()) {
-                    outDirPath.mkdirs();
-                }
-                try {
+                if (outDirPath.exists() || outDirPath.mkdirs()) {
                     String fileSuffix = File.separator + agencyId + "_gtfs";
                     String zipFilePath = outDir + fileSuffix + ".zip";
-                    out = new FileOutputStream(zipFilePath);
-                    threadpool.submit(() -> {
-                        try {
-                            copy(in, out);
-                            log.info("Download done.");
-                            threadpool.submit(() -> {
-                                log.info("Unzipping now... ");
-                                String destDirectory = outDirPath + fileSuffix + File.separator;
-                                try {
-                                    unzip(zipFilePath, destDirectory, true);
-                                    log.info("Done.");
-                                    close();
-                                } catch (Exception ex) {
-                                    ex.printStackTrace();
-                                }
-                            });
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    try (FileOutputStream out = new FileOutputStream(zipFilePath)) {
+                        threadpool.submit(() -> {
+                            try {
+                                copy(in, out);
+                                log.info("Download done.");
+                                threadpool.submit(() -> {
+                                    log.info("Unzipping now... ");
+                                    String destDirectory = outDirPath + fileSuffix + File.separator;
+                                    try {
+                                        unzip(zipFilePath, destDirectory, true);
+                                        log.info("Done.");
+                                        close();
+                                    } catch (Exception ex) {
+                                        ex.printStackTrace();
+                                    }
+                                });
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
@@ -190,7 +186,4 @@ class TransitDataDownloader {
         }
         output.flush();
     }
-
 }
-
-
