@@ -17,6 +17,10 @@ object ParkingManager{
   case class ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
                             activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference,
                             arrivalTime: Long, parkingDuration: Double, reservedFor: ReservedParkingType = ParkingStall.Any )
+
+  case class DepotParkingInquiry(customerLocationUtm: Location, reservedFor: ReservedParkingType)
+  case class DepotParkingInquiryResponse(mStall: Option[ParkingStall])
+
   case class ParkingInquiryResponse(stall: ParkingStall)
 
   // Use this to pass data from CSV or config file into the manager

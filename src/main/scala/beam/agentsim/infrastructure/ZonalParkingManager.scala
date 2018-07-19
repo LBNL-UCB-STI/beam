@@ -8,7 +8,7 @@ import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingManager._
 import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
@@ -78,6 +78,28 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
       throw new RuntimeException("Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet.")
 
+    case inquiry@DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
+      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
+      val mStalls = mNearestTaz.flatMap{ case (taz, _) =>
+          pooledResources.find{case (attr, values) =>
+            attr.tazId.equals(taz.tazId) &&
+            attr.reservedFor.equals(reservedFor) &&
+            values.stall > 0
+          }
+      }
+
+      val mParkingStall = mStalls.flatMap{case(attr, values) =>
+        maybeCreateNewStall(attr, location, 0.0, Some(values))
+      }
+
+      mParkingStall.foreach{stall =>
+        resources.put(stall.id,stall)
+        val stallValues = pooledResources(stall.attributes)
+        pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall - 1))
+      }
+
+      sender() ! DepotParkingInquiryResponse(mParkingStall)
+
     case inquiry@ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
       activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference, arrivalTime: Long, parkingDuration: Double,
     reservedFor: ReservedParkingType) =>
@@ -109,8 +131,6 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
               selectStallWithCharger(inquiry,500.0)
           }
       })
-    case um =>
-      print()
   }
 
   private def maybeCreateNewStall(attrib: StallAttributes,atLocation: Location, withCost: Double,
@@ -127,7 +147,6 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     resources.put(stall.id,stall)
     val stallValues = pooledResources(stall.attributes)
     pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall - 1))
-    val ssender = sender()
     sender() ! ParkingInquiryResponse(stall)
   }
 
