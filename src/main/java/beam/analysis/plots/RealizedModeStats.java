@@ -70,7 +70,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
-        if (event.getEventType() == ModeChoiceEvent.EVENT_TYPE) {
+        if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
 
             String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
             String personId = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
@@ -99,7 +99,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             hourPerson.put(new ModePerson(mode, personId), hour);
             hourModeFrequency.put(hour, hourData);
         }
-        if (event.getEventType() == ReplanningEvent.EVENT_TYPE) {
+        if (ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
             Map<String, String> attributes = event.getAttributes();
             if (attributes != null) {
                 String person = attributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
