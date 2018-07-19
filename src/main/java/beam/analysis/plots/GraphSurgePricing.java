@@ -103,7 +103,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         processSurgePriceBinsMap(surgePricingManager);
 
-        if (min != max) {
+        if (!min.equals(max)) {
 
             calculateCateogorySize();
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
