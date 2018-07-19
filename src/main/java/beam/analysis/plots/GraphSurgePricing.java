@@ -134,8 +134,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         List<String> categoriesStrings = new ArrayList<>();
 
         if (!categorize) {
-            List<Double> categoriesList = new ArrayList<>();
-            categoriesList.addAll(transformedBins.keySet());
+            List<Double> categoriesList = new ArrayList<>(transformedBins.keySet());
             Collections.sort(categoriesList);
 
 //            categoriesStrings = categoriesList.stream().map(String::valueOf).collect(Collectors.toList());
@@ -329,8 +328,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private double[][] buildDatasetFromTransformedBins(Map<Double, Map<Integer, Integer>> transformedCategories) {
 
         double[][] dataset = new double[transformedCategories.keySet().size()][numberOfTimeBins];
-        List<Double> categoriesList = new ArrayList<>();
-        categoriesList.addAll(transformedCategories.keySet());
+        List<Double> categoriesList = new ArrayList<>(transformedCategories.keySet());
         Collections.sort(categoriesList);
 
         int i = 0;
@@ -355,8 +353,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize) {
 
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
-        List<String> _categoriesKeys = new ArrayList<>();
-        _categoriesKeys.addAll(categoriesKeys);
+        List<String> _categoriesKeys = new ArrayList<>(categoriesKeys);
         int lastIndex = _categoriesKeys.size() - 1;
         String lastValue = _categoriesKeys.get(lastIndex);
         lastValue = lastValue + "-" + max;

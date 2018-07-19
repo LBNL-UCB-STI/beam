@@ -117,8 +117,7 @@ public class PersonTravelTimeStats implements IGraphStats{
     }
     private double[][] buildAverageTimesDataset(String mode) {
         Map<Integer, List<Double>> times = hourlyPersonTravelTimes.get(mode);
-        List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(times.keySet());
+        List<Integer> hoursList = new ArrayList<>(times.keySet());
         Collections.sort(hoursList);
 
         int maxHour = hoursList.get(hoursList.size() - 1);
