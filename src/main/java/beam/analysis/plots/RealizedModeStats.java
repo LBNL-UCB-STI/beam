@@ -199,7 +199,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Set<String> modes = new TreeSet<>();
         Map<String, Integer> modeCountBucket = new HashMap<>();
-        hourModeFrequency.keySet().stream().forEach(hour -> hourModeFrequency.get(hour).keySet().stream().
+        hourModeFrequency.keySet().forEach(hour -> hourModeFrequency.get(hour).keySet().
                 forEach(mode -> {
                     Integer count = modeCountBucket.get(mode);
                     Map<String, Integer> modeFrequency = hourModeFrequency.get(hour);
@@ -212,7 +212,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     }
                 }));
 
-        modeCountBucket.keySet().stream().forEach(mode -> {
+        modeCountBucket.keySet().forEach(mode -> {
             if (modeCountBucket.get(mode) != null && modeCountBucket.get(mode) != 0) {
                 modes.add(mode);
             }
