@@ -239,9 +239,8 @@ public class RideHailWaitingStats implements IGraphStats {
             List<Double> categories = getCategories();
 
 
-            for (int j = 0; j < categories.size(); j++){
+            for (Double category : categories) {
 
-                Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
                 out.write(_category + "");
                 String line;
@@ -330,11 +329,10 @@ public class RideHailWaitingStats implements IGraphStats {
     private List<String> getLegends(List<Double> categories){
 
         List<String> legends = new ArrayList<>();
-        for(int i = 0; i<categories.size(); i++){
+        for (Double category : categories) {
 
-            Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
-            legends.add( legend + "_sec");
+            legends.add(legend + "_sec");
         }
         //Collections.sort(legends);
         return legends;
