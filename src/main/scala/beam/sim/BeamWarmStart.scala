@@ -45,7 +45,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     }
   }
 
-  private def getWarmStartPath = {
+  private def getWarmStartPath: Option[String] = {
     pathType match {
       case "PARENT_RUN" =>
         getWarmStartPath(getParentRunPath)
