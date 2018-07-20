@@ -48,28 +48,33 @@ public class NestedLogit implements AbstractLogit{
 		UtilityFunction utility;
 		for(int i=0; i < rootElem.getChildren().size(); i++){
 			Element elem = (Element) rootElem.getChildren().get(i);
-			if(elem.getName().toLowerCase().equals("elasticity")){
-				theData.setElasticity(Double.parseDouble(elem.getValue()));
-			}else if(elem.getName().toLowerCase().equals("utility")){
-				utility = new UtilityFunction();
-				for(int j=0; j < elem.getChildren().size(); j++){
-					Element paramElem = (Element)elem.getChildren().get(j);
-					if(paramElem.getName().toLowerCase().equals("param")){
-						utility.addCoefficient(paramElem.getAttributeValue("name"), Double.parseDouble(paramElem.getValue()), LogitCoefficientType.valueOf(paramElem.getAttributeValue("type")));
+			switch (elem.getName().toLowerCase()) {
+				case "elasticity":
+					theData.setElasticity(Double.parseDouble(elem.getValue()));
+					break;
+				case "utility":
+					utility = new UtilityFunction();
+					for (int j = 0; j < elem.getChildren().size(); j++) {
+						Element paramElem = (Element) elem.getChildren().get(j);
+						if (paramElem.getName().toLowerCase().equals("param")) {
+							utility.addCoefficient(paramElem.getAttributeValue("name"), Double.parseDouble(paramElem.getValue()), LogitCoefficientType.valueOf(paramElem.getAttributeValue("type")));
+						}
 					}
-				}
-				theData.setUtility(utility);
-				if(tree.parent!=null){
-					tree.ancestorNests = new LinkedList<NestedLogit>();
-					establishAncestry(tree,tree.parent);
-				}
-			}else if(elem.getName().toLowerCase().equals("nestedlogit") || elem.getName().toLowerCase().equals("alternative")){
-				if(tree.children == null){
-					tree.children = new LinkedList<NestedLogit>();
-				}
-				NestedLogit child = NestedLogit.nestedLogitFactory(elem);
-				child.parent = tree;
-				tree.children.add(child);
+					theData.setUtility(utility);
+					if (tree.parent != null) {
+						tree.ancestorNests = new LinkedList<NestedLogit>();
+						establishAncestry(tree, tree.parent);
+					}
+					break;
+				case "nestedlogit":
+				case "alternative":
+					if (tree.children == null) {
+						tree.children = new LinkedList<NestedLogit>();
+					}
+					NestedLogit child = NestedLogit.nestedLogitFactory(elem);
+					child.parent = tree;
+					tree.children.add(child);
+					break;
 			}
 		}
 		return tree;
