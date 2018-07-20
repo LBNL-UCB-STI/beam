@@ -55,6 +55,15 @@ object FileUtils extends LazyLogging {
     scala.io.Source.fromInputStream(inputStream).mkString
   }.toOption
 
+  def createDirectoryIfNotExists(path: String): Boolean ={
+    val dir = new File(path).getAbsoluteFile
+    if(!dir.exists() && !dir.isDirectory){
+      dir.mkdirs()
+    }else{
+      false
+    }
+  }
+
   def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B = try {
     f(resource)
   } finally {

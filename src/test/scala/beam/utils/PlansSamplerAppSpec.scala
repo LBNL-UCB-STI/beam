@@ -11,13 +11,15 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
     "test/input/beamville/shape/beamville_aoi.shp",
     "test/input/beamville/physsim-network.xml",
     "test/input/beamville/hhOut.csv",
-    "test/input/beamville/vehicles.xml", "3",
-    "/Users/sfeygin/current_code/java/research/beam/output/test/plansampler",
+    "test/input/beamville/vehicles.xml",
+    "3",
+    "output/test/plansampler/",
     "epsg:4326",
     "epsg:32631")
 
   "PlanSamplerApp class" should {
     "assign available modes to agents " in {
+      FileUtils.createDirectoryIfNotExists(inputData(6))
       val sampler = PlansSampler
       sampler.init(inputData)
       sampler.run()
