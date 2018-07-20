@@ -61,7 +61,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private BeamConfig beamConfig;
     private HashMap<String, String> previousActivity = new HashMap<>();
-    private Random rand = MatsimRandom.getRandom(); // TODO: check, if this is better then general random resp. seeded from beam config
+    private Random rand = MatsimRandom.getRandom();
 
     private boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
@@ -77,6 +77,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         this.controlerIO = controlerIO;
         this.router = router;
         this.beamConfig = beamConfig;
+        this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 

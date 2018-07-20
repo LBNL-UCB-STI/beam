@@ -80,7 +80,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
       (v.tazId.toString, array)
     }.toMap
 
-  val rand = new Random
+  val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -89,8 +89,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     if (!priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) {
       if (isFirstIteration) {
         // TODO: can we refactor the following two blocks of code to reduce duplication?
-
-        // TODO: seed following random to some config seed?
 
         updateForAllElements(surgePriceBins) { surgePriceBin =>
           val updatedSurgeLevel = if (rand.nextBoolean()) {
