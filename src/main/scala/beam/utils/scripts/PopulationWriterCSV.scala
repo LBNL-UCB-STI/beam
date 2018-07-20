@@ -41,12 +41,11 @@ class PopulationWriterCSV(val coordinateTransformation: CoordinateTransformation
           scoreMap.keySet.toVector.sorted.map(key => Vector(key,scoreMap(key).toString).mkString(",")).mkString(",")
         }else{""}
         var planAttribsString = s"$modalityStyle,$modalityScores"
-        person.getSelectedPlan.getPlanElements.forEach { elem =>
-          if (elem.isInstanceOf[Activity]) {
-            val activity = elem.asInstanceOf[Activity]
-            out.write(s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime},${planAttribsString}\n")
+        person.getSelectedPlan.getPlanElements.forEach {
+          case activity: Activity =>
+            out.write(s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime},$planAttribsString\n")
             planAttribsString = "" // only write for first activity to avoid dups
-          }
+          case _ =>
         }
       }
     }
