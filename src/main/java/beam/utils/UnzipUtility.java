@@ -11,21 +11,22 @@ import static java.nio.file.Files.delete;
 /**
  * This predictedUtility extracts files and directories of a standard zip file to
  * a destination directory.
+ *
  * @author www.codejava.net
  * @author sfeygin (modifying)
- *
  */
 public class UnzipUtility {
     /**
      * Size of the buffer to read/write data
      */
     private static final int BUFFER_SIZE = 4096;
+
     /**
      * Extracts a zip file specified by the zipFilePath to a directory specified by
      * destDirectory (will be created if does not exists)
-     * @param zipFilePath Source directory for zip file
-     * @param destDirectory Target directory for unzipping.
      *
+     * @param zipFilePath   Source directory for zip file
+     * @param destDirectory Target directory for unzipping.
      * @throws IOException Error on failure.
      */
     public static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
@@ -48,16 +49,16 @@ public class UnzipUtility {
             entry = zipIn.getNextEntry();
         }
         zipIn.close();
-        if(delete){
+        if (delete) {
             delete(Paths.get(zipFilePath));
         }
     }
+
     /**
      * Extracts a zip entry (file entry)
      *
-     * @param zipIn input file
+     * @param zipIn    input file
      * @param filePath target directory
-     *
      * @throws IOException error on failure
      */
     private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {

@@ -10,11 +10,11 @@ public class CSVWriter {
 
     private final BufferedWriter out;
 
-    public CSVWriter(String outputFileName){
+    public CSVWriter(String outputFileName) {
         this.out = IOUtils.getBufferedWriter(outputFileName);
     }
 
-    public BufferedWriter getBufferedWriter(){
+    public BufferedWriter getBufferedWriter() {
         return out;
     }
 

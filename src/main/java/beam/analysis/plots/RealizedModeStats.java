@@ -24,14 +24,14 @@ import static beam.sim.metrics.Metrics.ShortLevel;
 public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
 
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "realized_mode";
+    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static List<String> personIdList = new ArrayList<>();
-    private Logger log = LoggerFactory.getLogger(this.getClass());
     private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public void processStats(Event event) {
@@ -115,7 +115,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 }
 
                 if (mode != null && modeHour != -1) {
-                    hourPerson.remove(new ModePerson(mode,person));
+                    hourPerson.remove(new ModePerson(mode, person));
                     Integer replanning = 1;
                     if (hourData != null) {
                         replanning = hourData.get("others");
@@ -278,7 +278,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         @Override
         public String toString() {
-            return "[mode: "+mode+", person: "+person+"]";
+            return "[mode: " + mode + ", person: " + person + "]";
         }
 
         @Override

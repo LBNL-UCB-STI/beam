@@ -19,27 +19,25 @@ import java.util.Map;
 // this class can be replaced by default EventWriterXML, as this issue gets resolved.
 
 public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHandler {
+    private static final String TNC = "ride";
+    private static final String BUS = "SF";
+    private static final String CAR = "car";
     private final BufferedWriter out;
+    HashMap<String, HashSet<String>> filterPeopleForViaDemo = new HashMap<>();
+    HashMap<String, Integer> maxPeopleForViaDemo = new HashMap<>();
     private String outFileName;
 
-    private static final String TNC="ride";
-    private static final String BUS="SF";
-    private static final String CAR="car";
-
-    HashMap<String,HashSet<String>> filterPeopleForViaDemo=new HashMap<>();
-    HashMap<String,Integer> maxPeopleForViaDemo=new HashMap<>();
-
     public EventWriterXML_viaCompatible(final String outFileName) {
-        this.outFileName =outFileName;
+        this.outFileName = outFileName;
         this.out = IOUtils.getBufferedWriter(outFileName);
 
-        filterPeopleForViaDemo.put(CAR,new HashSet<>());
-        filterPeopleForViaDemo.put(BUS,new HashSet<>());
-        filterPeopleForViaDemo.put(TNC,new HashSet<>());
+        filterPeopleForViaDemo.put(CAR, new HashSet<>());
+        filterPeopleForViaDemo.put(BUS, new HashSet<>());
+        filterPeopleForViaDemo.put(TNC, new HashSet<>());
 
-        maxPeopleForViaDemo.put(CAR,420);
-        maxPeopleForViaDemo.put(BUS,50);
-        maxPeopleForViaDemo.put(TNC,30);
+        maxPeopleForViaDemo.put(CAR, 420);
+        maxPeopleForViaDemo.put(BUS, 50);
+        maxPeopleForViaDemo.put(TNC, 30);
 
         try {
             this.out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">\n");
@@ -47,7 +45,6 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
             e.printStackTrace();
         }
     }
-
 
 
     @Override
@@ -73,22 +70,22 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     public void reset(final int iter) {
     }
 
-    private boolean addPersonToEventsFile(String person){
-        String personLabel=null;
+    private boolean addPersonToEventsFile(String person) {
+        String personLabel = null;
 
-        if (person==null){
+        if (person == null) {
             DebugLib.emptyFunctionForSettingBreakPoint();
         }
 
         if (person.contains(BUS)) {
-            personLabel=BUS;
-        } else if (person.contains(TNC)){
-            personLabel=TNC;
+            personLabel = BUS;
+        } else if (person.contains(TNC)) {
+            personLabel = TNC;
         } else {
-            personLabel=CAR;
+            personLabel = CAR;
         }
 
-        if (filterPeopleForViaDemo.get(personLabel).size()<maxPeopleForViaDemo.get(personLabel) || filterPeopleForViaDemo.get(personLabel).contains(person)){
+        if (filterPeopleForViaDemo.get(personLabel).size() < maxPeopleForViaDemo.get(personLabel) || filterPeopleForViaDemo.get(personLabel).contains(person)) {
             filterPeopleForViaDemo.get(personLabel).add(person);
             return true;
         } else {
@@ -101,23 +98,23 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
 
         // select 500 agents for sf-light demo in via
         //if (outFileName.contains("sf-light")){
-            Map<String, String> eventAttributes = event.getAttributes();
-            String person= eventAttributes.get("person");
-            String vehicle= eventAttributes.get("vehicle");
+        Map<String, String> eventAttributes = event.getAttributes();
+        String person = eventAttributes.get("person");
+        String vehicle = eventAttributes.get("vehicle");
 
-            if (person!=null){
-                if (!addPersonToEventsFile(person)) return;
-            } else {
-                if (!addPersonToEventsFile(vehicle)) return;
-            }
+        if (person != null) {
+            if (!addPersonToEventsFile(person)) return;
+        } else {
+            if (!addPersonToEventsFile(vehicle)) return;
+        }
         //}
 
         try {
             this.out.append("\t<event ");
             Map<String, String> attr = eventAttributes;
 
-            if (attr.get("type").equalsIgnoreCase("vehicle enters traffic")){
-                attr.put("type","wait2link");
+            if (attr.get("type").equalsIgnoreCase("vehicle enters traffic")) {
+                attr.put("type", "wait2link");
             }
 
 
@@ -135,13 +132,14 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
 
     // the following method was taken from MatsimXmlWriter in order to correctly encode attributes, but
     // to forego the overhead of using the full MatsimXmlWriter.
+
     /**
      * Encodes the given string in such a way that it no longer contains
      * characters that have a special meaning in xml.
      *
-     * @see <a href="http://www.w3.org/International/questions/qa-escapes#use">http://www.w3.org/International/questions/qa-escapes#use</a>
      * @param attributeValue
      * @return String with some characters replaced by their xml-encoding.
+     * @see <a href="http://www.w3.org/International/questions/qa-escapes#use">http://www.w3.org/International/questions/qa-escapes#use</a>
      */
     private String encodeAttributeValue(final String attributeValue) {
         if (attributeValue == null) {

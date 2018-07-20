@@ -27,19 +27,17 @@ import java.util.Set;
  */
 public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
-    private static final int SECONDS_IN_HOUR = 3600;
     public static final String CAR = "car";
     public static final String RIDE = "ride";
     public static final String TNC = "tnc";
-    public static final String WALK="walk";
+    public static final String WALK = "walk";
     public static final String RIDE_HAILING = "ride_hailing";
-    public static final String TNC_DEAD_HEADING_DISTANCE="tnc_deadheading_distance";
-
+    public static final String TNC_DEAD_HEADING_DISTANCE = "tnc_deadheading_distance";
+    public static final int GRAPH_HEIGHT = 600;
+    public static final int GRAPH_WIDTH = 800;
+    private static final int SECONDS_IN_HOUR = 3600;
     public static OutputDirectoryHierarchy CONTROLLER_IO;
-    public static final int GRAPH_HEIGHT=600;
-    public static final int GRAPH_WIDTH =800;
     // Static Initializer
-
     private IGraphStats deadHeadingStats = new DeadHeadingStats();
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
@@ -63,6 +61,23 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+    }
+
+    // helper methods
+    public static int getEventHour(double time) {
+        return (int) time / SECONDS_IN_HOUR;
+    }
+
+    public static List<Integer> getSortedIntegerList(Set<Integer> integerSet) {
+        List<Integer> list = new ArrayList<>(integerSet);
+        Collections.sort(list);
+        return list;
+    }
+
+    public static List<String> getSortedStringList(Set<String> stringSet) {
+        List<String> graphNamesList = new ArrayList<>(stringSet);
+        Collections.sort(graphNamesList);
+        return graphNamesList;
     }
 
     @Override
@@ -95,7 +110,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
             personTravelTimeStats.processStats(event);
-        } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
+        } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
             rideHailingWaitingSingleStats.processStats(event);
         }
@@ -109,25 +124,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         rideHailingWaitingSingleStats.createGraph(event);
 
 
-        deadHeadingStats.createGraph(event,"TNC0");
-        deadHeadingStats.createGraph(event,"");
+        deadHeadingStats.createGraph(event, "TNC0");
+        deadHeadingStats.createGraph(event, "");
         personTravelTimeStats.resetStats();
         realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
-    }
-
-     // helper methods
-    public static int getEventHour(double time) {
-        return (int) time / SECONDS_IN_HOUR;
-    }
-    public static List<Integer> getSortedIntegerList(Set<Integer> integerSet){
-        List<Integer> list = new ArrayList<>(integerSet);
-        Collections.sort(list);
-        return list;
-    }
-    public static List<String> getSortedStringList(Set<String> stringSet){
-        List<String> graphNamesList = new ArrayList<>(stringSet);
-        Collections.sort(graphNamesList);
-        return graphNamesList;
     }
 }

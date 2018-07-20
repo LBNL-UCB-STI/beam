@@ -62,6 +62,20 @@ public class MultiGTFSMerger {
 
     }
 
+    public static void main(String[] args) {
+        final MultiGTFSMerger merger = new MultiGTFSMerger("sf_bay_network_all_pt", "sf_bay_schedule_all", "sf_bay_vehicles_all");
+        merger.run();
+//        merger.readCountsFromEvents();
+//        try {
+//            TransitScheduleValidator.main(new String[]{"/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule/sf_bay_schedule_all.xml",
+//                    "/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/network/combi/sf_bay_network_all_pt.xml"});
+//
+//        } catch (IOException | SAXException | ParserConfigurationException e) {
+//            e.printStackTrace();
+//        }
+//        System.out.println("Done!");
+    }
+
     public void run() {
         agency2AgencyId.forEach(this::loadSingleAgencyData);
         agency2AgencyId.values().stream().filter(s -> !s.equals(initNetId)).forEach(this::integrateAgencyData);
@@ -135,20 +149,5 @@ public class MultiGTFSMerger {
         System.out.println("Writing merged vehicles...");
         vehWriter.writeFile(vehiclesOutName);
         System.out.println("Done!");
-    }
-
-
-    public static void main(String[] args) {
-        final MultiGTFSMerger merger = new MultiGTFSMerger("sf_bay_network_all_pt", "sf_bay_schedule_all", "sf_bay_vehicles_all");
-        merger.run();
-//        merger.readCountsFromEvents();
-//        try {
-//            TransitScheduleValidator.main(new String[]{"/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule/sf_bay_schedule_all.xml",
-//                    "/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/network/combi/sf_bay_network_all_pt.xml"});
-//
-//        } catch (IOException | SAXException | ParserConfigurationException e) {
-//            e.printStackTrace();
-//        }
-//        System.out.println("Done!");
     }
 }

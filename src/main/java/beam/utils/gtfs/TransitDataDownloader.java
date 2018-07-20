@@ -53,6 +53,16 @@ class TransitDataDownloader {
         return instance;
     }
 
+    private static void copy(InputStream input, OutputStream output) throws IOException {
+        byte[] buf = new byte[BUFFER_SIZE];
+        int n = input.read(buf);
+        while (n >= 0) {
+            output.write(buf, 0, n);
+            n = input.read(buf);
+        }
+        output.flush();
+    }
+
     List<Operator> getTransitOperatorList() {
         threadpool = Executors.newFixedThreadPool(2);
         // Request (GET )
@@ -175,15 +185,5 @@ class TransitDataDownloader {
 
     private void close() {
         threadpool.shutdown();
-    }
-
-    private static void copy(InputStream input, OutputStream output) throws IOException {
-        byte[] buf = new byte[BUFFER_SIZE];
-        int n = input.read(buf);
-        while (n >= 0) {
-            output.write(buf, 0, n);
-            n = input.read(buf);
-        }
-        output.flush();
     }
 }

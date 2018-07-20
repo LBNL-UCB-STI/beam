@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 /**
  * Takes care of retrieving {@link Operator} data.
- *
+ * <p>
  * Created by sfeygin on 11/11/16.
  */
 public class OperatorDataUtility {
@@ -24,17 +24,17 @@ public class OperatorDataUtility {
     private String opMapPath;
     private String apiKey;
 
-    public OperatorDataUtility(BeamConfig config){
-        opMapPath= config.beam().routing().gtfs().operatorsFile();
+    public OperatorDataUtility(BeamConfig config) {
+        opMapPath = config.beam().routing().gtfs().operatorsFile();
 //        apiKey=BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 
 
     public Map<String, String> getOperatorMap() {
         Map<String, String> operatorMap;
-        if (new File(opMapPath).exists()){
+        if (new File(opMapPath).exists()) {
             operatorMap = readOperatorMapFromFile(opMapPath);
-        } else{
+        } else {
             log.info("Operator key file not found. Downloading and saving...");
             operatorMap = downloadOperatorMap(apiKey);
             saveOperatorMap(opMapPath, operatorMap);
@@ -43,7 +43,7 @@ public class OperatorDataUtility {
     }
 
 
-    private void saveOperatorMap(String opMapPath, Map<String,String> operatorMap) {
+    private void saveOperatorMap(String opMapPath, Map<String, String> operatorMap) {
         try {
             CsvMapWriter csvMapWriter = new CsvMapWriter(IOUtils.getBufferedWriter(opMapPath), CsvPreference.STANDARD_PREFERENCE);
             final String[] opKeyArray = operatorMap.keySet().toArray(new String[0]);

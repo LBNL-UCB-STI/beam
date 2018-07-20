@@ -21,9 +21,8 @@ import java.util.Map;
  */
 public class RideHailStats implements IGraphStats {
 
-    private Logger log = LoggerFactory.getLogger(this.getClass());
     private static final String fileName = "RideHailStats";
-
+    private Logger log = LoggerFactory.getLogger(this.getClass());
     private Map<String, List<PathTraversalEvent>> eventMap = new HashMap<>();
 
     @Override

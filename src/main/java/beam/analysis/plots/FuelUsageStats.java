@@ -16,13 +16,12 @@ import java.io.IOException;
 import java.util.*;
 
 public class FuelUsageStats implements IGraphStats {
-    private static Set<String> modesFuel = new TreeSet<>();
-    private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     private static final String fileName = "energy_use.png";
-
+    private static Set<String> modesFuel = new TreeSet<>();
+    private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
     @Override
     public void processStats(Event event) {

@@ -15,7 +15,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
-//    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
+    //    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
 //    public final static String VERBOSE_ATTRIBUTE_LOCATION = "location";
     public final static String ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
     public final static String ATTRIBUTE_AVAILABLE_ALTERNATIVES = "availableAlternatives";
@@ -23,6 +23,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
+    public final RoutingModel.EmbodiedBeamTrip chosenTrip;
     private final Id<Person> personId;
     private final String mode;
     private final String expectedMaxUtility;
@@ -31,7 +32,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     private final String vehAvailable;
     private final Double length;
     private final Integer tourIndex;
-    public final RoutingModel.EmbodiedBeamTrip chosenTrip;
+    private Map<String, String> attr;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
@@ -49,10 +50,27 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         this.chosenTrip = chosenTrip;
     }
 
-    private Map<String, String> attr;
+    public static ModeChoiceEvent apply(Event event) {
+        if (!(event instanceof ModeChoiceEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            Map<String, String> attr = event.getAttributes();
+            return new ModeChoiceEvent(event.getTime(),
+                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
+                    attr.get(ATTRIBUTE_MODE),
+                    Double.parseDouble(attr.get(ATTRIBUTE_EXP_MAX_UTILITY)),
+                    attr.get(ATTRIBUTE_LOCATION),
+                    attr.get(ATTRIBUTE_AVAILABLE_ALTERNATIVES),
+                    Boolean.parseBoolean(attr.get(ATTRIBUTE_PERSONAL_VEH_AVAILABLE)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_TRIP_LENGTH)),
+                    Integer.parseInt(attr.get(ATTRIBUTE_TOUR_INDEX)),
+                    null
+            );
+        }
+        return (ModeChoiceEvent) event;
+    }
+
     @Override
     public Map<String, String> getAttributes() {
-        if(attr != null) return attr;
+        if (attr != null) return attr;
 
         attr = super.getAttributes();
 
@@ -83,23 +101,5 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     @Override
     public Id<Person> getPersonId() {
         return personId;
-    }
-
-    public static ModeChoiceEvent apply(Event event) {
-        if (!(event instanceof ModeChoiceEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            Map<String, String> attr = event.getAttributes();
-            return new ModeChoiceEvent(event.getTime(),
-                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
-                    attr.get(ATTRIBUTE_MODE),
-                    Double.parseDouble(attr.get(ATTRIBUTE_EXP_MAX_UTILITY)),
-                    attr.get(ATTRIBUTE_LOCATION),
-                    attr.get(ATTRIBUTE_AVAILABLE_ALTERNATIVES),
-                    Boolean.parseBoolean(attr.get(ATTRIBUTE_PERSONAL_VEH_AVAILABLE)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_TRIP_LENGTH)),
-                    Integer.parseInt(attr.get(ATTRIBUTE_TOUR_INDEX)),
-                    null
-            );
-        }
-        return (ModeChoiceEvent) event;
     }
 }
