@@ -12,11 +12,6 @@ class DebugActorWithTimer(val rideHailManager:ActorRef, val scheduler:ActorRef) 
       rideHailManager ! DebugRideHailManagerDuringExecution
       scheduler ! Monitor
   }
-
-
-
-
 }
 
 case object Tick
-

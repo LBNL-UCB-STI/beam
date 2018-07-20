@@ -12,6 +12,7 @@ import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
 
+import scala.language.reflectiveCalls
 import scala.util.Try
 
 /**
