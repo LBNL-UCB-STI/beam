@@ -1,7 +1,6 @@
 package beam.replanning
 
 import javax.inject.Inject
-
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup

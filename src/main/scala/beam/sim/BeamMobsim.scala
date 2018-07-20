@@ -21,7 +21,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.QuadTreeBounds
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.{InitTransit, Location, RoutingResponse}
+import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils._

@@ -1,17 +1,9 @@
 package beam.playground.jdeqsim.akka;
 
-import java.time.Duration;
-
+import akka.actor.ActorRef;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.handler.EventHandler;
-
-import akka.actor.ActorRef;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 public class AkkaEventHandlerAdapter implements EventsManager {
 

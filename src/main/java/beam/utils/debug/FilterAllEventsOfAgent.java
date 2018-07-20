@@ -6,7 +6,6 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 

@@ -8,14 +8,11 @@ import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static beam.agentsim.events.LoggerLevels.OFF;
-import static beam.agentsim.events.LoggerLevels.SHORT;
-import static beam.agentsim.events.LoggerLevels.VERBOSE;
+import static beam.agentsim.events.LoggerLevels.*;
 
 /**
  * BEAM

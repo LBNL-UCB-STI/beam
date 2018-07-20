@@ -1,22 +1,22 @@
 package beam.utils
 
-import java.awt.{BasicStroke, Color, Font, Graphics2D}
 import java.awt.geom.Point2D
-import java.awt.Stroke
 import java.awt.image.BufferedImage
+import java.awt._
 import java.io.{BufferedWriter, File, FileWriter}
 
 import beam.agentsim.agents.rideHail.RideHailAgent
 import javax.imageio.ImageIO
 import org.matsim.api.core.v01.{Coord, Id}
 
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 
-case class PointToPlot(val coord:Coord, val color:Color, val size:Int)
-case class LineToPlot(val startCoord:Coord, val endCoord:Coord,  val color:Color, val stroke:Int)
-case class StringToPlot(val text:String,val coord:Coord, val color:Color, val fontSize:Int)
-case class RideHailAgentInitCoord(val agentId: Id[RideHailAgent], val coord: Coord)
+case class PointToPlot(coord:Coord, color:Color, size:Int)
+case class LineToPlot(startCoord:Coord, endCoord:Coord, color:Color, stroke:Int)
+case class StringToPlot(text:String, coord:Coord, color:Color, fontSize:Int)
+case class RideHailAgentInitCoord(agentId: Id[RideHailAgent], coord: Coord)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
@@ -27,7 +27,7 @@ case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
     var maxY: Double = Double.MinValue
 
 
-    def addPoint(coord:Coord)={
+    def addPoint(coord:Coord): Unit ={
       minX = Math.min(minX, coord.getX)
       minY = Math.min(minY, coord.getY)
       maxX = Math.max(maxX, coord.getX)
@@ -53,15 +53,15 @@ case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 // frame is good for text lables as they can be outside of the area otherwise
 class SpatialPlot(width:Int, height:Int, frame:Int){
 
-  val pointsToPlot= collection.mutable.ListBuffer[PointToPlot]()
+  val pointsToPlot: ListBuffer[PointToPlot] = collection.mutable.ListBuffer[PointToPlot]()
 
-  val linesToPlot= collection.mutable.ListBuffer[LineToPlot]()
+  val linesToPlot: ListBuffer[LineToPlot] = collection.mutable.ListBuffer[LineToPlot]()
 
-  val stringsToPlot= collection.mutable.ListBuffer[StringToPlot]()
+  val stringsToPlot: ListBuffer[StringToPlot] = collection.mutable.ListBuffer[StringToPlot]()
 
-  val rideHailAgentInitCoordBuffer= collection.mutable.ListBuffer[RideHailAgentInitCoord]()
+  val rideHailAgentInitCoordBuffer: ListBuffer[RideHailAgentInitCoord] = collection.mutable.ListBuffer[RideHailAgentInitCoord]()
 
-  val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+  val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
 
   var boundsCalculator=new BoundsCalculator
 
@@ -73,22 +73,22 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
     boundsCalculator
   }
 
-  def addInvisiblePointsForBoundary(coord:Coord)={
+  def addInvisiblePointsForBoundary(coord:Coord): Unit ={
     boundsCalculator.addPoint(coord)
   }
 
-  def addLine(line: LineToPlot) = {
+  def addLine(line: LineToPlot): Unit = {
     linesToPlot+=line
     boundsCalculator.addPoint(line.startCoord)
     boundsCalculator.addPoint(line.endCoord)
   }
 
-  def addString(stringToPlot: StringToPlot) = {
+  def addString(stringToPlot: StringToPlot): Unit = {
     stringsToPlot+=stringToPlot
     boundsCalculator.addPoint(stringToPlot.coord)
   }
 
-  def addPoint(point: PointToPlot) = {
+  def addPoint(point: PointToPlot): Unit = {
     pointsToPlot+=point
     boundsCalculator.addPoint(point.coord)
   }
@@ -111,7 +111,7 @@ class SpatialPlot(width:Int, height:Int, frame:Int){
   def writeImage(path: String): Unit ={
     val bound=boundsCalculator.getBound
 
-    val graphics2d = bufferedImage.createGraphics();
+    val graphics2d = bufferedImage.createGraphics()
 
     for (lineToPlot <- linesToPlot) {
       //val stroke = new BasicStroke(lineToPlot.stroke)

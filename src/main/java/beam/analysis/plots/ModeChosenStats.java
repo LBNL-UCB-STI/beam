@@ -133,8 +133,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
+        List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);

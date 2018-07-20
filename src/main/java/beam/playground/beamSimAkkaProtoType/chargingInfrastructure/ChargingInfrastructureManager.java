@@ -1,18 +1,15 @@
 package beam.playground.beamSimAkkaProtoType.chargingInfrastructure;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import beam.utils.DebugLib;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
-import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
-import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
+import beam.utils.DebugLib;
+
+import java.util.HashSet;
+import java.util.LinkedList;
 
 public class ChargingInfrastructureManager extends UntypedActor {
 

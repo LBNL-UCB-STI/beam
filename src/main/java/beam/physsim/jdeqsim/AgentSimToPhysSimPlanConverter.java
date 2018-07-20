@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 
 /**
@@ -205,7 +204,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
 
 
-            if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
+            if (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS)) {
 
                 String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));

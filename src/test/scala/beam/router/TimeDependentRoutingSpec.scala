@@ -26,7 +26,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar

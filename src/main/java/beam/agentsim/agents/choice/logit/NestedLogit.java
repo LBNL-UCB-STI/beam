@@ -1,6 +1,5 @@
 package beam.agentsim.agents.choice.logit;
 
-import java.util.Map;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -23,7 +22,7 @@ public class NestedLogit implements AbstractLogit{
 
 	public NestedLogit(NestedLogit tree) {
 		this.data = new NestedLogitData();
-		this.data.setElasticity(tree.data.getElasticity().doubleValue());
+		this.data.setElasticity(tree.data.getElasticity());
 		this.data.setNestName(tree.data.getNestName());
 		this.data.setUtility(tree.data.getUtility());
 		this.parent = tree.parent;
@@ -49,28 +48,33 @@ public class NestedLogit implements AbstractLogit{
 		UtilityFunction utility;
 		for(int i=0; i < rootElem.getChildren().size(); i++){
 			Element elem = (Element) rootElem.getChildren().get(i);
-			if(elem.getName().toLowerCase().equals("elasticity")){
-				theData.setElasticity(Double.parseDouble(elem.getValue()));
-			}else if(elem.getName().toLowerCase().equals("utility")){
-				utility = new UtilityFunction();
-				for(int j=0; j < elem.getChildren().size(); j++){
-					Element paramElem = (Element)elem.getChildren().get(j);
-					if(paramElem.getName().toLowerCase().equals("param")){
-						utility.addCoefficient(paramElem.getAttributeValue("name"), Double.parseDouble(paramElem.getValue()), LogitCoefficientType.valueOf(paramElem.getAttributeValue("type")));
+			switch (elem.getName().toLowerCase()) {
+				case "elasticity":
+					theData.setElasticity(Double.parseDouble(elem.getValue()));
+					break;
+				case "utility":
+					utility = new UtilityFunction();
+					for (int j = 0; j < elem.getChildren().size(); j++) {
+						Element paramElem = (Element) elem.getChildren().get(j);
+						if (paramElem.getName().toLowerCase().equals("param")) {
+							utility.addCoefficient(paramElem.getAttributeValue("name"), Double.parseDouble(paramElem.getValue()), LogitCoefficientType.valueOf(paramElem.getAttributeValue("type")));
+						}
 					}
-				}
-				theData.setUtility(utility);
-				if(tree.parent!=null){
-					tree.ancestorNests = new LinkedList<NestedLogit>();
-					establishAncestry(tree,tree.parent);
-				}
-			}else if(elem.getName().toLowerCase().equals("nestedlogit") || elem.getName().toLowerCase().equals("alternative")){
-				if(tree.children == null){
-					tree.children = new LinkedList<NestedLogit>();
-				}
-				NestedLogit child = NestedLogit.nestedLogitFactory(elem);
-				child.parent = tree;
-				tree.children.add(child);
+					theData.setUtility(utility);
+					if (tree.parent != null) {
+						tree.ancestorNests = new LinkedList<NestedLogit>();
+						establishAncestry(tree, tree.parent);
+					}
+					break;
+				case "nestedlogit":
+				case "alternative":
+					if (tree.children == null) {
+						tree.children = new LinkedList<NestedLogit>();
+					}
+					NestedLogit child = NestedLogit.nestedLogitFactory(elem);
+					child.parent = tree;
+					tree.children.add(child);
+					break;
 			}
 		}
 		return tree;
@@ -230,21 +234,22 @@ public class NestedLogit implements AbstractLogit{
 		return this.data.getNestName();
 	}
 	public String toStringRecursive(int depth){
-		String result = "";
-		String tabs = "", tabsPlusOne = "  ";
+		StringBuilder result = new StringBuilder();
+		StringBuilder tabs = new StringBuilder();
+		StringBuilder tabsPlusOne = new StringBuilder("  ");
 		for(int i=0; i<depth; i++){
-			tabs += "  ";
-			tabsPlusOne += "  ";
+			tabs.append("  ");
+			tabsPlusOne.append("  ");
 		}
-		result += tabs + this.data.getNestName() + "\n";
+		result.append(tabs).append(this.data.getNestName()).append("\n");
 		if((this.children==null || this.children.isEmpty()) && this.data.getUtility()!=null){
-			result += tabsPlusOne + this.data.getUtility().toString() + "\n";
+			result.append(tabsPlusOne).append(this.data.getUtility().toString()).append("\n");
 		}else{
 			for (NestedLogit subnest : this.children) {
-				result += subnest.toStringRecursive(depth+1);
+				result.append(subnest.toStringRecursive(depth + 1));
 			}
 		}
-		return result;
+		return result.toString();
 	}
 	public void setName(String name) {
 		this.data.setNestName(name);

@@ -1,7 +1,6 @@
+import pandas as pd
 import re
 from collections import defaultdict
-
-import pandas as pd
 
 
 def find_num_drive_to_transit_agents(df):

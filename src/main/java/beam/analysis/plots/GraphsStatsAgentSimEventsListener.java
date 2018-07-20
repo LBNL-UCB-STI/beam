@@ -4,7 +4,6 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -15,8 +14,12 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
+
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 
 
 /**

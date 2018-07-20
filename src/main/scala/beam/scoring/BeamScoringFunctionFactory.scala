@@ -1,13 +1,12 @@
 package beam.scoring
 
-import javax.inject.Inject
-
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
+import javax.inject.Inject
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}

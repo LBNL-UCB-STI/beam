@@ -4,6 +4,7 @@ import beam.sim.metrics.Metrics._
 import kamon.Kamon
 import kamon.metric.instrument.Histogram
 import kamon.util.Latency
+
 import scala.collection.JavaConverters._
 
 trait MetricsSupport {

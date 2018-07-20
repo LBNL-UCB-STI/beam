@@ -1,27 +1,20 @@
 package beam.playground.beamSimAkkaProtoType.scheduler;
 
-import java.util.PriorityQueue;
-import java.util.SortedSet;
-
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.Population;
-import org.matsim.core.mobsim.jdeqsim.Message;
-
-import com.google.common.collect.SortedSetMultimap;
-import com.google.common.collect.TreeMultimap;
-
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import beam.utils.DebugLib;
-import beam.utils.IntegerValueHashMap;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
-import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActStartMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActivityEndMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
+import beam.utils.DebugLib;
+import beam.utils.IntegerValueHashMap;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Population;
+
+import java.util.PriorityQueue;
 
 public class Scheduler extends UntypedActor {
 	

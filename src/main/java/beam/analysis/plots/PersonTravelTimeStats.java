@@ -117,8 +117,7 @@ public class PersonTravelTimeStats implements IGraphStats{
     }
     private double[][] buildAverageTimesDataset(String mode) {
         Map<Integer, List<Double>> times = hourlyPersonTravelTimes.get(mode);
-        List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(times.keySet());
+        List<Integer> hoursList = new ArrayList<>(times.keySet());
         Collections.sort(hoursList);
 
         int maxHour = hoursList.get(hoursList.size() - 1);
@@ -130,7 +129,7 @@ public class PersonTravelTimeStats implements IGraphStats{
             List<Double> hourData = times.get(i);
             Double average = 0d;
             if (hourData != null) {
-                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
+                average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
             }
             travelTimes[i] = average;
         }
