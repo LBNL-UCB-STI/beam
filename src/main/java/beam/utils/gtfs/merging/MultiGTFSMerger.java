@@ -63,7 +63,7 @@ public class MultiGTFSMerger {
     }
 
     public void run() {
-        agency2AgencyId.entrySet().forEach(e -> loadSingleAgencyData(e.getKey(), e.getValue()));
+        agency2AgencyId.forEach(this::loadSingleAgencyData);
         agency2AgencyId.values().stream().filter(s -> !s.equals(initNetId)).forEach(this::integrateAgencyData);
         writeMergedDataToFile();
     }

@@ -69,9 +69,7 @@ public class VehicleMerger {
 		// vehicles:
 		vehiclesA.getVehicles().values().forEach(v->vehicles.addVehicle(copyVehicle(v)));
 
-		vehiclesB.getVehicles().values().stream().filter(vehicle -> !vehicles.getVehicles().containsKey(vehicle.getId())).forEach(vehicle -> {
-			vehicles.addVehicle(copyVehicle(vehicle));
-		});
+		vehiclesB.getVehicles().values().stream().filter(vehicle -> !vehicles.getVehicles().containsKey(vehicle.getId())).forEach(vehicle -> vehicles.addVehicle(copyVehicle(vehicle)));
 
 		log.info("     Merging vehicles... done.");
 

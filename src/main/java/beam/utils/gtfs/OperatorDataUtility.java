@@ -46,7 +46,7 @@ public class OperatorDataUtility {
     private void saveOperatorMap(String opMapPath, Map<String,String> operatorMap) {
         try {
             CsvMapWriter csvMapWriter = new CsvMapWriter(IOUtils.getBufferedWriter(opMapPath), CsvPreference.STANDARD_PREFERENCE);
-            final String[] opKeyArray = operatorMap.keySet().stream().toArray(String[]::new);
+            final String[] opKeyArray = operatorMap.keySet().toArray(new String[0]);
             csvMapWriter.writeHeader(opKeyArray);
             csvMapWriter.write(operatorMap, opKeyArray);
             csvMapWriter.flush();
