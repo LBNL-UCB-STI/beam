@@ -22,7 +22,7 @@ public class NestedLogit implements AbstractLogit{
 
 	public NestedLogit(NestedLogit tree) {
 		this.data = new NestedLogitData();
-		this.data.setElasticity(tree.data.getElasticity().doubleValue());
+		this.data.setElasticity(tree.data.getElasticity());
 		this.data.setNestName(tree.data.getNestName());
 		this.data.setUtility(tree.data.getUtility());
 		this.parent = tree.parent;
