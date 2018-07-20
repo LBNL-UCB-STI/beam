@@ -32,14 +32,14 @@ public class R5NetWriter {
 		EdgeStore.Edge cursor = this.transportNetwork.streetLayer.edgeStore.getCursor();
 		FileWriter writer = new FileWriter(this.outPath);
 		while (cursor.advance()){
-			String line = new String();
-			line += String.valueOf(cursor.getEdgeIndex()) + ",";
-			line += "[";
+			StringBuilder line = new StringBuilder();
+			line.append(String.valueOf(cursor.getEdgeIndex())).append(",");
+			line.append("[");
 			for (EdgeStore.EdgeFlag flag: cursor.getFlags()){
-				line += flag.name() + " ";
+				line.append(flag.name()).append(" ");
 			}
-			line += "]\n";
-			writer.write(line);
+			line.append("]\n");
+			writer.write(line.toString());
 		}
 		writer.flush();
 		writer.close();
