@@ -876,12 +876,8 @@ public class TransitScheduleSimplifier{
 			}
 			
 		}
-		
-		if(d == 0){
-			return true;
-		}
-		
-		return false;
+
+		return d == 0;
 
 	}
 
