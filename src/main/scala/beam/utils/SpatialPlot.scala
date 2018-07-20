@@ -12,10 +12,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.util.Random
 
 
-case class PointToPlot(val coord:Coord, val color:Color, val size:Int)
-case class LineToPlot(val startCoord:Coord, val endCoord:Coord,  val color:Color, val stroke:Int)
-case class StringToPlot(val text:String,val coord:Coord, val color:Color, val fontSize:Int)
-case class RideHailAgentInitCoord(val agentId: Id[RideHailAgent], val coord: Coord)
+case class PointToPlot(coord:Coord, color:Color, size:Int)
+case class LineToPlot(startCoord:Coord, endCoord:Coord, color:Color, stroke:Int)
+case class StringToPlot(text:String, coord:Coord, color:Color, fontSize:Int)
+case class RideHailAgentInitCoord(agentId: Id[RideHailAgent], coord: Coord)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
