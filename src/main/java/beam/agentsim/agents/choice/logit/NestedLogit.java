@@ -234,21 +234,22 @@ public class NestedLogit implements AbstractLogit{
 		return this.data.getNestName();
 	}
 	public String toStringRecursive(int depth){
-		String result = "";
-		String tabs = "", tabsPlusOne = "  ";
+		StringBuilder result = new StringBuilder();
+		StringBuilder tabs = new StringBuilder();
+		StringBuilder tabsPlusOne = new StringBuilder("  ");
 		for(int i=0; i<depth; i++){
-			tabs += "  ";
-			tabsPlusOne += "  ";
+			tabs.append("  ");
+			tabsPlusOne.append("  ");
 		}
-		result += tabs + this.data.getNestName() + "\n";
+		result.append(tabs).append(this.data.getNestName()).append("\n");
 		if((this.children==null || this.children.isEmpty()) && this.data.getUtility()!=null){
-			result += tabsPlusOne + this.data.getUtility().toString() + "\n";
+			result.append(tabsPlusOne).append(this.data.getUtility().toString()).append("\n");
 		}else{
 			for (NestedLogit subnest : this.children) {
-				result += subnest.toStringRecursive(depth+1);
+				result.append(subnest.toStringRecursive(depth + 1));
 			}
 		}
-		return result;
+		return result.toString();
 	}
 	public void setName(String name) {
 		this.data.setNestName(name);
