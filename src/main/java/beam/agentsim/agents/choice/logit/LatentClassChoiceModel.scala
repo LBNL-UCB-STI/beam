@@ -44,8 +44,12 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     Vector[TourType](Mandatory, Nonmandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
 
-      val mnlData = theData.map{ theDat =>
-          new MnlData(theDat.alternative, theDat.variable, if(theDat.variable.equalsIgnoreCase("asc")){ "intercept"}else{"multiplier"},theDat.value)
+      val mnlData = theData.map { theDat =>
+        new MnlData(theDat.alternative, theDat.variable, if (theDat.variable.equalsIgnoreCase("asc")) {
+          "intercept"
+        } else {
+          "multiplier"
+        }, theDat.value)
       }
 
       theTourType -> MultinomialLogit(mnlData)
@@ -63,8 +67,12 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
       val theTourTypeData = modeChoiceData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
       theTourType -> uniqueClasses.map { theLatentClass =>
         val theData = theTourTypeData.filter(_.latentClass.equalsIgnoreCase(theLatentClass))
-        val mnlData = theData.map{ theDat =>
-          new MnlData(theDat.alternative, theDat.variable, if(theDat.variable.equalsIgnoreCase("asc")){ "intercept"}else{"multiplier"},theDat.value)
+        val mnlData = theData.map { theDat =>
+          new MnlData(theDat.alternative, theDat.variable, if (theDat.variable.equalsIgnoreCase("asc")) {
+            "intercept"
+          } else {
+            "multiplier"
+          }, theDat.value)
         }
         val altsToInclude = mnlData.filter(_.paramName.equalsIgnoreCase("asc")).map(_.alternative).distinct
         theLatentClass -> MultinomialLogit(mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternative)))
@@ -76,11 +84,19 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
 
 object LatentClassChoiceModel {
 
+  private def getProcessors = {
+    Array[CellProcessor](
+      new NotNull, // model
+      new NotNull, // tourType
+      new NotNull, // variable
+      new NotNull, // alternative
+      new NotNull, // untis
+      new Optional, // latentClass
+      new Optional(new ParseDouble()) // value
+    )
+  }
+
   sealed trait TourType
-
-  case object Mandatory extends TourType
-
-  case object Nonmandatory extends TourType
 
   class LccmData(
                   @BeanProperty var model: String = "",
@@ -94,17 +110,7 @@ object LatentClassChoiceModel {
     override def clone(): AnyRef = new LccmData(model, tourType, variable, alternative, units, latentClass, value)
   }
 
-  import org.supercsv.cellprocessor.ift.CellProcessor
+  case object Mandatory extends TourType
 
-  private def getProcessors = {
-    Array[CellProcessor](
-      new NotNull, // model
-      new NotNull, // tourType
-      new NotNull, // variable
-      new NotNull, // alternative
-      new NotNull, // untis
-      new Optional, // latentClass
-      new Optional(new ParseDouble()) // value
-    )
-  }
+  case object Nonmandatory extends TourType
 }

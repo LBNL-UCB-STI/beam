@@ -7,30 +7,30 @@ import java.util.Set;
 /**
  * Often one needs a HashMap, where the value can be incremented and
  * decremented. This data structure provides that facility for integers.
- *
+ * <p>
  * TODO: delete this (DoubleValueHashMap can do most of the work here => just add a method there for conversion to id perhaps...)
  *
- * @author rashid_waraich
- *
  * @param <KeyClass>
+ * @author rashid_waraich
  */
 public class IntegerValueHashMap<KeyClass> {
 
     private HashMap<KeyClass, Integer> hm = new HashMap<>();
-    private int defaultStartValue=0;
+    private int defaultStartValue = 0;
 
-    public IntegerValueHashMap(){}
-
-    public Collection<Integer> values(){
-        return hm.values();
-    }
-
-    public boolean containsKey(KeyClass id){
-        return hm.containsKey(id);
+    public IntegerValueHashMap() {
     }
 
     public IntegerValueHashMap(int defaultStartValue) {
-        this.defaultStartValue=defaultStartValue;
+        this.defaultStartValue = defaultStartValue;
+    }
+
+    public Collection<Integer> values() {
+        return hm.values();
+    }
+
+    public boolean containsKey(KeyClass id) {
+        return hm.containsKey(id);
     }
 
     public Set<KeyClass> getKeySet() {

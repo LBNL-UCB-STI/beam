@@ -14,7 +14,7 @@ import org.matsim.core.scenario.ScenarioUtils;
 
 public class ActorVersionJDEQSimMain {
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 //		 See beam.agentsim.sim.AgentsimServices
 //		@Depracated
 //
@@ -35,33 +35,33 @@ public class ActorVersionJDEQSimMain {
 //		
 //		eventsManager.finishProcessing();
 //		System.out.println(countEnterLinkEvents.getLinkEnterCount());
-		
-		
-		Config config = ConfigUtils.loadConfig(
-		"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
 
-		Scenario scenario = ScenarioUtils.loadScenario(config);
-		
-		
-		JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
-		
-		ActorSystem system = ActorSystem.create("PhysicalSimulation");
-		ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
-		EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
-		ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager));
-        
+
+        Config config = ConfigUtils.loadConfig(
+                "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
+
+        Scenario scenario = ScenarioUtils.loadScenario(config);
+
+
+        JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
+
+        ActorSystem system = ActorSystem.create("PhysicalSimulation");
+        ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
+        EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
+        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class, jdeqSimConfigGroup, scenario, eventsManager));
+
         jdeqsimActorREF.tell("start", ActorRef.noSender());
         eventHandlerActorREF.tell("registerJDEQSimREF", eventHandlerActorREF);
-        
+
 //        for (int i = 1; i <= 10; i++) {
 //            System.out.println(">>> Producing & sending a number " +  i);
 //            printNumbersConsumer.tell(i, ActorRef.noSender());
 //        }
         system.awaitTermination();
         //System.out.println("===== Finished producing & sending numbers 1 to 10");
-       // Await.ready(system.whenTerminated, new Timeout(FiniteDuration.create(1, java.util.concurrent.TimeUnit.SECONDS)));
-        
+        // Await.ready(system.whenTerminated, new Timeout(FiniteDuration.create(1, java.util.concurrent.TimeUnit.SECONDS)));
+
         //Timeout timeout = new Timeout(FiniteDuration.create(1, java.util.concurrent.TimeUnit.SECONDS));
-	}
-	
+    }
+
 }

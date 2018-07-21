@@ -23,30 +23,17 @@ import java.util.*;
  */
 public class RideHailWaitingStats implements IGraphStats {
 
-    class RideHailWaitingIndividualStat{
-        double time;
-        String personId;
-        String vehicleId;
-        double waitingTime;
-    }
-
-    List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
-
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
-
+    List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
-
     private Map<String, Event> rideHailWaiting = new HashMap<>();
-
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
-
 
     @Override
     public void resetStats() {
@@ -62,21 +49,21 @@ public class RideHailWaitingStats implements IGraphStats {
     public void processStats(Event event) {
 
         Map<String, String> eventAttributes = event.getAttributes();
-        if (event instanceof ModeChoiceEvent){
+        if (event instanceof ModeChoiceEvent) {
             String mode = eventAttributes.get("mode");
-            if(mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hailing")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
-        } else if(event instanceof PersonEntersVehicleEvent) {
+        } else if (event instanceof PersonEntersVehicleEvent) {
 
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent)event;
+            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if(rideHailWaiting.containsKey(personId.toString())) {
+            if (rideHailWaiting.containsKey(personId.toString())) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
@@ -118,9 +105,9 @@ public class RideHailWaitingStats implements IGraphStats {
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
     }
 
-    private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException{
+    private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"rideHailIndividualWaitingTimes.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "rideHailIndividualWaitingTimes.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
 
@@ -150,8 +137,6 @@ public class RideHailWaitingStats implements IGraphStats {
         throw new IOException("Not implemented");
     }
 
-
-
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
@@ -171,7 +156,7 @@ public class RideHailWaitingStats implements IGraphStats {
         hoursTimesMap.put(hour, timeList);
     }
 
-//    TODO only two significant digits needed this means, 682 enough, no digits there
+    //    TODO only two significant digits needed this means, 682 enough, no digits there
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
 
@@ -224,8 +209,6 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-
-
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
@@ -261,7 +244,7 @@ public class RideHailWaitingStats implements IGraphStats {
      * Calculate the data and populate the dataset i.e. "hourModeFrequency"
      */
     private synchronized Map<Integer, Map<Double, Integer>>
-        calculateHourlyData(Map<Integer, List<Double>> hoursTimesMap, List<Double> categories) {
+    calculateHourlyData(Map<Integer, List<Double>> hoursTimesMap, List<Double> categories) {
 
         Map<Integer, Map<Double, Integer>> hourModeFrequency = new HashMap<>();
 
@@ -289,7 +272,6 @@ public class RideHailWaitingStats implements IGraphStats {
         return hourModeFrequency;
     }
 
-
     // Utility Methods
     private List<Double> getCategories() {
 
@@ -300,11 +282,11 @@ public class RideHailWaitingStats implements IGraphStats {
 
         //listOfBounds.add(0.0);
 
-        for(double x = bound; x < upperBound; x += bound){
+        for (double x = bound; x < upperBound; x += bound) {
             listOfBounds.add(x);
         }
 
-        if(!listOfBounds.isEmpty()) {
+        if (!listOfBounds.isEmpty()) {
             listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
             Collections.sort(listOfBounds);
         }
@@ -326,7 +308,7 @@ public class RideHailWaitingStats implements IGraphStats {
         return categoryUpperBound;
     }
 
-    private List<String> getLegends(List<Double> categories){
+    private List<String> getLegends(List<Double> categories) {
 
         List<String> legends = new ArrayList<>();
         for (Double category : categories) {
@@ -338,7 +320,14 @@ public class RideHailWaitingStats implements IGraphStats {
         return legends;
     }
 
-    private double getRoundedCategoryUpperBound(double category){
-        return Math.round(category * 100)/100.0;
+    private double getRoundedCategoryUpperBound(double category) {
+        return Math.round(category * 100) / 100.0;
+    }
+
+    class RideHailWaitingIndividualStat {
+        double time;
+        String personId;
+        String vehicleId;
+        double waitingTime;
     }
 }

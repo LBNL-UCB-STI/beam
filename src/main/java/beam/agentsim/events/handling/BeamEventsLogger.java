@@ -22,19 +22,16 @@ import static beam.agentsim.events.LoggerLevels.OFF;
 
 public class BeamEventsLogger {
     private final EventsManager eventsManager;
-    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
-
-    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
-    private LoggerLevels defaultLevel;
-
-    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
-    private BeamServices beamServices;
     private final MatsimServices matsimServices;
-    private String eventsFileFormats;
-    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-
     // create multimap to store key and values
     Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
+    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
+    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    private LoggerLevels defaultLevel;
+    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
+    private BeamServices beamServices;
+    private String eventsFileFormats;
+    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
     private Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
     private List<String> eventFields = null;
 

@@ -45,10 +45,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
 
-    private static PhyssimCalcLinkStats linkStatsGraph;
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static PhyssimCalcLinkStats linkStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -129,13 +129,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
-        if(beamConfig.beam().debug().debugEnabled()) {
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
         }
 
         jdeqSimulation.run();
 
-        if(beamConfig.beam().debug().debugEnabled()) {
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
 
@@ -199,7 +199,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
             // pathTraversal, a busLine should be filtered out, avoiding jumping busses in visualization (but making traffic flows less precise).
 
-            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble()>beamConfig.beam().physsim().ptSampleSize()){
+            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
             }
 

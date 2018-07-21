@@ -45,12 +45,12 @@ public class RideHailDistanceRowModel {
         this.rideHailRevenue = rideHailRevenue;
     }
 
-    public void setReservationCount(int reservationCount){
-        this.reservationCount = reservationCount;
+    public int getReservationCount() {
+        return reservationCount;
     }
 
-    public int getReservationCount(){
-        return reservationCount;
+    public void setReservationCount(int reservationCount) {
+        this.reservationCount = reservationCount;
     }
 
     public double getTotalSurgePricingLevel() {

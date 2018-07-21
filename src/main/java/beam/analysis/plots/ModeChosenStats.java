@@ -16,12 +16,12 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 
 public class ModeChosenStats implements IGraphStats, MetricsSupport {
-    private static Set<String> modesChosen = new TreeSet<>();
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "mode_choice.png";
+    private static Set<String> modesChosen = new TreeSet<>();
+    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
 
     @Override
     public void processStats(Event event) {

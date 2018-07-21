@@ -28,14 +28,11 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
     private static final String fileName = "RideHailWaitingSingleStats";
-
-    private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
-
     double numberOfTimeBins = 24;
     double timeBinSizeInSec = 3600;
     double endTime = 108000;
-
+    private double lastMaximumTime = 0;
+    private double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();

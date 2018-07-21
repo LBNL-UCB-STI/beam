@@ -12,11 +12,11 @@ import java.util.Map;
 // see issue 272
 public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
-    HashSet<String> personIdsOnDriveTransit=new HashSet<>();
+    HashSet<String> personIdsOnDriveTransit = new HashSet<>();
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
-        DetectDriveTransitRemainingEnRoute detectDriveTransitRemainingEnRoute=new DetectDriveTransitRemainingEnRoute();
+        DetectDriveTransitRemainingEnRoute detectDriveTransitRemainingEnRoute = new DetectDriveTransitRemainingEnRoute();
         events.addHandler(detectDriveTransitRemainingEnRoute);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
@@ -26,8 +26,8 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
         detectDriveTransitRemainingEnRoute.printAgents();
     }
 
-    public void printAgents(){
-        for (String personId:personIdsOnDriveTransit){
+    public void printAgents() {
+        for (String personId : personIdsOnDriveTransit) {
             System.out.println(personId);
         }
     }
@@ -36,11 +36,11 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
     @Override
     public void handleEvent(Event event) {
         Map<String, String> eventAttributes = event.getAttributes();
-        if (event.getEventType().equalsIgnoreCase("departure")){
+        if (event.getEventType().equalsIgnoreCase("departure")) {
             if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
                 personIdsOnDriveTransit.add(eventAttributes.get("person").toString());
             }
-        } else if (event.getEventType().equalsIgnoreCase("arrival")){
+        } else if (event.getEventType().equalsIgnoreCase("arrival")) {
             if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
                 personIdsOnDriveTransit.remove(eventAttributes.get("person").toString());
             }
