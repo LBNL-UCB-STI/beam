@@ -9,9 +9,8 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
-import org.matsim.vehicles.Vehicles
 
-class NetworkCoordinator(beamConfig: BeamConfig, val transitVehicles: Vehicles) extends LazyLogging {
+class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
   var transportNetwork: TransportNetwork = _
   var network: Network = _
@@ -30,7 +29,7 @@ class NetworkCoordinator(beamConfig: BeamConfig, val transitVehicles: Vehicles) 
       transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile) // Needed because R5 closes DB on write
       logger.info(s"Create the MATSim network from R5 network")
       val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig.beam.routing.r5.osmMapdbFile)
-      rmNetBuilder.buildMNet()
+      rmNetBuilder.buildMNet("EPSG:4326",beamConfig.beam.spatial.localCRS)
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
       new NetworkWriter(network).write(beamConfig.matsim.modules.network.inputNetworkFile)

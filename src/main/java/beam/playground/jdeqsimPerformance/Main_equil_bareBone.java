@@ -11,26 +11,26 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.scenario.ScenarioUtils;
 
 public class Main_equil_bareBone {
-	@Deprecated // See beam.agentsim.sim.AgentsimServices
-	public static void main(String[] args) {
+    @Deprecated // See beam.agentsim.sim.AgentsimServices
+    public static void main(String[] args) {
 
-		// The following file path for config file might be provided as a program argument to the main method
-		String defaultFileName = "C:/ns/matsim-project/matsim/examples/scenarios/equil/config.xml";
-		Config config = ConfigUtils.loadConfig(defaultFileName);
+        // The following file path for config file might be provided as a program argument to the main method
+        String defaultFileName = "C:/ns/matsim-project/matsim/examples/scenarios/equil/config.xml";
+        Config config = ConfigUtils.loadConfig(defaultFileName);
 
-		Scenario scenario = ScenarioUtils.loadScenario(config);
-		
-		EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
-		LogEnterLinkEvents logEnterLinkEvents = new LogEnterLinkEvents();
-		eventsManager.addHandler(logEnterLinkEvents);
+        Scenario scenario = ScenarioUtils.loadScenario(config);
 
-		eventsManager.initProcessing();
-		
-		JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
-		JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager);
-		
-		jdeqSimulation.run();
-		
-		eventsManager.finishProcessing();
-	}
+        EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
+        LogEnterLinkEvents logEnterLinkEvents = new LogEnterLinkEvents();
+        eventsManager.addHandler(logEnterLinkEvents);
+
+        eventsManager.initProcessing();
+
+        JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager);
+
+        jdeqSimulation.run();
+
+        eventsManager.finishProcessing();
+    }
 }

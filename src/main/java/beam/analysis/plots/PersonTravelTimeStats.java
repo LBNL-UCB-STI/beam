@@ -14,12 +14,12 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import java.io.IOException;
 import java.util.*;
 
-public class PersonTravelTimeStats implements IGraphStats{
-    private static Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
-    private static Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
+public class PersonTravelTimeStats implements IGraphStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
+    private static Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
+    private static Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private String fileName = null;
     private String graphTitle = null;
 
@@ -35,7 +35,7 @@ public class PersonTravelTimeStats implements IGraphStats{
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         for (String mode : hourlyPersonTravelTimes.keySet()) {
-            CategoryDataset averageDataset = buildAverageTimesDatasetGraph( mode);
+            CategoryDataset averageDataset = buildAverageTimesDatasetGraph(mode);
             createAverageTimesGraph(averageDataset, event.getIteration(), mode);
         }
     }
@@ -51,12 +51,12 @@ public class PersonTravelTimeStats implements IGraphStats{
         hourlyPersonTravelTimes.clear();
     }
 
-    public int getAvgCountForSpecificHour(String mode,int hour){
+    public int getAvgCountForSpecificHour(String mode, int hour) {
         double[][] dataset = buildAverageTimesDataset(mode);
-        return (int)Math.ceil(dataset[0][hour]);
+        return (int) Math.ceil(dataset[0][hour]);
     }
 
-    private void processPersonArrivalEvent(Event event){
+    private void processPersonArrivalEvent(Event event) {
         String mode = ((PersonArrivalEvent) event).getLegMode();
 
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
@@ -88,7 +88,8 @@ public class PersonTravelTimeStats implements IGraphStats{
             }
         }
     }
-    private void processPersonDepartureEvent(Event event){
+
+    private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
         String mode = ((PersonDepartureEvent) event).getLegMode();
@@ -99,26 +100,27 @@ public class PersonTravelTimeStats implements IGraphStats{
         departureEvents.put(((PersonDepartureEvent) event).getPersonId(), personDepartureEvent);
         personLastDepartureEvents.put(mode, departureEvents);
     }
+
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
         fileName = "average_travel_times_" + mode + ".png";
         graphTitle = "Average Travel Time [" + mode + "]";
         boolean legend = false;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        GraphUtils.plotLegendItems(plot,dataset.getRowCount());
+        GraphUtils.plotLegendItems(plot, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private CategoryDataset buildAverageTimesDatasetGraph(String mode){
+    private CategoryDataset buildAverageTimesDatasetGraph(String mode) {
         double[][] dataset = buildAverageTimesDataset(mode);
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }
+
     private double[][] buildAverageTimesDataset(String mode) {
         Map<Integer, List<Double>> times = hourlyPersonTravelTimes.get(mode);
-        List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(times.keySet());
+        List<Integer> hoursList = new ArrayList<>(times.keySet());
         Collections.sort(hoursList);
 
         int maxHour = hoursList.get(hoursList.size() - 1);
@@ -130,7 +132,7 @@ public class PersonTravelTimeStats implements IGraphStats{
             List<Double> hourData = times.get(i);
             Double average = 0d;
             if (hourData != null) {
-                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
+                average = hourData.stream().mapToDouble(val -> val).average().orElse(0.0);
             }
             travelTimes[i] = average;
         }

@@ -10,6 +10,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager._
 import beam.agentsim.infrastructure.ParkingStall._
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
@@ -60,9 +61,6 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   override def receive: Receive = {
     case RegisterResource(stallId: Id[ParkingStall]) =>
       // For Zonal Parking, stalls are created internally
-
-    case NotifyResourceIdle(stallId: Id[ParkingStall], whenWhere) =>
-      // Irrelevant for parking
 
     case NotifyResourceInUse(stallId: Id[ParkingStall], whenWhere) =>
       // Irrelevant for parking

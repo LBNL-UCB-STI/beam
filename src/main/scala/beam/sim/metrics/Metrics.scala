@@ -1,9 +1,27 @@
 package beam.sim.metrics
 
 import akka.util.Helpers.toRootLowerCase
+import beam.utils.FileUtils
+import kamon.trace.{Segment, TraceContext}
+
+import scala.collection.mutable
 
 object Metrics {
+
   var level: String = "off"
+
+  var runName: String = "beam"
+
+  var iterationNumber: Int = 0
+
+  val currentSegments: mutable.Map[String, Segment] = mutable.Map()
+
+  var currentContext: TraceContext = null
+
+  def setCurrentContext(context: TraceContext): Unit = currentContext = context
+
+  def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
+    "iteration-num" -> s"$iterationNumber")
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
 
@@ -11,13 +29,13 @@ object Metrics {
     * Marker trait for annotating MetricLevel, which must be Int after erasure.
     */
   final case class MetricLevel(asInt: Int) extends AnyVal {
-    @inline final def >=(other: MetricLevel): Boolean = asInt >= other.asInt
+    @inline def >=(other: MetricLevel): Boolean = asInt >= other.asInt
 
-    @inline final def <=(other: MetricLevel): Boolean = asInt <= other.asInt
+    @inline def <=(other: MetricLevel): Boolean = asInt <= other.asInt
 
-    @inline final def >(other: MetricLevel): Boolean = asInt > other.asInt
+    @inline def >(other: MetricLevel): Boolean = asInt > other.asInt
 
-    @inline final def <(other: MetricLevel): Boolean = asInt < other.asInt
+    @inline def <(other: MetricLevel): Boolean = asInt < other.asInt
   }
 
 
@@ -60,7 +78,7 @@ object Metrics {
   /**
     * Returns true if associated string is a valid level else false
     */
-  def isMetricsEnable(): Boolean = metricLevel != OffLevel
+  def isMetricsEnable: Boolean = metricLevel != OffLevel
 
-  def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
+  def isRightLevel(level: MetricLevel): Boolean = level <= metricLevel && level != OffLevel
 }

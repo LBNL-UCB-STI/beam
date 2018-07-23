@@ -12,6 +12,7 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.metrics.Metrics
 import beam.utils.DateUtils
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import glokka.Registry
@@ -38,8 +39,10 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
+  var rideHailIterationHistoryActor:ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
+  var matsimServices:MatsimServices
 
 
   var iterationNumber = -1
@@ -56,8 +59,10 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
+  var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+  var matsimServices:MatsimServices =_
 
   def clearAll = {
     personRefs.clear
@@ -67,6 +72,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   def startNewIteration = {
     clearAll
     iterationNumber += 1
+    Metrics.iterationNumber = iterationNumber
   }
 }
 

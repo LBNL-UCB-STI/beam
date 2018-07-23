@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource
 import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Id

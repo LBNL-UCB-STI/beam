@@ -38,30 +38,16 @@ import java.util.TreeMap;
 public class BeamCalcLinkStats {
 
     private final static Logger log = Logger.getLogger(CalcLinkStats.class);
-
-    private static class LinkData {
-        public final double[][] volumes;
-        public final double[][] ttimes;
-
-        public LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
-            this.volumes = linksVolumes.clone();
-            this.ttimes = linksTTimes.clone();
-        }
-    }
-
-    private double volScaleFactor = 1.0;
-
-    private int count = 0;
-    private final Map<Id<Link>, LinkData> linkData;
-    private final int nofHours;
-    private final Network network;
-
     private static final int MIN = 0;
     private static final int MAX = 1;
     private static final int SUM = 2;
     private static final String[] statType = {"MIN", "MAX", "AVG"};
-
     private static final int NOF_STATS = 3;
+    private final Map<Id<Link>, LinkData> linkData;
+    private final int nofHours;
+    private final Network network;
+    private double volScaleFactor = 1.0;
+    private int count = 0;
 
     @Inject
     public BeamCalcLinkStats(final Network network) {
@@ -244,6 +230,16 @@ public class BeamCalcLinkStats {
                     log.warn("Could not close output-stream.", e);
                 }
             }
+        }
+    }
+
+    private static class LinkData {
+        public final double[][] volumes;
+        public final double[][] ttimes;
+
+        public LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
+            this.volumes = linksVolumes.clone();
+            this.ttimes = linksTTimes.clone();
         }
     }
 

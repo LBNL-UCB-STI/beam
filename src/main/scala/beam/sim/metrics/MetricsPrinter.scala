@@ -18,13 +18,21 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
     val buffer: LongBuffer = LongBuffer.allocate(100000)
   }
 
+  import context._
   def receive = {
-    case Subscribe(category, selection) =>
+    case Subscribe(category, selection) if(Metrics.isMetricsEnable) =>
       Kamon.metrics.subscribe(category, selection, self)
+      become(subscribed)
+    case _ =>
+      logger.debug("Printer not subscribed.")
 
+  }
+
+  def subscribed: Receive = {
     case tickSnapshot: TickMetricSnapshot =>
-      if(metricStore == null) metricStore = tickSnapshot.metrics
-      else {
+      if(metricStore == null) {
+        metricStore = tickSnapshot.metrics
+      } else {
         metricStore = metricStore.map(m => {
           var snap = m._2
           val ms = tickSnapshot.metrics.filter(_._1 == m._1)
@@ -33,9 +41,9 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           })
           (m._1, snap)
         })
-//        println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-//        metricStore.map(_._2.histogram("histogram").get.numberOfMeasurements).foreach(println)
-//        println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        //        println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        //        metricStore.map(_._2.histogram("histogram").get.numberOfMeasurements).foreach(println)
+        //        println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
       }
 
     case Print(ins, exs) =>
@@ -43,11 +51,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
         val counters = metricStore.filterKeys(_.category == "counter")
         val histograms = metricStore.filterKeys(h => h.category == "histogram" && ins.contains(h.name))
 
-        var text =
-          s"""
-             |=======================================================================================
-             | Performance Benchmarks (iteration no: ${iterationNumber})
-          """.stripMargin
+        var text = ""
 
         if(ins == null) {
           histograms.foreach { case (e, s) => text += toHistogramString(e, s) }
@@ -59,15 +63,16 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
             }
           }
         }
-
-        text +=
-          """
-            |
-            |=======================================================================================
-          """.stripMargin
-
-        logger.info(text)
-
+        if(text != null && !text.isEmpty) {
+          logger.info(
+             s"""
+             |=======================================================================================
+             | Performance Benchmarks (iteration no: ${iterationNumber})
+             $text
+             |
+             |=======================================================================================
+             """.stripMargin)
+        }
         metricStore = null
         iterationNumber = iterationNumber + 1
       }
@@ -76,6 +81,8 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
   private def toHistogramString(e: Entity, s: EntitySnapshot): String = {
     val hs = s.histogram("histogram").get.scale(Nanoseconds, Milliseconds)
     val num = hs.numberOfMeasurements
+    if (num <= 0) return ""
+
     val ttime = hs.sum
     val p99_9 = hs.percentile(99.9)
     val max = hs.max

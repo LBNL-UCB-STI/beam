@@ -1,14 +1,12 @@
 package beam.integration
 
-import MultinomialCustomConfigSpec.Utility
-import beam.integration
-import beam.sim.{BeamHelper, RunBeam}
+import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.xml.{Elem, Node, Text}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
+import scala.xml.{Elem, Node}
 
 
 object MultinomialCustomConfigSpec  {

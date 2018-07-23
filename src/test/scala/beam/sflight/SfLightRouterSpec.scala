@@ -46,8 +46,10 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
       val destination = new BeamRouter.Location(552065.6882372601, 4180855.582994787)
       val time = RoutingModel.DiscreteTime(19740)
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(
-        StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false)
-      ),true,false)
+        StreetVehicle(Id.createVehicleId("rideHailVehicle-person=17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
+        StreetVehicle(Id.createVehicleId("body-17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true),
+        StreetVehicle(Id.createVehicleId("17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)
+      ))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
 
@@ -73,6 +75,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
       val time = RoutingModel.DiscreteTime(27840)
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(
         StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+        StreetVehicle(Id.createVehicleId("rideHailVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
         StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
       ))
       val response = expectMsgType[RoutingResponse]
@@ -102,6 +105,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
           val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
           router ! RoutingRequest(origin, destination, time, Vector(), Vector(
             StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+            StreetVehicle(Id.createVehicleId("rideHailVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
             StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
           ))
           val response = expectMsgType[RoutingResponse]
@@ -144,8 +148,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
           }
           // make sure durations within the trip are self-consistent
           val carEmbodiedTrip = response.itineraries.find(_.tripClassifier == CAR)
-          assert(carEmbodiedTrip.get.totalTravelTime == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.duration))
-          assert(carEmbodiedTrip.get.totalTravelTime == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.travelPath.duration))
+          assert(carEmbodiedTrip.get.totalTravelTimeInSecs == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.duration))
+          assert(carEmbodiedTrip.get.totalTravelTimeInSecs == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.travelPath.duration))
 
           router ! RoutingRequest(origin, destination, time, Vector(), Vector(
             StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),

@@ -19,19 +19,16 @@ import static beam.agentsim.events.LoggerLevels.OFF;
 
 public class BeamEventsLogger {
     private final EventsManager eventsManager;
-    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
-
-    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
-    private LoggerLevels defaultLevel;
-
-    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
-    private BeamServices beamServices;
     private final MatsimServices matsimServices;
-    private String eventsFileFormats;
-    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-
     // create multimap to store key and values
     Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
+    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
+    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    private LoggerLevels defaultLevel;
+    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
+    private BeamServices beamServices;
+    private String eventsFileFormats;
+    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
     private Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
     private List<String> eventFields = null;
 
@@ -45,6 +42,7 @@ public class BeamEventsLogger {
         // Registry of BEAM events that can be logged by BeamEventLogger
         allLoggableEvents.add(PathTraversalEvent.class);
         allLoggableEvents.add(ModeChoiceEvent.class);
+        allLoggableEvents.add(ReplanningEvent.class);
 
         // Registry of MATSim events that can be logged by BeamEventLogger
         allLoggableEvents.add(ActivityEndEvent.class);
@@ -167,14 +165,14 @@ public class BeamEventsLogger {
         }
     }
 
-    public Map<String, String> getAttributes(Event event) {
-        Map<String, String> attributes = event.getAttributes();
+    public HashSet<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
+        HashSet<String> keySet = new HashSet<>(eventAttributes.keySet());
         //Remove attribute from each event class for SHORT logger level
         if (getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())) {
             eventFields = (List) eventFieldsToDropWhenShort.get(event.getClass());
             // iterate through the key set
             for (String key : eventFields) {
-                attributes.remove(key);
+                keySet.remove(key);
             }
         }
         //Add attribute from each event class for VERBOSE logger level
@@ -185,7 +183,7 @@ public class BeamEventsLogger {
 //                attributes.putAll(event.getVer);
 //            }
         }
-        return attributes;
+        return keySet;
     }
 
     public void overrideDefaultLoggerSetup() {

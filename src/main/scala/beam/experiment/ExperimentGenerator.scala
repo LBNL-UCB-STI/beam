@@ -26,7 +26,7 @@ object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
 
-  private def validateExperimentConfig(experiment: ExperimentDef) = {
+  private def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
     }
@@ -198,7 +198,7 @@ object ExperimentGenerator extends App {
     val header = (List("experimentalGroup") ++ factorNames ++ paramNames).mkString("",",","\n")
     experimentsCsv.write(header)
     experimentRuns.foreach { run =>
-      val levelNames = factorNames.map(run.experimentRun.getLevelTitle(_)).mkString(",")
+      val levelNames = factorNames.map(run.experimentRun.getLevelTitle).mkString(",")
       val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
       val row = List(run.experimentRun.name, levelNames, runValues).mkString("", ",", "\n")
       experimentsCsv.write(row)

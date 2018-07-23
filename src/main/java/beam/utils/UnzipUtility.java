@@ -1,58 +1,63 @@
 package beam.utils;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import static java.nio.file.Files.createDirectories;
+import static java.nio.file.Files.delete;
 
 /**
  * This predictedUtility extracts files and directories of a standard zip file to
  * a destination directory.
+ *
  * @author www.codejava.net
  * @author sfeygin (modifying)
- *
  */
 public class UnzipUtility {
     /**
      * Size of the buffer to read/write data
      */
     private static final int BUFFER_SIZE = 4096;
+
     /**
      * Extracts a zip file specified by the zipFilePath to a directory specified by
      * destDirectory (will be created if does not exists)
-     * @param zipFilePath Source directory for zip file
+     *
+     * @param zipFilePath   Source directory for zip file
      * @param destDirectory Target directory for unzipping.
      * @throws IOException Error on failure.
      */
     public static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
-        File destDir = new File(destDirectory);
-        if (!destDir.exists()) {
-            boolean unused = destDir.mkdir();
-        }
+        createDirectories(Paths.get(destDirectory));
+
         ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath));
         ZipEntry entry = zipIn.getNextEntry();
         // iterates over entries in the zip file
         while (entry != null) {
             String filePath = destDirectory + File.separator + entry.getName();
             if (!entry.isDirectory()) {
+                createDirectories(Paths.get(filePath).getParent());
                 // if the entry is a file, extracts it
                 extractFile(zipIn, filePath);
             } else {
                 // if the entry is a directory, make the directory
-                File dir = new File(filePath);
-                boolean unused = dir.mkdir();
+                createDirectories(Paths.get(filePath));
             }
             zipIn.closeEntry();
             entry = zipIn.getNextEntry();
         }
         zipIn.close();
-        if(delete){
-            boolean unused = new File(zipFilePath).delete();
+        if (delete) {
+            delete(Paths.get(zipFilePath));
         }
     }
+
     /**
      * Extracts a zip entry (file entry)
      *
-     * @param zipIn input file
+     * @param zipIn    input file
      * @param filePath target directory
      * @throws IOException error on failure
      */

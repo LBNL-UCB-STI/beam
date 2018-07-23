@@ -1,7 +1,6 @@
 package beam.replanning
 
 import javax.inject.Inject
-
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
@@ -26,9 +25,12 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
       plannedActivities.zip(experiencedActivities).foreach {
         case (plannedActivity: Activity, experiencedActivity: Activity) =>
           experiencedActivity.setCoord(plannedActivity.getCoord)
+        case  (_, _) =>
       }
-      experiencedPlan.getAttributes.putAttribute("modality-style", person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
-      experiencedPlan.getAttributes.putAttribute("scores", person.getSelectedPlan.getAttributes.getAttribute("scores"))
+      val attributes = experiencedPlan.getAttributes
+      val selectedPlanAttributes = person.getSelectedPlan.getAttributes
+      attributes.putAttribute("modality-style", selectedPlanAttributes.getAttribute("modality-style"))
+      attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
       person.addPlan(experiencedPlan)
     }else{

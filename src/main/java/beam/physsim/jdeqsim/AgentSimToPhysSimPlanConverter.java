@@ -7,7 +7,6 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
@@ -35,14 +34,10 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.AbstractFunction0;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
-import java.util.function.Function;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 
 /**
@@ -50,10 +45,10 @@ import java.util.function.Function;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
 
-    private static PhyssimCalcLinkStats linkStatsGraph;
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static PhyssimCalcLinkStats linkStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -128,18 +123,22 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-
-        if(beamConfig.beam().debug().debugEnabled()) {
+        log.info("JDEQSim Start");
+        startSegment("jdeqsim-execution", "jdeqsim");
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
         }
 
         jdeqSimulation.run();
 
-        if(beamConfig.beam().debug().debugEnabled()) {
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
 
-        linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
+        endSegment("jdeqsim-execution", "jdeqsim");
+        log.info("JDEQSim End");
+
+        CompletableFuture.runAsync(() -> linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
 
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
@@ -189,23 +188,24 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             previousActivity.put(activityEndEvent.getPersonId().toString(), activityEndEvent.getActType());
         } else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
-            String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+            Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
+            String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
             // pathTraversal, a busLine should be filtered out, avoiding jumping busses in visualization (but making traffic flows less precise).
 
-            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble()>beamConfig.beam().physsim().ptSampleSize()){
+            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
             }
 
 
-            if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
+            if (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS)) {
 
-                String links = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-                double departureTime = Double.parseDouble(pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
-                String vehicleId = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-                String vehicleType = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+                String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+                double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
+                String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);

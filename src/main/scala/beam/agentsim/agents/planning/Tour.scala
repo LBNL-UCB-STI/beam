@@ -8,10 +8,11 @@ import org.matsim.utils.objectattributes.attributable.Attributes
   */
 class Tour(var trips: Vector[Trip] = Vector()) extends PlanElement {
 
-  def originActivity():Activity={
+  def originActivity(): Activity = {
     trips.head.activity
   }
-  def destActivity():Activity={
+
+  def destActivity(): Activity = {
     trips.reverse.head.activity
   }
 

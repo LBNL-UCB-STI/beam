@@ -104,7 +104,7 @@ object HouseholdActor {
                        schedulerRef: ActorRef,
                        transportNetwork: TransportNetwork,
                        router: ActorRef,
-                       rideHailingManager: ActorRef,
+                       rideHailManager: ActorRef,
                        parkingManager: ActorRef,
                        eventsManager: EventsManager,
                        val population: org.matsim.api.core.v01.population.Population,
@@ -126,10 +126,10 @@ object HouseholdActor {
       val attributes = AttributesOfIndividual(person, household, vehicles)
       person.getCustomAttributes.put("beam-attributes", attributes)
       val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(attributes),
-        transportNetwork, router, rideHailingManager, parkingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
+        transportNetwork, router, rideHailManager, parkingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle, None, None)
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
@@ -143,32 +143,32 @@ object HouseholdActor {
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
-    var _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+    val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
       */
-    var _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
+    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
 
     /**
       * Current [[Vehicle]] assignments.
       */
-    var _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
+    private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
 
     /**
       * These [[Vehicle]]s cannot be assigned to other agents.
       */
-    var _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
+    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
 
     /**
       * Vehicles that are currently checked out to traveling agents.
       */
-    var _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
+    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
 
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] = mutable.Map[Id[Vehicle], StreetVehicle]()
 
 
     // Initial vehicle assignments.
@@ -178,7 +178,7 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
+      case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere, passengerSchedule) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
@@ -192,7 +192,7 @@ object HouseholdActor {
          */
         _reservedForPerson.get(personId) match {
           case Some(vehicleId) if vehicleId == vehId =>
-            log.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
+            log.debug("Vehicle {} is now available for anyone in household {}", vehicleId, id)
             _reservedForPerson.remove(personId)
           case _ =>
         }
@@ -235,7 +235,7 @@ object HouseholdActor {
       // Do nothing
     }
 
-    def dieIfNoChildren() = {
+    def dieIfNoChildren(): Unit = {
       if (context.children.isEmpty) {
         context.stop(self)
       } else {
@@ -257,7 +257,7 @@ object HouseholdActor {
           }
         case None =>
       }
-      log.debug(s"Resource $vehicleId is now available again")
+      log.debug("Resource {} is now available again", vehicleId)
     }
 
     // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last
@@ -272,7 +272,7 @@ object HouseholdActor {
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
         if (i < _vehicles.size & i < household.rankedMembers.size) {
-          _reservedForPerson = _reservedForPerson + (household.rankedMembers(i).memberId -> _vehicles(i))
+          _reservedForPerson += (household.rankedMembers(i).memberId -> _vehicles(i))
         }
       }
 
@@ -282,7 +282,7 @@ object HouseholdActor {
 
       for {veh <- _vehicles} yield {
         //TODO following mode should come from the vehicle
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle +
+        _vehicleToStreetVehicle +=
           (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
       }
     }

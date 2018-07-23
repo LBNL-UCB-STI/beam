@@ -2,9 +2,10 @@ package json.converter
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import scala.collection.JavaConverters._
 import json.converter.TazOutput._
 import play.api.libs.json.Json
+
+import scala.collection.JavaConverters._
 
 object TncToday {
 
@@ -39,11 +40,11 @@ object TncToday {
         val byHours = statsByDay.map(e => (e.time, e)).toMap
         val allHours = (0 to 23).map { h =>
           val hs = "%02d:00:00".format(h)
-          byHours.get(hs).getOrElse(TazStats(tazId, day, hs, 0d, 0d))
+          byHours.getOrElse(hs, TazStats(tazId, day, hs, 0d, 0d))
         }
         (day, allHours)
       }
-      val allDaysWithAllHours = (0 to 6).map(i => (i, groupedByDayWithAllData.get(i).getOrElse(generateDataForDay(i, tazId)))).toMap
+      val allDaysWithAllHours = (0 to 6).map(i => (i, groupedByDayWithAllData.getOrElse(i, generateDataForDay(i, tazId)))).toMap
       (tazId, allDaysWithAllHours.values.flatten)
     }.values.flatten.toSeq
   }
@@ -54,14 +55,14 @@ object TncToday {
 
     val groupedByTaz = data.groupBy(_.taz)
     val roundAtThree = roundAt(3) _
-    groupedByTaz.map{case (taz, statsByTaz) =>
-        val byDay = statsByTaz.groupBy(_.day_of_week)
-        byDay.map{case (day, statsByDay) =>
-          val totalDropoffs = statsByDay.foldLeft(0d){case (a, b) => roundAtThree(a + b.dropoffs)}
-          val totalPickups = statsByDay.foldLeft(0d){case (a, b) => roundAtThree(a + b.pickups)}
-          TazStatsTotals(taz, day, totalDropoffs, totalPickups)
-        }
-      }.flatten.toSeq
+    groupedByTaz.flatMap { case (taz, statsByTaz) =>
+      val byDay = statsByTaz.groupBy(_.day_of_week)
+      byDay.map { case (day, statsByDay) =>
+        val totalDropoffs = statsByDay.foldLeft(0d) { case (a, b) => roundAtThree(a + b.dropoffs) }
+        val totalPickups = statsByDay.foldLeft(0d) { case (a, b) => roundAtThree(a + b.pickups) }
+        TazStatsTotals(taz, day, totalDropoffs, totalPickups)
+      }
+    }.toSeq
   }
 
   def statsAndTotalsToJson(data: Seq[TazStats]): (String, String) = {
@@ -79,7 +80,7 @@ object TncToday {
     (statsOutData, outDataTotalsJson)
   }
 
-  def saveJsonStructure(data: java.util.List[TazStats], statsOut: String, statsTotalsOut: String) = {
+  def saveJsonStructure(data: java.util.List[TazStats], statsOut: String, statsTotalsOut: String): Unit = {
     val (outData, outDataTotalsJson) = statsAndTotalsToJson(data.asScala)
 
     saveTo(statsOut, outData)
@@ -92,5 +93,4 @@ object TncToday {
     bw.write(data)
     bw.close()
   }
-
 }

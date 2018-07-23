@@ -1,6 +1,7 @@
 package beam.router
 
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{FERRY, RAIL, RIDE_HAIL, SUBWAY, TRAM}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -19,7 +20,10 @@ import scala.collection.immutable
 object Modes {
 
   sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
+
     def isTransit(): Boolean = isR5TransitMode(this)
+    def isMassTransit(): Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
+    def isRideHail(): Boolean = this == RIDE_HAIL
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
@@ -60,12 +64,14 @@ object Modes {
 
     case object BIKE extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.walk)
 
-    // Transit-specific non-motorized
+    // Transit-specific
     case object LEG_SWITCH extends BeamMode(value = "leg_switch", None, TransportMode.other) // This is kind-of like a transit walk, but not really... best to make leg_switch its own type
 
     case object WALK_TRANSIT extends BeamMode(value = "walk_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.transit_walk)
 
     case object DRIVE_TRANSIT extends BeamMode(value = "drive_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
+
+    case object RIDE_HAIL_TRANSIT extends BeamMode(value = "ride_hail_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
 
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)

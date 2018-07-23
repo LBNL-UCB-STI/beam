@@ -3,40 +3,38 @@ package beam.agentsim.events.handling;
 import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
-import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static beam.agentsim.events.LoggerLevels.OFF;
-import static beam.agentsim.events.LoggerLevels.SHORT;
-import static beam.agentsim.events.LoggerLevels.VERBOSE;
+import static beam.agentsim.events.LoggerLevels.*;
 
 /**
  * BEAM
  */
-public class BeamEventsWriterCSV extends BeamEventsWriterBase{
-    LinkedHashMap<String,Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
+public class BeamEventsWriterCSV extends BeamEventsWriterBase {
+    LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);
 
-        if(eventTypeToLog==null){
-            for(Class<?> clazz : eventLogger.getAllEventsToLog()){
+        if (eventTypeToLog == null) {
+            for (Class<?> clazz : eventLogger.getAllEventsToLog()) {
                 registerClass(clazz);
             }
-        }else{
+        } else {
             registerClass(eventTypeToLog);
         }
         writeHeaders();
     }
 
     @Override
-    public void writeHeaders(){
+    public void writeHeaders() {
         int counter = 0;
         for (String attribute : attributeToColumnIndexMapping.keySet()) {
             attributeToColumnIndexMapping.put(attribute, counter++);
@@ -68,19 +66,20 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
 
     @Override
     protected void writeEvent(Event event) {
-        if(beamEventLogger.getLoggingLevel(event) == OFF)return;
+        if (beamEventLogger.getLoggingLevel(event) == OFF) return;
 
         String[] row = new String[attributeToColumnIndexMapping.keySet().size()];
 
-        Map<String, String> attributes = this.beamEventLogger.getAttributes(event);
-        for (String attribute : attributes.keySet()) {
-            if (!attributeToColumnIndexMapping.containsKey(attribute)){
-                if(this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)){
+        Map<String, String> eventAttributes = event.getAttributes();
+        HashSet<String> attributeKeys = this.beamEventLogger.getKeysToWrite(event, eventAttributes);
+        for (String attribute : attributeKeys) {
+            if (!attributeToColumnIndexMapping.containsKey(attribute)) {
+                if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
                     DebugLib.stopSystemAndReportInconsistency("unkown attribute:" + attribute + ";class:" + event.getClass());
                 }
             }
-            if(this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)){
-                row[attributeToColumnIndexMapping.get(attribute)] = event.getAttributes().get(attribute);
+            if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
+                row[attributeToColumnIndexMapping.get(attribute)] = eventAttributes.get(attribute);
             }
         }
 
@@ -91,7 +90,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
                 if (str != null) {
                     if (str.contains(",")) {
                         this.out.append("\"" + str + "\"");
-                    }else{
+                    } else {
                         this.out.append(str);
                     }
                 }
@@ -111,9 +110,9 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
         LoggerLevels level = beamEventLogger.getLoggingLevel(cla);
         Field[] fields = cla.getFields();
 
-        if(level != OFF) {
+        if (level != OFF) {
             for (Field field : fields) {
-                if(level != SHORT || !beamEventLogger.eventFieldsToDropWhenShort.get(cla).contains(field.getName())) {
+                if (level != SHORT || !beamEventLogger.eventFieldsToDropWhenShort.get(cla).contains(field.getName())) {
                     if ((field.getName().startsWith("ATTRIBUTE_") && (this.eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
                             (level == VERBOSE && field.getName().startsWith("VERBOSE_") && (this.eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
                             ) {

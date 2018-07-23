@@ -29,6 +29,8 @@ class BeamVehicle(val powerTrain: Powertrain,
                   val matSimVehicle: Vehicle,
                   val  initialMatsimAttributes: Option[ObjectAttributes],
                   val  beamVehicleType: BeamVehicleType,
+                  var fuelLevel: Option[Double],
+                  val fuelCapacityInJoules: Option[Double]
   )
   extends Resource[BeamVehicle] {
 
@@ -81,6 +83,15 @@ class BeamVehicle(val powerTrain: Powertrain,
   }
   def unsetParkingStall() = {
     stall = None
+  }
+
+
+  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach {
+    fLevel => fuelLevel = Some(fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules.get )
+  }
+
+  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach  {
+    fLevel => fuelLevel = Some(fLevel + fuelInJoules/fuelCapacityInJoules.get)
   }
 
 }

@@ -1,15 +1,14 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -34,7 +33,7 @@ object RoutingModel {
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
     lazy val requiresReservationConfirmation: Boolean = tripClassifier!= WALK && legs.exists(!_.asDriver)
 
-    val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
+    val totalTravelTimeInSecs: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
@@ -43,23 +42,24 @@ object RoutingModel {
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
       var hasUsedCar: Boolean = false
+      var hasUsedRideHail: Boolean = false
       legs.foreach { leg =>
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
+        } else if (theMode == WALK && leg.isRideHail){
+          theMode = RIDE_HAIL
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
-          if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
-            (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle"))){
-            theMode = RIDE_HAIL
-          }else{
-            theMode = CAR
-          }
+          theMode = CAR
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
         if(leg.beamLeg.mode == CAR)hasUsedCar = true
+        if(leg.isRideHail)hasUsedRideHail = true
       }
-      if(theMode == TRANSIT && hasUsedCar){
+      if(theMode == TRANSIT && hasUsedRideHail){
+        RIDE_HAIL_TRANSIT
+      }else if(theMode == TRANSIT && hasUsedCar){
         DRIVE_TRANSIT
       }else if(theMode == TRANSIT && !hasUsedCar){
         WALK_TRANSIT
@@ -73,8 +73,8 @@ object RoutingModel {
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
-    override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    override def toString(): String = {
+      s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 
@@ -113,6 +113,7 @@ object RoutingModel {
                              unbecomeDriverOnCompletion: Boolean
                             ) {
     val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
+    val isRideHail: Boolean = RideHailVehicle.isRideHailVehicle(beamVehicleId)
   }
 
   def traverseStreetLeg(leg: BeamLeg, vehicleId: Id[Vehicle], travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
