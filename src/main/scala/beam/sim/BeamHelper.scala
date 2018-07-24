@@ -4,7 +4,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
 import java.util.Properties
 
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}

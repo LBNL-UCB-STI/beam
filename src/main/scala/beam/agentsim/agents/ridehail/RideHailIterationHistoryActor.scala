@@ -1,7 +1,7 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import akka.actor.{Actor, Props}
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor._
+import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor._
 import beam.sim.BeamServices
 import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork

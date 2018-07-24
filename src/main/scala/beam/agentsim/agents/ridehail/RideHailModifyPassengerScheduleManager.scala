@@ -1,10 +1,10 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.rideHail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, Resume}
-import beam.agentsim.agents.rideHail.RideHailManager.{RideHailAgentLocation, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, Resume}
+import beam.agentsim.agents.ridehail.RideHailManager.{RideHailAgentLocation, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler

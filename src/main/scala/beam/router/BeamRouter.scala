@@ -15,8 +15,16 @@ import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
-import beam.router.Modes.{isOnStreetTransit, BeamMode}
+import beam.router.Modes.BeamMode.{
+  BUS,
+  CABLE_CAR,
+  FERRY,
+  GONDOLA,
+  RAIL,
+  SUBWAY,
+  TRAM
+}
+import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
@@ -39,13 +47,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class BeamRouter(
-  services: BeamServices,
-  transportNetwork: TransportNetwork,
-  network: Network,
-  eventsManager: EventsManager,
-  transitVehicles: Vehicles,
-  fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator
+    services: BeamServices,
+    transportNetwork: TransportNetwork,
+    network: Network,
+    eventsManager: EventsManager,
+    transitVehicles: Vehicles,
+    fareCalculator: FareCalculator,
+    tollCalculator: TollCalculator
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -53,7 +61,11 @@ class BeamRouter(
 
   private val config = services.beamConfig.beam.routing
   private val routerWorker = context.actorOf(
-    R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator),
+    R5RoutingWorker.props(services,
+                          transportNetwork,
+                          network,
+                          fareCalculator,
+                          tollCalculator),
     "router-worker"
   )
 
@@ -94,29 +106,34 @@ class BeamRouter(
    */
   private def initTransit(scheduler: ActorRef) = {
     def createTransitVehicle(
-      transitVehId: Id[Vehicle],
-      route: RouteInfo,
-      legs: Seq[BeamLeg]
+        transitVehId: Id[Vehicle],
+        route: RouteInfo,
+        legs: Seq[BeamLeg]
     ): Unit = {
 
-      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val mode =
+        Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val vehicleTypeId =
-        Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
+        Id.create(mode.toString.toUpperCase + "-" + route.agency_id,
+                  classOf[VehicleType])
 
-      val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
-        transitVehicles.getVehicleTypes.get(vehicleTypeId)
-      } else {
-        log.debug(
-          "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-          vehicleTypeId.toString
-        )
-        transitVehicles.getVehicleTypes.get(
-          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType])
-        )
-      }
+      val vehicleType =
+        if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
+          transitVehicles.getVehicleTypes.get(vehicleTypeId)
+        } else {
+          log.debug(
+            "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
+            vehicleTypeId.toString
+          )
+          transitVehicles.getVehicleTypes.get(
+            Id.create(mode.toString.toUpperCase + "-DEFAULT",
+                      classOf[VehicleType])
+          )
+        }
 
       mode match {
-        case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
+        case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA)
+            if vehicleType != null =>
           val matSimTransitVehicle =
             VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
           matSimTransitVehicle.getType.setDescription(mode.value)
@@ -135,7 +152,8 @@ class BeamRouter(
             None
           ) // TODO: implement fuel level later as needed
           services.vehicles += (transitVehId -> vehicle)
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
+          val transitDriverId =
+            TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
@@ -145,7 +163,8 @@ class BeamRouter(
             vehicle,
             legs
           )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          val transitDriver =
+            context.actorOf(transitDriverAgentProps, transitDriverId.toString)
           scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
         case _ =>
@@ -154,12 +173,17 @@ class BeamRouter(
     }
 
     val activeServicesToday =
-      transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
-    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
+      transportNetwork.transitLayer.getActiveServicesForDate(
+        services.dates.localBaseDate)
+    val stopToStopStreetSegmentCache =
+      mutable.Map[(Int, Int), Option[StreetPath]]()
+    val transitTrips =
+      transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val route =
+        transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val mode =
+        Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
         .sliding(2)
         .map {
@@ -173,8 +197,10 @@ class BeamRouter(
               ) match {
                 case Some(streetSeg) =>
                   val edges = streetSeg.getEdges.asScala
-                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+                  val startEdge =
+                    transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+                  val endEdge =
+                    transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
                   (departureTime: Long, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
@@ -193,9 +219,13 @@ class BeamRouter(
                     )
                 case None =>
                   val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
-                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
-                  (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+                  val startEdge = transportNetwork.streetLayer.edgeStore
+                    .getCursor(edgeIds.head)
+                  val endEdge = transportNetwork.streetLayer.edgeStore
+                    .getCursor(edgeIds.last)
+                  (departureTime: Long,
+                   duration: Int,
+                   vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
@@ -223,8 +253,10 @@ class BeamRouter(
               }
             } else {
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-              val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
-              val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
+              val startEdge =
+                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
+              val endEdge =
+                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
               (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
@@ -254,7 +286,8 @@ class BeamRouter(
         }
         .toSeq
       tripPattern.tripSchedules.asScala
-        .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
+        .filter(tripSchedule =>
+          activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
@@ -266,7 +299,9 @@ class BeamRouter(
                 departureTimeFrom.toLong,
                 mode,
                 duration,
-                transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId)
+                transitPaths(from)(departureTimeFrom.toLong,
+                                   duration,
+                                   tripVehId)
               )
           }
           (tripVehId, (route, legs))
@@ -288,16 +323,19 @@ class BeamRouter(
     * @param toStopIdx   to stop
     * @return
     */
-  private def routeTransitPathThroughStreets(fromStopIdx: Int, toStopIdx: Int) = {
+  private def routeTransitPathThroughStreets(fromStopIdx: Int,
+                                             toStopIdx: Int) = {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
 
     val fromVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
+      .getCursor(
+        transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
     val toVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
+      .getCursor(
+        transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
     val fromPosTransformed = services.geo.snapToR5Edge(
       transportNetwork.streetLayer,
       new Coord(fromVertex.getLon, fromVertex.getLat),
@@ -315,11 +353,13 @@ class BeamRouter(
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    val time = WindowTime(0, services.beamConfig.beam.routing.r5.departureWindow)
+    val time =
+      WindowTime(0, services.beamConfig.beam.routing.r5.departureWindow)
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
     profileRequest.date = services.dates.localBaseDate
-    profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
+    profileRequest.directModes =
+      util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
     profileRequest.transitModes = null
     profileRequest.accessModes = profileRequest.directModes
     profileRequest.egressModes = null
@@ -329,7 +369,8 @@ class BeamRouter(
     streetRouter.streetMode = StreetMode.valueOf("CAR")
     streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
     if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-      if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+      if (streetRouter.setDestination(profileRequest.toLat,
+                                      profileRequest.toLon)) {
         streetRouter.route()
         val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
         if (lastState != null) {
@@ -388,8 +429,11 @@ class BeamRouter(
 
   private def createDummyEdge(): Int = {
     val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38, -122)
-    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(38.001, -122.001)
-    transportNetwork.streetLayer.edgeStore.addStreetPair(fromVert, toVert, 1000, -1).getEdgeIndex
+    val toVert =
+      transportNetwork.streetLayer.vertexStore.addVertex(38.001, -122.001)
+    transportNetwork.streetLayer.edgeStore
+      .addStreetPair(fromVert, toVert, 1000, -1)
+      .getEdgeIndex
   }
 
   private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
@@ -407,7 +451,8 @@ object BeamRouter {
 
   case class InitTransit(scheduler: ActorRef)
 
-  case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(
+      transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
   case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
 
@@ -432,12 +477,12 @@ object BeamRouter {
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-    origin: Location,
-    destination: Location,
-    departureTime: BeamTime,
-    transitModes: Vector[BeamMode],
-    streetVehicles: Vector[StreetVehicle],
-    streetVehiclesUseIntermodalUse: IntermodalUse = Access
+      origin: Location,
+      destination: Location,
+      departureTime: BeamTime,
+      transitModes: Vector[BeamMode],
+      streetVehicles: Vector[StreetVehicle],
+      streetVehiclesUseIntermodalUse: IntermodalUse = Access
   ) {
     // We make requestId be independent of request type, all that matters is details of the customer
     lazy val requestId: Int = this.hashCode()
@@ -453,16 +498,17 @@ object BeamRouter {
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestId: Option[Int] = None)
+  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip],
+                             requestId: Option[Int] = None)
 
   def props(
-    beamServices: BeamServices,
-    transportNetwork: TransportNetwork,
-    network: Network,
-    eventsManager: EventsManager,
-    transitVehicles: Vehicles,
-    fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator
+      beamServices: BeamServices,
+      transportNetwork: TransportNetwork,
+      network: Network,
+      eventsManager: EventsManager,
+      transitVehicles: Vehicles,
+      fareCalculator: FareCalculator,
+      tollCalculator: TollCalculator
   ) =
     Props(
       new BeamRouter(

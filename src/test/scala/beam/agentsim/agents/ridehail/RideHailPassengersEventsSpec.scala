@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
@@ -111,24 +111,17 @@ class RideHailPassengersEventsSpec
     "all passengers leave" in {
       val events = mutable.Set[String]()
 
-      initialSetup(new BasicEventHandler {
-
-        override def handleEvent(event: Event): Unit = {
-          event match {
-            case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
-              val vid = enterEvent.getVehicleId.toString
-              val uid = enterEvent.getPersonId.toString
-              events += s"$vid.$uid"
-            case leavesEvent: PersonLeavesVehicleEvent =>
-              val vid = leavesEvent.getVehicleId.toString
-              val uid = leavesEvent.getPersonId.toString
-              events -= s"$vid.$uid"
-            case _ =>
-          }
-        }
-
-        Unit
-      })
+      initialSetup {
+        case enterEvent: PersonEntersVehicleEvent if !enterEvent.getPersonId.toString.contains("Agent") =>
+          val vid = enterEvent.getVehicleId.toString
+          val uid = enterEvent.getPersonId.toString
+          events += s"$vid.$uid"
+        case leavesEvent: PersonLeavesVehicleEvent =>
+          val vid = leavesEvent.getVehicleId.toString
+          val uid = leavesEvent.getPersonId.toString
+          events -= s"$vid.$uid"
+        case _ =>
+      }
       events.isEmpty shouldBe true
     }
   }

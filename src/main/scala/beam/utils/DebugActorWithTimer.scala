@@ -1,7 +1,7 @@
 package beam.utils
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.rideHail.RideHailManager.DebugRideHailManagerDuringExecution
+import beam.agentsim.agents.ridehail.RideHailManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.scheduler.BeamAgentScheduler.Monitor
 
 

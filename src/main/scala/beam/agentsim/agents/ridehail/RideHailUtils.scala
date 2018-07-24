@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel

@@ -1,16 +1,20 @@
 package beam.agentsim.agents.household
 
 import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
+import beam.agentsim.Resource.{
+  CheckInResource,
+  NotifyResourceIdle,
+  NotifyResourceInUse
+}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
+  MatsimHumanBodyVehicleType,
   createId,
-  powerTrainForHumanBody,
-  MatsimHumanBodyVehicleType
+  powerTrainForHumanBody
 }
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
@@ -34,23 +38,26 @@ import scala.util.Random
 
 object HouseholdActor {
 
-  def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
-    s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
+  def buildActorName(id: Id[households.Household],
+                     iterationName: Option[String] = None): String = {
+    s"household-${id.toString}" + iterationName
+      .map(i => s"_iter-$i")
+      .getOrElse("")
   }
 
   def props(
-    beamServices: BeamServices,
-    modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
-    schedulerRef: ActorRef,
-    transportNetwork: TransportNetwork,
-    router: ActorRef,
-    rideHailManager: ActorRef,
-    eventsManager: EventsManager,
-    population: org.matsim.api.core.v01.population.Population,
-    householdId: Id[Household],
-    matSimHousehold: Household,
-    houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
+      beamServices: BeamServices,
+      modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
+      schedulerRef: ActorRef,
+      transportNetwork: TransportNetwork,
+      router: ActorRef,
+      rideHailManager: ActorRef,
+      eventsManager: EventsManager,
+      population: org.matsim.api.core.v01.population.Population,
+      householdId: Id[Household],
+      matSimHousehold: Household,
+      houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
+      homeCoord: Coord
   ): Props = {
     Props(
       new HouseholdActor(
@@ -70,14 +77,16 @@ object HouseholdActor {
     )
   }
 
-  case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
+  case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry],
+                                   personId: Id[Person])
 
   object MobilityStatusInquiry {
 
     // Smart constructor for MSI
     def mobilityStatusInquiry(personId: Id[Person]) =
       MobilityStatusInquiry(
-        Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]),
+        Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
+                  classOf[MobilityStatusInquiry]),
         personId
       )
   }
@@ -89,18 +98,18 @@ object HouseholdActor {
   case class InitializeRideHailAgent(b: Id[Person])
 
   case class HouseholdAttributes(
-    householdIncome: Double,
-    householdSize: Int,
-    numCars: Int,
-    numBikes: Int
+      householdIncome: Double,
+      householdSize: Int,
+      numCars: Int,
+      numBikes: Int
   )
 
   case class AttributesOfIndividual(
-    person: Person,
-    householdAttributes: HouseholdAttributes,
-    householdId: Id[Household],
-    modalityStyle: Option[String],
-    isMale: Boolean
+      person: Person,
+      householdAttributes: HouseholdAttributes,
+      householdId: Id[Household],
+      modalityStyle: Option[String],
+      isMale: Boolean
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -108,9 +117,9 @@ object HouseholdActor {
   object AttributesOfIndividual {
 
     def apply(
-      person: Person,
-      household: Household,
-      vehicles: Map[Id[BeamVehicle], BeamVehicle]
+        person: Person,
+        household: Household,
+        vehicles: Map[Id[BeamVehicle], BeamVehicle]
     ): AttributesOfIndividual = {
       val modalityStyle = Option(
         person.getSelectedPlan.getAttributes.getAttribute("modality-style")
@@ -127,16 +136,19 @@ object HouseholdActor {
 
   object HouseholdAttributes {
 
-    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]) = new HouseholdAttributes(
-      Option(household.getIncome).getOrElse(new IncomeImpl(0, IncomePeriod.year)).getIncome,
-      household.getMemberIds.size(),
-      household.getVehicleIds.asScala
-        .map(vehicles)
-        .count(_.getType.getDescription.toLowerCase.contains("car")),
-      household.getVehicleIds.asScala
-        .map(vehicles)
-        .count(_.getType.getDescription.toLowerCase.contains("bike"))
-    )
+    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]) =
+      new HouseholdAttributes(
+        Option(household.getIncome)
+          .getOrElse(new IncomeImpl(0, IncomePeriod.year))
+          .getIncome,
+        household.getMemberIds.size(),
+        household.getVehicleIds.asScala
+          .map(vehicles)
+          .count(_.getType.getDescription.toLowerCase.contains("car")),
+        household.getVehicleIds.asScala
+          .map(vehicles)
+          .count(_.getType.getDescription.toLowerCase.contains("bike"))
+      )
   }
 
   /**
@@ -154,18 +166,18 @@ object HouseholdActor {
     * @see [[ChoosesMode]]
     */
   class HouseholdActor(
-    beamServices: BeamServices,
-    modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
-    schedulerRef: ActorRef,
-    transportNetwork: TransportNetwork,
-    router: ActorRef,
-    rideHailManager: ActorRef,
-    eventsManager: EventsManager,
-    val population: org.matsim.api.core.v01.population.Population,
-    id: Id[households.Household],
-    val household: Household,
-    vehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
+      beamServices: BeamServices,
+      modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
+      schedulerRef: ActorRef,
+      transportNetwork: TransportNetwork,
+      router: ActorRef,
+      rideHailManager: ActorRef,
+      eventsManager: EventsManager,
+      val population: org.matsim.api.core.v01.population.Population,
+      id: Id[households.Household],
+      val household: Household,
+      vehicles: Map[Id[BeamVehicle], BeamVehicle],
+      homeCoord: Coord
   ) extends VehicleManager
       with ActorLogging {
 
@@ -176,7 +188,8 @@ object HouseholdActor {
     household.members.foreach { person =>
       val bodyVehicleIdFromPerson = createId(person.getId)
       val matsimBodyVehicle =
-        VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
+        VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson,
+                                              MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       val attributes = AttributesOfIndividual(person, household, vehicles)
@@ -213,14 +226,16 @@ object HouseholdActor {
       beamServices.personRefs += ((person.getId, personRef))
     }
 
-    override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
+    override val resources
+      : collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
       collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
     resources ++ vehicles
 
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
-    val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+    val _vehicles: Vector[Id[Vehicle]] =
+      vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
@@ -248,7 +263,8 @@ object HouseholdActor {
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    private val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] =
+    private val _vehicleToStreetVehicle
+      : mutable.Map[Id[Vehicle], StreetVehicle] =
       mutable.Map[Id[Vehicle], StreetVehicle]()
 
     // Initial vehicle assignments.
@@ -260,12 +276,19 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere, _) =>
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId,
+                                                           whenWhere,
+                                                           CAR,
+                                                           asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId,
+                                                           whenWhere,
+                                                           CAR,
+                                                           asDriver = true))
 
-      case CheckInResource(vehicleId: Id[Vehicle], _) => checkInVehicleResource(vehicleId)
+      case CheckInResource(vehicleId: Id[Vehicle], _) =>
+        checkInVehicleResource(vehicleId)
 
       case ReleaseVehicleReservation(personId, vehId) =>
         /*
@@ -273,7 +296,9 @@ object HouseholdActor {
          */
         _reservedForPerson.get(personId) match {
           case Some(vehicleId) if vehicleId == vehId =>
-            log.debug("Vehicle {} is now available for anyone in household {}", vehicleId, id)
+            log.debug("Vehicle {} is now available for anyone in household {}",
+                      vehicleId,
+                      id)
             _reservedForPerson.remove(personId)
           case _ =>
         }
@@ -352,7 +377,9 @@ object HouseholdActor {
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
         if (i < _vehicles.size & i < household.rankedMembers.size) {
-          _reservedForPerson += (household.rankedMembers(i).memberId -> _vehicles(i))
+          _reservedForPerson += (household
+            .rankedMembers(i)
+            .memberId -> _vehicles(i))
         }
       }
 
@@ -370,12 +397,14 @@ object HouseholdActor {
     private def lookupAvailableVehicles(): Vector[StreetVehicle] =
       Vector(
         for {
-          availableVehicle       <- _availableVehicles
-          availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
+          availableVehicle <- _availableVehicles
+          availableStreetVehicle <- _vehicleToStreetVehicle.get(
+            availableVehicle)
         } yield availableStreetVehicle
       ).flatten
 
-    private def lookupReservedVehicle(person: Id[Person]): Vector[StreetVehicle] = {
+    private def lookupReservedVehicle(
+        person: Id[Person]): Vector[StreetVehicle] = {
       _reservedForPerson.get(person) match {
         case Some(availableVehicle) =>
           Vector(_vehicleToStreetVehicle(availableVehicle))
@@ -384,7 +413,8 @@ object HouseholdActor {
       }
     }
 
-    private def lookupCheckedOutVehicle(person: Id[Person]): Vector[StreetVehicle] = {
+    private def lookupCheckedOutVehicle(
+        person: Id[Person]): Vector[StreetVehicle] = {
       (for ((veh, per) <- _checkedOutVehicles if per == person) yield {
         _vehicleToStreetVehicle(veh)
       }).toVector

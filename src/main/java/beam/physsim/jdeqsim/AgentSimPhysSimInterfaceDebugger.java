@@ -3,7 +3,6 @@ package beam.physsim.jdeqsim;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalLib;
 import beam.sim.common.GeoUtils;
-import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;

@@ -1,7 +1,7 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.UpdateRideHailStats
+import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
@@ -55,13 +55,13 @@ case class RideHailStatsEntry(
     )
   }
 
-  def getDemandEstimate(): Double = {
+  def getDemandEstimate: Double = {
     sumOfRequestedRides + sumOfActivityEndEvents
   }
 }
 
 object RideHailStatsEntry {
-  def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0, 0)
+  def empty: RideHailStatsEntry = RideHailStatsEntry()
 
   def apply(
     sumOfRequestedRides: Long = 0,
