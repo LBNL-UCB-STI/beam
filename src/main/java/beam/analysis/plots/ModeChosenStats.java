@@ -42,7 +42,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -130,8 +130,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);

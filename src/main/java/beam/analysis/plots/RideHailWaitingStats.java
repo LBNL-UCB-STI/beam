@@ -27,9 +27,9 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
-    List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
+    private static final double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
@@ -105,7 +105,7 @@ public class RideHailWaitingStats implements IGraphStats {
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
     }
 
-    private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException {
+    private void writeRideHailWaitingIndividualStatCSV(int iteration) {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "rideHailIndividualWaitingTimes.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
@@ -196,8 +196,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         // Legends
@@ -209,7 +208,7 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
