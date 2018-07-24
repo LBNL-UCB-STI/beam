@@ -7,11 +7,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
-  createId,
-  powerTrainForHumanBody,
-  MatsimHumanBodyVehicleType
-}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -28,11 +24,12 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
+import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Random
+import scala.util.{Failure, Random, Try}
 
 object HouseholdActor {
 
@@ -104,9 +101,15 @@ object HouseholdActor {
   object AttributesOfIndividual {
     def apply(person: Person, household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): AttributesOfIndividual = {
       val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
-      val availableModes: Seq[BeamMode] = PermissibleModeUtils.permissibleModeParser(person.getAttributes.getAttribute(beam.utils.plansampling.PlansSampler.availableModeString).toString) map BeamMode.withValue
+      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), BeamMode.availableModes)
+    }
+
+    def apply(person:Person,household:Household, vehicles:Map[Id[BeamVehicle],BeamVehicle], availableModes: Seq[BeamMode]):AttributesOfIndividual= {
+      val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
+
       AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), availableModes)
     }
+
   }
 
   object HouseholdAttributes {
@@ -156,14 +159,15 @@ object HouseholdActor {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
-
+    val personAttributes: ObjectAttributes = population.getPersonAttributes
     household.members.foreach { person =>
       val bodyVehicleIdFromPerson = createId(person.getId)
       val matsimBodyVehicle =
         VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      val attributes = AttributesOfIndividual(person, household, vehicles)
+      val availableModes: Seq[BeamMode] = Option(personAttributes.getAttribute(person.getId.toString,beam.utils.plansampling.PlansSampler.availableModeString)).fold(BeamMode.availableModes)(attr⇒PermissibleModeUtils.permissibleModeParser(attr.toString) map BeamMode.withValue)
+      val attributes = AttributesOfIndividual(person, household, vehicles, availableModes)
       person.getCustomAttributes.put("beam-attributes", attributes)
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(

@@ -84,6 +84,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
       houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
 
+
       val householdActor = context.actorOf(
         HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork,
           router, rideHailManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, homeCoord),
