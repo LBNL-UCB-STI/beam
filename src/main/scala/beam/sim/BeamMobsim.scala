@@ -21,27 +21,19 @@ import akka.actor.{
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
   NotifyIterationEnds,
   RideHailAllocationManagerTimeout
 }
-import beam.agentsim.agents.ridehail.{
-  RideHailAgent,
-  RideHailManager,
-  RideHailSurgePricingManager
-}
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.TAZTreeMap.QuadTreeBounds
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  ScheduleTrigger,
-  StartSchedule
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -68,18 +60,19 @@ import scala.concurrent.duration._
   * Created by sfeygin on 2/8/17.
   */
 class BeamMobsim @Inject()(
-    val beamServices: BeamServices,
-    val transportNetwork: TransportNetwork,
-    val scenario: Scenario,
-    val eventsManager: EventsManager,
-    val actorSystem: ActorSystem,
-    val rideHailSurgePricingManager: RideHailSurgePricingManager
+  val beamServices: BeamServices,
+  val transportNetwork: TransportNetwork,
+  val scenario: Scenario,
+  val eventsManager: EventsManager,
+  val actorSystem: ActorSystem,
+  val rideHailSurgePricingManager: RideHailSurgePricingManager
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
+
   val rideHailHouseholds: mutable.Set[Id[Household]] =
     mutable.Set[Id[Household]]()
   var debugActorWithTimerActorRef: ActorRef = _
@@ -131,8 +124,7 @@ class BeamMobsim @Inject()(
         private val errorListener = context.actorOf(ErrorListener.props())
         context.watch(errorListener)
         context.system.eventStream
-          .subscribe(errorListener,
-                     classOf[BeamAgent.TerminatedPrematurelyEvent])
+          .subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
         private val scheduler = context.actorOf(
           Props(
             classOf[BeamAgentScheduler],
@@ -147,8 +139,7 @@ class BeamMobsim @Inject()(
 
         private val envelopeInUTM =
           beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
-        envelopeInUTM.expandBy(
-          beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
+        envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
         private val rideHailManager = context.actorOf(
           RideHailManager.props(
@@ -163,8 +154,8 @@ class BeamMobsim @Inject()(
         context.watch(rideHailManager)
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
-          debugActorWithTimerActorRef = context.actorOf(
-            Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
+          debugActorWithTimerActorRef =
+            context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
           debugActorWithTimerCancellable = prepareMemoryLoggingTimerActor(
             beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec,
             context.system,
@@ -215,8 +206,7 @@ class BeamMobsim @Inject()(
               x =>
                 x.getSelectedPlan.getPlanElements.forEach {
                   case z: Activity =>
-                    activityLocationsSpatialPlot.addPoint(
-                      PointToPlot(z.getCoord, Color.RED, 10))
+                    activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
                   case _ =>
               }
             )
@@ -236,8 +226,7 @@ class BeamMobsim @Inject()(
 
           activityLocationsSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber,
-                                    "activityLocations.png")
+              .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
           )
         }
 
@@ -286,8 +275,7 @@ class BeamMobsim @Inject()(
               val rideHailVehicleId =
                 Id.createVehicleId(s"rideHailVehicle-${person.getId}")
               val rideHailVehicle: Vehicle =
-                VehicleUtils.getFactory.createVehicle(rideHailVehicleId,
-                                                      rideHailVehicleType)
+                VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
               val rideHailAgentPersonId: Id[RideHailAgent] =
                 Id.create(rideHailName, classOf[RideHailAgent])
               val information =
@@ -325,40 +313,32 @@ class BeamMobsim @Inject()(
               val rideHailAgentRef: ActorRef =
                 context.actorOf(rideHailAgentProps, rideHailName)
               context.watch(rideHailAgentRef)
-              scheduler ! ScheduleTrigger(InitializeTrigger(0.0),
-                                          rideHailAgentRef)
+              scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
               rideHailAgents += rideHailAgentRef
 
               rideHailinitialLocationSpatialPlot
-                .addString(
-                  StringToPlot(s"${person.getId}",
-                               rideInitialLocation,
-                               Color.RED,
-                               20))
+                .addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
               rideHailinitialLocationSpatialPlot
-                .addAgentWithCoord(RideHailAgentInitCoord(rideHailAgentPersonId,
-                                                          rideInitialLocation))
+                .addAgentWithCoord(
+                  RideHailAgentInitCoord(rideHailAgentPersonId, rideInitialLocation)
+                )
           }
 
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber,
-                                    "rideHailInitialLocation.csv")
+              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv")
           )
           rideHailinitialLocationSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber,
-                                    "rideHailInitialLocation.png")
+              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png")
           )
         }
         log.info(s"Initialized ${beamServices.personRefs.size} people")
-        log.info(
-          s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
+        log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized $numRideHailAgents ride hailing agents")
 
-        Await.result(beamServices.beamRouter ? InitTransit(scheduler),
-                     timeout.duration)
+        Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
 
         if (beamServices.iterationNumber == 0)
           new BeamWarmStart(beamServices).init()
@@ -368,9 +348,9 @@ class BeamMobsim @Inject()(
         scheduleRideHailManagerTimerMessage()
 
         def prepareMemoryLoggingTimerActor(
-            timeoutInSeconds: Int,
-            system: ActorSystem,
-            memoryLoggingTimerActorRef: ActorRef
+          timeoutInSeconds: Int,
+          system: ActorSystem,
+          memoryLoggingTimerActorRef: ActorRef
         ): Cancellable = {
           import system.dispatcher
 

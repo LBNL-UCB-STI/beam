@@ -11,7 +11,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
   BeamVehicleFuelLevelUpdate,
   GetBeamVehicleFuelLevel
 }

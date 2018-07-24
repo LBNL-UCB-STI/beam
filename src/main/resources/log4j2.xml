@@ -36,7 +36,7 @@
         <Logger name="beam.agentsim.agents.ridehail" level="error">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="beam.agentsim.agents.modalBehaviors.DrivesVehicle" level="error">
+        <Logger name="beam.agentsim.agents.modalbehaviors.DrivesVehicle" level="error">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="beam.agentsim.agents.ridehail.TNCIterationStats" level="debug">

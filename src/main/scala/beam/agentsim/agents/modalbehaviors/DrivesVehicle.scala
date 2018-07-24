@@ -1,9 +1,9 @@
-package beam.agentsim.agents.modalBehaviors
+package beam.agentsim.agents.modalbehaviors
 
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailUtils
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError

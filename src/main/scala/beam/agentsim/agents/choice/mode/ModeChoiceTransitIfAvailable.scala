@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
