@@ -44,7 +44,7 @@
         </Logger>
 
 
-        <Logger name="beam.agentsim.agents.ridehail.allocationManagers.RepositioningLowWaitingTimes" level="error">
+        <Logger name="beam.agentsim.agents.ridehail.allocation.RepositioningLowWaitingTimes" level="error">
             <AppenderRef ref="Console"/>
         </Logger>
 

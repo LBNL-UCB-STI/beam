@@ -1,20 +1,27 @@
-package beam.agentsim.agents.ridehail.allocationManagers
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager {
+class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
+    extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false // TODO: this should be true - change back later!
 
   // TODO: no nested option returned
-  def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(vehicleAllocationRequest.pickUpLocation, rideHailManager.radiusInMeters)
+  def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): Option[VehicleAllocation] = {
+    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
+      vehicleAllocationRequest.pickUpLocation,
+      rideHailManager.radiusInMeters
+    )
 
     rideHailAgentLocation match {
-      case Some(agentLocation) => Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
+      case Some(agentLocation) =>
+        Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
       case None => None
     }
 
@@ -22,8 +29,10 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-/*
+  def allocateVehicles(
+    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+    /*
     var result = Map[Id[RideHailInquiry], VehicleAllocation]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((rideHailInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
@@ -47,7 +56,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
       }
     }
     result
-    */
+     */
     allocationsDuringReservation
   }
 
@@ -61,7 +70,5 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
       Vector()
     }
 
-
   }
 }
-
