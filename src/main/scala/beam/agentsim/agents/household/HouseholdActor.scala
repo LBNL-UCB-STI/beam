@@ -104,7 +104,8 @@ object HouseholdActor {
   object AttributesOfIndividual {
     def apply(person: Person, household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): AttributesOfIndividual = {
       val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
-      val availableModes: Seq[BeamMode] = PermissibleModeUtils.permissibleModeParser(person.getAttributes.getAttribute(beam.utils.plansampling.PlansSampler.availableModeString).toString) map BeamMode.withValueAttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), availableModes)
+      val availableModes: Seq[BeamMode] = PermissibleModeUtils.permissibleModeParser(person.getAttributes.getAttribute(beam.utils.plansampling.PlansSampler.availableModeString).toString) map BeamMode.withValue
+      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), availableModes)
     }
   }
 
