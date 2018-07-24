@@ -1,12 +1,11 @@
-package beam.utils.scripts
+package beam.utils.plansampling
 
 import java.util
 
-import beam.router.Modes
 import beam.utils.gis.Plans2Shapefile
-import beam.utils.plansampling.PermissibleModeUtils
-import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
-import beam.utils.scripts.PopulationAttrib.Rank
+import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import beam.utils.plansampling.PopulationAttrib.Rank
+import beam.utils.scripts.PopulationWriterCSV
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
@@ -17,10 +16,10 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.population.{PersonUtils, PopulationUtils}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
-import org.matsim.core.scenario.{CustomizableUtils, MutableScenario, ScenarioUtils}
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -235,6 +234,7 @@ object PlansSampler {
 
   import HasXY._
 
+  val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
   private val logger = Logger.getLogger("PlansSampler")
 
@@ -336,14 +336,13 @@ object PlansSampler {
     ret.toVector
   }
 
-  def addModeExclusions(person: Person) = {
+  def addModeExclusions(person: Person): AnyRef = {
 
     val permissibleModes: Iterable[String] = JavaConverters.collectionAsScalaIterable(modeAllocator.getPermissibleModes(person.getSelectedPlan))
 
     val availableModes = permissibleModes.fold("") { (addend, modeString) => addend.concat(modeString.toLowerCase() + ",") }.stripSuffix(",")
 
-    newPopAttributes.putAttribute(person.getId.toString, "available_modes", availableModes)
-
+    newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
   }
 
   def run(): Unit = {

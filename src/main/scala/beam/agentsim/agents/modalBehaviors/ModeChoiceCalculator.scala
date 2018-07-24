@@ -37,7 +37,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _) =>
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _,_) =>
               new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")

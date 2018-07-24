@@ -12,8 +12,10 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
+import beam.utils.plansampling.{PermissibleModeUtils, PlansSamplerApp}
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -61,14 +63,15 @@ object HouseholdActor {
 
   case class HouseholdAttributes(householdIncome: Double, householdSize: Int, numCars: Int, numBikes: Int)
 
-  case class AttributesOfIndividual(person: Person, householdAttributes: HouseholdAttributes, householdId: Id[Household], modalityStyle: Option[String], isMale: Boolean) {
+  case class AttributesOfIndividual(person: Person, householdAttributes: HouseholdAttributes, householdId: Id[Household], modalityStyle: Option[String], isMale: Boolean, availableModes: Seq[BeamMode]) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
 
   object AttributesOfIndividual {
     def apply(person: Person, household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): AttributesOfIndividual = {
       val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
-      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean())
+      val availableModes: Seq[BeamMode] = PermissibleModeUtils.permissibleModeParser(person.getAttributes.getAttribute(beam.utils.plansampling.PlansSampler.availableModeString).toString) map BeamMode.withValue
+      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), availableModes)
     }
   }
 

@@ -1,6 +1,6 @@
 package beam.utils
 
-import beam.utils.scripts.PlansSampler
+import beam.utils.plansampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -30,7 +30,10 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
       dummyScenario.setLocked()
       ScenarioUtils.loadScenario(dummyScenario)
       val attributes: ObjectAttributes = dummyScenario.getPopulation.getPersonAttributes
-      attributes.getAttribute("1-0", "available_modes") should equal("car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram")
+      attributes.getAttribute("1-0", "available-modes") should equal("car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram")
+    }
+    "ensure agents only use available modes" in {
+
     }
   }
 }
