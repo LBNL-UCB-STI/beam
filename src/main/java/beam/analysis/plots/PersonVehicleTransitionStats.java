@@ -62,7 +62,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
