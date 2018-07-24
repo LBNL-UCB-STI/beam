@@ -23,7 +23,7 @@ class TransitPriceSpec
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
               .withValue("beam.agentsim.tuning.transitPrice", ConfigValueFactory.fromAnyRef(tc))

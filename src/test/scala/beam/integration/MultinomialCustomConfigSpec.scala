@@ -128,22 +128,22 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig1)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig2)
         )
         .resolve()
@@ -194,22 +194,22 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig1)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig2)
         )
         .resolve()
@@ -260,22 +260,22 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig1)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig2)
         )
         .resolve()
@@ -326,22 +326,22 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig1)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig2)
         )
         .resolve()
@@ -392,22 +392,22 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig1)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile",
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
           ConfigValueFactory.fromAnyRef(routeConfig2)
         )
         .resolve()

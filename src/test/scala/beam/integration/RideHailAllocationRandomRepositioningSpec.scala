@@ -24,7 +24,7 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
         ConfigValueFactory.fromAnyRef("RANDOM_REPOSITIONING")
       )
       .withValue(
-        "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
         ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
       )
       .withValue(

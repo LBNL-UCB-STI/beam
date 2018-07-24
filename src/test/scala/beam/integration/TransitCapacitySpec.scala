@@ -23,7 +23,7 @@ class TransitCapacitySpec
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalbehaviors.modeChoiceClass",
+                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceTransitIfAvailable")
               )
               .withValue("beam.agentsim.tuning.transitCapacity", ConfigValueFactory.fromAnyRef(tc))
