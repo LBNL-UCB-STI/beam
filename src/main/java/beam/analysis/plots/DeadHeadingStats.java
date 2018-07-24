@@ -29,13 +29,12 @@ public class DeadHeadingStats implements IGraphStats {
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
-    Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
-    Double passengerVkt = 0d;
-    Double deadHeadingVkt = 0d;
-    Double repositioningVkt = 0d;
-    int reservationCount = 0;
-    private String graphTitle = null;
+    private Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
+    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private Double passengerVkt = 0d;
+    private Double deadHeadingVkt = 0d;
+    private Double repositioningVkt = 0d;
+    private int reservationCount = 0;
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -65,7 +64,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
+    public void createGraph(IterationEndsEvent event) {
     }
 
     @Override
@@ -450,7 +449,7 @@ public class DeadHeadingStats implements IGraphStats {
     private void createDeadHeadingPassengerPerTripGraph(IterationEndsEvent event, String graphType) throws IOException {
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
-            double[][] dataSet = buildDeadHeadingDataSet(this.deadHeadingsMap.get(graphName), graphName);
+            double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
             CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }

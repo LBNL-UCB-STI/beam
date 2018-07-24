@@ -55,7 +55,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -184,8 +184,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(getModesChosen());
         Collections.sort(modesChosenList);
@@ -246,7 +245,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                         }
                     }
                 } else {
-                    for (String mode : modes) {
+                    for (String ignored : modes) {
                         builder.append(",0");
                     }
                 }
@@ -263,7 +262,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         private String mode;
         private String person;
 
-        public ModePerson(String mode, String person) {
+        ModePerson(String mode, String person) {
             this.mode = mode;
             this.person = person;
         }

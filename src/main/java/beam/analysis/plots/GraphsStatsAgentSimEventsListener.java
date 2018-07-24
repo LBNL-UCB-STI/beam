@@ -64,7 +64,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     }
 
     // helper methods
-    public static int getEventHour(double time) {
+    static int getEventHour(double time) {
         return (int) time / SECONDS_IN_HOUR;
     }
 

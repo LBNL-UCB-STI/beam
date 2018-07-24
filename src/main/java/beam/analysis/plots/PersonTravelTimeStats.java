@@ -20,8 +20,6 @@ public class PersonTravelTimeStats implements IGraphStats {
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private static Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
-    private String fileName = null;
-    private String graphTitle = null;
 
 
     @Override
@@ -41,7 +39,7 @@ public class PersonTravelTimeStats implements IGraphStats {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -84,7 +82,7 @@ public class PersonTravelTimeStats implements IGraphStats {
                     hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                 }
                 hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
-                personLastDepartureEvents.remove(personId);
+                personLastDepartureEvents.remove(personId.toString());
             }
         }
     }
@@ -102,10 +100,10 @@ public class PersonTravelTimeStats implements IGraphStats {
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        fileName = "average_travel_times_" + mode + ".png";
-        graphTitle = "Average Travel Time [" + mode + "]";
-        boolean legend = false;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        String fileName = "average_travel_times_" + mode + ".png";
+        String graphTitle = "Average Travel Time [" + mode + "]";
+
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
