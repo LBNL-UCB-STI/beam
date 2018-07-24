@@ -36,12 +36,15 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
+import org.matsim.core.router.costcalculators.{
+  FreespeedTravelTimeAndDisutility,
+  RandomizingTimeDistanceTravelDisutilityFactory
+}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest._
@@ -52,22 +55,32 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 @Ignore
-class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
-  """
+class RouterPerformanceSpec
+    extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
-  """))) with WordSpecLike with Matchers with Inside with LoneElement
-  with ImplicitSender with MockitoSugar with BeforeAndAfterAllConfigMap with MetricsSupport {
+  """)))
+    with WordSpecLike
+    with Matchers
+    with Inside
+    with LoneElement
+    with ImplicitSender
+    with MockitoSugar
+    with BeforeAndAfterAllConfigMap
+    with MetricsSupport {
 
   var config: Config = _
   var network: Network = _
   var router: ActorRef = _
   var scenario: Scenario = _
 
-  private val runSet = List(1000, 10000, 100000
-    /*, 10000, 25000, 50000, 75000*/)
+  private val runSet = List(
+    1000,
+    10000,
+    100000
+    /*, 10000, 25000, 50000, 75000*/
+  )
 
   var dataSet: Seq[Seq[Node]] = _
 
@@ -80,7 +93,12 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     when(services.beamConfig).thenReturn(beamConfig)
     val geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(
+      DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -91,7 +109,18 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
+    router = system.actorOf(
+      BeamRouter.props(
+        services,
+        networkCoordinator.transportNetwork,
+        networkCoordinator.network,
+        new EventsManagerImpl(),
+        scenario.getTransitVehicles,
+        fareCalculator,
+        tollCalculator
+      ),
+      "router"
+    )
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)
@@ -107,10 +136,9 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     //    if (isMetricsEnable()) Kamon.shutdown()
   }
 
-
   "A Beam router" must {
 
-    "respond with a car route for each trip" taggedAs (Performance) in {
+    "respond with a car route for each trip" taggedAs Performance in {
 
       println("=================BEAM=================")
 
@@ -118,37 +146,49 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
       runSet.foreach(n => {
         val testSet = dataSet.take(n)
         val start = System.currentTimeMillis()
-        try {
-          testSet.foreach(pair => {
-            val origin = pair(0).getCoord
-            val destination = pair(1).getCoord
+        try testSet.foreach(pair => {
+          val origin = pair.head.getCoord
+          val destination = pair(1).getCoord
 
-            val time = RoutingModel.DiscreteTime(8 * 3600)
-            router ! RoutingRequest(origin, destination, time, Vector(), Vector(
-              StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), CAR, asDriver = true)))
-            val response = expectMsgType[RoutingResponse]
+          val time = RoutingModel.DiscreteTime(8 * 3600)
+          router ! RoutingRequest(
+            origin,
+            destination,
+            time,
+            Vector(),
+            Vector(
+              StreetVehicle(
+                Id.createVehicleId("116378-2"),
+                new SpaceTime(origin, 0),
+                CAR,
+                asDriver = true
+              )
+            )
+          )
+          val response = expectMsgType[RoutingResponse]
 
+          //            println("--------------------------------------")
+          //            println(s"origin.x:${origin.getX}, origin.y: ${origin.getY}")
+          //            println(s"destination.x:${destination.getX}, destination.y: ${destination.getY}")
+          //            println(response)
+          //            print("links#")
+          //            response.itineraries.flatMap(_.beamLegs()).map(_.travelPath.linkIds.size).foreach(print)
+          //            response.itineraries.foreach(i => println(s", time:${i.totalTravelTime}"))
 
-            //            println("--------------------------------------")
-            //            println(s"origin.x:${origin.getX}, origin.y: ${origin.getY}")
-            //            println(s"destination.x:${destination.getX}, destination.y: ${destination.getY}")
-            //            println(response)
-            //            print("links#")
-            //            response.itineraries.flatMap(_.beamLegs()).map(_.travelPath.linkIds.size).foreach(print)
-            //            response.itineraries.foreach(i => println(s", time:${i.totalTravelTime}"))
+          assert(response.isInstanceOf[RoutingResponse])
 
-            assert(response.isInstanceOf[RoutingResponse])
-
-          })
-        } finally {
+        })
+        finally {
           val latency = System.currentTimeMillis() - start
           println()
-          println(s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec")
+          println(
+            s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+          )
         }
       })
     }
 
-    "respond with a route for each beam mode" taggedAs (Performance) in {
+    "respond with a route for each beam mode" taggedAs Performance in {
       val modeSet: Seq[BeamMode] = Seq(CAR, BIKE, WALK, RIDE_HAIL, BUS, WALK_TRANSIT, TRANSIT)
 
       var transitModes: Vector[BeamMode] = Vector()
@@ -161,19 +201,31 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
           val testSet = r5Set.take(n)
           val start = System.currentTimeMillis()
           testSet.foreach(pair => {
-            val origin = pair(0).getCoord
+            val origin = pair.head.getCoord
             val destination = pair(1).getCoord
-            val time = RoutingModel.DiscreteTime(8 * 3600/*pair(0).getEndTime.toInt*/)
+            val time = RoutingModel.DiscreteTime(8 * 3600 /*pair(0).getEndTime.toInt*/ )
 
             mode.r5Mode match {
-              case Some(Left(m)) =>
+              case Some(Left(_)) =>
                 transitModes = Vector()
                 streetVehicles = Vector(
-                  StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, time.atTime), mode, asDriver = true))
-              case Some(Right(m)) =>
+                  StreetVehicle(
+                    Id.createVehicleId("116378-2"),
+                    new SpaceTime(origin, time.atTime),
+                    mode,
+                    asDriver = true
+                  )
+                )
+              case Some(Right(_)) =>
                 transitModes = Vector(mode)
                 streetVehicles = Vector(
-                  StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true))
+                  StreetVehicle(
+                    Id.createVehicleId("body-116378-2"),
+                    new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+                    WALK,
+                    asDriver = true
+                  )
+                )
 
               case None =>
             }
@@ -182,11 +234,18 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
               expectMsgType[RoutingResponse]
             }
 //            println("--------------------------------------")
-//            response.itineraries.foreach(i => println(s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"))
+//            response.itineraries.foreach(
+//              i =>
+//                println(
+//                  s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"
+//              )
+//            )
           })
           val latency = System.currentTimeMillis() - start
           println()
-          println(s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec")
+          println(
+            s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+          )
         })
       })
     }
@@ -229,49 +288,49 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
   "A MATSIM Router" must {
 
-    "respond with a path using router alog(AStarEuclidean)" taggedAs (Performance) in {
+    "respond with a path using router alog(AStarEuclidean)" taggedAs Performance in {
       println("=================AStarEuclidean=================")
 
       testMatsim(getAStarEuclidean)
     }
 
-    "respond with a path using router alog(FastAStarEuclidean)" taggedAs (Performance) in {
+    "respond with a path using router alog(FastAStarEuclidean)" taggedAs Performance in {
       println("=================FastAStarEuclidean=================")
 
       testMatsim(getFastAStarEuclidean)
     }
 
-    "respond with a path using router alog(Dijkstra)" taggedAs (Performance) in {
+    "respond with a path using router alog(Dijkstra)" taggedAs Performance in {
       println("=================Dijkstra=================")
 
       testMatsim(getDijkstra)
     }
 
-    "respond with a path using router alog(FastDijkstra)" taggedAs (Performance) in {
+    "respond with a path using router alog(FastDijkstra)" taggedAs Performance in {
       println("=================FastDijkstra=================")
 
       testMatsim(getFastDijkstra)
     }
 
-    "respond with a path using router alog(MultiNodeDijkstra)" taggedAs (Performance) in {
+    "respond with a path using router alog(MultiNodeDijkstra)" taggedAs Performance in {
       println("=================MultiNodeDijkstra=================")
 
       testMatsim(getMultiNodeDijkstra)
     }
 
-    "respond with a path using router alog(FastMultiNodeDijkstra)" taggedAs (Performance) in {
+    "respond with a path using router alog(FastMultiNodeDijkstra)" taggedAs Performance in {
       println("=================FastMultiNodeDijkstra=================")
 
       testMatsim(getFastMultiNodeDijkstra)
     }
 
-    "respond with a path using router alog(AStarLandmarks)" taggedAs (Performance) in {
+    "respond with a path using router alog(AStarLandmarks)" taggedAs Performance in {
       println("=================AStarLandmarks=================")
 
       testMatsim(getAStarLandmarks)
     }
 
-    "respond with a path using router alog(FastAStarLandmarks)" taggedAs (Performance) in {
+    "respond with a path using router alog(FastAStarLandmarks)" taggedAs Performance in {
       println("=================FastAStarLandmarks=================")
 
       testMatsim(getFastAStarLandmarks)
@@ -282,76 +341,101 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
     runSet.foreach(n => {
       val testSet = dataSet.take(n)
-      val start = System.currentTimeMillis();
+      val start = System.currentTimeMillis()
       testSet.foreach({ pare =>
-
-        val path = routerAlgo.calcLeastCostPath(pare(0), pare(1), 8.0 * 3600, null, null)
-        //        println("--------------------------------------")
-        //        println(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
-        //        println(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
-        //        println(s"links#${path.links.size()}, nodes#${path.nodes.size()}, time:${path.travelTime}")
+        val path = routerAlgo.calcLeastCostPath(pare.head, pare(1), 8.0 * 3600, null, null)
+      //        println("--------------------------------------")
+      //        println(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
+      //        println(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
+      //        println(s"links#${path.links.size()}, nodes#${path.nodes.size()}, time:${path.travelTime}")
       })
       val latency = System.currentTimeMillis() - start
       println()
-      println(s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec")
+      println(
+        s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+      )
     })
   }
 
-  def getMultiNodeDijkstra(): LeastCostPathCalculator = {
+  def getMultiNodeDijkstra: LeastCostPathCalculator = {
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     val travelTime = new FreeSpeedTravelTime
-    val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(TransportMode.car, matsimConfig.planCalcScore).createTravelDisutility(travelTime)
+    val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
+      TransportMode.car,
+      matsimConfig.planCalcScore
+    ).createTravelDisutility(travelTime)
 
     new MultiNodeDijkstraFactory().createPathCalculator(network, travelDisutility, travelTime)
   }
 
-  def getFastMultiNodeDijkstra(): LeastCostPathCalculator = {
+  def getFastMultiNodeDijkstra: LeastCostPathCalculator = {
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     val travelTime = new FreeSpeedTravelTime
-    val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(TransportMode.car, matsimConfig.planCalcScore).createTravelDisutility(travelTime)
-    new FastMultiNodeDijkstraFactory().createPathCalculator(network, travelDisutility, travelTime).asInstanceOf[FastMultiNodeDijkstra]
+    val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
+      TransportMode.car,
+      matsimConfig.planCalcScore
+    ).createTravelDisutility(travelTime)
+    new FastMultiNodeDijkstraFactory()
+      .createPathCalculator(network, travelDisutility, travelTime)
+      .asInstanceOf[FastMultiNodeDijkstra]
   }
 
-  def getAStarEuclidean(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
-    new AStarEuclideanFactory().createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
+  def getAStarEuclidean: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
+    new AStarEuclideanFactory()
+      .createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
-  def getFastAStarEuclidean(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
-    new FastAStarEuclideanFactory().createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
+  def getFastAStarEuclidean: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
+    new FastAStarEuclideanFactory()
+      .createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
-  def getAStarLandmarks(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
+  def getAStarLandmarks: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
     val preProcessData = new PreProcessLandmarks(travelTimeCostCalculator)
     preProcessData.run(network)
 
-    val globalConfig: GlobalConfigGroup = new GlobalConfigGroup();
+    val globalConfig: GlobalConfigGroup = new GlobalConfigGroup()
     val f = new AStarLandmarksFactory(); //injector.getInstance(classOf[AStarLandmarksFactory])//
     FieldUtils.writeField(f, "globalConfig", globalConfig, true)
     f.createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
-  def getFastAStarLandmarks(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
+  def getFastAStarLandmarks: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
     val preProcessData = new PreProcessLandmarks(travelTimeCostCalculator)
     preProcessData.run(network)
 
-    val globalConfig: GlobalConfigGroup = new GlobalConfigGroup();
+    val globalConfig: GlobalConfigGroup = new GlobalConfigGroup()
     val f = new FastAStarLandmarksFactory(); //injector.getInstance(classOf[AStarLandmarksFactory])//
     FieldUtils.writeField(f, "globalConfig", globalConfig, true)
     f.createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
-  def getDijkstra(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
-    new DijkstraFactory().createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
+  def getDijkstra: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
+    new DijkstraFactory()
+      .createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
-  def getFastDijkstra(): LeastCostPathCalculator = {
-    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
-    new FastDijkstraFactory().createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
+  def getFastDijkstra: LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(
+      new PlanCalcScoreConfigGroup
+    )
+    new FastDijkstraFactory()
+      .createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
 
   def getNodePairDataset(n: Int): Seq[Seq[Node]] = {
@@ -364,7 +448,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     val data = pers.map(_.getSelectedPlan).flatMap(planToVec)
     val data1 = data.take(data.size / 2)
     val data2 = data.takeRight(data.size / 2 - 1)
-    for {x <- data1; y <- data2 if (x != y)} yield (x, y)
+    for { x <- data1; y <- data2 if x != y } yield (x, y)
     //      data.flatMap(x => data.map(y => if(x!=y) (x,y))).asInstanceOf[Seq[(Activity,Activity)]]
   }
 
@@ -376,14 +460,17 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
   def getRandomNodePairDataset(n: Int): Seq[Seq[Node]] = {
     val nodes = network.getNodes.values().asScala.toSeq
-    for (i <- 1 to n) yield getRandomNodePair(nodes)
+    for (_ <- 1 to n) yield getRandomNodePair(nodes)
   }
 
   def getActivityDataset(n: Int): Seq[Seq[Activity]] = {
-    val baseDataset = scenario.getPopulation.getPersons.values().asScala.flatten(person => {
-      val activities = planToVec(person.getSelectedPlan)
-      activities.sliding(2)
-    })
+    val baseDataset = scenario.getPopulation.getPersons
+      .values()
+      .asScala
+      .flatten(person => {
+        val activities = planToVec(person.getSelectedPlan)
+        activities.sliding(2)
+      })
     Seq.fill((n / baseDataset.size) + 1)(baseDataset).flatten
   }
 
@@ -399,7 +486,8 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     Seq(nodes(start), nodes(end))
   }
 
-  private val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+  private val utm2Wgs: GeotoolsTransformation =
+    new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
 
   def Utm2Wgs(coord: Coord): Coord = {
     if (coord.getX > 400.0 | coord.getX < -400.0) {
@@ -409,7 +497,11 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     }
   }
 
-  def buildRequest(transportNetwork: TransportNetwork, fromFacility: Activity, toFacility: Activity): ProfileRequest = {
+  def buildRequest(
+    transportNetwork: TransportNetwork,
+    fromFacility: Activity,
+    toFacility: Activity
+  ): ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone

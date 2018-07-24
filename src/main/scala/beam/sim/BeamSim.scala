@@ -1,17 +1,13 @@
 package beam.sim
 
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.{CompletableFuture, TimeUnit}
+import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.rideHail.RideHailIterationHistoryActor.CollectRideHailStats
-import beam.agentsim.agents.rideHail.{RideHailDebugEventHandler, RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.agentsim.agents.rideHail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -32,9 +28,9 @@ import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListen
 import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.ExecutionContext.Implicits
+import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val transportNetwork: TransportNetwork,
@@ -103,7 +99,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      modalityStyleStats.processData(scenario.getPopulation(), event)
+      modalityStyleStats.processData(scenario.getPopulation, event)
       modalityStyleStats.buildModalityStyleGraph()
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))

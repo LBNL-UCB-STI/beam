@@ -19,25 +19,6 @@ public class EmptyIfFileEndingsUrlType implements Vfs.UrlType {
         this.fileEndings = Lists.newArrayList(fileEndings);
     }
 
-    public boolean matches(URL url) {
-
-        final String protocol = url.getProtocol();
-        final String externalForm = url.toExternalForm();
-        if (!protocol.equals("file")) {
-            return false;
-        }
-        for (String fileEnding : fileEndings) {
-            if (externalForm.endsWith(fileEnding))
-                return true;
-        }
-        return false;
-    }
-
-    public Vfs.Dir createDir(final URL url) {
-
-        return emptyVfsDir(url);
-    }
-
     private static Vfs.Dir emptyVfsDir(final URL url) {
 
         return new Vfs.Dir() {
@@ -58,5 +39,24 @@ public class EmptyIfFileEndingsUrlType implements Vfs.UrlType {
 
             }
         };
+    }
+
+    public boolean matches(URL url) {
+
+        final String protocol = url.getProtocol();
+        final String externalForm = url.toExternalForm();
+        if (!protocol.equals("file")) {
+            return false;
+        }
+        for (String fileEnding : fileEndings) {
+            if (externalForm.endsWith(fileEnding))
+                return true;
+        }
+        return false;
+    }
+
+    public Vfs.Dir createDir(final URL url) {
+
+        return emptyVfsDir(url);
     }
 }

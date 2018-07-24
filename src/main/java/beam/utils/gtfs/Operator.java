@@ -1,4 +1,3 @@
-
 package beam.utils.gtfs;
 
 import com.google.gson.annotations.SerializedName;

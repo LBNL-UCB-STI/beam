@@ -16,9 +16,9 @@ class Stats[T](values: Vector [T])(implicit ev$1: T => Double) {
   require( values.nonEmpty, "Stats: Cannot initialize stats with undefined values")
   private[this] val sums = values./:((0.0, 0.0))((acc, s) => (acc._1 + s, acc._2 + s*s))
   @inline
-  lazy val mean = sums._1/values.size
-  lazy val variance = (sums._2 - mean*mean*values.size)/(values.size-1)
-  lazy val stdDev = Math.sqrt(variance)
+  lazy val mean: Double = sums._1/values.size
+  lazy val variance: Double = (sums._2 - mean*mean*values.size)/(values.size-1)
+  lazy val stdDev: Double = Math.sqrt(variance)
 
 
 }

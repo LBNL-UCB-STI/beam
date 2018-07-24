@@ -1,7 +1,6 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
-import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;
@@ -29,22 +28,16 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
     private static final String fileName = "RideHailWaitingSingleStats";
-
+    private double numberOfTimeBins;
     private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
-
-    double numberOfTimeBins = 24;
-    double timeBinSizeInSec = 3600;
-    double endTime = 108000;
-
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
     RideHailingWaitingSingleStats(BeamConfig beamConfig) {
 
-        endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-        timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
+        double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
+        double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
     }
@@ -137,8 +130,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = false;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", false);
 
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
@@ -147,7 +139,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");

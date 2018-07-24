@@ -7,6 +7,7 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.data.category.CategoryDataset;
+
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +33,8 @@ public class GraphUtils {
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
     }
-    public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend){
+
+    public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
 
         boolean toolTips = false;
         boolean urls = false;
@@ -44,18 +46,18 @@ public class GraphUtils {
         return chart;
     }
 
-    public static void setColour(JFreeChart chart, int colorCode){
-        CategoryPlot plot = (CategoryPlot)chart.getPlot();
+    public static void setColour(JFreeChart chart, int colorCode) {
+        CategoryPlot plot = (CategoryPlot) chart.getPlot();
         plot.setBackgroundPaint(SystemColor.inactiveCaption);//change background color
 
         //set  bar chart color
-        ((BarRenderer)plot.getRenderer()).setBarPainter(new StandardBarPainter());
+        ((BarRenderer) plot.getRenderer()).setBarPainter(new StandardBarPainter());
 
-        BarRenderer renderer = (BarRenderer)chart.getCategoryPlot().getRenderer();
+        BarRenderer renderer = (BarRenderer) chart.getCategoryPlot().getRenderer();
         renderer.setSeriesPaint(0, colors.get(colorCode));
     }
 
-    public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount){
+    public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount) {
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
             Color color = getBarAndLegendColor(i);
@@ -65,16 +67,18 @@ public class GraphUtils {
         plot.setFixedLegendItems(legendItems);
     }
 
-    public static void plotLegendItems(CategoryPlot plot, int dataSetRowCount){
+    public static void plotLegendItems(CategoryPlot plot, int dataSetRowCount) {
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
             plot.getRenderer().setSeriesPaint(i, colors.get(i));
         }
         plot.setFixedLegendItems(legendItems);
     }
-    public static void saveJFreeChartAsPNG(final JFreeChart chart,String graphImageFile , int width, int height) throws IOException {
+
+    public static void saveJFreeChartAsPNG(final JFreeChart chart, String graphImageFile, int width, int height) throws IOException {
         ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
     }
+
     private static Color getBarAndLegendColor(int i) {
         if (i < colors.size()) {
             return colors.get(i);
@@ -82,6 +86,7 @@ public class GraphUtils {
             return getRandomColor();
         }
     }
+
     private static Color getRandomColor() {
         Random rand = new Random();
         // Java 'Color' class takes 3 floats, from 0 to 1.

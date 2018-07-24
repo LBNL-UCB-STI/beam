@@ -1,6 +1,5 @@
 package beam.analysis.via;
 
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.core.utils.io.UncheckedIOException;
 
@@ -11,11 +10,11 @@ public class CSVWriter {
 
     private final BufferedWriter out;
 
-    public CSVWriter(String outputFileName){
+    public CSVWriter(String outputFileName) {
         this.out = IOUtils.getBufferedWriter(outputFileName);
     }
 
-    public BufferedWriter getBufferedWriter(){
+    public BufferedWriter getBufferedWriter() {
         return out;
     }
 

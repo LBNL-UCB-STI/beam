@@ -26,7 +26,7 @@ object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
 
-  private def validateExperimentConfig(experiment: ExperimentDef) = {
+  private def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
     }
@@ -46,11 +46,11 @@ object ExperimentGenerator extends App {
     }.toMap
   }
 
-  def getExperimentPath() = {
+  def getExperimentPath = {
     Paths.get(experimentFile.getParent.toString, "runs")
   }
 
-  def getBatchRunScriptPath() = {
+  def getBatchRunScriptPath = {
     Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
 
@@ -104,8 +104,8 @@ object ExperimentGenerator extends App {
   }
 
   val modeChoiceTemplate = Resources.toString(Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath.toUri.toURL, Charsets.UTF_8)
-  val runScriptTemplate = experiment.getRunScriptTemplate()
-  val batchScriptTemplate = experiment.getBatchRunScriptTemplate()
+  val runScriptTemplate = experiment.getRunScriptTemplate
+  val batchScriptTemplate = experiment.getBatchRunScriptTemplate
   val jinjava = new Jinjava()
 
   experimentRuns.foreach { runSandbox =>
@@ -174,9 +174,9 @@ object ExperimentGenerator extends App {
    * Write a shell script designed to run the batch locally
    */
   val templateParams = Map(
-    "EXPERIMENT_PATH" -> getExperimentPath().toString,
+    "EXPERIMENT_PATH" -> getExperimentPath.toString,
   ) ++ experiment.defaultParams.asScala
-  val batchRunWriter = new BufferedWriter(new FileWriter(getBatchRunScriptPath().toFile, false))
+  val batchRunWriter = new BufferedWriter(new FileWriter(getBatchRunScriptPath.toFile, false))
   try {
     val renderedTemplate = jinjava.render(batchScriptTemplate, templateParams.asJava)
     batchRunWriter.write(renderedTemplate)
@@ -185,12 +185,12 @@ object ExperimentGenerator extends App {
     IOUtils.closeQuietly(batchRunWriter)
   }
   if (!SystemUtils.IS_OS_WINDOWS) {
-    Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath().toString}")
+    Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath.toString}")
   }
 
-  val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
+  val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(getExperimentPath().toString,"experiments.csv").toFile, false))
+    Paths.get(getExperimentPath.toString,"experiments.csv").toFile, false))
 
   try {
     val factorNames: List[String] = dynamicParamsPerFactor.map(_._1)

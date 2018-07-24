@@ -1,10 +1,6 @@
 package beam.analysis;
 
-import beam.agentsim.events.PathTraversalEvent;
-import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
-import org.matsim.api.core.v01.Coord;
-import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;

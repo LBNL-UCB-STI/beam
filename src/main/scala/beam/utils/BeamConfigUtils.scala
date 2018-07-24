@@ -12,7 +12,7 @@ object BeamConfigUtils extends LazyLogging {
 
   def parseFileSubstitutingInputDirectory(fileName: String): com.typesafe.config.Config = {
     val file = Paths.get(fileName).toFile
-    logger.debug (s"Loading beam config from ${file}.")
+    logger.debug (s"Loading beam config from $file.")
     parseFileSubstitutingInputDirectory(file)
   }
 

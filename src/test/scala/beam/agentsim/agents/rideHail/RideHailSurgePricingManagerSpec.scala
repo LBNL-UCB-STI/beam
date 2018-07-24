@@ -179,7 +179,7 @@ class RideHailSurgePricingManagerSpec
       val tazArray = treeMap.tazQuadTree.values.asScala.toSeq
 
       val randomTaz = tazArray(2)
-      val timeBinSize = beamConfig.beam.agentsim.agents.rideHail.surgePricing.timeBinSize
+      val timeBinSize = beamConfig.beam.agentsim.timeBinSize
       val hourRandom = 1
       val hourInSeconds = hourRandom * timeBinSize
 
@@ -194,7 +194,7 @@ class RideHailSurgePricingManagerSpec
       val tazArray = treeMap.tazQuadTree.values.asScala.toList
 
       val randomTaz = tazArray(2)
-      val timeBinSize = beamConfig.beam.agentsim.agents.rideHail.surgePricing.timeBinSize
+      val timeBinSize = beamConfig.beam.agentsim.timeBinSize
       val endTime = Math.ceil(Time.parseTime(beamConfig.matsim.modules.qsim.endTime)  / timeBinSize).toInt
       val hourRandom = Random.nextInt(endTime)
       val hourInSeconds = hourRandom * timeBinSize

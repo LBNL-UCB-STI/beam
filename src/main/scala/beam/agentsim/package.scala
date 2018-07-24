@@ -9,6 +9,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters
+import scala.language.implicitConversions
 
 /**
   * Created by sfeygin on 1/27/17.

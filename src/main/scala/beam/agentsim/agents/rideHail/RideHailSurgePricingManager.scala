@@ -1,8 +1,10 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
@@ -12,6 +14,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 object RideHailSurgePricingManager {
+
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](-1, -1, 1, 1)
     val taz = new TAZ("0", new Coord(0.0, 0.0))
@@ -24,43 +27,39 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   var iteration = 0
 
-
   // TODO:
 
   // when ever turning around direction, make the step half as large after a certain iteration number, which is specified
-
 
   // max price define
   // slowing down price change according to revenue change?
   // fix the KEEP_PRICE_LEVEL_FIXED_AT_ONE price levels below
   // define other strategies for this?
 
-
-  // TODO: load following parameters directly from config (add them there)zz
-
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHail
-  val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories = rideHaillingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
-  val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
-  val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
+  val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
+  val timeBinSize: Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories: Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val numberOfTimeBins: Int = Math
+    .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
+    .toInt + 1
+  val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
   var maxSurgePricingLevel: Double = 0
   var surgePricingLevelCount: Int = 0
   var totalSurgePricingLevel: Double = 0
 
-
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy = rideHaillingConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-  val rideHailRevenue = ArrayBuffer[Double]()
+  val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
 
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
@@ -71,18 +70,17 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   private val tazTreeMap = mTazTreeMap.getOrElse(RideHailSurgePricingManager.defaultTazTreeMap)
 
   //Scala like code
-  val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] = tazTreeMap.tazQuadTree
-    .values
-    .asScala
-    .map { v =>
-      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
-        arrayBuffer.append(defaultBinContent)
-        arrayBuffer
+  val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
+    tazTreeMap.tazQuadTree.values.asScala.map { v =>
+      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) {
+        (arrayBuffer, _) =>
+          arrayBuffer.append(defaultBinContent)
+          arrayBuffer
       }
       (v.tazId.toString, array)
     }.toMap
 
-  val rand = new Random
+  val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -91,8 +89,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     if (!priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) {
       if (isFirstIteration) {
         // TODO: can we refactor the following two blocks of code to reduce duplication?
-
-        // TODO: seed following random to some config seed?
 
         updateForAllElements(surgePriceBins) { surgePriceBin =>
           val updatedSurgeLevel = if (rand.nextBoolean()) {
@@ -110,16 +106,20 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
         //   iterate over all items
         updateForAllElements(surgePriceBins) { surgePriceBin =>
           val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel
-          val updatedSurgeLevel = if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
-            surgePriceBin.currentIterationSurgePriceLevel
-          } else {
-            if (surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue) {
-              surgePriceBin.currentIterationSurgePriceLevel + (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+          val updatedSurgeLevel =
+            if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
+              surgePriceBin.currentIterationSurgePriceLevel
             } else {
-              surgePriceBin.currentIterationSurgePriceLevel - (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+              if (surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue) {
+                surgePriceBin.currentIterationSurgePriceLevel + (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+              } else {
+                surgePriceBin.currentIterationSurgePriceLevel - (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+              }
             }
-          }
-          surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel, minimumSurgeLevel))
+          surgePriceBin.copy(
+            previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel,
+            currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel, minimumSurgeLevel)
+          )
         }
       }
     }
@@ -127,7 +127,9 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   }
 
   //Method to avoid code duplication
-  private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
+  private def updateForAllElements(
+    surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]]
+  )(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
       for (j <- binArray.indices) {
         val surgePriceBin = binArray.apply(j)
@@ -140,22 +142,26 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   def updatePreviousIterationRevenuesAndResetCurrent(): Unit = {
     updateForAllElements(surgePriceBins) { surgePriceBin =>
       val updatedPrevIterRevenue = surgePriceBin.currentIterationRevenue
-      surgePriceBin.copy(previousIterationRevenue = updatedPrevIterRevenue, currentIterationRevenue = 0)
+      surgePriceBin.copy(
+        previousIterationRevenue = updatedPrevIterRevenue,
+        currentIterationRevenue = 0
+      )
     }
   }
-
 
   def getSurgeLevel(location: Location, time: Double): Double = {
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
-    surgePriceBins.get(taz.tazId.toString)
-      .map{i =>
-        if(timeBinIndex < i.size){
+    surgePriceBins
+      .get(taz.tazId.toString)
+      .map { i =>
+        if (timeBinIndex < i.size) {
           i(timeBinIndex).currentIterationSurgePriceLevel
-        }else{
+        } else {
           1.0
         }
-      }.getOrElse(throw new Exception("no surge level found"))
+      }
+      .getOrElse(throw new Exception("no surge level found"))
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
@@ -164,7 +170,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>
-      if(timeBinIndex < i.size) {
+      if (timeBinIndex < i.size) {
         val surgePriceBin = i.apply(timeBinIndex)
         val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
         val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
@@ -175,7 +181,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   }
 
   // TODO: print revenue each iteration out
-
 
   def updateRevenueStats(): Unit = {
     // TODO: is not functioning properly yet
@@ -213,6 +218,10 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   }
 }
 
-
 // TODO put in companion object
-case class SurgePriceBin(previousIterationRevenue: Double, currentIterationRevenue: Double, previousIterationSurgePriceLevel: Double, currentIterationSurgePriceLevel: Double)
+case class SurgePriceBin(
+  previousIterationRevenue: Double,
+  currentIterationRevenue: Double,
+  previousIterationSurgePriceLevel: Double,
+  currentIterationSurgePriceLevel: Double
+)

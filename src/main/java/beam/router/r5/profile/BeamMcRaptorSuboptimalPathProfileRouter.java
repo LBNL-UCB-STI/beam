@@ -3,7 +3,8 @@ package beam.router.r5.profile;
 import com.conveyal.r5.api.util.LegMode;
 import com.conveyal.r5.api.util.TransitModes;
 import com.conveyal.r5.profile.*;
-import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter.*;
+import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter.McRaptorState;
+import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter.McRaptorStateBag;
 import com.conveyal.r5.streets.LinkedPointSet;
 import com.conveyal.r5.streets.StreetRouter;
 import com.conveyal.r5.transit.*;
@@ -27,37 +28,34 @@ import java.util.*;
  * @author mattwigway
  */
 public class BeamMcRaptorSuboptimalPathProfileRouter {
-    
-    private static final Logger LOG = LoggerFactory.getLogger(BeamMcRaptorSuboptimalPathProfileRouter.class);
 
     public static final int BOARD_SLACK = 60;
-
-    /** maximum number of rounds (rides) */
+    /**
+     * maximum number of rounds (rides)
+     */
     public static final int MAX_ROUNDS = 4;
-
     public static final int[] EMPTY_INT_ARRAY = new int[0];
-
-    /** large primes for use in hashing, computed using R numbers package */
-    public static final int[] PRIMES = new int[] { 400000009, 200000033, 2, 1100000009, 1900000043, 800000011, 1300000003,
+    /**
+     * large primes for use in hashing, computed using R numbers package
+     */
+    public static final int[] PRIMES = new int[]{400000009, 200000033, 2, 1100000009, 1900000043, 800000011, 1300000003,
             1000000007, 500000003, 300000007, 1700000009, 100000007, 700000031, 900000011, 1800000011, 1400000023,
-            600000007, 1600000009, 1200000041, 1500000041 };
+            600000007, 1600000009, 1200000041, 1500000041};
+    private static final Logger LOG = LoggerFactory.getLogger(BeamMcRaptorSuboptimalPathProfileRouter.class);
 
     // DEBUG: USED TO EVALUATE HASH PERFORMANCE
 //    Set<BeamStatePatternKey> keys = new HashSet<>(); // all unique keys
 //    TIntSet hashes = new TIntHashSet(); // all unique hashes
-
+    private final boolean DUMP_STOPS = false;
     /**
      * the number of searches to run (approximately). We use a constrained random walk to get about this many searches.
      */
     public int NUMBER_OF_SEARCHES = 20;
-
-    private final boolean DUMP_STOPS = false;
-
-    private LinkedPointSet pointSet = null;
-
-    /** Use a list for the iterations since we aren't sure how many there will be (we're using random sampling over the departure minutes) */
+    /**
+     * Use a list for the iterations since we aren't sure how many there will be (we're using random sampling over the departure minutes)
+     */
     public List<int[]> timesAtTargetsEachIteration = null;
-
+    private LinkedPointSet pointSet = null;
     private TransportNetwork network;
     private ProfileRequest request;
     private Map<LegMode, TIntIntMap> accessTimes;
@@ -66,7 +64,6 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     private FrequencyRandomOffsets offsets;
 
     private TIntObjectMap<McRaptorStateBag> bestStates = new TIntObjectHashMap<>();
-
 
 
     private int round = 0;
@@ -78,7 +75,9 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     private BitSet patternsNearDestination;
     private BitSet servicesActive;
 
-    /** In order to properly do target pruning we store the best times at each target _by access mode_, so car trips don't quash walk trips */
+    /**
+     * In order to properly do target pruning we store the best times at each target _by access mode_, so car trips don't quash walk trips
+     */
     private TObjectIntMap<LegMode> bestTimesAtTargetByAccessMode = new TObjectIntHashMap<>(4, 0.95f, Integer.MAX_VALUE);
 
     public BeamMcRaptorSuboptimalPathProfileRouter(TransportNetwork network, ProfileRequest req, Map<LegMode, TIntIntMap> accessTimes, Map<LegMode, TIntIntMap> egressTimes) {
@@ -93,8 +92,10 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         this.offsets = new FrequencyRandomOffsets(network.transitLayer);
     }
 
-    /** Get a McRAPTOR state bag for every departure minute */
-    public Collection<McRaptorState> route () {
+    /**
+     * Get a McRAPTOR state bag for every departure minute
+     */
+    public Collection<McRaptorState> route() {
         // TODO hack changing original request!
         if (request.transitModes == null || request.transitModes.isEmpty() || request.transitModes.contains(TransitModes.TRANSIT)) {
             request.transitModes = EnumSet.allOf(TransitModes.class);
@@ -154,13 +155,12 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             round++;
 
             // NB the walk search is an initial round, so MAX_ROUNDS + 1
-            while (doOneRound() && round < MAX_ROUNDS + 1);
+            while (doOneRound() && round < MAX_ROUNDS + 1) ;
 
             // TODO this means we wind up with some duplicated states.
             if (egressTimes != null) {
                 ret.addAll(doPropagationToDestination());
-            }
-            else {
+            } else {
                 doPropagationToPointSet(departureTime);
             }
 
@@ -181,7 +181,9 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         return ret;
     }
 
-    /** compute access times based on the profile request. NB this does not do a search-per-mode */
+    /**
+     * compute access times based on the profile request. NB this does not do a search-per-mode
+     */
     private void computeAccessTimes() {
         StreetRouter streetRouter = new StreetRouter(network.streetLayer);
 
@@ -210,8 +212,10 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         accessTimes.put(mode, streetRouter.getReachedStops());
     }
 
-    /** dump out all stop names */
-    public String dumpStops (TIntIntMap stops) {
+    /**
+     * dump out all stop names
+     */
+    public String dumpStops(TIntIntMap stops) {
         if (DUMP_STOPS) {
             StringBuilder sb = new StringBuilder();
 
@@ -227,8 +231,10 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         }
     }
 
-    /** Perform a McRAPTOR search and extract paths */
-    public Collection<PathWithTimes> getPaths () {
+    /**
+     * Perform a McRAPTOR search and extract paths
+     */
+    public Collection<PathWithTimes> getPaths() {
         Collection<McRaptorState> states = route();
 
         // A map to keep track of the best path among each group of paths using the same sequence of patterns.
@@ -253,8 +259,10 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         return new ArrayList<>(paths.values());
     }
 
-    /** perform one round of the McRAPTOR search. Returns true if anything changed */
-    private boolean doOneRound () {
+    /**
+     * perform one round of the McRAPTOR search. Returns true if anything changed
+     */
+    private boolean doOneRound() {
         // optimization: on the last round, only explore patterns near the destination
         // in a point to point search
         if (round == MAX_ROUNDS && egressTimes != null)
@@ -281,8 +289,8 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             TransitModes mode = TransitLayer.getTransitModes(routeInfo.route_type);
             //skips trip patterns with trips which don't run on wanted date
             if (!pattern.servicesActive.intersects(servicesActive) ||
-                //skips pattern with Transit mode which isn't wanted by profileRequest
-                !request.transitModes.contains(mode)) {
+                    //skips pattern with Transit mode which isn't wanted by profileRequest
+                    !request.transitModes.contains(mode)) {
                 continue;
             }
 
@@ -322,7 +330,8 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
 
                 // get on the bus, if we can
                 if (stopPreviouslyReached) {
-                    STATES: for (McRaptorState state : bestStates.get(stop).getBestStates()) {
+                    STATES:
+                    for (McRaptorState state : bestStates.get(stop).getBestStates()) {
                         if (state.round != round - 1) continue; // don't continually reexplore states
 
                         int prevPattern = state.pattern;
@@ -352,8 +361,8 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                                 currentTrip++;
                                 //Skips trips which don't run on wanted date
                                 if (!servicesActive.get(tripSchedule.serviceCode) ||
-                                    //Skip trips that can't be used with wheelchairs when wheelchair trip is requested
-                                    (request.wheelchair && !tripSchedule.getFlag(TripFlag.WHEELCHAIR))) {
+                                        //Skip trips that can't be used with wheelchairs when wheelchair trip is requested
+                                        (request.wheelchair && !tripSchedule.getFlag(TripFlag.WHEELCHAIR))) {
                                     continue;
                                 }
 
@@ -375,8 +384,8 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                             for (TripSchedule tripSchedule : pattern.tripSchedules) {
                                 currentTrip++;
                                 if (!servicesActive.get(tripSchedule.serviceCode) ||
-                                    //Skip trips that can't be used with wheelchairs when wheelchair trip is requested
-                                    (request.wheelchair && !tripSchedule.getFlag(TripFlag.WHEELCHAIR))) {
+                                        //Skip trips that can't be used with wheelchairs when wheelchair trip is requested
+                                        (request.wheelchair && !tripSchedule.getFlag(TripFlag.WHEELCHAIR))) {
                                     continue;
                                 }
 
@@ -391,9 +400,11 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                                     int latestDeparture = tripSchedule.endTimes[frequencyEntry] +
                                             tripSchedule.departures[stopPositionInPattern];
 
-                                    if (earliestPossibleBoardTime > latestDeparture) continue; // we're outside the time window
+                                    if (earliestPossibleBoardTime > latestDeparture)
+                                        continue; // we're outside the time window
 
-                                    while (departure < earliestPossibleBoardTime) departure += tripSchedule.headwaySeconds[frequencyEntry];
+                                    while (departure < earliestPossibleBoardTime)
+                                        departure += tripSchedule.headwaySeconds[frequencyEntry];
 
                                     // check again, because depending on the offset, the latest possible departure based
                                     // on end time may not actually occur
@@ -420,8 +431,10 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         return !touchedPatterns.isEmpty();
     }
 
-    /** Perform transfers */
-    private void doTransfers () {
+    /**
+     * Perform transfers
+     */
+    private void doTransfers() {
         BitSet stopsTouchedByTransfer = new BitSet(network.transitLayer.getStopCount());
         double walkSpeedMillimetersPerSecond = request.walkSpeed * 1000;
         for (int stop = touchedStops.nextSetBit(0); stop >= 0; stop = touchedStops.nextSetBit(stop + 1)) {
@@ -431,7 +444,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                 for (int transfer = 0; transfer < transfers.size(); transfer += 2) {
                     int toStop = transfers.get(transfer);
                     int distanceMillimeters = transfers.get(transfer + 1);
-                    int walkTimeSeconds = (int)(distanceMillimeters / walkSpeedMillimetersPerSecond);
+                    int walkTimeSeconds = (int) (distanceMillimeters / walkSpeedMillimetersPerSecond);
                     if (addState(toStop, -1, -1, state.time + walkTimeSeconds, -1, -1, state)) {
                         String to = network.transitLayer.stopNames.get(transfers.get(transfer));
                         //LOG.info("Transfer from {} to {} is optimal", from, to);
@@ -446,7 +459,9 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         touchedStops.or(stopsTouchedByTransfer);
     }
 
-    /** propagate states to the destination in a point-to-point search */
+    /**
+     * propagate states to the destination in a point-to-point search
+     */
     private Collection<McRaptorState> doPropagationToDestination() {
         McRaptorStateBag bag = createStateBag();
 
@@ -467,13 +482,13 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                 bag.add(stateAtDest);
             }
 
-           return true;
+            return true;
         }));
 
         return bag.getBestStates();
     }
 
-    private void doPropagationToPointSet (int departureTime) {
+    private void doPropagationToPointSet(int departureTime) {
         int[] timesAtTargetsThisIteration = new int[pointSet.size()];
         Arrays.fill(timesAtTargetsThisIteration, FastRaptorWorker.UNREACHED);
 
@@ -511,19 +526,23 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
 
                 int timeAtTarget = (int) (best.time + distance / request.walkSpeed / 1000);
 
-                if (timesAtTargetsThisIteration[target] > timeAtTarget) timesAtTargetsThisIteration[target] = timeAtTarget;
+                if (timesAtTargetsThisIteration[target] > timeAtTarget)
+                    timesAtTargetsThisIteration[target] = timeAtTarget;
             }
         }
 
         for (int i = 0; i < timesAtTargetsThisIteration.length; i++) {
-            if (timesAtTargetsThisIteration[i] != FastRaptorWorker.UNREACHED) timesAtTargetsThisIteration[i] -= departureTime;
+            if (timesAtTargetsThisIteration[i] != FastRaptorWorker.UNREACHED)
+                timesAtTargetsThisIteration[i] -= departureTime;
         }
 
         timesAtTargetsEachIteration.add(timesAtTargetsThisIteration);
     }
 
-    /** Mark patterns at touched stops */
-    private void markPatterns () {
+    /**
+     * Mark patterns at touched stops
+     */
+    private void markPatterns() {
         this.touchedPatterns.clear();
 
         for (int stop = touchedStops.nextSetBit(0); stop >= 0; stop = touchedStops.nextSetBit(stop + 1)) {
@@ -536,13 +555,15 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         this.touchedStops.clear();
     }
 
-    private boolean addState (int stop, int boardStopPosition, int alightStopPosition, int time, int pattern, int trip, McRaptorState back) {
+    private boolean addState(int stop, int boardStopPosition, int alightStopPosition, int time, int pattern, int trip, McRaptorState back) {
         return addState(stop, boardStopPosition, alightStopPosition, time, pattern, trip, back, back.accessMode);
     }
 
 
-        /** Add a state */
-    private boolean addState (int stop, int boardStopPosition, int alightStopPosition, int time, int pattern, int trip, McRaptorState back, LegMode accessMode) {
+    /**
+     * Add a state
+     */
+    private boolean addState(int stop, int boardStopPosition, int alightStopPosition, int time, int pattern, int trip, McRaptorState back, LegMode accessMode) {
         /**
          * local pruning, and cutting off of excessively long searches
          * NB need to have cutoff be relative to toTime because otherwise when we do range-RAPTOR we'll have left over states
@@ -588,8 +609,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             if (state.back != null) {
                 state.patterns = Arrays.copyOf(state.back.patterns, round);
                 state.patternHash = state.back.patternHash;
-            }
-            else {
+            } else {
                 state.patterns = new int[1];
             }
 
@@ -601,8 +621,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             // Take advantage of the fact that we only ever compare states from the same round, and maximize entropy at each round
             // also keep in mind that
             state.patternHash += pattern * PRIMES[round];
-        }
-        else if (state.back != null) {
+        } else if (state.back != null) {
             state.patterns = state.back.patterns;
             state.patternHash = state.back.patternHash;
         }
@@ -622,7 +641,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             // Save the worst egress time by any egress mode and use this for target pruning
             // we don't know what egress mode will be used when we do target pruning, above, so we just store the
             // best time for each access mode and the slowest egress mode
-            int[] egressTimeWithSlowestEgressMode = new int[] { -1 };
+            int[] egressTimeWithSlowestEgressMode = new int[]{-1};
             egressTimes.forEach((mode, times) -> {
                 if (!times.containsKey(stop)) return;
                 int timeAtDest = time + times.get(stop);
@@ -638,10 +657,13 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         return optimal;
     }
 
-    /** Create a new McRaptorStateBag with properly-configured dominance */
-    public McRaptorStateBag createStateBag () {
+    /**
+     * Create a new McRaptorStateBag with properly-configured dominance
+     */
+    public McRaptorStateBag createStateBag() {
         if (request.maxFare >= 0) {
-            if (network.fareCalculator == null) throw new IllegalArgumentException("Fares requested in ProfileRequest but no fare data loaded");
+            if (network.fareCalculator == null)
+                throw new IllegalArgumentException("Fares requested in ProfileRequest but no fare data loaded");
 
             return new McRaptorStateBag(() -> new FareDominatingList(network.fareCalculator));
         } else {
@@ -657,7 +679,6 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
 //    }
 
 
-
     private static class BeamStatePatternKey {
         McRaptorState state;
 
@@ -665,11 +686,11 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             this.state = state;
         }
 
-        public int hashCode () {
+        public int hashCode() {
             return state.patternHash;
         }
 
-        public boolean equals (Object o) {
+        public boolean equals(Object o) {
             if (o instanceof BeamStatePatternKey) {
                 return Arrays.equals(state.patterns, ((BeamStatePatternKey) o).state.patterns) &&
                         state.accessMode == ((BeamStatePatternKey) o).state.accessMode;

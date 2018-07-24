@@ -27,7 +27,7 @@ public class R5NetworkReader {
             while ((line = br.readLine()) != null) {
 
                 String[] columns = line.split(cvsSplitBy);
-                R5NetworkLink r5NetworkLink = new R5NetworkLink(columns[offSet + 0], new Coord(Double.parseDouble(columns[offSet + 1]), Double.parseDouble(columns[offSet + 2])), Double.parseDouble(columns[offSet + 3]), withCounties ? columns[offSet+4] : "");
+                R5NetworkLink r5NetworkLink = new R5NetworkLink(columns[offSet + 0], new Coord(Double.parseDouble(columns[offSet + 1]), Double.parseDouble(columns[offSet + 2])), Double.parseDouble(columns[offSet + 3]), withCounties ? columns[offSet + 4] : "");
                 r5NetworkLinks.put(r5NetworkLink.linkId, r5NetworkLink);
             }
 
