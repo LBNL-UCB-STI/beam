@@ -597,8 +597,8 @@ object BeamConfig {
     case class Physsim(
       flowCapacityFactor: scala.Double,
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
-      linkstatsBinSize: scala.Int,
-      linkstatsWriteInterval: scala.Int,
+      linkStatsBinSize: scala.Int,
+      linkStatsWriteInterval: scala.Int,
       ptSampleSize: scala.Double,
       storageCapacityFactor: scala.Double,
       writeEventsInterval: scala.Int,
@@ -640,10 +640,10 @@ object BeamConfig {
           flowCapacityFactor =
             if (c.hasPathOrNull("flowCapacityFactor")) c.getDouble("flowCapacityFactor") else 1.0,
           jdeqsim = BeamConfig.Beam.Physsim.Jdeqsim(c.getConfig("jdeqsim")),
-          linkstatsBinSize =
-            if (c.hasPathOrNull("linkstatsBinSize")) c.getInt("linkstatsBinSize") else 3600,
-          linkstatsWriteInterval =
-            if (c.hasPathOrNull("linkstatsWriteInterval")) c.getInt("linkstatsWriteInterval")
+          linkStatsBinSize =
+            if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
+          linkStatsWriteInterval =
+            if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval")
             else 1,
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
           storageCapacityFactor =
