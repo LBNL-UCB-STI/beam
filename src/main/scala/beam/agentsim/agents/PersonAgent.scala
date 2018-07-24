@@ -462,7 +462,7 @@ class PersonAgent(
         personData = data.copy(currentTourMode = Some(WALK_TRANSIT))
       )
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
-        if nextLeg.beamLeg.mode.isTransit() =>
+        if nextLeg.beamLeg.mode.isTransit =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )

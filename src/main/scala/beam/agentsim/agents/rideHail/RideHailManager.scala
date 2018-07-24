@@ -67,7 +67,7 @@ class RideHailManager(
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val radiusInMeters =
+  val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
   override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] =
     mutable.Map[Id[BeamVehicle], BeamVehicle]()
@@ -407,7 +407,7 @@ class RideHailManager(
             }
           })
 
-          val iteration = "it." + beamServices.iterationNumber;
+          val iteration = "it." + beamServices.iterationNumber
           spatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
               .getIterationFilename(
@@ -477,7 +477,7 @@ class RideHailManager(
 
               // TODO: extract creation of route to separate method?
               val passengerSchedule = PassengerSchedule().addLegs(
-                rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip().legs
+                rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
               )
 
               self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent)
@@ -538,9 +538,11 @@ class RideHailManager(
 
   }
 
-  private def printRepositionDistanceSum(repositionVehicles: Vector[(Id[Vehicle], Location)]) = {
+  private def printRepositionDistanceSum(
+    repositionVehicles: Vector[(Id[Vehicle], Location)]
+  ): Unit = {
     var sumOfDistances: Double = 0
-    var numberOfTrips = 0;
+    var numberOfTrips = 0
     for (repositionVehicle <- repositionVehicles) {
       val (vehicleId, destinationLocation) = repositionVehicle
       val rideHailAgentLocation = getIdleVehicles(vehicleId)
@@ -762,7 +764,7 @@ class RideHailManager(
     lockVehicle(travelProposal.rideHailAgentLocation.vehicleId)
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
-    val tripLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs.map(_.beamLeg)
+    //val tripLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs.map(_.beamLeg)
     pendingModifyPassengerScheduleAcks.put(
       request.requestId.toString,
       RideHailResponse(request, Some(travelProposal))
@@ -818,9 +820,6 @@ class RideHailManager(
       .filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
       .sortBy(_._2)
       .map(_._1)
-    if (result.isEmpty) {
-      val i = 0
-    }
     result
   }
 
