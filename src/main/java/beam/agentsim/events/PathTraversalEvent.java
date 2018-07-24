@@ -46,6 +46,7 @@ public class PathTraversalEvent extends Event {
     private final double startY;
     private final double endX;
     private final double endY;
+    private Map<String, String> attr;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double endLegFuelLevel) {
         this(time, vehicleId, vehicleType.getDescription(), beamLeg.mode().value(), numPass, endLegFuelLevel,
@@ -77,10 +78,33 @@ public class PathTraversalEvent extends Event {
         this.endY = endY;
     }
 
-    private Map<String, String> attr;
+    public static PathTraversalEvent apply(Event event) {
+        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            Map<String, String> attr = event.getAttributes();
+            return new PathTraversalEvent(event.getTime(),
+                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
+                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
+                    attr.get(ATTRIBUTE_MODE),
+                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
+                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
+                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
+                    attr.get(ATTRIBUTE_FUEL),
+                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
+                    attr.get(ATTRIBUTE_LINK_IDS),
+                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
+                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y))
+            );
+        }
+        return (PathTraversalEvent) event;
+    }
+
     @Override
     public Map<String, String> getAttributes() {
-        if(attr != null) return attr;
+        if (attr != null) return attr;
 
         attr = super.getAttributes();
 
@@ -107,29 +131,5 @@ public class PathTraversalEvent extends Event {
     @Override
     public String getEventType() {
         return EVENT_TYPE;
-    }
-
-    public static PathTraversalEvent apply(Event event) {
-        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            Map<String, String> attr = event.getAttributes();
-            return new PathTraversalEvent(event.getTime(),
-                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
-                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
-                    attr.get(ATTRIBUTE_MODE),
-                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
-                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
-                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
-                    attr.get(ATTRIBUTE_FUEL),
-                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
-                    attr.get(ATTRIBUTE_LINK_IDS),
-                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
-                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y))
-            );
-        }
-        return (PathTraversalEvent) event;
     }
 }

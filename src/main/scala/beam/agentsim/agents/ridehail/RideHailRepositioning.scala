@@ -1,9 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.SpaceTime
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.events.handler.BasicEventHandler
 
 
 // TODO
@@ -89,7 +86,7 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
 */
 
   def getWaitingEventsAtTime(time: Double):Set[WaitingEvent] ={
-    waitingEvents.filter(waitingEvent => (time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration))
+    waitingEvents.filter(waitingEvent => time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration)
   }
 }
 

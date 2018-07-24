@@ -5,7 +5,6 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.internal.HasPersonId;
-import org.matsim.vehicles.Vehicle;
 
 import java.util.Map;
 
@@ -27,17 +26,18 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     private final double originY;
     private final double destinationX;
     private final double destinationY;
+    private Map<String, String> attr;
+
 
     public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, Coord pickUpLocation, Coord dropOutLocation) {
-       this(time,
-               personId,
-               departTime,
-               pickUpLocation.getX(),
-               pickUpLocation.getY(),
-               dropOutLocation.getX(),
-               dropOutLocation.getY());
+        this(time,
+                personId,
+                departTime,
+                pickUpLocation.getX(),
+                pickUpLocation.getY(),
+                dropOutLocation.getX(),
+                dropOutLocation.getY());
     }
-
 
     public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, double originX,
                                 double originY, double destinationX, double destinationY) {
@@ -51,11 +51,24 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         this.destinationY = destinationY;
     }
 
-    private Map<String, String> attr;
+    public static ReserveRideHailEvent apply(Event event) {
+        if (!(event instanceof ReserveRideHailEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            Map<String, String> attr = event.getAttributes();
+            return new ReserveRideHailEvent(event.getTime(),
+                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
+                    Long.parseLong(attr.get(ATTRIBUTE_DEPART_TIME)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_Y)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_X)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_Y))
+            );
+        }
+        return (ReserveRideHailEvent) event;
+    }
 
     @Override
     public Map<String, String> getAttributes() {
-        if(attr != null) return attr;
+        if (attr != null) return attr;
 
         attr = super.getAttributes();
 
@@ -77,20 +90,5 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     @Override
     public Id<Person> getPersonId() {
         return customerId;
-    }
-
-    public static ReserveRideHailEvent apply(Event event) {
-        if (!(event instanceof ReserveRideHailEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            Map<String, String> attr = event.getAttributes();
-            return new ReserveRideHailEvent(event.getTime(),
-                    Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
-                    Long.parseLong(attr.get(ATTRIBUTE_DEPART_TIME)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_Y)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_Y))
-            );
-        }
-        return (ReserveRideHailEvent) event;
     }
 }

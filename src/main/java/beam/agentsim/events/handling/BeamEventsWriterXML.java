@@ -12,14 +12,14 @@ import java.util.Map;
 /**
  * BEAM
  */
-public class BeamEventsWriterXML extends BeamEventsWriterBase{
+public class BeamEventsWriterXML extends BeamEventsWriterBase {
     public BeamEventsWriterXML(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, beamEventLogger, beamServices, eventTypeToLog);
         writeHeaders();
     }
 
     @Override
-    public void writeHeaders(){
+    public void writeHeaders() {
         try {
             this.out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">\n");
         } catch (IOException e) {
@@ -52,19 +52,19 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
 
     @Override
     protected void writeEvent(final Event event) {
-        if(! (beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)){
+        if (!(beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)) {
             Map<String, String> eventAttributes = event.getAttributes();
-            try{
+            try {
                 this.out.append("\t<event ");
                 HashSet<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
-                for (String attrKey : attrKeys){
+                for (String attrKey : attrKeys) {
                     this.out.append(attrKey);
                     this.out.append("=\"");
                     this.out.append(encodeAttributeValue(eventAttributes.get(attrKey)));
                     this.out.append("\" ");
                 }
 
-             this.out.append(" />\n");
+                this.out.append(" />\n");
 //			this.out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -74,13 +74,14 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
 
     // the following method was taken from MatsimXmlWriter in order to correctly encode attributes, but
     // to forego the overhead of using the full MatsimXmlWriter.
+
     /**
      * Encodes the given string in such a way that it no longer contains
      * characters that have a special meaning in xml.
      *
-     * @see <a href="http://www.w3.org/International/questions/qa-escapes#use">http://www.w3.org/International/questions/qa-escapes#use</a>
      * @param attributeValue
      * @return String with some characters replaced by their xml-encoding.
+     * @see <a href="http://www.w3.org/International/questions/qa-escapes#use">http://www.w3.org/International/questions/qa-escapes#use</a>
      */
     private String encodeAttributeValue(final String attributeValue) {
         if (attributeValue == null) {

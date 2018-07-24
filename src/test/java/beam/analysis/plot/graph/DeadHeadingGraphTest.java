@@ -17,7 +17,8 @@ public class DeadHeadingGraphTest {
         createDummySimWithXML();
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnPassengerPerTripInBusForFirstBucket() {
         int expectedResult = 141;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, BUS);
@@ -31,28 +32,32 @@ public class DeadHeadingGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnPassengerPerTripInSubWayForFirstBucket() {
         int expectedResult = 8;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, SUBWAY);
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnPassengerPerTripForCar() {
         int expectedResult = 34;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, CAR);
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnDeadHeadingTnc0() {
         int expectedResult = 18;
         int actualResult = deadHeadingStats.getDeadHeadingTnc0HourDataCount(0);
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnDeadHeadingAllDistanceForSpecificHour() {
         int expectedResultOfHour[] = {9, 23, 0, 0, 0, 0, 0};
         int actualResultOfHour[] = new int[7];
@@ -62,7 +67,8 @@ public class DeadHeadingGraphTest {
         assertArrayEquals(expectedResultOfHour, actualResultOfHour);
     }
 
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testShouldPassShouldReturnDeadHeadingPassengerPerTripForSpecificHour() {
         int expectedResultOfHour[] = {9, 9, 0, 0, 0, 0, 0};
         int actualResultOfHour[] = new int[7];

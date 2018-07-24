@@ -19,7 +19,7 @@ trait AccessInfo {
 
   def pointOfAccess: BeamLeg
 
-  def releasePoint: BeamLeg
+  def releasePoint(): BeamLeg
 }
 
 trait AccessRequest {

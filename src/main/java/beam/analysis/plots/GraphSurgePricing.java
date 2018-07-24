@@ -40,19 +40,16 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
 
     private Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
-    private int binSize;
     private int numberOfTimeBins;
-    private String graphTitle = "Ride Hail Surge Price Level";
-    private String xAxisLabel = "timebin";
-    private String yAxisLabel = "price level";
-    private int noOfCategories = 0;
+    private static final String graphTitle = "Ride Hail Surge Price Level";
+    private static final String xAxisLabel = "timebin";
+    private static final String yAxisLabel = "price level";
+    private int noOfCategories;
     private Double categorySize = null;
-    private Double max = null;
-    private Double min = null;
+    private Double max;
+    private Double min;
 
     private double[] revenueDataSet;
-
-    private Set<String> tazIds = new TreeSet<>();
 
     private Map<String, double[][]> tazDataset = new TreeMap<>();
 
@@ -71,7 +68,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         max = null;
         min = null;
 
-        binSize = this.surgePricingManager.timeBinSize();
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
     }
 
@@ -80,7 +76,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         tazDataset.clear();
         transformedBins.clear();
-        tazIds.clear();
         revenueDataSet = new double[numberOfTimeBins];
 
         final int iNo = event.getIteration();
@@ -103,7 +98,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         processSurgePriceBinsMap(surgePricingManager);
 
-        if (min != max) {
+        if (!min.equals(max)) {
 
             calculateCateogorySize();
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
@@ -134,8 +129,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         List<String> categoriesStrings = new ArrayList<>();
 
         if (!categorize) {
-            List<Double> categoriesList = new ArrayList<>();
-            categoriesList.addAll(transformedBins.keySet());
+            List<Double> categoriesList = new ArrayList<>(transformedBins.keySet());
             Collections.sort(categoriesList);
 
 //            categoriesStrings = categoriesList.stream().map(String::valueOf).collect(Collectors.toList());
@@ -170,7 +164,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         while (mapIter.hasNext()) {
 
             String key = mapIter.next().toString();
-            tazIds.add(key);
 
             ArrayBuffer<SurgePriceBin> bins = surgePriceBinsMap.get(key).get();
             Iterator iter = bins.iterator();
@@ -329,8 +322,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private double[][] buildDatasetFromTransformedBins(Map<Double, Map<Integer, Integer>> transformedCategories) {
 
         double[][] dataset = new double[transformedCategories.keySet().size()][numberOfTimeBins];
-        List<Double> categoriesList = new ArrayList<>();
-        categoriesList.addAll(transformedCategories.keySet());
+        List<Double> categoriesList = new ArrayList<>(transformedCategories.keySet());
         Collections.sort(categoriesList);
 
         int i = 0;
@@ -355,18 +347,16 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize) {
 
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
-        List<String> _categoriesKeys = new ArrayList<>();
-        _categoriesKeys.addAll(categoriesKeys);
+        List<String> _categoriesKeys = new ArrayList<>(categoriesKeys);
         int lastIndex = _categoriesKeys.size() - 1;
         String lastValue = _categoriesKeys.get(lastIndex);
         lastValue = lastValue + "-" + max;
         _categoriesKeys.set(lastIndex, lastValue);
 
         try {
-            boolean legend = true;
             String fileName = graphImageFile;
 
-            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, fileName, legend);
+            final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisLabel, yAxisLabel, fileName, true);
             CategoryPlot plot = chart.getCategoryPlot();
             GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
@@ -490,7 +480,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         for (int i = 0; i < dataset.length; i++) {
             double price = Double.parseDouble(categoriesList.get(i));
-            double count = 0;
+
             for (int j = 0; j < dataset[i].length; j++) {
 
                 double f = dataset[i][j];

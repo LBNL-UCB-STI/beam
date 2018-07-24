@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, InvalidPathException, Paths}
+import java.nio.file.{Files, Paths}
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -117,7 +117,7 @@ trait BeamHelper extends LazyLogging {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
@@ -144,7 +144,7 @@ trait BeamHelper extends LazyLogging {
 
     beamServices.controler.run()
 
-    if (isMetricsEnable()) Kamon.shutdown()
+    if (isMetricsEnable) Kamon.shutdown()
 
     (matsimConfig, outputDirectory)
   }

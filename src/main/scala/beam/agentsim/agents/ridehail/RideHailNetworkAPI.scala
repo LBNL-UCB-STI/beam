@@ -4,8 +4,8 @@ import java.util
 
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.router.util.TravelTime
 

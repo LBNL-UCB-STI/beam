@@ -11,7 +11,6 @@ import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.events.EventsManagerImpl
-import org.matsim.vehicles.VehicleUtils
 import org.mockito.Mockito._
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar

@@ -1,10 +1,9 @@
 package beam.replanning.utilitybased
 
-import javax.inject.Inject
-
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.sim.BeamServices
 import com.google.inject.Provider
+import javax.inject.Inject
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Plan

@@ -1,9 +1,8 @@
 package beam.utils
 
 import java.util
-import java.util.Collection
 
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader, ObjectAttributesXmlWriter}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader}
 
 
 object ObjectAttributesUtils {
@@ -13,7 +12,7 @@ object ObjectAttributesUtils {
     new ObjectAttributes
   }
 
-  def writeObjectAttributesToCSV(objAttr:ObjectAttributes,csvFilePath: String)={
+  def writeObjectAttributesToCSV(objAttr:ObjectAttributes,csvFilePath: String): Unit ={
     // TODO: implement
   }
 

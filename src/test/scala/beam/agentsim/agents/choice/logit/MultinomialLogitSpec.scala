@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.sim.BeamHelper
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
+import beam.sim.BeamHelper
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.util.Random

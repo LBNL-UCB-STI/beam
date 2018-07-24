@@ -16,13 +16,12 @@ import java.io.IOException;
 import java.util.*;
 
 public class FuelUsageStats implements IGraphStats {
-    private static Set<String> modesFuel = new TreeSet<>();
-    private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     private static final String fileName = "energy_use.png";
-
+    private static Set<String> modesFuel = new TreeSet<>();
+    private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
     @Override
     public void processStats(Event event) {
@@ -38,7 +37,7 @@ public class FuelUsageStats implements IGraphStats {
 
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -128,8 +127,7 @@ public class FuelUsageStats implements IGraphStats {
 
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesFuelList = new ArrayList<>(modesFuel);
         Collections.sort(modesFuelList);

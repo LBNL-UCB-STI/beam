@@ -36,92 +36,90 @@ import org.matsim.vehicles.*;
  * @author sfeygin (modifying)
  */
 public class VehicleMerger {
-	private static Logger log = Logger.getLogger(VehicleMerger.class);
+    private static Logger log = Logger.getLogger(VehicleMerger.class);
 
-	private static VehiclesFactory factory;
-	private static Vehicles vehicles;
+    private static VehiclesFactory factory;
+    private static Vehicles vehicles;
 
-	public static Vehicles mergeVehicles(Vehicles vehiclesA, Vehicles vehiclesB) {
+    public static Vehicles mergeVehicles(Vehicles vehiclesA, Vehicles vehiclesB) {
 
-		final Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-		scenario.getConfig().transit().setUseTransit(true);
-		vehicles = scenario.getVehicles();
-		factory = vehicles.getFactory();
+        final Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        scenario.getConfig().transit().setUseTransit(true);
+        vehicles = scenario.getVehicles();
+        factory = vehicles.getFactory();
 
-		log.info("     Merging vehicles...");
+        log.info("     Merging vehicles...");
 
-		// vehicle types:
-		Counter counter = new Counter("vehicle types # ");
+        // vehicle types:
+        Counter counter = new Counter("vehicle types # ");
 
-		vehiclesA.getVehicleTypes().values().forEach(v-> {
-					vehicles.addVehicleType(copyVehicleType(v));
-					counter.incCounter();
-				}
-		);
+        vehiclesA.getVehicleTypes().values().forEach(v -> {
+                    vehicles.addVehicleType(copyVehicleType(v));
+                    counter.incCounter();
+                }
+        );
 
-		vehiclesB.getVehicleTypes().values().stream().filter(vehicleType -> !vehicles.getVehicleTypes().containsKey(vehicleType.getId())).forEach(vehicleType -> {
-			vehicles.addVehicleType(copyVehicleType(vehicleType));
-			counter.incCounter();
-		});
+        vehiclesB.getVehicleTypes().values().stream().filter(vehicleType -> !vehicles.getVehicleTypes().containsKey(vehicleType.getId())).forEach(vehicleType -> {
+            vehicles.addVehicleType(copyVehicleType(vehicleType));
+            counter.incCounter();
+        });
 
-		counter.printCounter();
+        counter.printCounter();
 
-		// vehicles:
-		vehiclesA.getVehicles().values().forEach(v->vehicles.addVehicle(copyVehicle(v)));
+        // vehicles:
+        vehiclesA.getVehicles().values().forEach(v -> vehicles.addVehicle(copyVehicle(v)));
 
-		vehiclesB.getVehicles().values().stream().filter(vehicle -> !vehicles.getVehicles().containsKey(vehicle.getId())).forEach(vehicle -> {
-			vehicles.addVehicle(copyVehicle(vehicle));
-		});
+        vehiclesB.getVehicles().values().stream().filter(vehicle -> !vehicles.getVehicles().containsKey(vehicle.getId())).forEach(vehicle -> vehicles.addVehicle(copyVehicle(vehicle)));
 
-		log.info("     Merging vehicles... done.");
+        log.info("     Merging vehicles... done.");
 
-		return vehicles;
-	}
+        return vehicles;
+    }
 
-	private static Vehicle copyVehicle(Vehicle vehicle) {
-		final VehicleType type = vehicles.getVehicleTypes().get(vehicle.getType().getId());
-		final Vehicle newVehicle = factory.createVehicle(
-				Id.create(vehicle.getId().toString(), Vehicle.class), type);
-		return newVehicle;
-	}
+    private static Vehicle copyVehicle(Vehicle vehicle) {
+        final VehicleType type = vehicles.getVehicleTypes().get(vehicle.getType().getId());
+        final Vehicle newVehicle = factory.createVehicle(
+                Id.create(vehicle.getId().toString(), Vehicle.class), type);
+        return newVehicle;
+    }
 
-	private static VehicleType copyVehicleType(VehicleType vehicleType) {
-		final VehicleType newVehicleType = factory.createVehicleType(
-				Id.create(vehicleType.getId().toString(), VehicleType.class));
-		newVehicleType.setDescription(vehicleType.getDescription());
-		newVehicleType.setDoorOperationMode((vehicleType.getDoorOperationMode() != null) ?
-				getDoorOperationMode(vehicleType.getDoorOperationMode()) : null);
-		newVehicleType.setPcuEquivalents(vehicleType.getPcuEquivalents());
-		newVehicleType.setLength(vehicleType.getLength());
-		newVehicleType.setWidth(vehicleType.getWidth());
-		newVehicleType.setMaximumVelocity(vehicleType.getMaximumVelocity());
-		newVehicleType.setAccessTime(vehicleType.getAccessTime());
-		newVehicleType.setEgressTime(vehicleType.getEgressTime());
-		newVehicleType.setCapacity(copyVehicleCapacity(vehicleType.getCapacity()));
-		newVehicleType.setEngineInformation(
-				(vehicleType.getEngineInformation() != null) ? copyEngineInformation(vehicleType.getEngineInformation()) : null);
-		return newVehicleType;
-	}
+    private static VehicleType copyVehicleType(VehicleType vehicleType) {
+        final VehicleType newVehicleType = factory.createVehicleType(
+                Id.create(vehicleType.getId().toString(), VehicleType.class));
+        newVehicleType.setDescription(vehicleType.getDescription());
+        newVehicleType.setDoorOperationMode((vehicleType.getDoorOperationMode() != null) ?
+                getDoorOperationMode(vehicleType.getDoorOperationMode()) : null);
+        newVehicleType.setPcuEquivalents(vehicleType.getPcuEquivalents());
+        newVehicleType.setLength(vehicleType.getLength());
+        newVehicleType.setWidth(vehicleType.getWidth());
+        newVehicleType.setMaximumVelocity(vehicleType.getMaximumVelocity());
+        newVehicleType.setAccessTime(vehicleType.getAccessTime());
+        newVehicleType.setEgressTime(vehicleType.getEgressTime());
+        newVehicleType.setCapacity(copyVehicleCapacity(vehicleType.getCapacity()));
+        newVehicleType.setEngineInformation(
+                (vehicleType.getEngineInformation() != null) ? copyEngineInformation(vehicleType.getEngineInformation()) : null);
+        return newVehicleType;
+    }
 
-	private static VehicleType.DoorOperationMode getDoorOperationMode(VehicleType.DoorOperationMode doorOperationMode) {
-		return (doorOperationMode.equals(VehicleType.DoorOperationMode.parallel)) ?
-					VehicleType.DoorOperationMode.parallel :
-					VehicleType.DoorOperationMode.serial;
-	}
+    private static VehicleType.DoorOperationMode getDoorOperationMode(VehicleType.DoorOperationMode doorOperationMode) {
+        return (doorOperationMode.equals(VehicleType.DoorOperationMode.parallel)) ?
+                VehicleType.DoorOperationMode.parallel :
+                VehicleType.DoorOperationMode.serial;
+    }
 
-	private static EngineInformation copyEngineInformation(EngineInformation engineInformation) {
-		return factory.createEngineInformation(engineInformation.getFuelType(), engineInformation.getGasConsumption());
-	}
+    private static EngineInformation copyEngineInformation(EngineInformation engineInformation) {
+        return factory.createEngineInformation(engineInformation.getFuelType(), engineInformation.getGasConsumption());
+    }
 
-	private static VehicleCapacity copyVehicleCapacity(VehicleCapacity capacity) {
-		final VehicleCapacity newCapacity = factory.createVehicleCapacity();
-		if (capacity.getFreightCapacity() != null) {
-			final FreightCapacity newFreightCapacity = factory.createFreigthCapacity();
-			newFreightCapacity.setVolume(capacity.getFreightCapacity().getVolume());
-			newCapacity.setFreightCapacity(newFreightCapacity);
-		}
-		newCapacity.setSeats(capacity.getSeats());
-		newCapacity.setStandingRoom(capacity.getStandingRoom());
-		return newCapacity;
-	}
+    private static VehicleCapacity copyVehicleCapacity(VehicleCapacity capacity) {
+        final VehicleCapacity newCapacity = factory.createVehicleCapacity();
+        if (capacity.getFreightCapacity() != null) {
+            final FreightCapacity newFreightCapacity = factory.createFreigthCapacity();
+            newFreightCapacity.setVolume(capacity.getFreightCapacity().getVolume());
+            newCapacity.setFreightCapacity(newFreightCapacity);
+        }
+        newCapacity.setSeats(capacity.getSeats());
+        newCapacity.setStandingRoom(capacity.getStandingRoom());
+        return newCapacity;
+    }
 }
