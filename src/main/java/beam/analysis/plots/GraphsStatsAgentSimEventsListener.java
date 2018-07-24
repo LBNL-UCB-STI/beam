@@ -6,10 +6,7 @@ import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.PersonArrivalEvent;
-import org.matsim.api.core.v01.events.PersonDepartureEvent;
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -42,11 +39,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
+    private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
     private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
-
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
@@ -86,6 +83,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.resetStats();
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
+        personVehicleTransitionStats.resetStats();
         rideHailWaitingStats.resetStats();
         //generalStats.resetStats();
         rideHailingWaitingSingleStats.resetStats();
@@ -113,6 +111,9 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
             rideHailingWaitingSingleStats.processStats(event);
+            personVehicleTransitionStats.processStats(event);
+        }else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
+            personVehicleTransitionStats.processStats(event);
         }
     }
 
@@ -127,6 +128,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event, "TNC0");
         deadHeadingStats.createGraph(event, "");
         personTravelTimeStats.resetStats();
+        personVehicleTransitionStats.createGraph(event);
+
         realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
     }
