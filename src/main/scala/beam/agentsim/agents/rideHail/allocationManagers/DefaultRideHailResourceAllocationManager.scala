@@ -16,7 +16,7 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
 def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
   log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     //???
-  return allocationsDuringReservation
+  allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {

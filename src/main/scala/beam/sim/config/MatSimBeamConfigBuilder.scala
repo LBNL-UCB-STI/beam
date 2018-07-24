@@ -5,6 +5,7 @@ import beam.utils.reflection.ReflectionUtils
 import com.typesafe.config.{Config, ConfigList, ConfigUtil}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.api.internal.MatsimParameters
+import org.matsim.core.config
 import org.matsim.core.config.{ConfigGroup, ConfigUtils}
 
 import scala.collection.JavaConverters._
@@ -30,7 +31,7 @@ import scala.util.Try
   */
 class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 
-  def buildMatSamConf() = {
+  def buildMatSamConf(): config.Config = {
     val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
     val maybeParameterSets = MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].
       collect { case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>

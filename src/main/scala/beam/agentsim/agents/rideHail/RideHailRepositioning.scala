@@ -86,7 +86,7 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
 */
 
   def getWaitingEventsAtTime(time: Double):Set[WaitingEvent] ={
-    waitingEvents.filter(waitingEvent => (time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration))
+    waitingEvents.filter(waitingEvent => time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration)
   }
 }
 

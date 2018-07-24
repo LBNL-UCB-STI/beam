@@ -4,7 +4,6 @@ import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.choice.mode.DrivingCostDefaults._
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -21,6 +20,7 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.sim.BeamServices
+import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -54,15 +54,13 @@ class ChangeModeForTour(
     )
   )
 
-  val DefaultRideHailCostPerMile = BigDecimal(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile
-  )
+  private val drivingCostConfig = beamServices.beamConfig.beam.agentsim.agents.drivingCost
+  private val rideHailConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMinute = BigDecimal(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
-  )
+  val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
+  val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
 
-  val stageActivitytypes = new CompositeStageActivityTypes()
+  val stageActivityTypes = new CompositeStageActivityTypes()
 
   def findAlternativesForTour(tour: Subtour, person: Person): Vector[BeamMode] = {
     val res = weightedRandom.sample(1, Array())
@@ -117,7 +115,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        distance * (DEFAULT_LITERS_PER_METER / DEFAULT_LITERS_PER_GALLON) * DEFAULT_PRICE_PER_GALLON
+        distance * (drivingCostConfig.defaultLitersPerMeter / LITERS_PER_GALLON) * drivingCostConfig.defaultPricePerGallon
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
@@ -143,10 +141,10 @@ class ChangeModeForTour(
     attributesOfIndividual: AttributesOfIndividual
   ): Map[Int, Map[BeamMode, Double]] = {
     val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
-    val subtours = JavaConverters.collectionAsScalaIterable(
-      TripStructureUtils.getSubtours(plan, stageActivitytypes)
+    val subTours = JavaConverters.collectionAsScalaIterable(
+      TripStructureUtils.getSubtours(plan, stageActivityTypes)
     )
-    subtours.zipWithIndex
+    subTours.zipWithIndex
       .map({
         case (tour, idx) =>
           idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
@@ -207,7 +205,7 @@ class ChangeModeForTour(
 
   def addTripsBetweenActivities(plan: Plan): Unit = {
     val activities = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getActivities(plan, stageActivitytypes))
+      .collectionAsScalaIterable(TripStructureUtils.getActivities(plan, stageActivityTypes))
       .toIndexedSeq
     activities
       .sliding(2)
@@ -232,7 +230,7 @@ class ChangeModeForTour(
     val attributesOfIndividual = AttributesOfIndividual(person, household, householdVehicles)
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
     val tours: Seq[Subtour] = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivitytypes))
+      .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
       .toIndexedSeq
 
     rankedAlternatives.foreach({

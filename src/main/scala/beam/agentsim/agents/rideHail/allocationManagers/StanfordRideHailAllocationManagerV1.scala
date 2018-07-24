@@ -93,7 +93,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager, 
     // network operations
     val linkId = 5
     rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailNetworkApi.getLinks()
+    val links = rideHailNetworkApi.getLinks
     rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
     rideHailNetworkApi.getFreeFlowTravelTime(linkId)
     val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)

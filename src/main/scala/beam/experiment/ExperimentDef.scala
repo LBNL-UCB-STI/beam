@@ -38,15 +38,15 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
     *
     * @return list of distinct (factor_title, param_name)
     */
-  def getDynamicParamNamesPerFactor(): List[(String, String)] = {
+  def getDynamicParamNamesPerFactor: List[(String, String)] = {
     factors.asScala.flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))).distinct.toList
   }
 
-  def getRunScriptTemplate(): String = {
+  def getRunScriptTemplate: String = {
     getTemplate(runExperimentScript, "runBeam.sh.tpl")
   }
 
-  def getBatchRunScriptTemplate(): String = {
+  def getBatchRunScriptTemplate: String = {
     getTemplate(batchRunScript, "batchRunExperiment.sh.tpl")
   }
 

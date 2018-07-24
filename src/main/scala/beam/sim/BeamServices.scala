@@ -44,8 +44,8 @@ trait BeamServices extends ActorInject {
   var matsimServices:MatsimServices
 
 
-  var iterationNumber = -1
-  def startNewIteration
+  var iterationNumber: Int = -1
+  def startNewIteration()
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -63,12 +63,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   var matsimServices:MatsimServices =_
 
-  def clearAll = {
+  def clearAll(): Unit = {
     personRefs.clear
     vehicles.clear()
   }
 
-  def startNewIteration = {
+  def startNewIteration: Unit = {
     clearAll
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber

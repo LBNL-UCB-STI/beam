@@ -1,5 +1,6 @@
 package beam.router.r5;
 
+import beam.sim.config.BeamConfig;
 import com.conveyal.osmlib.OSM;
 import com.conveyal.osmlib.Way;
 import com.conveyal.r5.streets.EdgeStore;
@@ -30,6 +31,11 @@ public class R5MnetBuilder {
 
     private final TransportNetwork r5Network;
     private Network mNetowrk = null;  // MATSim mNetowrk
+
+    private String fromCRS;
+    private String toCRS;
+    private GeotoolsTransformation transform;
+
     private String osmFile;
 
     private HashMap<Coord, Id<Node>> nodeMap = new HashMap<>();  // Maps x,y Coord to node ID
@@ -40,22 +46,25 @@ public class R5MnetBuilder {
 
     /**
      * @param r5Net     R5 network.
-     * @param osmDBPath Path to mapdb file with OSM data
+     * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
-    public R5MnetBuilder(TransportNetwork r5Net, String osmDBPath) {
-        this.osmFile = osmDBPath;
+    public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
+
+        this.osmFile = beamConfig.beam().routing().r5().osmMapdbFile();
+        this.fromCRS = beamConfig.beam().routing().r5().mNetBuilder().fromCRS();
+        this.toCRS = beamConfig.beam().routing().r5().mNetBuilder().toCRS();
+        this.transform = new GeotoolsTransformation(this.fromCRS, this.toCRS);
         log.debug("Found R5 Transport Network file, loading....");
         this.r5Network = r5Net;
         this.mNetowrk = NetworkUtils.createNetwork();
     }
 
-    public void buildMNet(String fromCRS, String toCRS) {
-        GeotoolsTransformation transform = new GeotoolsTransformation(fromCRS, toCRS);
+    public void buildMNet() {
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
         OSM osm = new OSM(this.osmFile);
         Map<Long, Way> ways = osm.ways;
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
-        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, transform, true);
+        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
         while (cursor.advance()) {
             log.debug(cursor.getEdgeIndex());
             log.debug(cursor);

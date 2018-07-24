@@ -39,9 +39,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
       ) // Needed because R5 closes DB on write
       logger.info(s"Create the MATSim network from R5 network")
-      val rmNetBuilder =
-        new R5MnetBuilder(transportNetwork, beamConfig.beam.routing.r5.osmMapdbFile)
-      rmNetBuilder.buildMNet("EPSG:4326", beamConfig.beam.spatial.localCRS)
+      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
+      rmNetBuilder.buildMNet()
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
       new NetworkWriter(network).write(beamConfig.matsim.modules.network.inputNetworkFile)

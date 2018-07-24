@@ -4,6 +4,7 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
@@ -35,18 +36,16 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   // fix the KEEP_PRICE_LEVEL_FIXED_AT_ONE price levels below
   // define other strategies for this?
 
-  // TODO: load following parameters directly from config (add them there)zz
-
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHail
-  val timeBinSize = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories = rideHaillingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
-  val numberOfTimeBins = Math
+  val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
+  val timeBinSize: Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories: Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val numberOfTimeBins: Int = Math
     .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1
-  val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
+  val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
   var maxSurgePricingLevel: Double = 0
   var surgePricingLevelCount: Int = 0
@@ -56,11 +55,11 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy = rideHaillingConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-  val rideHailRevenue = ArrayBuffer[Double]()
+  val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
 
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
@@ -81,7 +80,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
       (v.tazId.toString, array)
     }.toMap
 
-  val rand = new Random
+  val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -90,8 +89,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     if (!priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) {
       if (isFirstIteration) {
         // TODO: can we refactor the following two blocks of code to reduce duplication?
-
-        // TODO: seed following random to some config seed?
 
         updateForAllElements(surgePriceBins) { surgePriceBin =>
           val updatedSurgeLevel = if (rand.nextBoolean()) {
