@@ -305,7 +305,7 @@ object BeamRouter {
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode],
-                            streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true, mustParkAtEnd: Boolean = true, streetVehiclesUseIntermodalUse: IntermodalUse = Access){
+                            streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true, mustParkAtEnd: Boolean = false, streetVehiclesUseIntermodalUse: IntermodalUse = Access){
     // We make requestId be independent of request type, all that matters is details of the customer
     lazy val requestId = this.hashCode()
   }

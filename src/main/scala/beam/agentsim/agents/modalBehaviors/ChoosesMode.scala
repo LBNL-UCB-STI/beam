@@ -75,7 +75,7 @@ trait ChoosesMode {
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesIntermodalUse: IntermodalUse = Access): Unit = {
         router ! RoutingRequest(currentActivity(choosesModeData.personData).getCoord, nextAct.getCoord, departTime,
-          Modes.filterForTransit(transitModes), vehicles, streetVehiclesUseIntermodalUse = streetVehiclesIntermodalUse)
+          Modes.filterForTransit(transitModes), vehicles, streetVehiclesUseIntermodalUse = streetVehiclesIntermodalUse, mustParkAtEnd = true)
       }
 
       def makeRideHailRequest(): Unit = {
@@ -88,7 +88,7 @@ trait ChoosesMode {
         val startWithWaitBuffer = 600 + departTime.atTime.toLong
         val currentSpaceTime = SpaceTime(currentActivity(choosesModeData.personData).getCoord,startWithWaitBuffer)
         val theRequest = RoutingRequest(currentSpaceTime.loc, nextAct.getCoord, departTime.copy(atTime = startWithWaitBuffer.toInt), Vector(TRANSIT),
-          Vector(bodyStreetVehicle,dummyRHVehicle.copy(location = currentSpaceTime)), streetVehiclesUseIntermodalUse = AccessAndEgress)
+          Vector(bodyStreetVehicle,dummyRHVehicle.copy(location = currentSpaceTime)), streetVehiclesUseIntermodalUse = AccessAndEgress, mustParkAtEnd = false)
         router ! theRequest
         Some(theRequest.requestId)
       }
