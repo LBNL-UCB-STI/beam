@@ -49,14 +49,19 @@ public class JDEQSimulation implements Mobsim {
 	private final JDEQSimConfigGroup config;
 	protected Scenario scenario;
 	private final EventsManager events;
-	private HashMap<String,Boolean> isCACCVehicle;
+	////////CHANGES/////////
+	public static HashMap<String ,Boolean> isCACCVehicle;
+
+
 
 	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events) {
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final HashMap<String, Boolean> isCACCVehicle) {
 		Road.setConfig(config);
 		Message.setEventsManager(events);
+
+		this.isCACCVehicle = isCACCVehicle;
 		this.config = config;
 		this.scenario = scenario;
 		this.events = events;
@@ -81,11 +86,9 @@ public class JDEQSimulation implements Mobsim {
 
 
 
-		// TODO: remember which vehicles are cavs or provide from main program
-		// use same for doing analysis on how many vehicles are on network which are cavs
+		// TODO: remember which vehicles are cacc or provide from main program
+		// use same for doing analysis on how many vehicles are on network which are caccs
 		//
-		Random random=MatsimRandom.getRandom();
-
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
 			new Vehicle(scheduler, person, activityDurationInterpretation,isCACCVehicle.get(person.getId())); // the vehicle registers itself to the scheduler

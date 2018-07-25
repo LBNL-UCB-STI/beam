@@ -28,11 +28,15 @@ import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.misc.Time;
 
 /**
- * The road is simulated as an active agent, moving arround vehicles.
+ * The road is simulated as an active agent, moving around vehicles.
  *
  * @author rashid_waraich
  */
 public class Road extends SimUnit {
+
+	//TODO: where is output, test outputs for change in travel time
+
+	public double CACC ;
 
 	// default
 	protected static JDEQSimConfigGroup config = new JDEQSimConfigGroup();
@@ -148,7 +152,7 @@ public class Road extends SimUnit {
 		this.timeOfLastLeavingVehicle = simTime;
 
 		/*
-		 * the next car waiting for entering the road should now be alloted a
+		 * the next car waiting for entering the road should now be allotted a
 		 * time for entering the road
 		 */
 		if (this.interestedInEnteringRoad.size() > 0) {
@@ -195,11 +199,10 @@ public class Road extends SimUnit {
 		}
 
 	}
-
+ 			//TODO: make changes here
 	public void enterRoad(Vehicle vehicle, double simTime) {
 		// calculate time, when the car reaches the end of the road
-		double nextAvailableTimeForLeavingStreet = simTime + this.link.getLength()
-				/ this.link.getFreespeed(simTime);
+		double nextAvailableTimeForLeavingStreet = simTime + this.link.getLength() / this.link.getFreespeed(simTime);
 
 		this.noOfCarsPromisedToEnterRoad--;
 		this.carsOnTheRoad.add(vehicle);
@@ -327,7 +330,7 @@ public class Road extends SimUnit {
 
 	public void removeFirstDeadlockPreventionMessage(DeadlockPreventionMessage dpMessage) {
 
-		assert (this.deadlockPreventionMessages.getFirst() == dpMessage) : "Inconsitency in logic!!! => this should only be invoked from the handler of this message";
+		assert (this.deadlockPreventionMessages.getFirst() == dpMessage) : "Inconsistency in logic!!! => this should only be invoked from the handler of this message";
 		this.deadlockPreventionMessages.removeFirst();
 	}
 
