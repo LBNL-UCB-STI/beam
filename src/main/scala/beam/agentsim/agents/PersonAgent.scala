@@ -196,6 +196,7 @@ class PersonAgent(
   val parkingManager: ActorRef
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
+    with ChoosesParking
     with Stash {
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
