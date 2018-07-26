@@ -37,6 +37,20 @@ public class GraphUtils {
 
         return chart;
     }
+
+    public static JFreeChart createBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend){
+
+        boolean toolTips = false;
+        boolean urls = false;
+        PlotOrientation orientation = PlotOrientation.VERTICAL;
+        final JFreeChart chart = ChartFactory.createBarChart(
+                graphTitle, xAxisTitle, yAxisTitle,
+                dataset, orientation, legend, toolTips, urls);
+        chart.setBackgroundPaint(DEFAULT_BACK_GROUND);
+
+        return chart;
+    }
+
     public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount){
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
