@@ -13,6 +13,7 @@ object AnalysisCollector extends MetricsSupport with LazyLogging {
         record("ride-hailing-revenue",
           ShortLevel,
           value.asInstanceOf[Double].toLong)
+      case None =>
     }
   }
 }

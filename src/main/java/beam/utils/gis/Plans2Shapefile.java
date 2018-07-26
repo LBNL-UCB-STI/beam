@@ -30,9 +30,9 @@ public class Plans2Shapefile {
 
     private final String outputDir;
     private final Population population;
-    private SimpleFeatureBuilder actBuilder;
     private final CoordinateReferenceSystem crs;
     private final ArrayList<String> filteredActs;
+    private SimpleFeatureBuilder actBuilder;
 
     private Plans2Shapefile(Population population, CoordinateReferenceSystem crs, String outputDir, ArrayList<String> filteredActs) {
         this.outputDir = outputDir;
@@ -40,10 +40,6 @@ public class Plans2Shapefile {
         this.crs = crs;
         this.filteredActs = filteredActs;
         initFeatureType();
-    }
-
-    public void write() {
-        writeActs();
     }
 
     // Modified method from MATSim source due to unexpected functionality (changed from !stageActivities in 2nd if)
@@ -65,6 +61,29 @@ public class Plans2Shapefile {
         return Collections.unmodifiableList(activities);
     }
 
+    public static void main(String[] args) {
+        /* input:
+         * [1] matsim plans file you want to convert
+         * [2] CRS of plans
+         * [3] output plans directory (no / at end)
+         * [4] activity types to filter by
+         */
+
+        Config config = ConfigUtils.createConfig();
+        config.plans().setInputFile(args[0]);
+        Scenario scenario = ScenarioUtils.loadScenario(config);
+        ArrayList<String> filteredActs = new ArrayList<>();
+        if (args.length > 3) {
+            String[] split = args[3].split(",");
+            filteredActs.addAll(Arrays.asList(split));
+        }
+        Plans2Shapefile selectedPlans2ESRIShape = new Plans2Shapefile(scenario.getPopulation(), MGC.getCRS(args[1]), args[2], filteredActs);
+        selectedPlans2ESRIShape.write();
+    }
+
+    public void write() {
+        writeActs();
+    }
 
     private void writeActs() {
         String outputFile = this.outputDir + "/acts.shp";
@@ -97,7 +116,6 @@ public class Plans2Shapefile {
         this.actBuilder = new SimpleFeatureBuilder(actBuilder.buildFeatureType());
     }
 
-
     private SimpleFeature getActFeature(final String id, final Activity act) {
         String type = act.getType();
 
@@ -112,26 +130,5 @@ public class Plans2Shapefile {
         }
 
         return null;
-    }
-
-
-    public static void main(String[] args) {
-        /* input:
-         * [1] matsim plans file you want to convert
-         * [2] CRS of plans
-         * [3] output plans directory (no / at end)
-         * [4] activity types to filter by
-         */
-
-        Config config = ConfigUtils.createConfig();
-        config.plans().setInputFile(args[0]);
-        Scenario scenario = ScenarioUtils.loadScenario(config);
-        ArrayList<String> filteredActs = new ArrayList<>();
-        if (args.length > 3) {
-            String[] split = args[3].split(",");
-            filteredActs.addAll(Arrays.asList(split));
-        }
-        Plans2Shapefile selectedPlans2ESRIShape = new Plans2Shapefile(scenario.getPopulation(), MGC.getCRS(args[1]), args[2], filteredActs);
-        selectedPlans2ESRIShape.write();
     }
 }

@@ -53,16 +53,19 @@ public class NestedLogitTest extends TestCase {
         LinkedHashMap<String, Double> altData = new LinkedHashMap<>();
         altData.put("time", 5.0);
         altData.put("cost", 5.0);
-        inputData.put("alternative1", (LinkedHashMap<String, Double>) altData.clone());
+        inputData.put("alternative1", altData);
+        altData = new LinkedHashMap<>();
         altData.put("time", 10.0);
         altData.put("cost", 0.0);
-        inputData.put("alternative2", (LinkedHashMap<String, Double>) altData.clone());
+        inputData.put("alternative2", altData);
+        altData = new LinkedHashMap<>();
         altData.put("time", 0.0);
         altData.put("cost", 15.0);
-        inputData.put("alternative3", (LinkedHashMap<String, Double>) altData.clone());
+        inputData.put("alternative3", altData);
+        altData = new LinkedHashMap<>();
         altData.put("time", 7.5);
         altData.put("cost", 2.5);
-        inputData.put("alternative4", (LinkedHashMap<String, Double>) altData.clone());
+        inputData.put("alternative4", altData);
 
         //String theChoice = model.makeRandomChoice(inputData, new Random());
     }

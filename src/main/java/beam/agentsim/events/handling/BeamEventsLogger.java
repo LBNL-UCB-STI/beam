@@ -3,6 +3,7 @@ package beam.agentsim.events.handling;
 import beam.agentsim.events.LoggerLevels;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ReplanningEvent;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import com.google.common.collect.ArrayListMultimap;
@@ -21,19 +22,16 @@ import static beam.agentsim.events.LoggerLevels.OFF;
 
 public class BeamEventsLogger {
     private final EventsManager eventsManager;
-    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
-
-    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
-    private LoggerLevels defaultLevel;
-
-    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
-    private BeamServices beamServices;
     private final MatsimServices matsimServices;
-    private String eventsFileFormats;
-    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-
     // create multimap to store key and values
     Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
+    private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
+    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    private LoggerLevels defaultLevel;
+    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
+    private BeamServices beamServices;
+    private String eventsFileFormats;
+    private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
     private Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
     private List<String> eventFields = null;
 
@@ -47,6 +45,7 @@ public class BeamEventsLogger {
         // Registry of BEAM events that can be logged by BeamEventLogger
         allLoggableEvents.add(PathTraversalEvent.class);
         allLoggableEvents.add(ModeChoiceEvent.class);
+        allLoggableEvents.add(ReplanningEvent.class);
 
         // Registry of MATSim events that can be logged by BeamEventLogger
         allLoggableEvents.add(ActivityEndEvent.class);

@@ -1,7 +1,7 @@
 package beam.sim
 
-import javax.inject.Inject
 import beam.replanning.SwitchModalityStyle
+import javax.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.controler.PrepareForSim

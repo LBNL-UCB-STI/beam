@@ -14,13 +14,15 @@ import kamon.metric.{Entity, EntitySnapshot}
 class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) extends Actor with LazyLogging {
   var iterationNumber = 0
   var metricStore: Map[Entity, EntitySnapshot] = null
-  val collectionContext = new CollectionContext {
+  val collectionContext: CollectionContext {
+    val buffer: LongBuffer
+  } = new CollectionContext {
     val buffer: LongBuffer = LongBuffer.allocate(100000)
   }
 
   import context._
   def receive = {
-    case Subscribe(category, selection) if(Metrics.isMetricsEnable()) =>
+    case Subscribe(category, selection) if(Metrics.isMetricsEnable) =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)
     case _ =>
@@ -57,7 +59,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           histograms.foreach { case (e, s) => text += toHistogramString(e, s) }
           counters.foreach { case (e, s) => text += toCounterString(e, s) }
         } else {
-          ins.foreach { case i =>
+          ins.foreach { i =>
             histograms.filterKeys(_.name == i).foreach { case (e, s) =>
               text += toHistogramString(e, s)
             }
@@ -67,7 +69,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           logger.info(
              s"""
              |=======================================================================================
-             | Performance Benchmarks (iteration no: ${iterationNumber})
+             | Performance Benchmarks (iteration no: $iterationNumber)
              $text
              |
              |=======================================================================================

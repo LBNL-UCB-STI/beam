@@ -47,11 +47,20 @@ class TransitDataDownloader {
             synchronized (TransitDataDownloader.class) {
                 if (instance == null) {
                     instance = new TransitDataDownloader(apiKey);
-
                 }
             }
         }
         return instance;
+    }
+
+    private static void copy(InputStream input, OutputStream output) throws IOException {
+        byte[] buf = new byte[BUFFER_SIZE];
+        int n = input.read(buf);
+        while (n >= 0) {
+            output.write(buf, 0, n);
+            n = input.read(buf);
+        }
+        output.flush();
     }
 
     List<Operator> getTransitOperatorList() {
@@ -93,7 +102,7 @@ class TransitDataDownloader {
         });
 
         while (true) {
-            if (!(!threadpool.isShutdown())) break;
+            if (threadpool.isShutdown()) break;
         }
 
         return ops;
@@ -132,36 +141,33 @@ class TransitDataDownloader {
             @Override
             public void completed(Content result) {
                 InputStream in = result.asStream();
-                FileOutputStream out;
                 File outDirPath = new File(outDir + File.separator);
-                if (!outDirPath.exists()) {
-                    outDirPath.mkdirs();
-                }
-                try {
+                if (outDirPath.exists() || outDirPath.mkdirs()) {
                     String fileSuffix = File.separator + agencyId + "_gtfs";
                     String zipFilePath = outDir + fileSuffix + ".zip";
-                    out = new FileOutputStream(zipFilePath);
-                    threadpool.submit(() -> {
-                        try {
-                            copy(in, out);
-                            log.info("Download done.");
-                            threadpool.submit(() -> {
-                                log.info("Unzipping now... ");
-                                String destDirectory = outDirPath + fileSuffix + File.separator;
-                                try {
-                                    unzip(zipFilePath, destDirectory, true);
-                                    log.info("Done.");
-                                    close();
-                                } catch (Exception ex) {
-                                    ex.printStackTrace();
-                                }
-                            });
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    try (FileOutputStream out = new FileOutputStream(zipFilePath)) {
+                        threadpool.submit(() -> {
+                            try {
+                                copy(in, out);
+                                log.info("Download done.");
+                                threadpool.submit(() -> {
+                                    log.info("Unzipping now... ");
+                                    String destDirectory = outDirPath + fileSuffix + File.separator;
+                                    try {
+                                        unzip(zipFilePath, destDirectory, true);
+                                        log.info("Done.");
+                                        close();
+                                    } catch (Exception ex) {
+                                        ex.printStackTrace();
+                                    }
+                                });
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
@@ -180,17 +186,4 @@ class TransitDataDownloader {
     private void close() {
         threadpool.shutdown();
     }
-
-    private static void copy(InputStream input, OutputStream output) throws IOException {
-        byte[] buf = new byte[BUFFER_SIZE];
-        int n = input.read(buf);
-        while (n >= 0) {
-            output.write(buf, 0, n);
-            n = input.read(buf);
-        }
-        output.flush();
-    }
-
 }
-
-

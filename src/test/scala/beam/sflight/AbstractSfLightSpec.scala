@@ -13,13 +13,14 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Activity, Plan}
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
@@ -29,7 +30,6 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import beam.utils.TestConfigUtils.testConfig
 
 class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
   """
@@ -55,7 +55,7 @@ class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFacto
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)

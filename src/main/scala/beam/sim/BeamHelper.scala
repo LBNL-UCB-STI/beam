@@ -1,13 +1,13 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, InvalidPathException, Paths}
+import java.nio.file.{Files, Paths}
 import java.util.Properties
 
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.analysis.plots.{GraphSurgePricing, RideHailingRevenueAnalysis}
+import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -74,7 +74,7 @@ trait BeamHelper extends LazyLogging {
         addControlerListenerBinding().to(classOf[BeamSim])
 
         addControlerListenerBinding().to(classOf[GraphSurgePricing])
-        addControlerListenerBinding().to(classOf[RideHailingRevenueAnalysis])
+        addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
 
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
@@ -95,33 +95,29 @@ trait BeamHelper extends LazyLogging {
       }
     })
 
-  def runBeamWithConfigFile(configFileName: Option[String]): Unit = {
-    val (config, cfgFile) = configFileName match {
-      case Some(fileName) =>
-        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
-      case _ =>
-        throw new InvalidPathException("null", "invalid configuration file.")
-    }
+  def runBeamWithConfigFile(configFileName: String): Unit = {
+    assert(configFileName != null, "Argument is null: configFileName")
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
-    props.setProperty("configFile", cfgFile)
+    props.setProperty("configFile", configFileName)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
-    Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+    Files.copy(Paths.get(configFileName), Paths.get(outputDirectory, "beam.conf"))
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
@@ -134,13 +130,13 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
+    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator.loadNetwork()
+
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(networkCoordinator.network)
 
     samplePopulation(scenario, beamConfig, matsimConfig)
-
-    val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
-    networkCoordinator.loadNetwork()
-    scenario.setNetwork(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
 
@@ -148,7 +144,7 @@ trait BeamHelper extends LazyLogging {
 
     beamServices.controler.run()
 
-    if (isMetricsEnable()) Kamon.shutdown()
+    if (isMetricsEnable) Kamon.shutdown()
 
     (matsimConfig, outputDirectory)
   }

@@ -1,13 +1,13 @@
 package beam.replanning
 
-import scala.util.Random
-
 import com.google.inject.Provider
 import org.matsim.api.core.v01.population.Plan
 import org.matsim.api.core.v01.replanning.PlanStrategyModule
 import org.matsim.core.replanning.selectors.RandomPlanSelector
 import org.matsim.core.replanning.{PlanStrategy, PlanStrategyImpl, ReplanningContext}
+
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 class SwitchModalityStyle extends Provider[PlanStrategy] {
   override def get(): PlanStrategy = {

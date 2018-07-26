@@ -6,13 +6,12 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 
 public class FilterAllEventsOfAgent implements BasicEventHandler {
 
-    LinkedList<Event> filteredEvents=new LinkedList<>();
+    LinkedList<Event> filteredEvents = new LinkedList<>();
     private String personId;
 
     public FilterAllEventsOfAgent(String personId) {
@@ -21,7 +20,7 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
-        FilterAllEventsOfAgent filterAllEventsOfAgent=new FilterAllEventsOfAgent("4865-4");
+        FilterAllEventsOfAgent filterAllEventsOfAgent = new FilterAllEventsOfAgent("4865-4");
         events.addHandler(filterAllEventsOfAgent);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
@@ -31,8 +30,8 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
         filterAllEventsOfAgent.printEvents();
     }
 
-    public void printEvents(){
-        for (Event event:filteredEvents){
+    public void printEvents() {
+        for (Event event : filteredEvents) {
             System.out.println(event);
         }
     }
@@ -41,7 +40,7 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
     @Override
     public void handleEvent(Event event) {
         Map<String, String> eventAttributes = event.getAttributes();
-        if (eventAttributes.containsKey("person") && eventAttributes.get("person").equalsIgnoreCase(personId)){
+        if (eventAttributes.containsKey("person") && eventAttributes.get("person").equalsIgnoreCase(personId)) {
             filteredEvents.add(event);
         }
     }

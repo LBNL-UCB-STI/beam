@@ -27,7 +27,7 @@ public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
 
     @Override
     public void handleEvent(final Event event) {
-        if((eventTypeToLog == null && beamEventLogger.shouldLogThisEventType(event.getClass())) || eventTypeToLog == event.getClass()){
+        if ((eventTypeToLog == null && beamEventLogger.shouldLogThisEventType(event.getClass())) || eventTypeToLog == event.getClass()) {
             writeEvent(event);
         }
     }
@@ -44,7 +44,7 @@ public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
     protected void writeEvent(final Event event) {
     }
 
-    public void writeHeaders(){
+    public void writeHeaders() {
     }
 
 }

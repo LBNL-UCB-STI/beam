@@ -1,49 +1,51 @@
 package beam.agentsim.agents.choice.logit;
 
 public class NestedLogitData {
-	String nestName;
-	Double elasticity = 1.0, expectedMaximumUtility =  Double.NaN;
-	UtilityFunction utility;
-	
-	public String getNestName() {
-		return nestName;
-	}
+    String nestName;
+    Double elasticity = 1.0, expectedMaximumUtility = Double.NaN;
+    UtilityFunction utility;
 
-	public void setNestName(String nestName) {
-		this.nestName = nestName;
-	}
-	
-	public NestedLogitData(Double elasticity, UtilityFunction utility) {
-		this.elasticity = elasticity;
-		this.utility = utility;
-	}
+    public NestedLogitData(Double elasticity, UtilityFunction utility) {
+        this.elasticity = elasticity;
+        this.utility = utility;
+    }
 
-	public Double getElasticity() {
-		return elasticity;
-	}
+    public NestedLogitData() {
+    }
 
-	public void setElasticity(Double elasticity) {
-		this.elasticity = elasticity;
-	}
+    public String getNestName() {
+        return nestName;
+    }
 
-	public UtilityFunction getUtility() {
-		return utility;
-	}
+    public void setNestName(String nestName) {
+        this.nestName = nestName;
+    }
 
-	public void setUtility(UtilityFunction utility) {
-		this.utility = utility;
-	}
+    public Double getElasticity() {
+        return elasticity;
+    }
 
-	public NestedLogitData() {
-	}
-	public String toString(){
-		return nestName;
-	}
-	public Double getExpectedMaxUtility() {
-		return expectedMaximumUtility;
-	}
+    public void setElasticity(Double elasticity) {
+        this.elasticity = elasticity;
+    }
 
-	public void setExpectedMaxUtility(Double expectedMaximumUtility) {
-		this.expectedMaximumUtility = expectedMaximumUtility;
-	}
+    public UtilityFunction getUtility() {
+        return utility;
+    }
+
+    public void setUtility(UtilityFunction utility) {
+        this.utility = utility;
+    }
+
+    public String toString() {
+        return nestName;
+    }
+
+    public Double getExpectedMaxUtility() {
+        return expectedMaximumUtility;
+    }
+
+    public void setExpectedMaxUtility(Double expectedMaximumUtility) {
+        this.expectedMaximumUtility = expectedMaximumUtility;
+    }
 }
