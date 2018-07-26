@@ -27,11 +27,22 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
    * in a periodic fashion, this can be un-ignored. -CS
    */
   "DriveTransit trips" ignore {
-    "all run to completion" taggedAs(Periodic)  in {
+    "all run to completion" taggedAs (Periodic) in {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
-        .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept", ConfigValueFactory.fromAnyRef(9999))
-        .withValue("beam.outputs.events.overrideWritingLevels",ConfigValueFactory.fromAnyRef("org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR, org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonEntersVehicleEvent:REGULAR, org.matsim.api.core.v01.events.PersonLeavesVehicleEvent:REGULAR, beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE, org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE, org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE"))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          ConfigValueFactory.fromAnyRef(9999)
+        )
+        .withValue(
+          "beam.outputs.events.overrideWritingLevels",
+          ConfigValueFactory.fromAnyRef(
+            "org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR, org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonEntersVehicleEvent:REGULAR, org.matsim.api.core.v01.events.PersonLeavesVehicleEvent:REGULAR, beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE, org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE, org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE"
+          )
+        )
         .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
@@ -40,27 +51,32 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
+      val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       scenario.setNetwork(networkCoordinator.network)
       var nDepartures = 0
       var nArrivals = 0
-      val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, new AbstractModule() {
-        override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator.transportNetwork))
-          addEventHandlerBinding().toInstance(new BasicEventHandler {
-            override def handleEvent(event: Event): Unit = {
-              event match {
-                case depEvent: PersonDepartureEvent if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
-                  nDepartures = nDepartures + 1
-                case arrEvent: PersonArrivalEvent if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
-                  nArrivals = nArrivals + 1
-                case _ =>
+      val injector = org.matsim.core.controler.Injector.createInjector(
+        scenario.getConfig,
+        new AbstractModule() {
+          override def install(): Unit = {
+            install(module(config, scenario, networkCoordinator.transportNetwork))
+            addEventHandlerBinding().toInstance(new BasicEventHandler {
+              override def handleEvent(event: Event): Unit = {
+                event match {
+                  case depEvent: PersonDepartureEvent
+                      if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                    nDepartures = nDepartures + 1
+                  case arrEvent: PersonArrivalEvent
+                      if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                    nArrivals = nArrivals + 1
+                  case _ =>
+                }
               }
-            }
-          })
+            })
+          }
         }
-      })
+      )
       val controler = injector.getInstance(classOf[BeamServices]).controler
       controler.run()
       assert(nDepartures == nArrivals)
