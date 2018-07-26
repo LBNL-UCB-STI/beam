@@ -1,20 +1,17 @@
 package beam.integration
 
-import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.NetworkCoordinator
-import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.tags.{Performance, Periodic}
+import beam.sim.{BeamHelper, BeamServices}
+import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
-import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{Matchers, WordSpecLike}
 import beam.utils.TestConfigUtils.testConfig
+import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-
-import scala.concurrent.duration._
+import org.scalatest.{Matchers, WordSpecLike}
 
 /**
   * Created by colinsheppard 2018-05-14
@@ -26,8 +23,8 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
    * This test passes, but it is slow b/c it runs sf-light-1k so ignoring for now. When we actually run "Periodic" tests
    * in a periodic fashion, this can be un-ignored. -CS
    */
-  "DriveTransit trips" ignore {
-    "all run to completion" taggedAs (Periodic) in {
+  "DriveTransit trips" must {
+    "run to completion" taggedAs (Periodic, ExcludeRegular) in {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue(
           "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
