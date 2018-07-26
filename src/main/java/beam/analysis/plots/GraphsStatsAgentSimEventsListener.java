@@ -65,6 +65,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         rideHailingWaitingStats.resetStats();
         vehicleParkingStats.resetStats();
         averageVehicleParkingStats.resetStats();
+
     }
 
     @Override
@@ -88,7 +89,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         } else if (event instanceof LeavingParkingEvent || event.getEventType().equalsIgnoreCase(LeavingParkingEvent.EVENT_TYPE)){
             vehicleParkingStats.processStats(event);
             averageVehicleParkingStats.processStats(event);
-        }
+        } 
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
