@@ -7,7 +7,7 @@
     </Appenders>
 
     <Loggers>
-        <Root level="debug">
+        <Root level="info">
             <AppenderRef ref="Console" level="info"/>
         </Root>
         <Logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR">
@@ -19,7 +19,7 @@
         <Logger name="org.reflections" level="ERROR">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.matsim" level="error">
+        <Logger name="org.matsim" level="ERROR">
             <AppenderRef ref="Console"/>
         </Logger>
 
@@ -30,7 +30,7 @@
             <AppenderRef ref="Console"/>
         </Logger>
 
-        <Logger name="beam.agentsim.agents.PersonAgent" level="debug">
+        <Logger name="beam.agentsim.agents.PersonAgent" level="error">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="beam.agentsim.agents.rideHail" level="error">

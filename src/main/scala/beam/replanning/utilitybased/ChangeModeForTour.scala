@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.{
 }
 import beam.sim.BeamServices
 import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
+import beam.utils.plansampling.AvailableModeUtils.availableModeParser
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -29,6 +30,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.population.algorithms.PlanAlgorithm
 import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
+import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
@@ -225,9 +227,25 @@ class ChangeModeForTour(
     maybeFixPlans(plan)
     val person = plan.getPerson
     val household = chainBasedTourVehicleAllocator.householdMemberships(person.getId)
+    val personAttributes: ObjectAttributes =
+      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+    val availableModes: Seq[BeamMode] = Option(
+      personAttributes.getAttribute(
+        person.getId.toString,
+        beam.utils.plansampling.PlansSampler.availableModeString
+      )
+    ).fold(BeamMode.availableModes)(
+      attr ⇒ availableModeParser(attr.toString)
+    )
+
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)
-    val attributesOfIndividual = AttributesOfIndividual(person, household, householdVehicles)
+
+    val attributesOfIndividual =
+      AttributesOfIndividual(person, household, householdVehicles, availableModes)
+
+    person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
     val tours: Seq[Subtour] = JavaConverters
       .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))

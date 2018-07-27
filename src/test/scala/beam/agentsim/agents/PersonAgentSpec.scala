@@ -1,12 +1,13 @@
 package beam.agentsim.agents
 
+import java.text.AttributedCharacterIterator.Attribute
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{
   NotifyLegEndTrigger,
   NotifyLegStartTrigger
@@ -32,7 +33,7 @@ import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -46,10 +47,12 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
+import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
@@ -89,6 +92,8 @@ class PersonAgentSpec
 
   val services: BeamServices = {
     val theServices = mock[BeamServices]
+    val matsimServices = mock[MatsimServices]
+    when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -178,7 +183,10 @@ class PersonAgentSpec
         }
       })
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      val population = PopulationUtils.createPopulation(matsimConfig)
+
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -190,7 +198,10 @@ class PersonAgentSpec
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(services.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
@@ -282,7 +293,10 @@ class PersonAgentSpec
       val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -303,6 +317,17 @@ class PersonAgentSpec
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      val attributesOfIndividual = AttributesOfIndividual(
+        person,
+        household,
+        Map(Id.create(vehicleId, classOf[BeamVehicle]) → beamVehicle),
+        Seq(CAR)
+      )
+      person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+      when(services.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)

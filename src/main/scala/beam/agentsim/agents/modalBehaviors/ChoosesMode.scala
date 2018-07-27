@@ -470,13 +470,8 @@ trait ChoosesMode {
         case _ =>
           combinedItinerariesForChoice
       }
-      val availableModes: Seq[BeamMode] = availableModesForPerson(
-        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
-      )
 
-      modeChoiceCalculator(
-        filteredItinerariesForChoice.filter(trip ⇒ availableModes.contains(trip.tripClassifier))
-      ) match {
+      modeChoiceCalculator(filteredItinerariesForChoice) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>

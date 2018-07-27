@@ -1,7 +1,5 @@
 package beam.agentsim.agents.memberships
 
-import beam.router.Modes.BeamMode.CAR
-import beam.utils.plansampling.AvailableModeUtils.isModeAvailableForPerson
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.households.{Household, Households}
@@ -43,8 +41,6 @@ case class HouseholdMembershipAllocator(
         household.getId, {
           val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
             mutable.Map[Id[Person], Id[Vehicle]]()
-
-          val person = population.getPersons.get(personId)
 
           val householdVehicles =
             JavaConverters.collectionAsScalaIterable(household.getVehicleIds).toIndexedSeq
