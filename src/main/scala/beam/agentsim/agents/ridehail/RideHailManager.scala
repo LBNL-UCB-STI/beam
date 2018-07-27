@@ -400,6 +400,18 @@ class RideHailManager(
     case DebugRideHailManagerDuringExecution =>
       modifyPassengerScheduleManager.printState()
 
+    case TriggerWithId(BufferedRideHailRequestsTimeout(tick), triggerId) =>
+
+      DebugLib.emptyFunctionForSettingBreakPoint()
+
+
+      val timerTrigger = BufferedRideHailRequestsTimeout(
+        tick + 30 // TODO: replace with new config variable
+      )
+      val timerMessage = ScheduleTrigger(timerTrigger, this.self)
+      scheduler ! CompletionNotice(triggerId, Vector(timerMessage))
+
+
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
       val produceDebugImages = true
       if (produceDebugImages) {
@@ -1048,6 +1060,8 @@ object RideHailManager {
     rnd1Response: RoutingResponse,
     rnd2Response: RoutingResponse
   )
+
+  case class BufferedRideHailRequestsTimeout(tick: Double) extends Trigger
 
   case class RideHailAllocationManagerTimeout(tick: Double) extends Trigger
 
