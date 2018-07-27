@@ -1,5 +1,8 @@
 package beam.agentsim.agents.memberships
 
+import beam.agentsim.agents.vehicles.BeamVehicleType.Car.isCarVehicle
+import beam.router.Modes.BeamMode.CAR
+import beam.utils.plansampling.AvailableModeUtils.isModeAvailableForPerson
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.households.{Household, Households}
@@ -33,12 +36,16 @@ case class HouseholdMembershipAllocator(
     : TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
     TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
-  def lookupVehicleForRankedPerson(person: Id[Person]): Option[Id[Vehicle]] = {
-    val household = memberships(person)
+  def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {
+
+    val household = memberships(personId)
     vehicleAllocationsByRank
       .getOrElseUpdate(
         household.getId, {
-          val vehicleRes = mutable.Map[Id[Person], Id[Vehicle]]()
+          val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
+            mutable.Map[Id[Person], Id[Vehicle]]()
+
+          val person = population.getPersons.get(personId)
 
           val householdVehicles =
             JavaConverters.collectionAsScalaIterable(household.getVehicleIds).toIndexedSeq
@@ -50,6 +57,7 @@ case class HouseholdMembershipAllocator(
           vehicleRes
         }
       )
-      .get(person)
+      .get(personId)
+      .filter(veh ⇒ isModeAvailableForPerson(population.getPersons.get(personId), veh, CAR))
   }
 }

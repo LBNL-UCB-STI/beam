@@ -22,36 +22,40 @@ case object BeamVehicleType extends Enum[BeamVehicleType] {
   val values: immutable.IndexedSeq[BeamVehicleType] = findValues
 
   case object RideHailVehicle extends BeamVehicleType("rideHailVehicle") with LowerCamelcase {
+
     def isRideHailVehicle(id: Id[_ <: Vehicle]): Boolean = {
       id.toString.startsWith(RideHailVehicle.idString)
     }
   }
 
-  case object Car extends BeamVehicleType("car") with LowerCamelcase
+  case object Car extends BeamVehicleType("car") with LowerCamelcase {
 
-  case object TransitVehicle
-    extends BeamVehicleType("transit")
-      with LowerCamelcase
+    /**
+      * Tests if the given [[Id]] a [[Car]].
+      *
+      * @param id : The [[Id]] to test
+      */
+    def isCarVehicle(id: Id[_ <: Vehicle]): Boolean = {
+      id.toString.startsWith(Car.idString)
+    }
+  }
 
-  case object HumanBodyVehicle
-    extends BeamVehicleType("body")
-      with LowerCamelcase {
+  case object TransitVehicle extends BeamVehicleType("transit") with LowerCamelcase
 
+  case object HumanBodyVehicle extends BeamVehicleType("body") with LowerCamelcase {
 
     lazy val MatsimHumanBodyVehicleType: VehicleType =
-      VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle",
-        classOf[VehicleType]))
+      VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
     MatsimHumanBodyVehicleType.setDescription("Human")
 
     /**
-      * Is the given [[Id]] a [[HumanBodyVehicle]]?
+      * Tests if the given [[Id]] a [[HumanBodyVehicle]]
       *
-      * @param id : The [[Id]] to test
+      * @param id : The [[Id]] to test.
       */
     def isHumanBodyVehicle(id: Id[_ <: Vehicle]): Boolean = {
       id.toString.startsWith(HumanBodyVehicle.idString)
     }
-
 
     /**
       * Assign a new id based on the personAgent

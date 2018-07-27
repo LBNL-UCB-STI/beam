@@ -6,16 +6,22 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
+import beam.agentsim.agents.vehicles.BeamVehicleType.Car._
+import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
+  createId,
+  powerTrainForHumanBody,
+  MatsimHumanBodyVehicleType
+}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamServices
-import beam.utils.plansampling.{PermissibleModeUtils, PlansSamplerApp}
+import beam.utils.plansampling.AvailableModeUtils
+import beam.utils.plansampling.AvailableModeUtils.{isModeAvailableForPerson, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -29,12 +35,14 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.{Failure, Random, Try}
+import scala.util.Random
 
 object HouseholdActor {
 
   def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
-    s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
+    s"household-${id.toString}" + iterationName
+      .map(i => s"_iter-$i")
+      .getOrElse("")
   }
 
   def props(
@@ -94,36 +102,74 @@ object HouseholdActor {
     numBikes: Int
   )
 
-  case class AttributesOfIndividual(person: Person, householdAttributes: HouseholdAttributes, householdId: Id[Household], modalityStyle: Option[String], isMale: Boolean, availableModes: Seq[BeamMode]) {
+  case class AttributesOfIndividual(
+    person: Person,
+    householdAttributes: HouseholdAttributes,
+    householdId: Id[Household],
+    modalityStyle: Option[String],
+    isMale: Boolean,
+    availableModes: Seq[BeamMode]
+  ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
 
   object AttributesOfIndividual {
-    def apply(person: Person, household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): AttributesOfIndividual = {
-      val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
-      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), BeamMode.availableModes)
+
+    def apply(
+      person: Person,
+      household: Household,
+      vehicles: Map[Id[BeamVehicle], BeamVehicle]
+    ): AttributesOfIndividual = {
+      val modalityStyle =
+        Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
+          .map(_.asInstanceOf[String])
+      AttributesOfIndividual(
+        person,
+        HouseholdAttributes(household, vehicles),
+        household.getId,
+        modalityStyle,
+        new Random().nextBoolean(),
+        BeamMode.availableModes
+      )
     }
 
-    def apply(person:Person,household:Household, vehicles:Map[Id[BeamVehicle],BeamVehicle], availableModes: Seq[BeamMode]):AttributesOfIndividual= {
-      val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
+    def apply(
+      person: Person,
+      household: Household,
+      vehicles: Map[Id[BeamVehicle], BeamVehicle],
+      availableModes: Seq[BeamMode]
+    ): AttributesOfIndividual = {
+      val modalityStyle =
+        Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
+          .map(_.asInstanceOf[String])
 
-      AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean(), availableModes)
+      AttributesOfIndividual(
+        person,
+        HouseholdAttributes(household, vehicles),
+        household.getId,
+        modalityStyle,
+        new Random().nextBoolean(),
+        availableModes
+      )
     }
 
   }
 
   object HouseholdAttributes {
 
-    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]) = new HouseholdAttributes(
-      Option(household.getIncome).getOrElse(new IncomeImpl(0, IncomePeriod.year)).getIncome,
-      household.getMemberIds.size(),
-      household.getVehicleIds.asScala
-        .map(vehicles)
-        .count(_.getType.getDescription.toLowerCase.contains("car")),
-      household.getVehicleIds.asScala
-        .map(vehicles)
-        .count(_.getType.getDescription.toLowerCase.contains("bike"))
-    )
+    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]) =
+      new HouseholdAttributes(
+        Option(household.getIncome)
+          .getOrElse(new IncomeImpl(0, IncomePeriod.year))
+          .getIncome,
+        household.getMemberIds.size(),
+        household.getVehicleIds.asScala
+          .map(vehicles)
+          .count(_.getType.getDescription.toLowerCase.contains("car")),
+        household.getVehicleIds.asScala
+          .map(vehicles)
+          .count(_.getType.getDescription.toLowerCase.contains("bike"))
+      )
   }
 
   /**
@@ -166,9 +212,21 @@ object HouseholdActor {
         VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      val availableModes: Seq[BeamMode] = Option(personAttributes.getAttribute(person.getId.toString,beam.utils.plansampling.PlansSampler.availableModeString)).fold(BeamMode.availableModes)(attr⇒PermissibleModeUtils.permissibleModeParser(attr.toString) map BeamMode.withValue)
-      val attributes = AttributesOfIndividual(person, household, vehicles, availableModes)
+
+      val availableModes: Seq[BeamMode] = Option(
+        personAttributes.getAttribute(
+          person.getId.toString,
+          beam.utils.plansampling.PlansSampler.availableModeString
+        )
+      ).fold(BeamMode.availableModes)(
+        attr ⇒ availableModeParser(attr.toString)
+      )
+
+      val attributes =
+        AttributesOfIndividual(person, household, vehicles, availableModes)
+
       person.getCustomAttributes.put("beam-attributes", attributes)
+
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(
           schedulerRef,
@@ -185,6 +243,7 @@ object HouseholdActor {
         ),
         person.getId.toString
       )
+
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
@@ -208,7 +267,8 @@ object HouseholdActor {
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
-    val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+    val _vehicles: Vector[Id[Vehicle]] =
+      vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
@@ -253,7 +313,8 @@ object HouseholdActor {
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
-      case CheckInResource(vehicleId: Id[Vehicle], _) => checkInVehicleResource(vehicleId)
+      case CheckInResource(vehicleId: Id[Vehicle], _) =>
+        checkInVehicleResource(vehicleId)
 
       case ReleaseVehicleReservation(personId, vehId) =>
         /*
@@ -277,7 +338,15 @@ object HouseholdActor {
           if (reservedVeh.isEmpty) {
             // Lastly we search for available vehicles but limit to one per mode
             val anyAvailableVehs = lookupAvailableVehicles()
-            anyAvailableVehs.groupBy(_.mode).map(_._2.head).toVector
+            // Filter only by available modes
+            anyAvailableVehs
+              .groupBy(_.mode)
+              .map(_._2.head)
+              .toVector
+              .filter(
+                veh ⇒
+                  isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
+              )
           } else {
             reservedVeh
           }
@@ -340,7 +409,15 @@ object HouseholdActor {
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
         if (i < _vehicles.size & i < household.rankedMembers.size) {
-          _reservedForPerson += (household.rankedMembers(i).memberId -> _vehicles(i))
+
+          val memberId: Id[Person] = household.rankedMembers(i).memberId
+          val vehicleId: Id[Vehicle] = _vehicles(i)
+          val person = population.getPersons.get(memberId)
+
+          if (isCarVehicle(vehicleId) && isModeAvailableForPerson(person, vehicleId, CAR)) {
+            _reservedForPerson += (memberId -> vehicleId)
+          }
+
         }
       }
 
@@ -378,4 +455,5 @@ object HouseholdActor {
       }).toVector
     }
   }
+
 }
