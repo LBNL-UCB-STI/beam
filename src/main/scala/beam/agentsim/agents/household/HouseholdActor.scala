@@ -414,7 +414,7 @@ object HouseholdActor {
           val person = population.getPersons.get(memberId)
 
           // Should never reserve for person who doesn't have mode available to them
-          if (isCarVehicle(vehicleId) && isModeAvailableForPerson(person, vehicleId, CAR)) {
+          if (isModeAvailableForPerson(person, vehicleId, CAR)) {
             _reservedForPerson += (memberId -> vehicleId)
           }
 
