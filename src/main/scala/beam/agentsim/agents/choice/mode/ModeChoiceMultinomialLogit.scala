@@ -65,7 +65,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       chosenModeOpt match {
         case Some(chosenMode) =>
-          val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+          val chosenModeCostTime =
+            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
@@ -97,9 +98,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   def altsToModeCostTimeTransfers(
     alternatives: Seq[EmbodiedBeamTrip]
   ): Seq[ModeCostTimeTransfer] = {
-    val transitFareDefaults = TransitFareDefaults.estimateTransitFares(alternatives)
-    val gasolineCostDefaults = DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults = BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
+    val transitFareDefaults =
+      TransitFareDefaults.estimateTransitFares(alternatives)
+    val gasolineCostDefaults =
+      DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
+    val bridgeTollsDefaults =
+      BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
     alternatives.zipWithIndex.map { altAndIdx =>
       val totalCost = altAndIdx._1.tripClassifier match {
@@ -110,7 +114,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
           bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL_TRANSIT =>
-          (altAndIdx._1.legs.filter(_.beamLeg.mode.isTransit).map(_.cost).sum + transitFareDefaults(
+          (altAndIdx._1.legs
+            .filter(_.beamLeg.mode.isTransit)
+            .map(_.cost)
+            .sum + transitFareDefaults(
             altAndIdx._2
           )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
           (altAndIdx._1.legs

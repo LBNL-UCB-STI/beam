@@ -55,13 +55,13 @@ case class RideHailStatsEntry(
     )
   }
 
-  def getDemandEstimate(): Double = {
+  def getDemandEstimate: Double = {
     sumOfRequestedRides + sumOfActivityEndEvents
   }
 }
 
 object RideHailStatsEntry {
-  def empty: RideHailStatsEntry = RideHailStatsEntry(0, 0, 0, 0)
+  def empty: RideHailStatsEntry = RideHailStatsEntry()
 
   def apply(
     sumOfRequestedRides: Long = 0,

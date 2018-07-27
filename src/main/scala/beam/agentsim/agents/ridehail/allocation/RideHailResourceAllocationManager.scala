@@ -1,4 +1,4 @@
-package beam.agentsim.agents.ridehail.allocationManagers
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location

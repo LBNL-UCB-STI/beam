@@ -64,7 +64,8 @@ object TransitDriverAgent {
 
     override def withCurrentLegPassengerScheduleIndex(
       currentLegPassengerScheduleIndex: Int
-    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+    ): DrivingData =
+      copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
   }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {

@@ -407,7 +407,9 @@ object HouseholdActor {
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
         if (i < _vehicles.size & i < household.rankedMembers.size) {
 
-          val memberId: Id[Person] = household.rankedMembers(i).memberId
+          val memberId: Id[Person] = household
+            .rankedMembers(i)
+            .memberId
           val vehicleId: Id[Vehicle] = _vehicles(i)
           val person = population.getPersons.get(memberId)
 
@@ -420,7 +422,6 @@ object HouseholdActor {
           if (isModeAvailableForPerson(person, vehicleId, mode)) {
             _reservedForPerson += (memberId -> vehicleId)
           }
-
         }
       }
 

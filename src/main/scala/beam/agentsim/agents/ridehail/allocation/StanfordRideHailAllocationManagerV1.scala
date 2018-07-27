@@ -1,4 +1,4 @@
-package beam.agentsim.agents.ridehail.allocationManagers
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailNetworkAPI}
 import beam.router.BeamRouter.Location

@@ -157,7 +157,8 @@ class BeamSim @Inject()(
           .getIterationFilename(event.getIteration, "population.csv.gz")
       )
       // rideHailIterationHistoryActor ! CollectRideHailStats
-      tncIterationsStatsCollector.tellHistoryToRideHailIterationHistoryActorAndReset()
+      tncIterationsStatsCollector
+        .tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
     val physsimFuture = Future {

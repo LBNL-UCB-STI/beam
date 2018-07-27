@@ -8,13 +8,16 @@ import org.scalatest.{Matchers, WordSpecLike}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Elem, Node}
 
-
-object MultinomialCustomConfigSpec  {
+object MultinomialCustomConfigSpec {
   case class Utility(name: String, utype: String, value: String)
-  class CustomAlternative(alternativeName: String, utilityValues: Seq[Utility]) extends RewriteRule {
+
+  class CustomAlternative(alternativeName: String, utilityValues: Seq[Utility])
+      extends RewriteRule {
     override def transform(n: Node): Seq[Node] = n match {
-      case elem: Elem if elem.label == "alternative" && elem.attributes.exists(m => m.value.text.equals(alternativeName)) =>
-        val utilityChild = utilityValues.map{ uv =>
+      case elem: Elem
+          if elem.label == "alternative" && elem.attributes
+            .exists(m => m.value.text.equals(alternativeName)) =>
+        val utilityChild = utilityValues.map { uv =>
           <param name={uv.name} type={uv.utype}>{uv.value}</param>
         }
         val utility = <utility>{utilityChild}</utility>
@@ -22,7 +25,6 @@ object MultinomialCustomConfigSpec  {
       case n => n
     }
   }
-
 
   def fullXml(parameters: Node) = <modeChoices>
       <lccm>
@@ -37,7 +39,7 @@ object MultinomialCustomConfigSpec  {
       </mnl>
     </modeChoices>
 
-  val baseXml =  <multinomialLogit name="mnl">
+  val baseXml = <multinomialLogit name="mnl">
     <alternative name="car">
       <utility>
         <param name="intercept" type="INTERCEPT">0.0</param>
@@ -86,27 +88,36 @@ object MultinomialCustomConfigSpec  {
 
 }
 
-class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon with LazyLogging {
-
-
+class MultinomialCustomConfigSpec
+    extends WordSpecLike
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon
+    with LazyLogging {
 
   "Running beam with Multinomial ModeChoice custom config" must {
     "Prefer mode choice car type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("car", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100.0"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100.0"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100.0")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "car",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100.0"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100.0"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100.0")
+          )
+        )
       )
 
       val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("car", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "car",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
+          )
+        )
       )
 
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
@@ -116,13 +127,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig1))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig1)
+        )
         .resolve()
 
       val config2: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig2))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig2)
+        )
         .resolve()
 
       val carConfigPositive = new StartWithCustomConfig(config1)
@@ -142,19 +165,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
     "Prefer mode choice bike type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("bike", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "bike",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
+          )
+        )
       )
 
       val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("bike", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "bike",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
+          )
+        )
       )
 
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
@@ -163,17 +192,27 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
       val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
-
       val config1: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig1))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig1)
+        )
         .resolve()
 
       val config2: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig2))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig2)
+        )
         .resolve()
-
 
       val bikeConfigPositive = new StartWithCustomConfig(config1)
       val bikeConfigNegative = new StartWithCustomConfig(config2)
@@ -192,19 +231,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
     "Prefer mode choice ride hailing type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("ride_hailing", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "ride_hailing",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
+          )
+        )
       )
 
       val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("ride_hailing", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "ride_hailing",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
+          )
+        )
       )
 
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
@@ -214,13 +259,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig1))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig1)
+        )
         .resolve()
 
       val config2: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig2))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig2)
+        )
         .resolve()
 
       val rideConfigPositive = new StartWithCustomConfig(config1)
@@ -240,19 +297,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
     "Prefer mode choice drive_transit type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("drive_transit", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "drive_transit",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
+          )
+        )
       )
 
       val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("drive_transit", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "drive_transit",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
+          )
+        )
       )
 
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
@@ -262,15 +325,26 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig1))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig1)
+        )
         .resolve()
 
       val config2: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig2))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig2)
+        )
         .resolve()
-
 
       val transitConfigPositive = new StartWithCustomConfig(config1)
       val transitConfigNegative = new StartWithCustomConfig(config2)
@@ -289,19 +363,25 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
     "Prefer mode choice walk type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("walk", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "walk",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
+          )
+        )
       )
 
       val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative("walk", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-        ))
+        new MultinomialCustomConfigSpec.CustomAlternative(
+          "walk",
+          Seq(
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
+            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
+            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
+          )
+        )
       )
 
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
@@ -311,15 +391,26 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig1))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig1)
+        )
         .resolve()
 
       val config2: Config = baseConfig
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest"))
-        .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile", ConfigValueFactory.fromAnyRef(routeConfig2))
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+        )
+        .withValue(
+          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
+          ConfigValueFactory.fromAnyRef(routeConfig2)
+        )
         .resolve()
-
 
       val walkConfigPositive = new StartWithCustomConfig(config1)
       val walkConfigNegative = new StartWithCustomConfig(config2)

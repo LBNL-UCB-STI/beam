@@ -1,8 +1,8 @@
 package beam.utils
 
+import java.awt._
 import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
-import java.awt._
 import java.io.{BufferedWriter, File, FileWriter}
 
 import beam.agentsim.agents.ridehail.RideHailAgent
@@ -59,16 +59,20 @@ class BoundsCalculator() {
 // frame is good for text lables as they can be outside of the area otherwise
 class SpatialPlot(width: Int, height: Int, frame: Int) {
 
-  val pointsToPlot: ListBuffer[PointToPlot] = collection.mutable.ListBuffer[PointToPlot]()
+  val pointsToPlot: ListBuffer[PointToPlot] =
+    collection.mutable.ListBuffer[PointToPlot]()
 
-  val linesToPlot: ListBuffer[LineToPlot] = collection.mutable.ListBuffer[LineToPlot]()
+  val linesToPlot: ListBuffer[LineToPlot] =
+    collection.mutable.ListBuffer[LineToPlot]()
 
-  val stringsToPlot: ListBuffer[StringToPlot] = collection.mutable.ListBuffer[StringToPlot]()
+  val stringsToPlot: ListBuffer[StringToPlot] =
+    collection.mutable.ListBuffer[StringToPlot]()
 
   val rideHailAgentInitCoordBuffer: ListBuffer[RideHailAgentInitCoord] =
     collection.mutable.ListBuffer[RideHailAgentInitCoord]()
 
-  val bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+  val bufferedImage =
+    new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
 
   var boundsCalculator = new BoundsCalculator
 
@@ -186,7 +190,8 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
     var result = .0
     if (deltax == 0.0d) result = Math.PI / 2
     else
-      result = Math.atan((starty - end.getY) / deltax) + (if (startx < end.getX) Math.PI
+      result = Math.atan((starty - end.getY) / deltax) + (if (startx < end.getX)
+                                                            Math.PI
                                                           else 0)
 
     val angle = result

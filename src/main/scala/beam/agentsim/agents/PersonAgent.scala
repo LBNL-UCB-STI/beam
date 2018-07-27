@@ -34,7 +34,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.WALK_TRANSIT
+import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -103,7 +103,8 @@ object PersonAgent {
 
     def passengerSchedule: PassengerSchedule = delegate.passengerSchedule
 
-    def currentLegPassengerScheduleIndex: Int = delegate.currentLegPassengerScheduleIndex
+    def currentLegPassengerScheduleIndex: Int =
+      delegate.currentLegPassengerScheduleIndex
 
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
@@ -133,7 +134,8 @@ object PersonAgent {
 
     override def withCurrentLegPassengerScheduleIndex(
       currentLegPassengerScheduleIndex: Int
-    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+    ): DrivingData =
+      copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
   }
 
   case object PerformingActivity extends BeamAgentState
@@ -247,7 +249,10 @@ class PersonAgent(
               // use the mode of the next leg as the new tour mode.
               currentTourMode = data.currentTourMode.orElse(
                 _experiencedBeamPlan.getPlanElements
-                  .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
+                  .get(
+                    _experiencedBeamPlan.getPlanElements
+                      .indexOf(nextAct) - 1
+                  ) match {
                   case leg: Leg => Some(BeamMode.withValue(leg.getMode))
                   case _        => None
                 }

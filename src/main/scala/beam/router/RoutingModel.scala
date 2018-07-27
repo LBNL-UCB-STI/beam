@@ -46,7 +46,8 @@ object RoutingModel {
 
     val totalTravelTimeInSecs: Long = legs.map(_.beamLeg.duration).sum
 
-    def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
+    def beamLegs(): Vector[BeamLeg] =
+      legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
     def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
 
@@ -128,7 +129,9 @@ object RoutingModel {
     cost: BigDecimal,
     unbecomeDriverOnCompletion: Boolean
   ) {
-    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isVehicleType(beamVehicleId)
+
+    val isHumanBodyVehicle: Boolean =
+      HumanBodyVehicle.isVehicleType(beamVehicleId)
     val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
   }
 
@@ -168,7 +171,8 @@ object RoutingModel {
       .sliding(2)
       .map(pair => pair.last - pair.head)
       .toVector
-    val cumulDistance = linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
+    val cumulDistance =
+      linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
     LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
   }
 
@@ -194,7 +198,9 @@ object RoutingModel {
     def duration: Long = endPoint.time - startPoint.time
 
     def toShortString: String =
-      if (linkIds.nonEmpty) { s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}" } else { "" }
+      if (linkIds.nonEmpty) {
+        s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"
+      } else { "" }
 
     def updateStartTime(newStartTime: Long): BeamPath =
       this.copy(

@@ -4,6 +4,7 @@ import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.Population
+import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -56,8 +57,10 @@ class ChangeModeForTour(
     )
   )
 
-  private val drivingCostConfig = beamServices.beamConfig.beam.agentsim.agents.drivingCost
-  private val rideHailConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail
+  private val drivingCostConfig =
+    beamServices.beamConfig.beam.agentsim.agents.drivingCost
+  private val rideHailConfig =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
   val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
@@ -121,7 +124,8 @@ class ChangeModeForTour(
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
-      case a: BeamMode if a.isTransit => TransitFareDefaults.faresByMode(beamMode)
+      case a: BeamMode if a.isTransit =>
+        TransitFareDefaults.faresByMode(beamMode)
     }
   }
 
@@ -130,11 +134,14 @@ class ChangeModeForTour(
     val transit2AutoRatio = 1.7 // car is 1.7 times faster than transit
 
     beamMode match {
-      case BeamMode.CAR => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
-      case WALK         => tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
+      case BeamMode.CAR =>
+        tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
+      case WALK =>
+        tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
       case RIDE_HAIL =>
         tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute.toDouble
-      case a: BeamMode if a.isTransit => tripDistanceInMeters / transitSpeedDefault
+      case a: BeamMode if a.isTransit =>
+        tripDistanceInMeters / transitSpeedDefault
     }
   }
 
@@ -142,7 +149,8 @@ class ChangeModeForTour(
     plan: Plan,
     attributesOfIndividual: AttributesOfIndividual
   ): Map[Int, Map[BeamMode, Double]] = {
-    val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
+    val modeChoiceCalculator =
+      beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
     val subTours = JavaConverters.collectionAsScalaIterable(
       TripStructureUtils.getSubtours(plan, stageActivityTypes)
     )
@@ -226,7 +234,8 @@ class ChangeModeForTour(
   override def run(plan: Plan): Unit = {
     maybeFixPlans(plan)
     val person = plan.getPerson
-    val household = chainBasedTourVehicleAllocator.householdMemberships(person.getId)
+    val household =
+      chainBasedTourVehicleAllocator.householdMemberships(person.getId)
     val personAttributes: ObjectAttributes =
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
     val availableModes: Seq[BeamMode] = Option(
@@ -237,7 +246,6 @@ class ChangeModeForTour(
     ).fold(BeamMode.availableModes)(
       attr ⇒ availableModeParser(attr.toString)
     )
-
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)
 
@@ -245,7 +253,6 @@ class ChangeModeForTour(
       AttributesOfIndividual(person, household, householdVehicles, availableModes)
 
     person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
-
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
     val tours: Seq[Subtour] = JavaConverters
       .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
@@ -271,12 +278,15 @@ class ChangeModeForTour(
   }
 
   private def maybeFixPlans(plan: Plan): Unit = {
-    if (JavaConverters.collectionAsScalaIterable(TripStructureUtils.getLegs(plan)).isEmpty) {
+    if (JavaConverters
+          .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
+          .isEmpty) {
       addTripsBetweenActivities(plan)
     }
     plan.getPlanElements.asScala.foreach {
-      case act: Activity if act.getLinkId == null => act.setLinkId(Id.createLinkId("dummy"))
-      case _                                      =>
+      case act: Activity if act.getLinkId == null =>
+        act.setLinkId(Id.createLinkId("dummy"))
+      case _ =>
     }
   }
 }

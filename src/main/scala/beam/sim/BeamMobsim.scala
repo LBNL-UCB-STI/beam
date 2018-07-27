@@ -72,7 +72,9 @@ class BeamMobsim @Inject()(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
-  val rideHailHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
+
+  val rideHailHouseholds: mutable.Set[Id[Household]] =
+    mutable.Set[Id[Household]]()
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   /*
@@ -87,7 +89,8 @@ class BeamMobsim @Inject()(
     var maxY: Double = null
 
     persons.forEach { person =>
-      val planElementsIterator = person.getSelectedPlan.getPlanElements.iterator()
+      val planElementsIterator =
+        person.getSelectedPlan.getPlanElements.iterator()
       while (planElementsIterator.hasNext) {
         val planElement = planElementsIterator.next()
         planElement match {
@@ -134,7 +137,8 @@ class BeamMobsim @Inject()(
         context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
         context.watch(scheduler)
 
-        private val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+        private val envelopeInUTM =
+          beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
         envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
         private val rideHailManager = context.actorOf(
@@ -178,13 +182,18 @@ class BeamMobsim @Inject()(
           scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
         private val rideHailVehicleType =
-          scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
+          scenario.getVehicles.getVehicleTypes
+            .get(Id.create("1", classOf[VehicleType]))
 
         val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
-          scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents)
+          scenario.getPopulation.getPersons
+            .values()
+            .stream()
+            .limit(numRideHailAgents)
         )
 
-        val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+        val rand: Random =
+          new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
         val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
         val activityLocationsSpatialPlot = new SpatialPlot(1100, 1100, 50)
@@ -206,7 +215,11 @@ class BeamMobsim @Inject()(
             .values()
             .forEach(x => {
               val personInitialLocation: Coord =
-                x.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+                x.getSelectedPlan.getPlanElements
+                  .iterator()
+                  .next()
+                  .asInstanceOf[Activity]
+                  .getCoord
               activityLocationsSpatialPlot
                 .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
             })
@@ -217,88 +230,99 @@ class BeamMobsim @Inject()(
           )
         }
 
-        scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach {
-          person =>
-            val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements
-              .iterator()
-              .next()
-              .asInstanceOf[Activity]
-              .getCoord
-            val rideInitialLocation: Coord =
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
-                  val radius =
-                    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
-                  new Coord(
-                    personInitialLocation.getX + radius * rand.nextDouble(),
-                    personInitialLocation.getY + radius * rand.nextDouble()
-                  )
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
-                  val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
-                    .nextDouble()
-                  val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
-                    .nextDouble()
-                  new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER =>
-                  val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
-                  val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
-                  new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER =>
-                  val x = quadTreeBounds.minx
-                  val y = quadTreeBounds.miny
-                  new Coord(x, y)
-                case unknown =>
-                  log.error(s"unknown rideHail.initialLocation $unknown")
-                  null
-              }
+        scenario.getPopulation.getPersons
+          .values()
+          .stream()
+          .limit(numRideHailAgents)
+          .forEach {
+            person =>
+              val personInitialLocation: Coord =
+                person.getSelectedPlan.getPlanElements
+                  .iterator()
+                  .next()
+                  .asInstanceOf[Activity]
+                  .getCoord
+              val rideInitialLocation: Coord =
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
+                  case RideHailManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
+                    val radius =
+                      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
+                    new Coord(
+                      personInitialLocation.getX + radius * rand.nextDouble(),
+                      personInitialLocation.getY + radius * rand.nextDouble()
+                    )
+                  case RideHailManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
+                    val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
+                      .nextDouble()
+                    val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
+                      .nextDouble()
+                    new Coord(x, y)
+                  case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER =>
+                    val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
+                    val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
+                    new Coord(x, y)
+                  case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER =>
+                    val x = quadTreeBounds.minx
+                    val y = quadTreeBounds.miny
+                    new Coord(x, y)
+                  case unknown =>
+                    log.error(s"unknown rideHail.initialLocation $unknown")
+                    null
+                }
 
-            val rideHailName = s"rideHailAgent-${person.getId}"
+              val rideHailName = s"rideHailAgent-${person.getId}"
 
-            val rideHailVehicleId = Id.createVehicleId(s"rideHailVehicle-${person.getId}")
-            val rideHailVehicle: Vehicle =
-              VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
-            val rideHailAgentPersonId: Id[RideHailAgent] =
-              Id.create(rideHailName, classOf[RideHailAgent])
-            val information = Option(rideHailVehicle.getType.getEngineInformation)
-            val vehicleAttribute = Option(scenario.getVehicles.getVehicleAttributes)
-            val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-              information
-                .map(_.getGasConsumption)
-                .getOrElse(Powertrain.AverageMilesPerGallon)
-            )
-            val rideHailBeamVehicle = new BeamVehicle(
-              powerTrain,
-              rideHailVehicle,
-              vehicleAttribute,
-              CarVehicle,
-              Some(1.0),
-              Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
-            )
-            beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
-            rideHailBeamVehicle.registerResource(rideHailManager)
-            rideHailManager ! BeamVehicleFuelLevelUpdate(
-              rideHailBeamVehicle.getId,
-              rideHailBeamVehicle.fuelLevel.get
-            )
-            val rideHailAgentProps = RideHailAgent.props(
-              beamServices,
-              scheduler,
-              transportNetwork,
-              eventsManager,
-              rideHailAgentPersonId,
-              rideHailBeamVehicle,
-              rideInitialLocation
-            )
-            val rideHailAgentRef: ActorRef = context.actorOf(rideHailAgentProps, rideHailName)
-            context.watch(rideHailAgentRef)
-            scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
-            rideHailAgents += rideHailAgentRef
+              val rideHailVehicleId =
+                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+              val rideHailVehicle: Vehicle =
+                VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
+              val rideHailAgentPersonId: Id[RideHailAgent] =
+                Id.create(rideHailName, classOf[RideHailAgent])
+              val information =
+                Option(rideHailVehicle.getType.getEngineInformation)
+              val vehicleAttribute =
+                Option(scenario.getVehicles.getVehicleAttributes)
+              val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
+                information
+                  .map(_.getGasConsumption)
+                  .getOrElse(Powertrain.AverageMilesPerGallon)
+              )
+              val rideHailBeamVehicle = new BeamVehicle(
+                powerTrain,
+                rideHailVehicle,
+                vehicleAttribute,
+                CarVehicle,
+                Some(1.0),
+                Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
+              )
+              beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+              rideHailBeamVehicle.registerResource(rideHailManager)
+              rideHailManager ! BeamVehicleFuelLevelUpdate(
+                rideHailBeamVehicle.getId,
+                rideHailBeamVehicle.fuelLevel.get
+              )
+              val rideHailAgentProps = RideHailAgent.props(
+                beamServices,
+                scheduler,
+                transportNetwork,
+                eventsManager,
+                rideHailAgentPersonId,
+                rideHailBeamVehicle,
+                rideInitialLocation
+              )
+              val rideHailAgentRef: ActorRef =
+                context.actorOf(rideHailAgentProps, rideHailName)
+              context.watch(rideHailAgentRef)
+              scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
+              rideHailAgents += rideHailAgentRef
 
-            rideHailinitialLocationSpatialPlot
-              .addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
-            rideHailinitialLocationSpatialPlot
-              .addAgentWithCoord(RideHailAgentInitCoord(rideHailAgentPersonId, rideInitialLocation))
-        }
+              rideHailinitialLocationSpatialPlot
+                .addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
+              rideHailinitialLocationSpatialPlot
+                .addAgentWithCoord(
+                  RideHailAgentInitCoord(rideHailAgentPersonId, rideInitialLocation)
+                )
+          }
 
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
@@ -316,7 +340,8 @@ class BeamMobsim @Inject()(
 
         Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
 
-        if (beamServices.iterationNumber == 0) new BeamWarmStart(beamServices).init()
+        if (beamServices.iterationNumber == 0)
+          new BeamWarmStart(beamServices).init()
 
         log.info(s"Transit schedule has been initialized")
 

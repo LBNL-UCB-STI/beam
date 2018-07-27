@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.TNCIterationStats._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
@@ -63,7 +64,8 @@ case class TNCIterationStats(
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
-    val minScoreThresholdForRespositioning = repositioningConfig.minScoreThresholdForRespositioning // helps weed out unnecessary repositioning
+    val minScoreThresholdForRepositioning =
+      repositioningConfig.minScoreThresholdForRepositioning // helps weed out unnecessary repositioning
 
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
@@ -72,7 +74,7 @@ case class TNCIterationStats(
     val startTimeBin = getTimeBin(tick)
     val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-    if (tick > 36000) {
+    if (tick > BREAKPOINT_TIMEOUT_IN_MILLIS) {
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
@@ -114,7 +116,8 @@ case class TNCIterationStats(
         val distanceInMeters =
           beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
 
-        val distanceScore = -1 * distanceWeight * Math.pow(distanceInMeters, 2) /
+        val distanceScore = -1 * distanceWeight * Math
+          .pow(distanceInMeters, 2) /
         Math.pow(distanceInMeters + 1000.0, 2)
 
         val score = (startTimeBin to endTimeBin)
@@ -125,8 +128,9 @@ case class TNCIterationStats(
                   .pow(statsEntry.sumOfWaitingTimes, 2) /
                 Math.pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
 
-                val demandScore = demandWeight * Math.pow(statsEntry.getDemandEstimate(), 2) /
-                Math.pow(statsEntry.getDemandEstimate() + 10.0, 2)
+                val demandScore = demandWeight * Math
+                  .pow(statsEntry.getDemandEstimate, 2) /
+                Math.pow(statsEntry.getDemandEstimate + 10.0, 2)
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
@@ -156,11 +160,11 @@ case class TNCIterationStats(
       }
 
       // filter top N scores
-      // ignore scores smaller than minScoreThresholdForRespositioning
+      // ignore scores smaller than minScoreThresholdForRepositioning
       val tmp = scoredTAZInRadius
         .take(keepMaxTopNScores)
         .filter(
-          tazScore => tazScore.score > minScoreThresholdForRespositioning && tazScore.score > 0
+          tazScore => tazScore.score > minScoreThresholdForRepositioning && tazScore.score > 0
         )
 
       scoredTAZInRadius = tmp
@@ -180,7 +184,8 @@ case class TNCIterationStats(
               DebugLib.emptyFunctionForSettingBreakPoint()
             }
 
-            val mapping = new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
+            val mapping =
+              new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
             scoredTAZInRadius.foreach { tazScore =>
               //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
 
@@ -198,11 +203,14 @@ case class TNCIterationStats(
 
             sample.map(_.coord)
           } else if (repositioningMethod.equalsIgnoreCase("KMEANS")) {
-            val clusterInput = scoredTAZInRadius.map(t => new LocationWrapper(t.taz.coord))
+            val clusterInput =
+              scoredTAZInRadius.map(t => new LocationWrapper(t.taz.coord))
 
             val clusterSize =
-              if (clusterInput.size < vehicles.size) clusterInput.size else vehicles.size
-            val kMeans = new KMeansPlusPlusClusterer[LocationWrapper](clusterSize, 1000)
+              if (clusterInput.size < vehicles.size) clusterInput.size
+              else vehicles.size
+            val kMeans =
+              new KMeansPlusPlusClusterer[LocationWrapper](clusterSize, 1000)
             val clusterResults = kMeans.cluster(clusterInput.toVector.asJava)
             clusterResults.asScala
               .map(c => new Coord(c.getCenter.getPoint()(0), c.getCenter.getPoint()(1)))
@@ -439,10 +447,10 @@ case class TNCIterationStats(
       )
       .toSet
     val demandInCircle = listOfTazInRadius
-      .map(getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate())
+      .map(getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate)
       .sum
     val demandAll =
-      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate()
+      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
     val result =
       if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
       else Double.PositiveInfinity
@@ -588,6 +596,7 @@ case class TNCIterationStats(
 }
 
 object TNCIterationStats {
+  private val BREAKPOINT_TIMEOUT_IN_MILLIS = 36000
 
   def merge(statsA: TNCIterationStats, statsB: TNCIterationStats): TNCIterationStats = {
 
