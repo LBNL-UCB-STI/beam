@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -42,6 +43,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
     private IGraphStats vehicleParkingStats = new VehicleParkingStats();
+    private IGraphStats averageVehicleParkingStats = new AverageVehicleParkingStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -62,6 +64,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.resetStats();
         vehicleParkingStats.resetStats();
+        averageVehicleParkingStats.resetStats();
+
     }
 
     @Override
@@ -81,9 +85,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             rideHailingWaitingStats.processStats(event);
         }  else if (event instanceof ParkEvent || event.getEventType().equalsIgnoreCase(ParkEvent.EVENT_TYPE)){
             vehicleParkingStats.processStats(event);
+            averageVehicleParkingStats.processStats(event);
         } else if (event instanceof LeavingParkingEvent || event.getEventType().equalsIgnoreCase(LeavingParkingEvent.EVENT_TYPE)){
             vehicleParkingStats.processStats(event);
-        }
+            averageVehicleParkingStats.processStats(event);
+        } 
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
@@ -94,6 +100,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personTravelTimeStats.resetStats();
         rideHailingWaitingStats.createGraph(event);
         vehicleParkingStats.createGraph(event);
+        averageVehicleParkingStats.createGraph(event);
     }
 
      // helper methods
@@ -109,5 +116,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         List<String> graphNamesList = new ArrayList<>(stringSet);
         Collections.sort(graphNamesList);
         return graphNamesList;
+    }
+
+    public void notifyShutdown(ShutdownEvent event) throws Exception{
+        if(averageVehicleParkingStats instanceof  AverageVehicleParkingStats){
+            AverageVehicleParkingStats vehicleParking = (AverageVehicleParkingStats) averageVehicleParkingStats;
+            vehicleParking.notifyShutdown(event);
+        }
     }
 }

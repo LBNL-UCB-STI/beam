@@ -105,6 +105,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp"/*, "modestats.txt", "modestats.png"*/)
 
     outputFilesToDelete.foreach(deleteOutputFile)
+    createGraphsFromEvents.notifyShutdown(event);
 
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: ${fileName}")
