@@ -312,14 +312,6 @@ class BeamMobsim @Inject()(
               .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png")
           )
         }
-//        log.info(s"Initialized ${beamServices.personRefs.size} people")
-//        log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
-//        log.info(s"Initialized $numRideHailAgents ride hailing agents")
-//        Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
-
-        if (beamServices.iterationNumber == 0) new BeamWarmStart(beamServices).init()
-
-//        log.info(s"Transit schedule has been initialized")
 
       val personsMapScala = scenario.getPopulation.getPersons.asScala
       scenario.getHouseholds.getHouseholds.asScala.foreach{case (_, houseHold) =>
@@ -327,7 +319,7 @@ class BeamMobsim @Inject()(
         val person = personsMapScala.get(personId).get
 
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        val personSelectedPlan = person.getSelectedPlan
+//        val personSelectedPlan = person.getSelectedPlan
 
         houseHold.getVehicleIds.asScala.foreach{ vehId =>
           val vehicle = beamServices.vehicles.get(vehId)
@@ -351,10 +343,14 @@ class BeamMobsim @Inject()(
       log.info(s"Initialized ${beamServices.personRefs.size} people")
       log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
       log.info(s"Initialized ${numRideHailAgents} ride hailing agents")
+
       Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
+
+      if (beamServices.iterationNumber == 0) new BeamWarmStart(beamServices).init()
+
       log.info(s"Transit schedule has been initialized")
 
-        scheduleRideHailManagerTimerMessage()
+      scheduleRideHailManagerTimerMessage()
 
         def prepareMemoryLoggingTimerActor(
           timeoutInSeconds: Int,
