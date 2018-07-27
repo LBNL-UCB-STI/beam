@@ -62,11 +62,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
 
-  val dates: DateUtils = DateUtils(
-    ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-    ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-  )
-
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
