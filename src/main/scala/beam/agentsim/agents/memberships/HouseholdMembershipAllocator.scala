@@ -1,6 +1,5 @@
 package beam.agentsim.agents.memberships
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car.isCarVehicle
 import beam.router.Modes.BeamMode.CAR
 import beam.utils.plansampling.AvailableModeUtils.isModeAvailableForPerson
 import org.matsim.api.core.v01.Id
@@ -58,6 +57,5 @@ case class HouseholdMembershipAllocator(
         }
       )
       .get(personId)
-      .filter(veh ⇒ isModeAvailableForPerson(population.getPersons.get(personId), veh, CAR))
   }
 }

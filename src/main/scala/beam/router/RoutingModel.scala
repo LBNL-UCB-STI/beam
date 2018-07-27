@@ -128,8 +128,8 @@ object RoutingModel {
     cost: BigDecimal,
     unbecomeDriverOnCompletion: Boolean
   ) {
-    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
-    val isRideHail: Boolean = RideHailVehicle.isRideHailVehicle(beamVehicleId)
+    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isVehicleType(beamVehicleId)
+    val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
   }
 
   def traverseStreetLeg(
