@@ -7,7 +7,6 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{
-  AttributesOfIndividual,
   MobilityStatusResponse,
   ReleaseVehicleReservation
 }
@@ -28,7 +27,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.router.r5.R5RoutingWorker
-import beam.utils.plansampling.AvailableModeUtils
 import beam.utils.plansampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg

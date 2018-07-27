@@ -40,28 +40,39 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _,_) =>
-              new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _) =>
+              new ModeChoiceMultinomialLogit(
+                beamServices,
+                lccm.modeChoiceModels(Mandatory)(modalityStyle)
+              )
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        (_) => new ModeChoiceTransitIfAvailable(beamServices)
+        (_) =>
+          new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        (_) => new ModeChoiceDriveIfAvailable(beamServices)
+        (_) =>
+          new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        (_) => new ModeChoiceRideHailIfAvailable(beamServices)
+        (_) =>
+          new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        (_) => new ModeChoiceUniformRandom(beamServices)
+        (_) =>
+          new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit)
-        (_) => new ModeChoiceMultinomialLogit(beamServices, logit)
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
+        )
+        (_) =>
+          new ModeChoiceMultinomialLogit(beamServices, logit)
       case "ModeChoiceMultinomialLogitTest" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit)
-        (_) => new ModeChoiceMultinomialLogit(beamServices, logit)
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
+        )
+        (_) =>
+          new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
 
-
 }
-
