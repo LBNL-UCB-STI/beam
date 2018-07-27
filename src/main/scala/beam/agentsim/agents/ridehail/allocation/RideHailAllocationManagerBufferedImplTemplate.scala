@@ -8,7 +8,7 @@ import org.matsim.vehicles.Vehicle
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
-  val isBufferedRideHailAllocationMode = false // TODO: this should be true - change back later!
+  val isBufferedRideHailAllocationMode = true // TODO: this should be true - change back later!
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(
