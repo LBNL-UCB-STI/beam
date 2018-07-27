@@ -7,11 +7,11 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
   NotifyLegEndTrigger,
   NotifyLegStartTrigger
 }
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain

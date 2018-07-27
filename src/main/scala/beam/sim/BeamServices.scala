@@ -6,8 +6,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
@@ -39,11 +39,10 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
-  var rideHailIterationHistoryActor:ActorRef
+  var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  var matsimServices:MatsimServices
-
+  var matsimServices: MatsimServices
 
   var iterationNumber: Int = -1
   def startNewIteration()
@@ -52,17 +51,23 @@ trait BeamServices extends ActorInject {
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-  val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+
+  val registry: ActorRef =
+    Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-  val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
+
+  val dates: DateUtils = DateUtils(
+    ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+    ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+  )
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  var matsimServices:MatsimServices =_
+  var matsimServices: MatsimServices = _
 
   def clearAll(): Unit = {
     personRefs.clear

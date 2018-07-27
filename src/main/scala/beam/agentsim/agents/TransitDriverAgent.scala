@@ -10,8 +10,8 @@ import beam.agentsim.agents.PersonAgent.{
   WaitingToDrive
 }
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,

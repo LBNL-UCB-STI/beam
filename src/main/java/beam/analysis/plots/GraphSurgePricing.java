@@ -1,7 +1,7 @@
 package beam.analysis.plots;
 
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
-import beam.agentsim.agents.rideHail.SurgePriceBin;
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
+import beam.agentsim.agents.ridehail.SurgePriceBin;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;

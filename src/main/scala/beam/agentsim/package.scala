@@ -1,7 +1,7 @@
 package beam
 
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.rideHail.RideHailAgent
+import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import org.matsim.api.core.v01.Id

@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
   createId,

@@ -1,4 +1,4 @@
-package beam.agentsim.agents.modalBehaviors
+package beam.agentsim.agents.modalbehaviors
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory

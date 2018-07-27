@@ -1,12 +1,12 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
-import beam.agentsim.agents.rideHail.RideHailAgent._
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
+import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.SpaceTime

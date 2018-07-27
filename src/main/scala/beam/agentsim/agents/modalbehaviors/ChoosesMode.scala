@@ -1,4 +1,4 @@
-package beam.agentsim.agents.modalBehaviors
+package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM
 import beam.agentsim.Resource.CheckInResource
@@ -10,8 +10,8 @@ import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusResponse,
   ReleaseVehicleReservation
 }
-import beam.agentsim.agents.modalBehaviors.ChoosesMode._
-import beam.agentsim.agents.rideHail.RideHailManager.{
+import beam.agentsim.agents.modalbehaviors.ChoosesMode._
+import beam.agentsim.agents.ridehail.RideHailManager.{
   RideHailInquiry,
   RideHailRequest,
   RideHailResponse

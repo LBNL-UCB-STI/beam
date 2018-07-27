@@ -1,6 +1,6 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.rideHail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location

@@ -1,6 +1,6 @@
 package beam.analysis.plots;
 
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;

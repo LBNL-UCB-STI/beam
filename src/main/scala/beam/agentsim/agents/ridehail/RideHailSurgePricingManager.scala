@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -39,8 +39,11 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
   val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
-  val timeBinSize: Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories: Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+
+  val timeBinSize
+    : Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories
+    : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
     .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1

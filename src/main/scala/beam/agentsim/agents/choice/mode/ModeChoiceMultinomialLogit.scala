@@ -5,7 +5,7 @@ import java.util.Random
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   CAR,

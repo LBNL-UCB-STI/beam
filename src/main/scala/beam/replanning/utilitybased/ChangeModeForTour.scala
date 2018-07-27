@@ -6,7 +6,7 @@ import java.util.Collections
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BUS,
