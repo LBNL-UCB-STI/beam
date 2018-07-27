@@ -199,7 +199,7 @@ object TAZTreeMap {
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
-    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("UTM", "EPSG:26910")
 
     var mapWriter: ICsvMapWriter = null
     try {
@@ -236,7 +236,7 @@ object TAZTreeMap {
       for (t <- allNonRepeatedTaz) {
         val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
-        //
+
         val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
         val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
         tazToWrite.put(header(1), tcoord.getX.toString)
@@ -250,7 +250,7 @@ object TAZTreeMap {
     }
   }
 
-  private def getProcessors: Array[CellProcessor] = {
+  def getProcessors: Array[CellProcessor] = {
     Array[CellProcessor](
       new UniqueHashCode(), // Id (must be unique)
       new NotNull(), // Coord X
