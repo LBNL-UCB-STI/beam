@@ -91,7 +91,7 @@ object HouseholdActor {
 
   case class ReleaseVehicleReservation(personId: Id[Person], vehId: Id[Vehicle])
 
-  case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
+  case class MobilityStatusResponse(streetVehicle: Vector[StreetVehicle])
 
   case class InitializeRideHailAgent(b: Id[Person])
 
@@ -343,10 +343,7 @@ object HouseholdActor {
               .groupBy(_.mode)
               .map(_._2.head)
               .toVector
-              .filter(
-                veh ⇒
-                  isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
-              )
+
           } else {
             reservedVeh
           }
@@ -354,12 +351,14 @@ object HouseholdActor {
           alreadyCheckedOutVehicle
         }
 
-        // Assign to requesting individual
-        availableStreetVehicles.foreach { x =>
+        // Assign to requesting individual if mode is available
+        availableStreetVehicles.filter(
+          veh ⇒ isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
+        ) foreach { x =>
           _availableVehicles.remove(x.id)
           _checkedOutVehicles.put(x.id, personId)
         }
-        sender() ! MobilityStatusReponse(availableStreetVehicles)
+        sender() ! MobilityStatusResponse(availableStreetVehicles)
 
       case Finish =>
         context.children.foreach(_ ! Finish)
@@ -414,6 +413,7 @@ object HouseholdActor {
           val vehicleId: Id[Vehicle] = _vehicles(i)
           val person = population.getPersons.get(memberId)
 
+          // Should never reserve for person who doesn't have mode available to them
           if (isCarVehicle(vehicleId) && isModeAvailableForPerson(person, vehicleId, CAR)) {
             _reservedForPerson += (memberId -> vehicleId)
           }

@@ -8,7 +8,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{
   AttributesOfIndividual,
-  MobilityStatusReponse,
+  MobilityStatusResponse,
   ReleaseVehicleReservation
 }
 import beam.agentsim.agents.modalBehaviors.ChoosesMode._
@@ -63,12 +63,12 @@ trait ChoosesMode {
           context.parent ! mobilityStatusInquiry(id)
         case _ =>
           // Otherwise, send empty list to self
-          self ! MobilityStatusReponse(Vector())
+          self ! MobilityStatusResponse(Vector())
       }
   }
 
   when(ChoosingMode)(stateFunction = transform {
-    case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
+    case Event(MobilityStatusResponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(
         bodyId,
         SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong),
