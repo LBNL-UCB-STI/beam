@@ -1,67 +1,63 @@
 package beam.utils
 
+import java.util.concurrent.TimeUnit
 import java.util.{Comparator, PriorityQueue}
 
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
+import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
+
+import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.FiniteDuration
 
-case class ValueWithTs[T](value: T, ts: Long)
 
-trait StuckFinder[K] {
+class StuckFinder(val beamConfig: BeamConfig) extends LazyLogging {
+  private val stuckAgentDuration: FiniteDuration = FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip, TimeUnit.SECONDS)
 
-  def size: Int
+  private val helper = new StuckFinderHelper[ScheduledTrigger]
 
-  def add(ts: Long, key: K): Unit
-
-  //  Finding the first as sorted by the timestamp
-  def removeOldest: Option[ValueWithTs[K]]
-
-  //  Finding the tuple based on the ScheduledTrigger
-  def removeByKey(key: K): Option[ValueWithTs[K]]
-}
-
-class StuckFinderImpl[K] extends StuckFinder[K] {
-
-  object Comparator extends Comparator[ValueWithTs[K]] {
-    def compare(o1: ValueWithTs[K], o2: ValueWithTs[K]): Int = {
-      o1.ts.compare(o2.ts)
-    }
+  def add(ts: Long, st: ScheduledTrigger): Unit = {
+    helper.add(ts, st)
   }
 
-  private[this] val pq = new PriorityQueue[ValueWithTs[K]](Comparator)
-  private[this] val map = mutable.HashMap.empty[K, ValueWithTs[K]]
-
-  def size: Int = {
-    require(pq.size() == map.size)
-    pq.size()
+  def removeOldest: Option[ValueWithTs[ScheduledTrigger]] = {
+    helper.removeOldest
   }
 
-  def add(ts: Long, key: K): Unit = {
-    map.get(key) match {
-      case Some(x) =>
-      // TODO Key is already there. What shall we do?!
-      // 1 => Skip adding
-      // 2 => Change map to be K -> List to store all different timestamps
-      // Go with first approach for now
-      case None =>
-        val valueWithTs = ValueWithTs(key, ts)
-        pq.add(valueWithTs)
-        map.put(key, valueWithTs)
-    }
+  def removeByKey(st: ScheduledTrigger): Option[ValueWithTs[ScheduledTrigger]] = {
+    helper.removeByKey(st)
   }
 
-  def removeOldest: Option[ValueWithTs[K]] = {
-    if (pq.isEmpty) None
-    else {
-      val result = pq.poll()
-      removeByKey(result.value)
-      Some(result)
+  def detectStuckAgents: Seq[ScheduledTrigger] = {
+    @tailrec
+    def detectStuckAgents0(stuckAgents: mutable.ArrayBuffer[ScheduledTrigger]): Seq[ScheduledTrigger] = {
+      removeOldest match {
+        case Some(oldest) =>
+          val isStuck: Boolean = isStuckAgent(oldest.value, oldest.ts, System.currentTimeMillis())
+          if (!isStuck) {
+            // We have to add it back
+            add(oldest.ts, oldest.value)
+            stuckAgents
+          }
+          else {
+            stuckAgents += oldest.value
+            detectStuckAgents0(stuckAgents)
+          }
+        case None =>
+          stuckAgents
+      }
     }
+    detectStuckAgents0(ArrayBuffer.empty[ScheduledTrigger])
   }
 
-  def removeByKey(key: K): Option[ValueWithTs[K]] = {
-    map.remove(key).map { ts =>
-      pq.remove(ts)
-      ts
+  private def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
+    val diff = currentTimeMs - startedAtMs
+    val isStuck = diff > stuckAgentDuration.toMillis
+    if (isStuck) {
+      logger.warn(s"$st is stuck. Diff: $diff ms")
     }
+    isStuck
   }
 }

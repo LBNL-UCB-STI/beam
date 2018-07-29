@@ -2,17 +2,17 @@ package beam.utils
 
 import org.scalatest.{Matchers, WordSpec}
 
-class StuckFinderSpec extends WordSpec with Matchers{
-  "A StuckFinder" when {
+class StuckFinderHelperSpec extends WordSpec with Matchers{
+  "A StuckFinderHelper" when {
     "empty" should {
       "have size 0" in {
-        new StuckFinderImpl[Any].size should be (0)
+        new StuckFinderHelper[Any].size should be (0)
       }
     }
   }
-  "A StuckFinder" should {
+  "A StuckFinderHelper" should {
     "add value" in {
-      val s = new StuckFinderImpl[String]
+      val s = new StuckFinderHelper[String]
       s.add(1, "1")
       s.size should be (1)
 
@@ -21,7 +21,7 @@ class StuckFinderSpec extends WordSpec with Matchers{
     }
     "not add value" when {
       "value is already added" in {
-        val s = new StuckFinderImpl[String]
+        val s = new StuckFinderHelper[String]
         s.add(1, "1")
         s.size should be (1)
 
@@ -31,7 +31,7 @@ class StuckFinderSpec extends WordSpec with Matchers{
     }
 
     "remove oldest value by timestamp" in {
-      val s = new StuckFinderImpl[String]
+      val s = new StuckFinderHelper[String]
       s.removeOldest should be (None)
       s.add(100, "100")
 
@@ -56,7 +56,7 @@ class StuckFinderSpec extends WordSpec with Matchers{
     }
 
     "remove value by key" in {
-      val s = new StuckFinderImpl[String]
+      val s = new StuckFinderHelper[String]
       s.removeByKey("Blah")  should be (None)
 
       s.add(100, "100")
