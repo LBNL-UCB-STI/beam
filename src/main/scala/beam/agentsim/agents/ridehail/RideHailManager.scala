@@ -251,7 +251,7 @@ class RideHailManager(
       )
 
     case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _) =>
-      if (!findDriverAndSendRoutingRequests(inquiry)) {
+      if (!findDriverAndSendRoutingRequests(inquiry,true)) {
         inquiry.customer.personRef.get ! RideHailResponse(
           inquiry,
           None,
@@ -368,13 +368,13 @@ class RideHailManager(
       }
 
     case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _) =>
-      if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode) {
-        val requestId = reserveRide.requestId
-        bufferedReserveRideMessages += (requestId.toString -> reserveRide)
+    //  if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode) {
+    //    val requestId = reserveRide.requestId
+    //    bufferedReserveRideMessages += (requestId.toString -> reserveRide)
         //System.out.println("")
-      } else {
+    //  } else {
         handleReservationRequest(reserveRide)
-      }
+    //  }
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
           requestIdOpt,
@@ -404,12 +404,20 @@ class RideHailManager(
 
       DebugLib.emptyFunctionForSettingBreakPoint()
 
+      val nextMessage= if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
+        rideHailResourceAllocationManager.updateVehicleAllocations(Vector())
 
-      val timerTrigger = BufferedRideHailRequestsTimeout(
-        tick + 30 // TODO: replace with new config variable
-      )
-      val timerMessage = ScheduleTrigger(timerTrigger, this.self)
-      scheduler ! CompletionNotice(triggerId, Vector(timerMessage))
+
+        val timerTrigger = BufferedRideHailRequestsTimeout(
+          tick + 30 // TODO: replace with new config variable
+        )
+        val timerMessage = ScheduleTrigger(timerTrigger, this.self)
+        Vector(timerMessage)
+      } else {
+        Vector()
+      }
+
+      scheduler ! CompletionNotice(triggerId, nextMessage)
 
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
@@ -592,13 +600,13 @@ class RideHailManager(
   }
 
   // Returns Boolean indicating success/failure
-  def findDriverAndSendRoutingRequests(request: RideHailRequest): Boolean = {
+  def findDriverAndSendRoutingRequests(request: RideHailRequest, isInquiry:Boolean): Boolean = {
 
     val vehicleAllocationRequest = VehicleAllocationRequest(
       request.pickUpLocation,
       request.departAt,
       request.destination,
-      isInquiry = true
+      isInquiry = isInquiry
     )
 
     val rideHailLocationOpt =
@@ -871,7 +879,7 @@ class RideHailManager(
       case Some(travelProposal) =>
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
             lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-          if (!findDriverAndSendRoutingRequests(request)) {
+          if (!findDriverAndSendRoutingRequests(request,false)) {
             request.customer.personRef.get ! RideHailResponse(
               request,
               None,
@@ -882,7 +890,7 @@ class RideHailManager(
           handleReservation(request, travelProposal)
         }
       case None =>
-        if (!findDriverAndSendRoutingRequests(request)) {
+        if (!findDriverAndSendRoutingRequests(request,false)) {
           request.customer.personRef.get ! RideHailResponse(
             request,
             None,
