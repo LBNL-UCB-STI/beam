@@ -2,36 +2,30 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.router.BeamRouter.Location
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
-  val isBufferedRideHailAllocationMode = true // TODO: this should be true - change back later!
+  val isBufferedRideHailAllocationMode = true
 
-  // TODO: no nested option returned
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
-    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-
-    rideHailAgentLocation match {
-      case Some(agentLocation) =>
-        Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
-      case None => None
-    }
-
+    // just go with closest request
+    None
   }
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateVehicles(
+  def updateVehicleAllocations(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
+
     /*
     var result = Map[Id[RideHailInquiry], VehicleAllocation]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()

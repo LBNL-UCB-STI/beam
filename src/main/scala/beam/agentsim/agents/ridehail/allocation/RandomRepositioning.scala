@@ -16,7 +16,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     None
   }
 
-  def allocateVehicles(
+  def updateVehicleAllocations(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
     log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")

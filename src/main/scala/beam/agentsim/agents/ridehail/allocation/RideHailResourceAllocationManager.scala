@@ -30,7 +30,7 @@ trait RideHailResourceAllocationManager {
 
   // add assigned and get back new
 
-  def allocateVehicles(
+  def updateVehicleAllocations(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])]
 

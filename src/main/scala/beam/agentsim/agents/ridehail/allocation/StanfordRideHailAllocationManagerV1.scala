@@ -53,7 +53,7 @@ class StanfordRideHailAllocationManagerV1(
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def allocateVehicles(
+  def updateVehicleAllocations(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
     var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()

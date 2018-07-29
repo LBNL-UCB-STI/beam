@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import scala.collection.mutable
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -8,18 +9,26 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
 
   val isBufferedRideHailAllocationMode = false
 
+  val bufferedRideHailRequests=new mutable.Queue[VehicleAllocationRequest]
+
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
+
+    bufferedRideHailRequests += vehicleAllocationRequest
+
     None
   }
 
-// TODO RW/Asif: how to make sure no one ever can call this?
-  def allocateVehicles(
+// TODO RW: remove input parameters
+  def updateVehicleAllocations(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
-    //???
+
+
+
+
+
     allocationsDuringReservation
   }
 
