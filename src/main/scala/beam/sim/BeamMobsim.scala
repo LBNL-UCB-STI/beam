@@ -7,25 +7,12 @@ import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  Props,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -345,7 +332,7 @@ class BeamMobsim @Inject()(
 
         log.info(s"Transit schedule has been initialized")
 
-        scheduleRideHailManagerTimerMessage()
+        scheduleRideHailManagerTimerMessages()
 
         def prepareMemoryLoggingTimerActor(
           timeoutInSeconds: Int,
@@ -405,10 +392,11 @@ class BeamMobsim @Inject()(
             scheduler ! StartSchedule(beamServices.iterationNumber)
         }
 
-        private def scheduleRideHailManagerTimerMessage(): Unit = {
+        private def scheduleRideHailManagerTimerMessages(): Unit = {
           val timerTrigger = RideHailAllocationManagerTimeout(0.0)
           val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
           scheduler ! timerMessage
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0.0),rideHailManager)
           log.info(s"rideHailManagerTimerScheduled")
         }
 
