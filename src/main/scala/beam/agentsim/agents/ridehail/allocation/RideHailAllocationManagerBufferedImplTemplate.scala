@@ -10,19 +10,20 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
-class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
+class RideHailAllocationManagerBufferedImplTemplate(
+    val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = true
 
-  val bufferedRideHailRequests=new mutable.Queue[VehicleAllocationRequest]
+  val bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
 
   def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
 
-    if (!vehicleAllocationRequest.isInquiry){
-      bufferedRideHailRequests+=vehicleAllocationRequest
+    if (!vehicleAllocationRequest.isInquiry) {
+      bufferedRideHailRequests += vehicleAllocationRequest
     }
 
     // just go with closest request
@@ -31,10 +32,10 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
   def updateVehicleAllocations(): Unit = {
 
-    for (vehicleAllocationRequest <-bufferedRideHailRequests){
+    for (vehicleAllocationRequest <- bufferedRideHailRequests) {
 
-      rideHailManager.cleanCurrentPickupAssignment(vehicleAllocationRequest.request)
-
+      rideHailManager.cleanCurrentPickupAssignment(
+        vehicleAllocationRequest.request)
 
       val rideHailLocationOpt = rideHailManager.getClosestIdleRideHailAgent(
         vehicleAllocationRequest.pickUpLocation,
@@ -43,7 +44,9 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
       rideHailLocationOpt match {
         case Some(rhLocation) =>
-          rideHailManager.requestRoutesToCustomerAndDestination(vehicleAllocationRequest.request,rhLocation)
+          rideHailManager.requestRoutesToCustomerAndDestination(
+            vehicleAllocationRequest.request,
+            rhLocation)
           true
         case None =>
           false
@@ -53,15 +56,14 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
       // TODO: push down for clean api (just provide which new allocations to use -
 
-
     }
 
     bufferedRideHailRequests.clear()
 
-
   }
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+      tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailManager.getIdleVehicles.size >= 2) {
       val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, _) = iter.next()
