@@ -38,7 +38,7 @@ public class LoggingUtil {
         appender.start();
         config.addAppender(appender);
 
-        AppenderRef[] refs = new AppenderRef[] { AppenderRef.createAppenderRef(appender.getName(), null, null) };
+        AppenderRef[] refs = new AppenderRef[]{AppenderRef.createAppenderRef(appender.getName(), null, null)};
         Appender asyncAppender = AsyncAppender.newBuilder()
                 .setConfiguration(config)
                 .setName("BeamAsync")
@@ -53,12 +53,13 @@ public class LoggingUtil {
 
     /**
      * Method returns the git commit hash or HEAD if git not present
-     *git rev-parse --abbrev-ref HEAD
+     * git rev-parse --abbrev-ref HEAD
+     *
      * @return returns the git commit hash or HEAD if git not present
      */
     public static String getCommitHash() {
         String resp = readCommandResponse("git rev-parse HEAD");
-        if(resp != null) return resp;
+        if (resp != null) return resp;
         return "HEAD"; //for the env where git is not present
     }
 
@@ -69,7 +70,7 @@ public class LoggingUtil {
      */
     public static String getBranch() {
         String resp = readCommandResponse("git rev-parse --abbrev-ref HEAD");
-        if(resp != null) return resp;
+        if (resp != null) return resp;
         return "master"; //for the env where git is not present
     }
 

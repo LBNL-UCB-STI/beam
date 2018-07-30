@@ -8,10 +8,10 @@ import org.matsim.utils.gis.matsim2esri.network.Links2ESRIShape;
 public class Network2Shapefile {
     public static void main(String[] args) {
         /* input:
-		 * [1] matsim network file you want to convert
-		 * [2] CRS of network
-		 * [3] output network filename
-		 */
+         * [1] matsim network file you want to convert
+         * [2] CRS of network
+         * [3] output network filename
+         */
         Network n = NetworkUtils.createNetwork();
         NetworkReaderMatsimV2 reader = new NetworkReaderMatsimV2(n);
         reader.readFile(args[0]);

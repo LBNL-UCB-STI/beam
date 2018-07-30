@@ -1,7 +1,6 @@
+import pandas as pd
 import re
 from collections import defaultdict
-
-import pandas as pd
 
 
 def find_num_drive_to_transit_agents(df):
@@ -35,7 +34,7 @@ def find_num_drive_to_transit_agents(df):
         # Check if PathTraversal and mode is car (will implicitly pass match
         # check)
         elif row['type'] == 'PathTraversal':
-            pid_from_vid = pat.match(row['vehicle_id'])
+            pid_from_vid = pat.match(row['vehicle'])
             # check if vehicle_id is in our dict already
             if pid_from_vid is not None:
                 pid_match = int(pid_from_vid.group())

@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 
 /**
@@ -46,10 +45,10 @@ import java.util.function.Function;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
 
-    private static PhyssimCalcLinkStats linkStatsGraph;
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static PhyssimCalcLinkStats linkStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -61,7 +60,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private BeamConfig beamConfig;
     private HashMap<String, String> previousActivity = new HashMap<>();
-    private Random rand = MatsimRandom.getRandom(); // TODO: check, if this is better then general random resp. seeded from beam config
+    private Random rand = MatsimRandom.getRandom();
+
+    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -75,9 +76,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         this.controlerIO = controlerIO;
         this.router = router;
         this.beamConfig = beamConfig;
+        this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         agentSimScenario = scenario;
+        agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
-        if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON) {
+        if (agentSimPhysSimInterfaceDebuggerEnabled) {
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
             agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
         }
@@ -126,13 +129,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
-        if(beamConfig.beam().debug().debugEnabled()) {
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
         }
 
         jdeqSimulation.run();
 
-        if(beamConfig.beam().debug().debugEnabled()) {
+        if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
 
@@ -177,7 +180,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     @Override
     public void handleEvent(Event event) {
 
-        if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON) {
+        if (agentSimPhysSimInterfaceDebuggerEnabled) {
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
@@ -196,12 +199,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
             // pathTraversal, a busLine should be filtered out, avoiding jumping busses in visualization (but making traffic flows less precise).
 
-            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble()>beamConfig.beam().physsim().ptSampleSize()){
+            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
             }
 
 
-            if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
+            if (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS)) {
 
                 String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));

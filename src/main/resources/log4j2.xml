@@ -1,3 +1,69 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:a9711d7f1411ba4e6555ff18bc1c0d1e7b13706e20ef60563e054fa787d8f1a6
-size 1735
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration package="log4j.test" status="INFO">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console" level="info"/>
+        </Root>
+        <Logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="com.conveyal.r5" level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="org.reflections" level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="org.matsim" level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="beam.router.r5.R5RoutingWorker " level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="beam.agentsim.agents.PersonAgent" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="beam.agentsim.agents.ridehail" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="beam.agentsim.agents.modalbehaviors.DrivesVehicle" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="beam.agentsim.agents.ridehail.TNCIterationStats" level="debug">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+
+        <Logger name="beam.agentsim.agents.ridehail.allocation.RepositioningLowWaitingTimes" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+
+        <Logger name="beam.agentsim.agents.ridehail.TNCIterationsStatsCollector" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+
+        <Logger name="beam.utils.DebugActorWithTimer" level="error">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!--<Logger name="beam.agentsim.scheduler.BeamAgentScheduler" level="info">
+              <AppenderRef ref="Console"/>
+          </Logger> -->
+        <!--  This has been added, as beam does not always create events.xml but csv instead -->
+        <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF">
+            <AppenderRef ref="Console"/>
+        </Logger>
+    </Loggers>
+</Configuration>

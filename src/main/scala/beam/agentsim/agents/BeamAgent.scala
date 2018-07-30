@@ -3,13 +3,11 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Stash}
+import akka.util
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.agentsim.scheduler.Trigger
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
-
 
 object BeamAgent {
 
@@ -28,7 +26,6 @@ object BeamAgent {
 
 case class InitializeTrigger(tick: Double) extends Trigger
 
-
 trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   val scheduler: ActorRef
@@ -36,15 +33,17 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def id: Id[_]
 
-  protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
 
   onTermination {
-    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), _, _) =>
       reason match {
         case FSM.Shutdown =>
-          log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+          log.error(
+            "Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n"
+          )
         case _ =>
       }
       log.error(event.toString)
@@ -52,9 +51,11 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
   }
 
-  def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
+  def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
-      throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
+      throw new IllegalStateException(
+        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
+      )
 
     _currentTick = Some(tick)
     _currentTriggerId = Some(triggerId)
@@ -102,4 +103,3 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
   }
 
 }
-

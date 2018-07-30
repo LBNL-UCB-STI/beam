@@ -1,6 +1,14 @@
 package beam.sim.akkaguice
 
-import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
+import akka.actor.{
+  ActorRef,
+  ActorSystem,
+  ExtendedActorSystem,
+  Extension,
+  ExtensionId,
+  ExtensionIdProvider,
+  Props
+}
 import com.google.inject.Injector
 
 /**
@@ -21,7 +29,7 @@ class GuiceAkkaExtensionImpl extends Extension {
 object GuiceAkkaExtension extends ExtensionId[GuiceAkkaExtensionImpl] with ExtensionIdProvider {
 
   /** Register ourselves with the ExtensionIdProvider */
-  override def lookup() = GuiceAkkaExtension
+  override def lookup(): GuiceAkkaExtension.type = GuiceAkkaExtension
 
   /** Called by Akka in order to create an instance of the extension. */
   override def createExtension(system: ExtendedActorSystem) = new GuiceAkkaExtensionImpl
@@ -44,6 +52,6 @@ trait NamedActor {
 trait GuiceAkkaActorRefProvider {
   def propsFor(system: ActorSystem, name: String): Props = GuiceAkkaExtension(system).props(name)
 
-  def provideActorRef(system: ActorSystem, name: String): ActorRef = system.actorOf(propsFor(system, name))
+  def provideActorRef(system: ActorSystem, name: String): ActorRef =
+    system.actorOf(propsFor(system, name))
 }
-

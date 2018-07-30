@@ -16,12 +16,12 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 
 public class ModeChosenStats implements IGraphStats, MetricsSupport {
-    private static Set<String> modesChosen = new TreeSet<>();
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "mode_choice.png";
+    private static Set<String> modesChosen = new TreeSet<>();
+    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
 
     @Override
     public void processStats(Event event) {
@@ -42,7 +42,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -130,11 +130,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
+        List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);

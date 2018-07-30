@@ -32,4 +32,5 @@ native/
 .idea/runConfigurations/Run_BEAMVILLE.xml
 .Rapp.history 
 beam-gui/build
+/test/input/sf-light/counts/preprocessing/2015_all/
 gc_*.log

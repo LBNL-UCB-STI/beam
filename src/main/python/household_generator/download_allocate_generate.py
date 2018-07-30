@@ -1,13 +1,12 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import builtins
 
-import logging
 import argparse
+import builtins
 import csv
+import logging
 import os
-
 from doppelganger import (
     inputs,
     Accuracy,
