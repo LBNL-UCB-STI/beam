@@ -1,57 +1,64 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.mutable
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = true
 
+  val bufferedRideHailRequests=new mutable.Queue[VehicleAllocationRequest]
+
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
+
+    if (!vehicleAllocationRequest.isInquiry){
+      bufferedRideHailRequests+=vehicleAllocationRequest
+    }
+
     // just go with closest request
     None
   }
 
-// TODO: should we use normal without break
-  // use lockVehicle
-  def updateVehicleAllocations(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
+  def updateVehicleAllocations(): Unit = {
 
-    DebugLib.emptyFunctionForSettingBreakPoint()
+    for (vehicleAllocationRequest <-bufferedRideHailRequests){
 
-    /*
-    var result = Map[Id[RideHailInquiry], VehicleAllocation]()
-    var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
-    for ((rideHailInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
-      var vehicleAllocation: Option[VehicleAllocation] = None
+      rideHailManager.cleanCurrentPickupAssignment(vehicleAllocationRequest.request)
 
-      breakable {
-        for ((rideHailAgentLocation, distance) <- rideHailManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation, rideHailManager.radius)) {
-          if (!alreadyUsedVehicles.contains(rideHailAgentLocation.vehicleId)) {
-            alreadyUsedVehicles.add(rideHailAgentLocation.vehicleId)
-            vehicleAllocation = Some(VehicleAllocation(rideHailAgentLocation.vehicleId,rideHailAgentLocation.currentLocation))
-            break
-          }
-        }
+
+      val rideHailLocationOpt = rideHailManager.getClosestIdleRideHailAgent(
+        vehicleAllocationRequest.pickUpLocation,
+        rideHailManager.radiusInMeters
+      )
+
+      rideHailLocationOpt match {
+        case Some(rhLocation) =>
+          rideHailManager.requestRoutesToCustomerAndDestination(vehicleAllocationRequest.request,rhLocation)
+          true
+        case None =>
+          false
       }
 
-      vehicleAllocation match {
-        case Some(vehicleAllocation) =>
-          result += (rideHailInquiry -> vehicleAllocation)
-          rideHailManager.lockVehicle(vehicleAllocation.vehicleId)
-        case None => result += (rideHailInquiry -> None)
-      }
+      // TODO: allow to stop currently assigned vehicles
+
+      // TODO: push down for clean api (just provide which new allocations to use -
+
+
     }
-    result
-     */
-    allocationsDuringReservation
+
+    bufferedRideHailRequests.clear()
+
+
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {

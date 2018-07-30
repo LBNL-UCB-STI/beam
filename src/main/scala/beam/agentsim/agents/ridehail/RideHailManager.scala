@@ -11,18 +11,12 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  BeamVehicleFuelLevelUpdate,
-  GetBeamVehicleFuelLevel
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager.{RoutingResponses, _}
-import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.ridehail.allocation.{VehicleAllocation, _}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
@@ -405,7 +399,7 @@ class RideHailManager(
       DebugLib.emptyFunctionForSettingBreakPoint()
 
       val nextMessage= if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
-        rideHailResourceAllocationManager.updateVehicleAllocations(Vector())
+        rideHailResourceAllocationManager.updateVehicleAllocations()
 
 
         val timerTrigger = BufferedRideHailRequestsTimeout(
@@ -599,6 +593,10 @@ class RideHailManager(
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
+
+
+
+
   // Returns Boolean indicating success/failure
   def findDriverAndSendRoutingRequests(request: RideHailRequest, isInquiry:Boolean): Boolean = {
 
@@ -606,7 +604,8 @@ class RideHailManager(
       request.pickUpLocation,
       request.departAt,
       request.destination,
-      isInquiry = isInquiry
+      isInquiry = isInquiry,
+      request
     )
 
     val rideHailLocationOpt =
@@ -915,7 +914,28 @@ class RideHailManager(
     availableRideHailVehicles
   }
 
-  private def requestRoutesToCustomerAndDestination(
+  def cleanCurrentPickupAssignment(request:RideHailRequest)={
+    //vehicleAllocationRequest.request, vehicleId: Id[Vehicle], tick:Double
+
+    val tick=0.0 // TODO: get tick of timeout here
+
+    Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
+      case Some(travelProposal) =>
+        if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
+          lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
+          val rideHailAgent=getRideHailAgent(travelProposal.rideHailAgentLocation.vehicleId)
+          // TODO: this creates friction with the interrupt Id -> go through the passenger schedule manager?
+          rideHailAgent ! Interrupt(Id.create(travelProposal.rideHailAgentLocation.vehicleId.toString, classOf[Interrupt]),tick)
+        } else {
+          // TODO: provide input to caller to change option resp. test this?
+        }
+      case None =>
+      // TODO: provide input to caller to change option resp. test this?
+    }
+
+  }
+
+  def requestRoutesToCustomerAndDestination(
     request: RideHailRequest,
     rideHailLocation: RideHailAgentLocation
   ): Unit = {
