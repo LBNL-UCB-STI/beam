@@ -33,3 +33,4 @@ native/
 .Rapp.history 
 beam-gui/build
 /test/input/sf-light/counts/preprocessing/2015_all/
+gc_*.log
