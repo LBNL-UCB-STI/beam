@@ -59,13 +59,6 @@ object RideHailUtils {
     }
   }
 
-//  def getDistance(linkIds: Seq[Int], transportNetwork: TransportNetwork): Double = {
-//    linkIds.map(linkId => {
-//      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-//      edge.getLengthM
-//    }).sum
-//  }
-
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
     val travelTime = (time: Long, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
