@@ -24,12 +24,7 @@ class RepositioningLowWaitingTimes(
     None
   }
 
-  def updateVehicleAllocations(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
-    allocationsDuringReservation
-  }
+  def updateVehicleAllocations(): Unit = {}
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
     idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],

@@ -53,36 +53,7 @@ class StanfordRideHailAllocationManagerV1(
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def updateVehicleAllocations(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
-    val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
-    for ((vehicleAllocationRequest, _) <- allocationsDuringReservation) {
-      var vehicleAllocation: Option[VehicleAllocation] = None
-
-      breakable {
-        for (rideHailAgentLocation <- rideHailManager.getClosestIdleVehiclesWithinRadius(
-               vehicleAllocationRequest.pickUpLocation,
-               rideHailManager.radiusInMeters
-             )) {
-          if (!alreadyUsedVehicles.contains(rideHailAgentLocation.vehicleId)) {
-            alreadyUsedVehicles.add(rideHailAgentLocation.vehicleId)
-            vehicleAllocation = Some(
-              VehicleAllocation(
-                rideHailAgentLocation.vehicleId,
-                rideHailAgentLocation.currentLocation
-              )
-            )
-            break
-          }
-        }
-      }
-
-      result += ((vehicleAllocationRequest, vehicleAllocation))
-    }
-    result
-  }
+  def updateVehicleAllocations(): Unit = {}
 
   /*
     This method is called periodically, e.g. every 60 seconds to reposition ride hailing vehicles, e.g. towards areas of higher demand

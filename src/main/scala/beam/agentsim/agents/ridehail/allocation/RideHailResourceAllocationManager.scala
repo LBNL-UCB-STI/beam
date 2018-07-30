@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailRequest
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
@@ -30,9 +31,7 @@ trait RideHailResourceAllocationManager {
 
   // add assigned and get back new
 
-  def updateVehicleAllocations(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])]
+  def updateVehicleAllocations(): Unit
 
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)]
 
@@ -52,7 +51,8 @@ case class VehicleAllocationRequest(
   pickUpLocation: Location,
   departAt: BeamTime,
   destination: Location,
-  isInquiry: Boolean
+  isInquiry: Boolean,
+  request: RideHailRequest
 )
 
 // TODO (RW): mention to CS that cost removed from VehicleAllocationResult, as not needed to be returned (RHM default implementation calculates it already)

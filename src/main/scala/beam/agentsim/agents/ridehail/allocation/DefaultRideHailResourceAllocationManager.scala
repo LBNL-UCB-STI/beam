@@ -20,17 +20,7 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
     None
   }
 
-// TODO RW: remove input parameters
-  def updateVehicleAllocations(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-
-
-
-
-
-    allocationsDuringReservation
-  }
+  def updateVehicleAllocations(): Unit = {}
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     Vector()
