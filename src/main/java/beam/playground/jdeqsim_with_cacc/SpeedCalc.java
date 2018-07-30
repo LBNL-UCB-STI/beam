@@ -13,6 +13,7 @@ import scala.Int;
 
 
 import java.util.HashMap;
+import java.util.Set;
 
 import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
 
@@ -31,7 +32,7 @@ public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandl
     // TODO: 5% CACC, Travel time decreased by 2.5%
     // TODO: calculate travel time, Hashmap (key = vehicle ID, value = enter time)
 
-    public double percentCACC() {
+   /* public double percentCACC(Set<String> vehicleIDs) {
         double numCACC = 0;
         double totalVehicles = 100;
         for (Boolean s : isCACCVehicle.values()) {
@@ -42,7 +43,20 @@ public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandl
         }
 
         return (numCACC / totalVehicles) * 100;
+    }*/
+
+    public double percentCACC(Set<String> vehicleIDs) {
+        double numCACC = 0;
+        for (String vehicleID : vehicleIDs) {
+            if (isCACCVehicle.get(vehicleID)) {
+                numCACC++;
+            }
+
+        }
+
+        return (numCACC / vehicleIDs.size()) * 100;
     }
+
 
     public HashMap<String , Integer> travelTimes = new HashMap<>();
 
@@ -76,13 +90,14 @@ public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandl
         if (Integer.parseInt(event.getLinkId().toString()) == 6) {
 
         double timeLeave = Double.parseDouble(event.getAttributes().get(LinkEnterEvent.ATTRIBUTE_TIME));
-        System.out.print("Time Leave " + timeLeave);
+        /*System.out.print("Time Leave " + timeLeave);
         System.out.print(" Vehicle ID " + event.getVehicleId()+ " from ");
         System.out.print("Link ID " + event.getLinkId());
 
         System.out.println(", Travel Time " + (timeLeave - travelTimes.get(event.getVehicleId().toString())));
-        System.out.println(percentCACC()+"%");
-
+        System.out.println(percentCACC(travelTimes.keySet())+"%");
+        travelTimes.remove(event.getVehicleId().toString());*/
+        System.out.println((int) (timeLeave - travelTimes.get(event.getVehicleId().toString())));
 
 
         }
