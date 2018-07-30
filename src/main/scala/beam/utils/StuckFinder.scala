@@ -48,7 +48,7 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
     detectStuckAgents0(ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]])
   }
 
-  private def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
+  def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
     val diff = currentTimeMs - startedAtMs
     val isStuck = diff > stuckAgentDetectionCfg.markAsStuckAfterMs
     if (isStuck) {
