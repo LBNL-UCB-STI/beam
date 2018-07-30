@@ -1,7 +1,9 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
-import java.text.SimpleDateFormat
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.Instant
 
 buildscript {
     repositories {
@@ -467,9 +469,10 @@ mainClassName = "beam.sim.RunBeam"
 def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
 
 def getCurrentTimestamp = {
-    Date today = new Date()
-    SimpleDateFormat df = new SimpleDateFormat("MM-dd-yyyy_HH-mm-ss")
-    return df.format(today)
+    DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
+            .withLocale(Locale.US)
+            .withZone(ZoneOffset.UTC)
+            .format(Instant.now())
 }
 
 def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]

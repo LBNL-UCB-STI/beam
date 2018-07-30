@@ -32,3 +32,4 @@ native/
 .idea/runConfigurations/Run_BEAMVILLE.xml
 .Rapp.history 
 beam-gui/build
+gc_*.log
