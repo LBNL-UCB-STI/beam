@@ -400,9 +400,10 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val defaultVehicleType = JavaConverters
-      .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
-      .head
+    val defaultVehicleType =
+      JavaConverters
+        .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
+        .head
     newVehicles.addVehicleType(defaultVehicleType)
     synthHouseholds foreach (sh => {
 
