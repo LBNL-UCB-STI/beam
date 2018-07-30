@@ -32,7 +32,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
     private static Set<String> iterationTypeSet = new HashSet();
     private static final String graphTitle = "Parking Occupancy Stats";
     private static final String xAxisTitle = "Time";
-    private static final String yAxisTitle = "# occupancy (avg sec) ";
+    private static final String yAxisTitle = "# avg occupancy in sec ";
     private static final String fileName = "average_parking_occupancy";
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -67,6 +67,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
             for (String parking : parkings) {
                 Double time = vehicleOccupancyInParking.get(parking);
                 Integer count = vehicleOccupancyInParkingCount.get(parking);
+
                 if (time != null && count != null) {
                     Double avg = time / count;
                     avgTimeInParking.put(parking, avg);
@@ -115,6 +116,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
     }
 
     private void collectEventsForPendingPark() {
+
         Set<String> vehicleIds = vehicleEnterTime.keySet();
         for (String vehicleId : vehicleIds) {
             Map<String, String> timeInParkingType = vehicleEnterTime.get(vehicleId);
@@ -130,6 +132,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
                         time = 3600;
                     }
                     updateVehicleOccupancyCount(parkingType, i);
+
                     updateVehicleOccupancy(parkingType, time, i);
                 }
             }
@@ -143,7 +146,6 @@ public class AverageVehicleParkingStats implements IGraphStats {
             String vehicleID = event.getAttributes().get(ParkEvent.ATTRIBUTE_VEHICLE_ID);
             String parkingType = event.getAttributes().get(ParkEvent.ATTRIBUTE_PARKING_TYPE);
             String time = event.getAttributes().get(ParkEvent.ATTRIBUTE_TIME);
-
             parkingTypeSet.add(parkingType);
             Map<String, String> parkingTime = new HashMap<>();
             parkingTime.put(parkingType, time);
@@ -157,8 +159,8 @@ public class AverageVehicleParkingStats implements IGraphStats {
             String parkingType = event.getAttributes().get(LeavingParkingEvent.ATTRIBUTE_PARKING_TYPE);
             String leavingTime = event.getAttributes().get(LeavingParkingEvent.ATTRIBUTE_TIME);
             double leavingTimeInDouble = Double.parseDouble(leavingTime);
-
             double parkingTimeInDouble;
+
             Map<String, String> vehicleEnter = vehicleEnterTime.get(vehicleID);
             if (vehicleEnter == null) {
                 parkingTimeInDouble = 0; // this is because this vehicle is leaving from current parking(first event of vehicle)
@@ -168,19 +170,11 @@ public class AverageVehicleParkingStats implements IGraphStats {
             }
 
             int parkingTimeHour = GraphsStatsAgentSimEventsListener.getEventHour(parkingTimeInDouble);
-            int leavingTimeHour = GraphsStatsAgentSimEventsListener.getEventHour(leavingTimeInDouble);
 
-            for (int hour = parkingTimeHour; hour < leavingTimeHour; hour++) {
+            double duration = leavingTimeInDouble - parkingTimeInDouble;
+            updateVehicleOccupancy(parkingType, duration, parkingTimeHour);
+            updateVehicleOccupancyCount(parkingType, parkingTimeHour);
 
-                double occupancyTimeInHour = (hour + 1) * 3600 - parkingTimeInDouble;
-                parkingTimeInDouble = (hour + 1) * 3600;
-                updateVehicleOccupancy(parkingType, occupancyTimeInHour, hour);
-                updateVehicleOccupancyCount(parkingType, hour);
-
-            }
-
-            updateVehicleOccupancy(parkingType, leavingTimeInDouble - leavingTimeHour * 3600, leavingTimeHour);
-            updateVehicleOccupancyCount(parkingType, leavingTimeHour);
             vehicleEnterTime.remove(vehicleID);
         }
     }
