@@ -6,7 +6,7 @@ import java.util
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.utils.scripts.HasXY.wgs2Utm
 import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+//import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.supercsv.io.{CsvMapWriter, ICsvMapWriter}
 import org.supercsv.prefs.CsvPreference
 
@@ -37,12 +37,12 @@ object SiouxFallsConversion extends App {
       val tazToWrite = new util.HashMap[String, Object]()
       tazToWrite.put(header(0), default.id)
 
-      val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
+//      val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
       val transformedCoord: Coord = wgs2Utm.transform(new Coord(default.coordX, default.coordY))
-      val tcoord = utm2Wgs.transform(new Coord(transformedCoord.getX, transformedCoord.getY))
+//      val tcoord = utm2Wgs.transform(new Coord(transformedCoord.getX, transformedCoord.getY))
 
-      tazToWrite.put(header(1), tcoord.getX.toString)
-      tazToWrite.put(header(2), tcoord.getY.toString)
+      tazToWrite.put(header(1), transformedCoord.getX.toString)
+      tazToWrite.put(header(2), transformedCoord.getY.toString)
       mapWriter.write(tazToWrite, header, processors)
 
     } finally {

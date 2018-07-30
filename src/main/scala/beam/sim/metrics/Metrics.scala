@@ -20,8 +20,12 @@ object Metrics {
 
   def setCurrentContext(context: TraceContext): Unit = currentContext = context
 
-  def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
-    "iteration-num" -> s"$iterationNumber")
+  def defaultTags: Map[String, String] =
+    Map(
+      "run-name"        -> runName,
+      "unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
+      "iteration-num"   -> s"$iterationNumber"
+    )
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
 
@@ -37,7 +41,6 @@ object Metrics {
 
     @inline def <(other: MetricLevel): Boolean = asInt < other.asInt
   }
-
 
   /**
     * Metric level in numeric form, used when deciding whether a certain metric
@@ -60,11 +63,11 @@ object Metrics {
     * "short", "regular" and "verbose"
     */
   def levelFor(s: String): Option[MetricLevel] = toRootLowerCase(s) match {
-    case "off" ⇒ Some(OffLevel)
-    case "short" ⇒ Some(ShortLevel)
-    case "regular" ⇒ Some(RegularLevel)
-    case "verbose" ⇒ Some(VerboseLevel)
-    case _ ⇒ None
+    case "off"     => Some(OffLevel)
+    case "short"   => Some(ShortLevel)
+    case "regular" => Some(RegularLevel)
+    case "verbose" => Some(VerboseLevel)
+    case _         => None
   }
 
   /**
