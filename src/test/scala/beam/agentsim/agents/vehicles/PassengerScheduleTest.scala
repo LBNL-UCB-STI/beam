@@ -14,7 +14,13 @@ import org.scalatest.{FunSpecLike, Matchers, _}
 /**
   *
   */
-class PassengerScheduleTest extends TestKit(ActorSystem("testSystem")) with FunSpecLike with BeforeAndAfterAll with Matchers with ImplicitSender with MockitoSugar {
+class PassengerScheduleTest
+    extends TestKit(ActorSystem("testSystem"))
+    with FunSpecLike
+    with BeforeAndAfterAll
+    with Matchers
+    with ImplicitSender
+    with MockitoSugar {
   val services: BeamServices = mock[BeamServices]
 
   describe("A PassengerSchedule") {

@@ -1,6 +1,14 @@
 package beam.sim.akkaguice
 
-import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
+import akka.actor.{
+  ActorRef,
+  ActorSystem,
+  ExtendedActorSystem,
+  Extension,
+  ExtensionId,
+  ExtensionIdProvider,
+  Props
+}
 import com.google.inject.Injector
 
 /**
@@ -44,6 +52,6 @@ trait NamedActor {
 trait GuiceAkkaActorRefProvider {
   def propsFor(system: ActorSystem, name: String): Props = GuiceAkkaExtension(system).props(name)
 
-  def provideActorRef(system: ActorSystem, name: String): ActorRef = system.actorOf(propsFor(system, name))
+  def provideActorRef(system: ActorSystem, name: String): ActorRef =
+    system.actorOf(propsFor(system, name))
 }
-
