@@ -28,9 +28,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     val values: immutable.IndexedSeq[Electric] = findValues
 
-    case object ElectricEnergyConsumptionModelClassname
-        extends Electric
-        with LowerCamelcase
+    case object ElectricEnergyConsumptionModelClassname extends Electric with LowerCamelcase
 
     case object BatteryCapacityInKWh extends Electric with LowerCamelcase
 
@@ -57,9 +55,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     val values: immutable.IndexedSeq[Gasoline] = findValues
 
-    case object GasolineFuelConsumptionRateInJoulesPerMeter
-        extends Gasoline
-        with LowerCamelcase
+    case object GasolineFuelConsumptionRateInJoulesPerMeter extends Gasoline with LowerCamelcase
 
     case object FuelEconomyInKwhPerMile extends Gasoline with LowerCamelcase
 
@@ -85,7 +81,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
   // TODO: don't hardcode... Couldn't these be put into the Enum for [[BeamVehicleType]]?
   object Powertrain {
-    //according to EPA’s annual report 2015
+    //according to EPA's annual report 2015
     val AverageMilesPerGallon = 24.8
 
     def PowertrainFromMilesPerGallon(milesPerGallon: Double): Powertrain =
