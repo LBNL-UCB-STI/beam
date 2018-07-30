@@ -8,11 +8,11 @@ import com.typesafe.config.{Config, ConfigValueFactory}
   * Created by dserdiuk on 11/25/17.
   */
 case class ExperimentRunSandbox(
-  projectRoot: Path,
-  experimentBaseDir: Path,
-  experimentDef: ExperimentDef,
-  experimentRun: ExperimentRun,
-  beamTplConf: Config
+    projectRoot: Path,
+    experimentBaseDir: Path,
+    experimentDef: ExperimentDef,
+    experimentRun: ExperimentRun,
+    beamTplConf: Config
 ) {
   require(Files.exists(experimentBaseDir))
 
@@ -43,15 +43,16 @@ case class ExperimentRunSandbox(
     // beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile
     // beam.outputs.baseOutputDirectory
     val runConfig = (Map(
-      "beam.agentsim.simulationName"               -> "output",
-      "beam.outputs.baseOutputDirectory"           -> beamOutputDir.getParent.toString,
+      "beam.agentsim.simulationName" -> "output",
+      "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
-      "beam.inputDirectory"                        -> experimentDef.getTemplateConfigParentDirAsString
-    ) ++ modeChoiceConfigIfDefined ++ experimentRun.params).foldLeft(beamTplConf) {
-      case (prevConfig, (paramName, paramValue)) =>
-        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-        prevConfig.withValue(paramName, configValue)
-    }
+      "beam.inputDirectory" -> experimentDef.getTemplateConfigParentDirAsString
+    ) ++ modeChoiceConfigIfDefined ++ experimentRun.params)
+      .foldLeft(beamTplConf) {
+        case (prevConfig, (paramName, paramValue)) =>
+          val configValue = ConfigValueFactory.fromAnyRef(paramValue)
+          prevConfig.withValue(paramName, configValue)
+      }
     runConfig
   }
 

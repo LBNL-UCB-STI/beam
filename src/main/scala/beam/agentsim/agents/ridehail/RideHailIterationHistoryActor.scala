@@ -8,7 +8,8 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.core.api.experimental.events.EventsManager
 
 class RideHailIterationHistoryActor(eventsManager: EventsManager,
-                                    beamServices: BeamServices, transportNetwork: TransportNetwork)
+                                    beamServices: BeamServices,
+                                    transportNetwork: TransportNetwork)
     extends Actor {
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
@@ -69,6 +70,11 @@ object RideHailIterationHistoryActor {
 
   case class CollectRideHailStats()
 
-  def props(eventsManager: EventsManager, beamServices: BeamServices, transportNetwork: TransportNetwork) =
-    Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
+  def props(eventsManager: EventsManager,
+            beamServices: BeamServices,
+            transportNetwork: TransportNetwork) =
+    Props(
+      new RideHailIterationHistoryActor(eventsManager,
+                                        beamServices,
+                                        transportNetwork))
 }

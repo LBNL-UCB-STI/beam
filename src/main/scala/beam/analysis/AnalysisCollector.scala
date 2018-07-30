@@ -11,8 +11,8 @@ object AnalysisCollector extends MetricsSupport with LazyLogging {
     data.lastOption match {
       case Some(value) =>
         record("ride-hailing-revenue",
-          ShortLevel,
-          value.asInstanceOf[Double].toLong)
+               ShortLevel,
+               value.asInstanceOf[Double].toLong)
       case None =>
     }
   }

@@ -9,21 +9,35 @@ import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
 
 object Reservation {
-  def nextReservationId: Id[ReservationRequest] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
-    classOf[ReservationRequest])
+  def nextReservationId: Id[ReservationRequest] =
+    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
+              classOf[ReservationRequest])
 }
 
-case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: BeamLeg, arriveAt: BeamLeg,
+case class ReservationRequest(requestId: Id[ReservationRequest],
+                              departFrom: BeamLeg,
+                              arriveAt: BeamLeg,
                               passengerVehiclePersonId: VehiclePersonId)
-object ReservationRequest{
-  def apply(departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehiclePersonId: VehiclePersonId): ReservationRequest =
-    ReservationRequest(Reservation.nextReservationId, departFrom, arriveAt, passengerVehiclePersonId)
+object ReservationRequest {
+  def apply(departFrom: BeamLeg,
+            arriveAt: BeamLeg,
+            passengerVehiclePersonId: VehiclePersonId): ReservationRequest =
+    ReservationRequest(Reservation.nextReservationId,
+                       departFrom,
+                       arriveAt,
+                       passengerVehiclePersonId)
 }
 
-case class ReservationResponse(requestId: Id[ReservationRequest], response: Either[ReservationError, ReserveConfirmInfo], reservedMode: BeamMode)
+case class ReservationResponse(
+    requestId: Id[ReservationRequest],
+    response: Either[ReservationError, ReserveConfirmInfo],
+    reservedMode: BeamMode)
 
-case class ReserveConfirmInfo(departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehiclePersonId: VehiclePersonId,
-                              triggersToSchedule: Vector[ScheduleTrigger] = Vector())
+case class ReserveConfirmInfo(departFrom: BeamLeg,
+                              arriveAt: BeamLeg,
+                              passengerVehiclePersonId: VehiclePersonId,
+                              triggersToSchedule: Vector[ScheduleTrigger] =
+                                Vector())
 
 case object AccessErrorCodes {
 
@@ -38,7 +52,6 @@ case object AccessErrorCodes {
   case object RideHailServiceUnavailableError extends ReservationError {
     override def errorCode: ReservationErrorCode = RideHailNotRequested
   }
-
 
   case object UnknownRideHailReservationError extends ReservationError {
     override def errorCode: ReservationErrorCode = UnknownRideHailReservation
@@ -64,5 +77,3 @@ case object AccessErrorCodes {
     override def errorCode: ReservationErrorCode = ResourceCapacityExhausted
   }
 }
-
-

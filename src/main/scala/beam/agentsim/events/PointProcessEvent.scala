@@ -18,11 +18,13 @@ import scala.collection.immutable
 /**
   * Events that encode vizualization data for beam-viz that take the form of points that display for a specified period of time
   */
-class PointProcessEvent(time: Double, id: Id[Person],
+class PointProcessEvent(time: Double,
+                        id: Id[Person],
                         pointProcessType: PointProcessType,
                         location: Coord,
                         intensity: Double = 1.0)
-  extends Event(time) with HasPersonId {
+    extends Event(time)
+    with HasPersonId {
 
   import beam.agentsim.events.PointProcessEvent._
 
@@ -30,14 +32,17 @@ class PointProcessEvent(time: Double, id: Id[Person],
 
   override def getPersonId: Id[Person] = id
 
-  def createStarBurst(time: Double, location: Coord, intensity: Double): Json = {
+  def createStarBurst(time: Double,
+                      location: Coord,
+                      intensity: Double): Json = {
 
     val jsonBuilder: Map[String, Json] = Map(
       "typ" -> Json.fromString(EVENT_TYPE),
       "kind" -> Json.fromString(PointProcessType.Choice.name),
       "startTime" -> Json.fromLong(time.toLong),
       "shp" -> location.asJson,
-      "attrib" -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> intensity.asJson)))
+      "attrib" -> Json.fromJsonObject(
+        JsonObject.fromMap(Map("val" -> intensity.asJson)))
     )
     Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
   }
@@ -45,7 +50,10 @@ class PointProcessEvent(time: Double, id: Id[Person],
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
-    attr.put(ATTRIBUTE_VIZ_DATA, if (this.pointProcessType.equals(Choice)) createStarBurst(time, location, intensity).noSpaces else "")
+    attr.put(ATTRIBUTE_VIZ_DATA,
+             if (this.pointProcessType.equals(Choice))
+               createStarBurst(time, location, intensity).noSpaces
+             else "")
     attr
   }
 
@@ -61,7 +69,9 @@ object PointProcessEvent {
 
   sealed abstract class PointProcessType(val name: String) extends EnumEntry
 
-  case object PointProcessType extends Enum[PointProcessType] with CirceEnum[PointProcessType] {
+  case object PointProcessType
+      extends Enum[PointProcessType]
+      with CirceEnum[PointProcessType] {
     val values: immutable.IndexedSeq[PointProcessType] = findValues
     case object Choice extends PointProcessType("CHOICE")
 

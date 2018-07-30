@@ -11,10 +11,9 @@ object FormatUtils {
   private val ROUNDING_ERROR = 1e-5
   private val ONE_ROUNDING_ERROR = 1.0 - ROUNDING_ERROR
 
-  class FormatType(
-                              align: String,
-                              fmtStr: String,
-                              roundingError: Double = NO_ROUNDING_ERROR) {
+  class FormatType(align: String,
+                   fmtStr: String,
+                   roundingError: Double = NO_ROUNDING_ERROR) {
     val fmt = new DecimalFormat(fmtStr)
 
     /**
@@ -22,7 +21,8 @@ object FormatUtils {
       *
       * @param x floating point value
       */
-    def toString(x: Double): String = s"${String.format(align, fmt.format(conv(x)))}"
+    def toString(x: Double): String =
+      s"${String.format(align, fmt.format(conv(x)))}"
 
     /**
       * Format an integer value
@@ -45,7 +45,6 @@ object FormatUtils {
       */
     def toString[T](t: T): String = String.format(align, t.toString)
 
-
     /*
      * Applies a rounding error scheme is the
      */
@@ -67,7 +66,8 @@ object FormatUtils {
   /**
     * Short format with rounding error adjustment as 6.0049124 => 6.000
     */
-  final object SHORT_ROUND extends FormatType("%8s", "#,##0.000", ROUNDING_ERROR)
+  final object SHORT_ROUND
+      extends FormatType("%8s", "#,##0.000", ROUNDING_ERROR)
 
   /**
     * Medium format as 6.004912491 => 6.00491
@@ -78,7 +78,5 @@ object FormatUtils {
     * Medium format as 6.004912491 => 6.004913491
     */
   final object LONG extends FormatType("%15s", "#,##0.00000000")
-
-
 
 }

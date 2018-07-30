@@ -31,9 +31,9 @@ object Resource {
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
   case class NotifyResourceIdle(
-    resourceId: Id[_],
-    whenWhere: SpaceTime,
-    passengerSchedule: PassengerSchedule
+      resourceId: Id[_],
+      whenWhere: SpaceTime,
+      passengerSchedule: PassengerSchedule
   )
 
   case class AssignManager(managerRef: ActorRef)
@@ -45,9 +45,9 @@ object Resource {
   * @author dserdiuk, saf
   * @since 7/17/2017
   */
-
 trait Resource[R] extends Identifiable[R] {
-  protected implicit val timeout: Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: Timeout =
+    akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   var manager: Option[ActorRef] = None
 
@@ -58,8 +58,9 @@ trait Resource[R] extends Identifiable[R] {
     * @param e         implicit conversion to the [[Resource]]'s type for the [[Id]]
     * @tparam T Any ID type
     */
-  def checkInResource[T](whenWhere: Option[SpaceTime], executionContext: ExecutionContext)(
-    implicit e: Id[T] => Id[R]
+  def checkInResource[T](whenWhere: Option[SpaceTime],
+                         executionContext: ExecutionContext)(
+      implicit e: Id[T] => Id[R]
   ): Unit = {
     manager match {
       case Some(managerRef) =>
@@ -68,14 +69,17 @@ trait Resource[R] extends Identifiable[R] {
         response.mapTo[CheckInResourceAck].map {
           case CheckInSuccess =>
           case CheckInFailure(msg) =>
-            throw new RuntimeException(s"Resource could not be checked in: $msg")
+            throw new RuntimeException(
+              s"Resource could not be checked in: $msg")
         }
       case None =>
-        throw new RuntimeException(s"Resource manager not defined for resource $getId")
+        throw new RuntimeException(
+          s"Resource manager not defined for resource $getId")
     }
   }
 
-  def registerResource[T](newManager: ActorRef)(implicit e: Id[T] => Id[R]): Unit = {
+  def registerResource[T](newManager: ActorRef)(
+      implicit e: Id[T] => Id[R]): Unit = {
     manager = Some(newManager)
     manager.foreach(_ ! RegisterResource(getId))
   }

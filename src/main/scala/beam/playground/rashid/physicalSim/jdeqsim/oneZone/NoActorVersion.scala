@@ -9,7 +9,7 @@ import org.matsim.core.scenario.ScenarioUtils
 
 object NoActorVersion extends LazyLogging {
 
-  @deprecated ("See beam.agentsim.sim.AgentsimServices", "2.0")
+  @deprecated("See beam.agentsim.sim.AgentsimServices", "2.0")
   def main(args: Array[String]) {
     val config = ConfigUtils.loadConfig(
       "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
@@ -18,20 +18,20 @@ object NoActorVersion extends LazyLogging {
 
     //val eventsManager = EventsUtils.createEventsManager(scenario.getConfig())
     val eventsManager = new EventsManagerImpl()
-    
+
     val countEnterLinkEvents = new CountEnterLinkEvents()
     eventsManager.addHandler(countEnterLinkEvents)
     eventsManager.initProcessing()
 
     val jdeqSimConfigGroup = new JDEQSimConfigGroup()
-    val jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
+    val jdeqSimulation =
+      new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
 
     jdeqSimulation.run()
-    
+
     eventsManager.finishProcessing()
 
     logger.debug(s"${countEnterLinkEvents.getLinkEnterCount}")
   }
-  
-  
-} 
+
+}

@@ -9,30 +9,48 @@ import scala.util.Try
 object TazOutput {
 
   //Output structure
-  case class TazGeometry(`type`: String, coordinates: Array[Array[Array[Array[Double]]]])
-  case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: String)
+  case class TazGeometry(`type`: String,
+                         coordinates: Array[Array[Array[Array[Double]]]])
+  case class TazViz(gid: Long,
+                    taz: Long,
+                    nhood: String,
+                    sq_mile: Double,
+                    geometry: String)
 
   //Structure for in memory processing
   case class Coordinates(lat: Double, lon: Double)
   case class Geometry(`type`: String, coordinates: Array[Coordinates])
-  case class TazStructure(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: Geometry)
+  case class TazStructure(gid: Long,
+                          taz: Long,
+                          nhood: String,
+                          sq_mile: Double,
+                          geometry: Geometry)
 
   //Structure for statistics
-  case class TazStats(taz: Long, day_of_week: Int, time: String, dropoffs: Double, pickups: Double)
-  case class TazStatsTotals(taz: Long, day_of_week: Int, dropoffs: Double, pickups: Double)
+  case class TazStats(taz: Long,
+                      day_of_week: Int,
+                      time: String,
+                      dropoffs: Double,
+                      pickups: Double)
+  case class TazStatsTotals(taz: Long,
+                            day_of_week: Int,
+                            dropoffs: Double,
+                            pickups: Double)
 
-  implicit val tazGeometryWrites: OFormat[TazGeometry] = Json.format[TazGeometry]
+  implicit val tazGeometryWrites: OFormat[TazGeometry] =
+    Json.format[TazGeometry]
   implicit val tazVizWrites: OFormat[TazViz] = Json.format[TazViz]
 
   implicit val tazStatsFormat: OFormat[TazStats] = Json.format[TazStats]
-  implicit val tazStatsTotalsFormat: OFormat[TazStatsTotals] = Json.format[TazStatsTotals]
+  implicit val tazStatsTotalsFormat: OFormat[TazStatsTotals] =
+    Json.format[TazStatsTotals]
 }
 
 //Converter from https://data.sfgov.org/Geographic-Locations-and-Boundaries/Traffic-Analysis-Zones/j4sj-j2nf/data#revert
 // to expected format for https://github.com/sfcta/tncstoday
-object SfGovTazConverter extends App{
+object SfGovTazConverter extends App {
 
-import TazOutput._
+  import TazOutput._
 
   //Input structure
   case class Properties(area: String, name: String, taz: String)
@@ -49,7 +67,8 @@ import TazOutput._
         val properties = (featureJson \ "properties").validate[Properties].get
         val geometryJson = featureJson \ "geometry"
         val _type = (geometryJson \ "type").as[String]
-        val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
+        val coordinatesArray =
+          (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
 
         val coordinates = coordinatesArray.value.map { coordinatesItem =>
           val coordinatesJson = coordinatesItem.as[JsArray]
@@ -73,23 +92,29 @@ import TazOutput._
   println(s"Taz Converter")
 
   def parseArgs() = {
-    args.sliding(2, 1).toList.collect {
-      case Array("--input", inputName: String) if inputName.trim.nonEmpty => ("input", inputName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+    args
+      .sliding(2, 1)
+      .toList
+      .collect {
+        case Array("--input", inputName: String) if inputName.trim.nonEmpty =>
+          ("input", inputName)
+        //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
+        case arg @ _ => throw new IllegalArgumentException(arg.mkString(" "))
+      }
+      .toMap
   }
 
   val argsMap = parseArgs()
 
   val inputFilePath = argsMap.get("input")
-  val mContent = inputFilePath.map{p =>
+  val mContent = inputFilePath.map { p =>
     val source = scala.io.Source.fromFile(p, "UTF-8")
-    val lines = try source.mkString finally source.close()
+    val lines = try source.mkString
+    finally source.close()
     lines
   }
 
-  mContent.map {s =>
+  mContent.map { s =>
     val res = Json.parse(s)
     val featuresRes = res.validate[Seq[Features]].get
 

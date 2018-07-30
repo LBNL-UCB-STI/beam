@@ -1,6 +1,10 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
+import beam.agentsim.agents.choice.logit.UtilityParam.{
+  Intercept,
+  Multiplier,
+  UtilityParamType
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
@@ -11,23 +15,28 @@ import scala.util.Random
 /**
   * BEAM
   */
-case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) extends LazyLogging {
+case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams])
+    extends LazyLogging {
 
-  def sampleAlternative(alternatives: Vector[AlternativeAttributes], random: Random): Option[String] = {
+  def sampleAlternative(alternatives: Vector[AlternativeAttributes],
+                        random: Random): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
-    val indsOfPosInf = for(theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity) yield theExpV._2
-    if(indsOfPosInf.nonEmpty){
+    val indsOfPosInf = for (theExpV <- expV.zipWithIndex
+                            if theExpV._1 == Double.PositiveInfinity)
+      yield theExpV._2
+    if (indsOfPosInf.nonEmpty) {
       // Take the first
       Some(alternatives(indsOfPosInf.head).alternativeName)
-    }else{
+    } else {
       val sumExpV = expV.sum
       val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
       val randDraw = random.nextDouble()
-      val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
-      if(idxAboveDraw.isEmpty){
+      val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw)
+        yield prob._2
+      if (idxAboveDraw.isEmpty) {
         None
-      }else{
+      } else {
         val chosenIdx = idxAboveDraw.head - 1
         Some(alternatives(chosenIdx).alternativeName)
       }
@@ -35,46 +44,59 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) ex
   }
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
-    val util = if(!alternativeParams.contains(alternative.alternativeName)){
+    val util = if (!alternativeParams.contains(alternative.alternativeName)) {
       Double.NegativeInfinity
-    }else{
-      (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
-        if(alternative.attributes.contains(theParam._1)){
-          theParam._2.paramType match {
-            case Multiplier =>
-              theParam._2.paramValue * alternative.attributes(theParam._1)
-            case Intercept =>
-              theParam._2.paramValue
+    } else {
+      (alternativeParams
+        .getOrElse("COMMON", AlternativeParams.empty)
+        .params ++ alternativeParams(alternative.alternativeName).params)
+        .map { theParam =>
+          if (alternative.attributes.contains(theParam._1)) {
+            theParam._2.paramType match {
+              case Multiplier =>
+                theParam._2.paramValue * alternative.attributes(theParam._1)
+              case Intercept =>
+                theParam._2.paramValue
+            }
+          } else if (theParam._1.equalsIgnoreCase("intercept") || theParam._1
+                       .equalsIgnoreCase("asc")) {
+            theParam._2.paramValue
+          } else {
+            Double.NaN
           }
-        }else if(theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase("asc")){
-          theParam._2.paramValue
-        }else{
-          Double.NaN
         }
-      }.toVector.sum
+        .toVector
+        .sum
     }
 
     util
   }
 
-  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
+  def getExpectedMaximumUtility(
+      alternatives: Vector[AlternativeAttributes]): Double = {
 //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+    val util = Math.log(
+      alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
 //    if(util == Double.NaN){
 //      val i = 0
 //    }
     util
   }
 }
-object MultinomialLogit{
+object MultinomialLogit {
   def apply(theData: IndexedSeq[MnlData]): MultinomialLogit = {
-    val theParams = theData.groupBy(_.alternative).map{ mnlData =>
+    val theParams = theData.groupBy(_.alternative).map { mnlData =>
       mnlData._1 -> mnlData._2.map { paramData =>
-        UtilityParam(paramData.paramName, paramData.paramValue, UtilityParam.StringToUtilityParamType(paramData.paramType))
+        UtilityParam(paramData.paramName,
+                     paramData.paramValue,
+                     UtilityParam.StringToUtilityParamType(paramData.paramType))
       }
     }
-    MultinomialLogit(theParams.map { case (altName, utilParams) =>
-      altName -> AlternativeParams(altName, utilParams.map(utilParam => utilParam.paramName -> utilParam).toMap)
+    MultinomialLogit(theParams.map {
+      case (altName, utilParams) =>
+        altName -> AlternativeParams(
+          altName,
+          utilParams.map(utilParam => utilParam.paramName -> utilParam).toMap)
     })
   }
 
@@ -83,8 +105,9 @@ object MultinomialLogit{
       @BeanProperty var paramName: String = "",
       @BeanProperty var paramType: String = "",
       @BeanProperty var paramValue: Double = Double.NaN
-      ) extends Cloneable {
-    override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
+  ) extends Cloneable {
+    override def clone(): AnyRef =
+      new MnlData(alternative, paramName, paramType, paramValue)
   }
   import org.supercsv.cellprocessor.ift.CellProcessor
 
@@ -99,14 +122,18 @@ object MultinomialLogit{
 }
 
 // Params for model
-case class AlternativeParams(alternativeName: String, params: Map[String,UtilityParam])
-object AlternativeParams{
-  def empty: AlternativeParams = AlternativeParams("",Map())
+case class AlternativeParams(alternativeName: String,
+                             params: Map[String, UtilityParam])
+object AlternativeParams {
+  def empty: AlternativeParams = AlternativeParams("", Map())
 }
-case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
+case class UtilityParam(paramName: String,
+                        paramValue: Double,
+                        paramType: UtilityParamType)
 
 // Alternative attributes
-case class AlternativeAttributes(alternativeName: String, attributes: Map[String,Double])
+case class AlternativeAttributes(alternativeName: String,
+                                 attributes: Map[String, Double])
 
 object UtilityParam {
   sealed trait UtilityParamType

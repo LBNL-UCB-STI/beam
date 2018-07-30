@@ -8,8 +8,11 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
-class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
+class TollPriceSpec
+    extends WordSpecLike
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing tollPrice value" must {
     "create less entries for mode choice car as value increases" in {
@@ -22,7 +25,8 @@ class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with Inte
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.tollPrice",
+                         ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 

@@ -20,19 +20,20 @@ class Modeling {
   }
 
   object TourPurpose {
-    private def inferTourPurposeFromAP(activityPattern: String): Option[TourPurpose] = {
+    private def inferTourPurposeFromAP(
+        activityPattern: String): Option[TourPurpose] = {
       activityPattern match {
         case "HWH" | "HWOH" => Some(Mandatory(activityPattern))
-        case "WOW" => Some(NonMandatory(activityPattern))
-        case _ => None
+        case "WOW"          => Some(NonMandatory(activityPattern))
+        case _              => None
       }
     }
   }
 
   case class Mandatory(override val activityPattern: String) extends TourPurpose
 
-  case class NonMandatory(override val activityPattern: String) extends TourPurpose
-
+  case class NonMandatory(override val activityPattern: String)
+      extends TourPurpose
 
   trait Alternative[A] {
     def alternativeId(t: A): Id[A]
@@ -44,16 +45,14 @@ class Modeling {
     def hasDriving(t: A): Boolean
   }
 
-  trait ChoiceSetBuilder[A,N]
+  trait ChoiceSetBuilder[A, N]
 
-  trait Nest[A,N]
-
+  trait Nest[A, N]
 
   import common._
 
   trait UtilityComputation[A] {
     def computeUtility(t: A): Utils
   }
-
 
 }

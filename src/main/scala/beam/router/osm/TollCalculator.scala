@@ -10,7 +10,6 @@ import com.conveyal.osmlib.{OSM, Way}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-
 class TollCalculator(val directory: String) {
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
@@ -19,7 +18,9 @@ class TollCalculator(val directory: String) {
     * agencies is a Map of FareRule by agencyId
     */
   val ways: mutable.Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
-    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[mutable.Map[java.lang.Long, Toll]]
+    new ObjectInputStream(new FileInputStream(cacheFile))
+      .readObject()
+      .asInstanceOf[mutable.Map[java.lang.Long, Toll]]
   } else {
     val ways = fromDirectory(dataDirectory)
     val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
@@ -50,7 +51,13 @@ class TollCalculator(val directory: String) {
     }
 
     def readTolls(osm: OSM) = {
-      val ways = osm.ways.asScala.filter(ns => ns._2.tags != null && ns._2.tags.asScala.exists(t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
+      val ways =
+        osm.ways.asScala
+          .filter(
+            ns =>
+              ns._2.tags != null && ns._2.tags.asScala.exists(t =>
+                (t.key == "toll" && t.value != "no") || t.key.startsWith(
+                  "toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
       //osm.nodes.values().asScala.filter(ns => ns.tags != null && ns.tags.size() > 1 && ns.tags.asScala.exists(t => (t.key == "fee" && t.value == "yes") || t.key == "charge") && ns.tags.asScala.exists(t => t.key == "toll" || (t.key == "barrier" && t.value == "toll_booth")))
       ways.map(w => (w._1, wayToToll(w._2)))
     }
@@ -60,11 +67,15 @@ class TollCalculator(val directory: String) {
     }
 
     def tagToChange(tag: Option[Tag]) = {
-      Charge(tag.getOrElse(new Tag("","")).value)
+      Charge(tag.getOrElse(new Tag("", "")).value)
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM)
+      directory.toFile
+        .listFiles(hasOSM(_))
+        .map(_.getAbsolutePath)
+        .headOption
+        .foreach(loadOSM)
     }
 
     ways
@@ -72,7 +83,10 @@ class TollCalculator(val directory: String) {
 
   def calcToll(osmIds: Vector[Long]): Double = {
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
-    ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
+    ways
+      .filter(w => osmIds.contains(w._1))
+      .map(_._2.charges.map(_.amount).sum)
+      .sum
   }
 
   def main(args: Array[String]): Unit = {
@@ -96,24 +110,34 @@ object TollCalculator {
 
   object Charge {
     def apply(charge: String): Vector[Charge] = {
-      charge.split(";").map(c => {
-        val tokens = c.split(" ")
-        val tts = tokens.length
-        if (tts >= 2) {
-          val sfxTokens = tokens(tts - 1).split("/")
+      charge
+        .split(";")
+        .map(c => {
+          val tokens = c.split(" ")
+          val tts = tokens.length
+          if (tts >= 2) {
+            val sfxTokens = tokens(tts - 1).split("/")
 
-          new Charge(tokens(tts - 2).toDouble,
-            sfxTokens(0),
-            sfxTokens(1),
-            if (sfxTokens.length == 3) Option(sfxTokens(2)) else None,
-            tts match {
-              case 2 => Vector()
-              case 3 => Vector(ChargeDate.apply(tokens(0)))
-              case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
-              case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
-            })
-        } else empty
-      }).toVector
+            new Charge(
+              tokens(tts - 2).toDouble,
+              sfxTokens(0),
+              sfxTokens(1),
+              if (sfxTokens.length == 3) Option(sfxTokens(2)) else None,
+              tts match {
+                case 2 => Vector()
+                case 3 => Vector(ChargeDate.apply(tokens(0)))
+                case 4 =>
+                  Vector(ChargeDate.apply(tokens(0)),
+                         ChargeDate.apply(tokens(1)))
+                case 5 =>
+                  Vector(ChargeDate.apply(tokens(0)),
+                         ChargeDate.apply(tokens(1)),
+                         ChargeDate.apply(tokens(2)))
+              }
+            )
+          } else empty
+        })
+        .toVector
     }
 
     def empty: Charge = {
@@ -126,12 +150,27 @@ object TollCalculator {
     val on: String
   }
 
-  case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
+  case class DiscreteDate(override val dType: String, override val on: String)
+      extends ChargeDate
 
-  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
+  case class DateRange(override val dType: String,
+                       override val on: String,
+                       till: String)
+      extends ChargeDate
 
   object ChargeDate {
-    private val months = Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    private val months = Set("jan",
+                             "feb",
+                             "mar",
+                             "apr",
+                             "may",
+                             "jun",
+                             "jul",
+                             "aug",
+                             "sep",
+                             "oct",
+                             "nov",
+                             "dec")
     private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
     private val events = Set("dawn", "sunrise", "sunset", "dusk")
 
@@ -146,13 +185,15 @@ object TollCalculator {
       } else {
         "y"
       }
-      if (dateTokens.length == 1) DiscreteDate(dType, dateTokens(0)) else DateRange(dType, dateTokens(0), dateTokens(1))
+      if (dateTokens.length == 1) DiscreteDate(dType, dateTokens(0))
+      else DateRange(dType, dateTokens(0), dateTokens(1))
     }
 
     def isMonth(m: String): Boolean = months.contains(m.toLowerCase)
 
     def isDay(d: String): Boolean = days.contains(d.toLowerCase)
 
-    def isHour(h: String): Boolean = h.contains(":") || events.exists(h.contains)
+    def isHour(h: String): Boolean =
+      h.contains(":") || events.exists(h.contains)
   }
 }

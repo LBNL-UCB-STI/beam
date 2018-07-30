@@ -14,15 +14,22 @@ object JsonUtils {
 
   // Put global implicit encoders here. Can import wholesale in implementing code.
   object syntax {
-    implicit val encodeCoord: Encoder[Coord]=(a:Coord)=>{
-      Json.fromValues(Seq(Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX,5)),Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY,5))))
+    implicit val encodeCoord: Encoder[Coord] = (a: Coord) => {
+      Json.fromValues(
+        Seq(Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX, 5)),
+            Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY, 5))))
     }
   }
 
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {
     val xml = XML.load(IOUtils.getInputStream(inFile))
     val events = xml \\ "events" \ "event"
-    val out = for {event <- events if (event.attribute("type").get.toString() == "pathTraversal" | event.attribute("type").get.toString() == "pointProcess")&&event.attribute("viz_data").isDefined
+    val out = for {
+      event <- events
+      if (event.attribute("type").get.toString() == "pathTraversal" | event
+        .attribute("type")
+        .get
+        .toString() == "pointProcess") && event.attribute("viz_data").isDefined
     } yield event.attribute("viz_data").get.toString().replace("&quot;", "\"")
     val jsonOutString = out.mkString("\n[", ",\n", "]\n")
     val writer = IOUtils.getBufferedWriter(outFile)

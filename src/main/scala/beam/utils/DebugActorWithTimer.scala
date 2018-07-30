@@ -4,7 +4,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.ridehail.RideHailManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.scheduler.BeamAgentScheduler.Monitor
 
-class DebugActorWithTimer(val rideHailManager: ActorRef, val scheduler: ActorRef)
+class DebugActorWithTimer(val rideHailManager: ActorRef,
+                          val scheduler: ActorRef)
     extends Actor
     with ActorLogging {
 

@@ -19,13 +19,18 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(mode: BeamMode,
+                cost: Double,
+                time: Double,
+                numTransfers: Int = 0): Double
 
-  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
+  final def chooseRandomAlternativeIndex(
+      alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
     } else {
-      throw new IllegalArgumentException("Cannot choose from an empty choice set.")
+      throw new IllegalArgumentException(
+        "Cannot choose from an empty choice set.")
     }
   }
 }
@@ -33,8 +38,8 @@ trait ModeChoiceCalculator extends HasServices {
 object ModeChoiceCalculator {
 
   def apply(
-    classname: String,
-    beamServices: BeamServices
+      classname: String,
+      beamServices: BeamServices
   ): AttributesOfIndividual => ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
@@ -47,7 +52,8 @@ object ModeChoiceCalculator {
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)
               )
             case _ =>
-              throw new RuntimeException("LCCM needs people to have modality styles")
+              throw new RuntimeException(
+                "LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
         (_) =>

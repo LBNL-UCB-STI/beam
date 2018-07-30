@@ -1,6 +1,5 @@
 package json.converter
 
-
 import java.io.PrintWriter
 
 import play.api.libs.json._
@@ -9,7 +8,7 @@ import scala.util.Try
 
 //Converter from https://geo.nyu.edu/catalog/stanford-hq850hh1120 to expected format for
 // https://github.com/sfcta/tncstoday
-object NyuDataTazConverter extends App{
+object NyuDataTazConverter extends App {
 
   import TazOutput._
 
@@ -28,7 +27,12 @@ object NyuDataTazConverter extends App{
         val properties = (featureJson \ "properties").validate[Properties].get
         val geometryJson = featureJson \ "geometry"
         val _type = (geometryJson \ "type").as[String]
-        val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray].apply(0).as[JsArray]
+        val coordinatesArray = (geometryJson \ "coordinates")
+          .as[JsArray]
+          .apply(0)
+          .as[JsArray]
+          .apply(0)
+          .as[JsArray]
 
         println(s"-----------Size ${coordinatesArray.value.size}")
 
@@ -54,23 +58,29 @@ object NyuDataTazConverter extends App{
   println(s"Taz Converter")
 
   def parseArgs() = {
-    args.sliding(2, 1).toList.collect {
-      case Array("--input", inputName: String) if inputName.trim.nonEmpty => ("input", inputName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+    args
+      .sliding(2, 1)
+      .toList
+      .collect {
+        case Array("--input", inputName: String) if inputName.trim.nonEmpty =>
+          ("input", inputName)
+        //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
+        case arg @ _ => throw new IllegalArgumentException(arg.mkString(" "))
+      }
+      .toMap
   }
 
   val argsMap = parseArgs()
 
   val inputFilePath = argsMap.get("input")
-  val mContent = inputFilePath.map{p =>
+  val mContent = inputFilePath.map { p =>
     val source = scala.io.Source.fromFile(p, "UTF-8")
-    val lines = try source.mkString finally source.close()
+    val lines = try source.mkString
+    finally source.close()
     lines
   }
 
-  mContent.map {s =>
+  mContent.map { s =>
     val res = Json.parse(s)
     val featuresRes = res.validate[Seq[Features]].get
 

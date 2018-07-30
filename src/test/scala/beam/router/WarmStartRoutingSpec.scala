@@ -35,12 +35,15 @@ class WarmStartRoutingSpec
       ActorSystem(
         "router-test",
         testConfig("test/input/beamville/beam.conf")
-          .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-          .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
+          .withValue("beam.warmStart.enabled",
+                     ConfigValueFactory.fromAnyRef(true))
+          .withValue("beam.warmStart.pathType",
+                     ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
-              .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+              .fromAnyRef(
+                "test/input/beamville/test-data/beamville.linkstats.csv.gz")
           )
       )
     )

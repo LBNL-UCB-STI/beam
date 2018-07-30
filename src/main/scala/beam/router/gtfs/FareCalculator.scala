@@ -19,7 +19,9 @@ class FareCalculator(directory: String) {
 
   private def loadBeamFares = {
     if (cacheFile.exists()) {
-      new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[String, Vector[BeamFareRule]]]
+      new ObjectInputStream(new FileInputStream(cacheFile))
+        .readObject()
+        .asInstanceOf[Map[String, Vector[BeamFareRule]]]
     } else {
       val agencies = fromDirectory(dataDirectory)
       val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
@@ -34,7 +36,8 @@ class FareCalculator(directory: String) {
     *
     * @param directory Path of the directory that contains gtfs files to load
     */
-  private def fromDirectory(directory: Path): Map[String, Vector[BeamFareRule]] = {
+  private def fromDirectory(
+      directory: Path): Map[String, Vector[BeamFareRule]] = {
 
     var agencies: Map[String, Vector[BeamFareRule]] = Map()
 
@@ -71,11 +74,24 @@ class FareCalculator(directory: String) {
 
       feed.fares.forEach((id, fare) => {
         val attr = fare.fare_attribute
-        fares += (id -> BeamFare(attr.fare_id, attr.price, attr.currency_type, attr.payment_method, if (attr.transfer_duration > 0 && attr.transfers == 0) Int.MaxValue else attr.transfers, attr.transfer_duration))
+        fares += (id -> BeamFare(
+          attr.fare_id,
+          attr.price,
+          attr.currency_type,
+          attr.payment_method,
+          if (attr.transfer_duration > 0 && attr.transfers == 0) Int.MaxValue
+          else attr.transfers,
+          attr.transfer_duration
+        ))
 
         fare.fare_rules.forEach(r => {
 
-          val rule: BeamFareRule = BeamFareRule(fares.get(r.fare_id).head, agencyId, r.route_id, r.origin_id, r.destination_id, r.contains_id)
+          val rule: BeamFareRule = BeamFareRule(fares.get(r.fare_id).head,
+                                                agencyId,
+                                                r.route_id,
+                                                r.origin_id,
+                                                r.destination_id,
+                                                r.contains_id)
 
           if (r.route_id == null) {
             agencyRules = agencyRules :+ rule
@@ -89,34 +105,56 @@ class FareCalculator(directory: String) {
       })
 
       feed.agency.forEach((id, _) => {
-        feed.routes.values().stream().filter(_.agency_id == id).forEach(route => {
-          agencyRules ++= routes.getOrElse(route.route_id, Vector())
-        })
+        feed.routes
+          .values()
+          .stream()
+          .filter(_.agency_id == id)
+          .forEach(route => {
+            agencyRules ++= routes.getOrElse(route.route_id, Vector())
+          })
         agencies += id -> agencyRules
       })
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasFares(_)).map(_.getAbsolutePath).foreach(p => {
-        val feed = GTFSFeed.fromFile(p)
-        loadFares(feed)
-        feed.close()
-      })
+      directory.toFile
+        .listFiles(hasFares(_))
+        .map(_.getAbsolutePath)
+        .foreach(p => {
+          val feed = GTFSFeed.fromFile(p)
+          loadFares(feed)
+          feed.close()
+        })
     }
 
     agencies
   }
 
-  def getFareSegments(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Vector[BeamFareSegment] = {
-    val _containsIds = if (containsIds == null || containsIds.isEmpty) Set(fromId, toId) else containsIds
+  def getFareSegments(
+      agencyId: String,
+      routeId: String,
+      fromId: String,
+      toId: String,
+      containsIds: Set[String] = null): Vector[BeamFareSegment] = {
+    val _containsIds =
+      if (containsIds == null || containsIds.isEmpty) Set(fromId, toId)
+      else containsIds
 
-    val rules = agencies.getOrElse(agencyId, Vector()).partition(_.containsId == null)
+    val rules =
+      agencies.getOrElse(agencyId, Vector()).partition(_.containsId == null)
 
     (rules._1.filter(baseRule(_, routeId, fromId, toId)) ++
-      rules._2.groupBy(_.fare).filter(containsRule(_, routeId, _containsIds)).map(_._2.last)).map(f => BeamFareSegment(f.fare, agencyId))
+      rules._2
+        .groupBy(_.fare)
+        .filter(containsRule(_, routeId, _containsIds))
+        .map(_._2.last)).map(f => BeamFareSegment(f.fare, agencyId))
   }
 
-  def calcFare(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Double = {
+  def calcFare(agencyId: String,
+               routeId: String,
+               fromId: String,
+               toId: String,
+               containsIds: Set[String] = null): Double = {
     sumFares(getFareSegments(agencyId, routeId, fromId, toId, containsIds))
   }
 }
@@ -183,25 +221,41 @@ object FareCalculator {
                              segmentDuration: Long)
 
   object BeamFareSegment {
-    def apply(fare: BeamFare, agencyId: String): BeamFareSegment = new BeamFareSegment(fare, agencyId, 0, 0)
+    def apply(fare: BeamFare, agencyId: String): BeamFareSegment =
+      new BeamFareSegment(fare, agencyId, 0, 0)
 
-    def apply(fareSegment: BeamFareSegment, patternIndex: Int, segmentDuration: Long): BeamFareSegment = new BeamFareSegment(fareSegment.fare, fareSegment.agencyId, patternIndex, segmentDuration)
+    def apply(fareSegment: BeamFareSegment,
+              patternIndex: Int,
+              segmentDuration: Long): BeamFareSegment =
+      new BeamFareSegment(fareSegment.fare,
+                          fareSegment.agencyId,
+                          patternIndex,
+                          segmentDuration)
 
-    def apply(fareSegment: BeamFareSegment, segmentDuration: Long): BeamFareSegment = new BeamFareSegment(fareSegment.fare, fareSegment.agencyId, fareSegment.patternIndex, segmentDuration)
+    def apply(fareSegment: BeamFareSegment,
+              segmentDuration: Long): BeamFareSegment =
+      new BeamFareSegment(fareSegment.fare,
+                          fareSegment.agencyId,
+                          fareSegment.patternIndex,
+                          segmentDuration)
   }
-
 
   //  lazy val containRules = agencies.map(a => a._1 -> a._2.filter(r => r.containsId != null).groupBy(_.fare))
 
   // Fare depends on which route the itinerary uses AND Fare depends on origin or destination stations
   // BUT Fare depends on which zones the itinerary passes through, is group rule and apply separately
-  private def baseRule(r: BeamFareRule, routeId: String, fromId: String, toId: String): Boolean =
+  private def baseRule(r: BeamFareRule,
+                       routeId: String,
+                       fromId: String,
+                       toId: String): Boolean =
     (r.routeId == routeId || r.routeId == null) &&
       (r.originId == fromId || r.originId == null) &&
       (r.destinationId == toId || r.destinationId == null)
 
   //Fare depends on which zones the itinerary passes through
-  private def containsRule(t: (BeamFare, Vector[BeamFareRule]), routeId: String, containsIds: Set[String]) =
+  private def containsRule(t: (BeamFare, Vector[BeamFareRule]),
+                           routeId: String,
+                           containsIds: Set[String]) =
     t._2.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
       t._2.map(_.containsId).toSet.equals(containsIds)
 
@@ -212,7 +266,8 @@ object FareCalculator {
     * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
     * @return collection of @BeamFareSegment for an itinerary after applying transfer rules
     */
-  def filterFaresOnTransfers(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+  def filterFaresOnTransfers(
+      fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
 
     /**
       * Apply filter on fare segments, agency by agency in order
@@ -220,14 +275,17 @@ object FareCalculator {
       * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
       * @return a resultant collection of @BeamFareSegment
       */
-    def groupFaresByAgencyAndProceed(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+    def groupFaresByAgencyAndProceed(
+        fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
       if (fareSegments.isEmpty)
         Vector()
       else {
-        val agencyRules = fareSegments.span(_.agencyId == fareSegments.head.agencyId)
+        val agencyRules =
+          fareSegments.span(_.agencyId == fareSegments.head.agencyId)
         // for first agency fare/rules start filter iteration
         // and for rest of fares continue grouping and processing
-        iterateTransfers(agencyRules._1) ++ groupFaresByAgencyAndProceed(agencyRules._2)
+        iterateTransfers(agencyRules._1) ++ groupFaresByAgencyAndProceed(
+          agencyRules._2)
       }
     }
 
@@ -238,7 +296,8 @@ object FareCalculator {
       * @param trans transfer number under processing
       * @return processed collection of @BeamFareSegment
       */
-    def iterateTransfers(fareSegments: Vector[BeamFareSegment], trans: Int = 0): Vector[BeamFareSegment] = {
+    def iterateTransfers(fareSegments: Vector[BeamFareSegment],
+                         trans: Int = 0): Vector[BeamFareSegment] = {
 
       /**
         * Generate a next transfer number /option
@@ -251,25 +310,36 @@ object FareCalculator {
         *
         * @return next transfer option
         */
-      def next: Int = if (trans == Int.MaxValue) 0 else trans match {
-        case 0 | 1 => trans + 1
-        case 2 => Int.MaxValue
-        case _ => 0
-      }
+      def next: Int =
+        if (trans == Int.MaxValue) 0
+        else
+          trans match {
+            case 0 | 1 => trans + 1
+            case 2     => Int.MaxValue
+            case _     => 0
+          }
 
       /**
         * Apply transfer rules on fare segments
         * @param lhs takes fare segments
         * @return
         */
-      def applyTransferRules(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+      def applyTransferRules(
+          lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
         // when permitted transfers are 0, then return as is
         // otherwise take the first segment and reiterate for the rest
         // having higher segment duration from permitted transfer duration
         // or transfer limit exceeded
         trans match {
           case 0 => lhs
-          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration)))
+          case _ =>
+            Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex
+              .filter(fst =>
+                fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans)
+              .map(s =>
+                BeamFareSegment(
+                  s._1,
+                  s._1.segmentDuration - lhs.head.segmentDuration)))
         }
       }
 
@@ -277,9 +347,10 @@ object FareCalculator {
       // and reiterate for rest of the fare segments (rhs) with next iteration number
       fareSegments.span(_.fare.transfers == trans) match {
         case (Vector(), Vector()) => Vector()
-        case (Vector(), rhs) => iterateTransfers(rhs, next)
-        case (lhs, Vector()) => applyTransferRules(lhs)
-        case (lhs, rhs) => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
+        case (Vector(), rhs)      => iterateTransfers(rhs, next)
+        case (lhs, Vector())      => applyTransferRules(lhs)
+        case (lhs, rhs) =>
+          applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
       }
     }
 

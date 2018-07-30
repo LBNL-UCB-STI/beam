@@ -28,7 +28,9 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     val values: immutable.IndexedSeq[Electric] = findValues
 
-    case object ElectricEnergyConsumptionModelClassname extends Electric with LowerCamelcase
+    case object ElectricEnergyConsumptionModelClassname
+        extends Electric
+        with LowerCamelcase
 
     case object BatteryCapacityInKWh extends Electric with LowerCamelcase
 
@@ -55,7 +57,9 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     val values: immutable.IndexedSeq[Gasoline] = findValues
 
-    case object GasolineFuelConsumptionRateInJoulesPerMeter extends Gasoline with LowerCamelcase
+    case object GasolineFuelConsumptionRateInJoulesPerMeter
+        extends Gasoline
+        with LowerCamelcase
 
     case object FuelEconomyInKwhPerMile extends Gasoline with LowerCamelcase
 

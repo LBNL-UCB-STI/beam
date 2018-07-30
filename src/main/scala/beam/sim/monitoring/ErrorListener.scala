@@ -15,7 +15,8 @@ import beam.router.Modes.BeamMode.TRANSIT
   */
 class ErrorListener() extends Actor with ActorLogging {
   private var nextCounter = 1
-  private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
+  private var terminatedPrematurelyEvents
+    : List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
   override def receive: Receive = {
     case event @ BeamAgent.TerminatedPrematurelyEvent(_, _) =>
@@ -32,7 +33,9 @@ class ErrorListener() extends Actor with ActorLogging {
           log.warning(
             s"Person ${d.sender} attempted to reserve ride with agent ${d.recipient} that was not found, message sent to dead letters."
           )
-          d.sender ! ReservationResponse(m.requestId, Left(DriverNotFoundError), TRANSIT)
+          d.sender ! ReservationResponse(m.requestId,
+                                         Left(DriverNotFoundError),
+                                         TRANSIT)
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
         case TriggerWithId(trigger, triggerId) =>
@@ -40,7 +43,8 @@ class ErrorListener() extends Actor with ActorLogging {
           d.sender ! CompletionNotice(triggerId)
         //
         case _ =>
-          log.error(s"ErrorListener: saw dead letter without knowing how to handle it: $d")
+          log.error(
+            s"ErrorListener: saw dead letter without knowing how to handle it: $d")
       }
     case _ =>
     ///
@@ -51,7 +55,9 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(
-        event => event.reason.toString.substring(0, Math.min(event.reason.toString.length - 1, 65))
+        event =>
+          event.reason.toString
+            .substring(0, Math.min(event.reason.toString.length - 1, 65))
       )
       .mapValues(
         eventsPerReason =>
