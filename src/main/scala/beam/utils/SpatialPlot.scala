@@ -13,10 +13,7 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 case class PointToPlot(coord: Coord, color: Color, size: Int)
-case class LineToPlot(startCoord: Coord,
-                      endCoord: Coord,
-                      color: Color,
-                      stroke: Int)
+case class LineToPlot(startCoord: Coord, endCoord: Coord, color: Color, stroke: Int)
 case class StringToPlot(text: String, coord: Coord, color: Color, fontSize: Int)
 case class RideHailAgentInitCoord(agentId: Id[RideHailAgent], coord: Coord)
 
@@ -39,10 +36,12 @@ class BoundsCalculator() {
     Bounds(minX, minY, maxX, maxY)
   }
 
-  def getImageProjectedCoordinates(originalCoord: Coord,
-                                   width: Int,
-                                   height: Int,
-                                   frame: Int): Coord = {
+  def getImageProjectedCoordinates(
+    originalCoord: Coord,
+    width: Int,
+    height: Int,
+    frame: Int
+  ): Coord = {
     val updatedWidth = width - 2 * frame
     val updatedHeight = height - 2 * frame
 
@@ -51,7 +50,8 @@ class BoundsCalculator() {
     } else {
       new Coord(
         frame + (originalCoord.getX - minX) / (maxX - minX) * updatedWidth,
-        frame + (originalCoord.getY - minY) / (maxY - minY) * updatedHeight)
+        frame + (originalCoord.getY - minY) / (maxY - minY) * updatedHeight
+      )
     }
   }
 }
@@ -104,8 +104,7 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
     boundsCalculator.addPoint(point.coord)
   }
 
-  def addAgentWithCoord(
-      rideHailAgentInitCoord: RideHailAgentInitCoord): Unit = {
+  def addAgentWithCoord(rideHailAgentInitCoord: RideHailAgentInitCoord): Unit = {
     rideHailAgentInitCoordBuffer += rideHailAgentInitCoord
   }
 
@@ -129,16 +128,10 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
       //val stroke = new BasicStroke(lineToPlot.stroke)
       //graphics2d.setStroke(stroke)
       graphics2d.setColor(lineToPlot.color)
-      val projectedStartCoord = boundsCalculator.getImageProjectedCoordinates(
-        lineToPlot.startCoord,
-        width,
-        height,
-        frame)
-      val projectedEndCoord = boundsCalculator.getImageProjectedCoordinates(
-        lineToPlot.endCoord,
-        width,
-        height,
-        frame)
+      val projectedStartCoord =
+        boundsCalculator.getImageProjectedCoordinates(lineToPlot.startCoord, width, height, frame)
+      val projectedEndCoord =
+        boundsCalculator.getImageProjectedCoordinates(lineToPlot.endCoord, width, height, frame)
 
       drawArrow(
         graphics2d,
@@ -154,29 +147,23 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
 
     for (pointToPlot <- pointsToPlot) {
       graphics2d.setColor(pointToPlot.color)
-      val projectedCoord = boundsCalculator.getImageProjectedCoordinates(
-        pointToPlot.coord,
-        width,
-        height,
-        frame)
-      graphics2d.fillOval(projectedCoord.getX.toInt,
-                          projectedCoord.getY.toInt,
-                          pointToPlot.size,
-                          pointToPlot.size)
+      val projectedCoord =
+        boundsCalculator.getImageProjectedCoordinates(pointToPlot.coord, width, height, frame)
+      graphics2d.fillOval(
+        projectedCoord.getX.toInt,
+        projectedCoord.getY.toInt,
+        pointToPlot.size,
+        pointToPlot.size
+      )
     }
 
     for (stringToPlot <- stringsToPlot) {
       val font = new Font("Serif", Font.PLAIN, stringToPlot.fontSize)
       graphics2d.setFont(font)
       graphics2d.setColor(stringToPlot.color)
-      val projectedCoord = boundsCalculator.getImageProjectedCoordinates(
-        stringToPlot.coord,
-        width,
-        height,
-        frame)
-      graphics2d.drawString(stringToPlot.text,
-                            projectedCoord.getX.toInt,
-                            projectedCoord.getY.toInt)
+      val projectedCoord =
+        boundsCalculator.getImageProjectedCoordinates(stringToPlot.coord, width, height, frame)
+      graphics2d.drawString(stringToPlot.text, projectedCoord.getX.toInt, projectedCoord.getY.toInt)
     }
 
     val index = path.lastIndexOf("/")
@@ -185,12 +172,14 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
     ImageIO.write(bufferedImage, "PNG", new File(path))
   }
 
-  def drawArrow(gfx: Graphics2D,
-                start: Point2D,
-                end: Point2D,
-                lineStroke: Stroke,
-                arrowStroke: Stroke,
-                arrowSize: Float): Unit = {
+  def drawArrow(
+    gfx: Graphics2D,
+    start: Point2D,
+    end: Point2D,
+    lineStroke: Stroke,
+    arrowStroke: Stroke,
+    arrowSize: Float
+  ): Unit = {
     import java.awt.geom.GeneralPath
 
     val startx = start.getX
@@ -225,10 +214,12 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
     gfx.fill(polygon)
 
     gfx.setStroke(lineStroke)
-    gfx.drawLine(startx.toInt,
-                 starty.toInt,
-                 (end.getX + cx).asInstanceOf[Int],
-                 (end.getY + cy).asInstanceOf[Int])
+    gfx.drawLine(
+      startx.toInt,
+      starty.toInt,
+      (end.getX + cx).asInstanceOf[Int],
+      (end.getY + cy).asInstanceOf[Int]
+    )
   }
 
 }
@@ -266,22 +257,22 @@ object SpatialPlot extends App {
 
   for (i <- 1 until 100) {
     spatialPlot.addPoint(
-      PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),
-                  Color.blue,
-                  5))
+      PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()), Color.blue, 5)
+    )
   }
 
   spatialPlot.addLine(
-    LineToPlot(new Coord(Random.nextDouble(), Random.nextDouble()),
-               new Coord(Random.nextDouble(), Random.nextDouble()),
-               Color.blue,
-               2))
+    LineToPlot(
+      new Coord(Random.nextDouble(), Random.nextDouble()),
+      new Coord(Random.nextDouble(), Random.nextDouble()),
+      Color.blue,
+      2
+    )
+  )
 
   spatialPlot.addString(
-    StringToPlot("X",
-                 new Coord(Random.nextDouble(), Random.nextDouble()),
-                 Color.green,
-                 100))
+    StringToPlot("X", new Coord(Random.nextDouble(), Random.nextDouble()), Color.green, 100)
+  )
 
   spatialPlot.writeImage("c:\\temp\\name.png")
 

@@ -71,8 +71,13 @@ trait AkkaGuiceSupport {
     * @tparam ActorClass The class that implements the actor that the factory creates
     * @tparam FactoryClass The class of the actor factory */
   def bindActorFactory[ActorClass <: Actor: ClassTag, FactoryClass: ClassTag](): Unit = {
-    accessBinder.install(new FactoryModuleBuilder()
-      .implement(classOf[Actor], implicitly[ClassTag[ActorClass]].runtimeClass.asInstanceOf[Class[_ <: Actor]])
-      .build(implicitly[ClassTag[FactoryClass]].runtimeClass))
+    accessBinder.install(
+      new FactoryModuleBuilder()
+        .implement(
+          classOf[Actor],
+          implicitly[ClassTag[ActorClass]].runtimeClass.asInstanceOf[Class[_ <: Actor]]
+        )
+        .build(implicitly[ClassTag[FactoryClass]].runtimeClass)
+    )
   }
 }

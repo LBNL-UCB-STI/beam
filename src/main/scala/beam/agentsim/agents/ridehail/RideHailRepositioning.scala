@@ -2,7 +2,6 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.SpaceTime
 
-
 // TODO
 // what functions does RHM need?
 
@@ -62,15 +61,14 @@ def getRepulsiveForceAwayFromIdlingVehicle(idlingTNC, coordTNC): Force{
 
 
 
-*
+ *
  */
 
-
-  // previousIteration.getWaiting()
+// previousIteration.getWaiting()
 
 case class WaitingEvent(location: SpaceTime, waitingDuration: Double)
 
-class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
+class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]) {
 
   /*
   TODO: if code is slow, implement version with bins (which has a larger memory foot print)
@@ -83,23 +81,16 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
     waitingEventBins.
   }
 
-*/
+   */
 
-  def getWaitingEventsAtTime(time: Double):Set[WaitingEvent] ={
-    waitingEvents.filter(waitingEvent => time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration)
+  def getWaitingEventsAtTime(time: Double): Set[WaitingEvent] = {
+    waitingEvents.filter(
+      waitingEvent =>
+        time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration
+    )
   }
 }
 
-
-
-
-class IterationHistory(){
-
-
-}
-
-
-
+class IterationHistory() {}
 // TODO: collect location, when, waiting time info.
 // TODO: collect location, when idling time.
-

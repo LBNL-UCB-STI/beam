@@ -4,6 +4,7 @@ package beam.utils
   * Created by sfeygin on 4/10/17.
   */
 object MathUtils {
+
   /**
     * Safely round numbers using a specified scale
     *

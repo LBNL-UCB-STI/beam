@@ -24,26 +24,30 @@ trait Applicative[F[_]] extends Functor[F] {
 //    as.foldRight(unit(List[B]())){(a, fbs) => println(s"from app $a"); map2(f(a), fbs)(_ :: _)}
 }
 
-
 object Applicative {
+
   def apply[F[_]: Applicative]: Applicative[F] =
     implicitly[Applicative[F]]
 
   implicit def ListApply: Applicative[List] = new Applicative[List] {
     def map[A, B](a: List[A])(f: A => B): List[B] = a map f
     def unit[A](a: => A): List[A] = List(a)
-    def ap[A, B](fs: List[A => B])(as: List[A]): List[B] = for {
-      a <- as
-      f <- fs
-    } yield f(a)
+
+    def ap[A, B](fs: List[A => B])(as: List[A]): List[B] =
+      for {
+        a <- as
+        f <- fs
+      } yield f(a)
   }
 
   implicit def OptionApply: Applicative[Option] = new Applicative[Option] {
     def map[A, B](a: Option[A])(f: A => B): Option[B] = a map f
     def unit[A](a: => A): Option[A] = Some(a)
-    def ap[A, B](fs: Option[A => B])(as: Option[A]): Option[B] = for {
-      a <- as
-      f <- fs
-    } yield f(a)
+
+    def ap[A, B](fs: Option[A => B])(as: Option[A]): Option[B] =
+      for {
+        a <- as
+        f <- fs
+      } yield f(a)
   }
 }

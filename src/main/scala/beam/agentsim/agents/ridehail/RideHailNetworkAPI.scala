@@ -15,36 +15,45 @@ class RideHailNetworkAPI {
   var matsimNetwork: Option[Network] = None
   var maybeTravelTime: Option[TravelTime] = None
 
-  def setR5Network(transportNetwork: TransportNetwork): Unit ={
-    this.r5Network=Some(transportNetwork)
+  def setR5Network(transportNetwork: TransportNetwork): Unit = {
+    this.r5Network = Some(transportNetwork)
   }
 
-  def setMATSimNetwork(network: Network): Unit ={
-    this.matsimNetwork=Some(network)
+  def setMATSimNetwork(network: Network): Unit = {
+    this.matsimNetwork = Some(network)
   }
 
-  def setTravelTime(travelTime: TravelTime): Unit ={
-    this.maybeTravelTime=Some(travelTime)
+  def setTravelTime(travelTime: TravelTime): Unit = {
+    this.maybeTravelTime = Some(travelTime)
   }
 
   def getTravelTimeEstimate(time: Double, linkId: Int): Double = {
     maybeTravelTime match {
       case Some(matsimTravelTime) =>
-        matsimTravelTime.getLinkTravelTime(matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)), time, null, null).toLong
+        matsimTravelTime
+          .getLinkTravelTime(
+            matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)),
+            time,
+            null,
+            null
+          )
+          .toLong
       case None =>
         val edge = r5Network.get.streetLayer.edgeStore.getCursor(linkId)
-        (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(StreetMode.CAR.toString))).toLong
+        (edge.getLengthM / edge.calculateSpeed(
+          new ProfileRequest,
+          StreetMode.valueOf(StreetMode.CAR.toString)
+        )).toLong
     }
   }
-
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
     getLinks() match {
-      case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
+      case Some(links) =>
+        Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
       case None => None
     }
   }
-
 
   def getFromLinkIds(linkId: Int): Vector[Int] = {
     convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
@@ -87,16 +96,15 @@ class RideHailNetworkAPI {
   def getLinks(): Option[util.Map[Id[Link], _ <: Link]] = {
     matsimNetwork match {
       case Some(network) => Some(network.getLinks)
-      case None => None
+      case None          => None
     }
   }
 
   def getClosestLink(coord: Coord): Option[Link] = {
     matsimNetwork match {
       case Some(network) => Some(NetworkUtils.getNearestLink(network, coord));
-      case None => None
+      case None          => None
     }
   }
-
 
 }

@@ -39,7 +39,9 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
           beamServices.beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
           logger.info(s"Warm start mode initialized successfully from stats located at $statsPath.")
         } else {
-          logger.warn(s"Warm start mode initialization failed, stats not found at path ( $statsPath )")
+          logger.warn(
+            s"Warm start mode initialization failed, stats not found at path ( $statsPath )"
+          )
         }
       case None =>
     }
@@ -51,7 +53,11 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
         getWarmStartPath(getParentRunPath)
 
       case "ABSOLUTE_PATH" =>
-        Files.walk(Paths.get(srcPath)).toScala[Stream].map(_.toString).find(_.endsWith(".linkstats.csv.gz"))
+        Files
+          .walk(Paths.get(srcPath))
+          .toScala[Stream]
+          .map(_.toString)
+          .find(_.endsWith(".linkstats.csv.gz"))
 
       case _ =>
         logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
@@ -60,20 +66,29 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   }
 
   private def getWarmStartPath(runPath: String) = {
-    val iterOption = Files.walk(Paths.get(runPath)).toScala[Stream].map(_.toString).find(p => "ITERS".equals(getName(p)))
+    val iterOption = Files
+      .walk(Paths.get(runPath))
+      .toScala[Stream]
+      .map(_.toString)
+      .find(p => "ITERS".equals(getName(p)))
 
     iterOption match {
       case Some(iterBase) =>
-
         getWarmStartIteration(iterBase) match {
           case Some(warmIteration) =>
-            Some(Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString)
+            Some(
+              Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
+            )
           case None =>
-            logger.warn(s"Warm start mode initialization failed, no iteration found with warm state in parent run ( $srcPath )")
+            logger.warn(
+              s"Warm start mode initialization failed, no iteration found with warm state in parent run ( $srcPath )"
+            )
             None
         }
       case None =>
-        logger.warn(s"Warm start mode initialization failed, ITERS not found in parent run ( $srcPath )")
+        logger.warn(
+          s"Warm start mode initialization failed, ITERS not found in parent run ( $srcPath )"
+        )
         None
     }
   }
@@ -111,7 +126,9 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
 
   private def getWarmStartIteration(itrBaseDir: String): Option[Int] = {
 
-    def getWarmStartIter(itr: Int): Int = if (itr < 0 || isWarmStartIteration(itrBaseDir.toString, itr)) itr else getWarmStartIter(itr - 1)
+    def getWarmStartIter(itr: Int): Int =
+      if (itr < 0 || isWarmStartIteration(itrBaseDir.toString, itr)) itr
+      else getWarmStartIter(itr - 1)
 
     val itrIndex = getWarmStartIter(new File(itrBaseDir).list().length - 1)
 

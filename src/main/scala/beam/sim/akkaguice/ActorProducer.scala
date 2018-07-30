@@ -12,7 +12,8 @@ package beam.sim.akkaguice
 import akka.actor.{Actor, IndirectActorProducer}
 import com.google.inject.Injector
 
-private[akkaguice] class ActorProducer[A <: Actor](injector: Injector, clazz: Class[A]) extends IndirectActorProducer {
+private[akkaguice] class ActorProducer[A <: Actor](injector: Injector, clazz: Class[A])
+    extends IndirectActorProducer {
   def actorClass: Class[A] = clazz
   def produce(): A = injector.getBinding(clazz).getProvider.get()
 }

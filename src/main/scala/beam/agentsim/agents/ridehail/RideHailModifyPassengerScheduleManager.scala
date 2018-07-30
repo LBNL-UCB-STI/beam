@@ -523,9 +523,10 @@ class RideHailModifyPassengerScheduleManager(
 
               // only something new, if all undefined (no pending query)
               // TODO: double check if the following code will ever be executed as we are not buffering anymore resp. is it really needed and not handled somewhere else
-              if (rideHailModifyPassengerScheduleStatusSet.nonEmpty && rideHailModifyPassengerScheduleStatusSet.count(
-                    _.status == InterruptMessageStatus.UNDEFINED
-                  ) == rideHailModifyPassengerScheduleStatusSet.size) {
+              if (rideHailModifyPassengerScheduleStatusSet.nonEmpty && rideHailModifyPassengerScheduleStatusSet
+                    .count(
+                      _.status == InterruptMessageStatus.UNDEFINED
+                    ) == rideHailModifyPassengerScheduleStatusSet.size) {
                 sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
               }
             }
