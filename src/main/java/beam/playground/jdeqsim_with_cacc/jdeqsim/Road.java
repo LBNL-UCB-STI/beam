@@ -20,12 +20,15 @@
 package beam.playground.jdeqsim_with_cacc.jdeqsim;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.misc.Time;
+
+import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
 
 /**
  * The road is simulated as an active agent, moving around vehicles.
@@ -199,13 +202,36 @@ public class Road extends SimUnit {
 		}
 
 	}
- 			//TODO: make changes here
+	//TODO: Plot share CACC vs Travel Times, travel time decreases as number of CACC increases
+	//TODO: 100% equal half travel time
+	//TODO: improve code structure, Adding tests and refactoring
+	//
+
+	public double getShareCACC(){
+		double numCACC = 0;
+		for (Vehicle vehicle: carsOnTheRoad) {
+			if (isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
+				numCACC++;
+
+			}
+
+		}
+		return (numCACC / carsOnTheRoad.size());
+
+	}
+
 	public void enterRoad(Vehicle vehicle, double simTime) {
+		if(Integer.parseInt(this.link.getId().toString())==6) {
+			System.out.println(getShareCACC());
+		}
 		// calculate time, when the car reaches the end of the road
-		double nextAvailableTimeForLeavingStreet = simTime + this.link.getLength() / this.link.getFreespeed(simTime);
+
 
 		this.noOfCarsPromisedToEnterRoad--;
 		this.carsOnTheRoad.add(vehicle);
+
+		double nextAvailableTimeForLeavingStreet = simTime + ((getShareCACC()/2)*(this.link.getLength()) / this.link.getFreespeed(simTime));
+
 
 		/*
 		 * needed to remove the following assertion because for deadlock
