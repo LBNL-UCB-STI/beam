@@ -12,6 +12,7 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
+        classpath 'cz.alenkacz:gradle-scalafmt:1.6.0'
     }
 }
 
@@ -229,6 +230,14 @@ dependencies {
 
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 }
+
+// Autoformatting using scalafmt
+
+scalafmt {
+    // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+}
+
+compileScala.dependsOn(scalafmtAll)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
