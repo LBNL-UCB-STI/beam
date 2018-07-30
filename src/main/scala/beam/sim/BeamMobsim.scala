@@ -130,7 +130,8 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
-            300.0
+            300.0,
+            new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
           "scheduler"
         )

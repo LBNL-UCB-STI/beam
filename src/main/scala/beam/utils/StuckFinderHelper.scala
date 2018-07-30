@@ -4,24 +4,24 @@ import java.util.{Comparator, PriorityQueue}
 
 import scala.collection.mutable
 
-case class ValueWithTs[T](value: T, ts: Long)
+case class ValueWithTime[T](value: T, time: Long)
 
 class StuckFinderHelper[K] {
 
-  object Comparator extends Comparator[ValueWithTs[K]] {
-    def compare(o1: ValueWithTs[K], o2: ValueWithTs[K]): Int = {
-      o1.ts.compare(o2.ts)
+  object Comparator extends Comparator[ValueWithTime[K]] {
+    def compare(o1: ValueWithTime[K], o2: ValueWithTime[K]): Int = {
+      o1.time.compare(o2.time)
     }
   }
 
-  private[this] val pq = new PriorityQueue[ValueWithTs[K]](Comparator)
-  private[this] val map = mutable.HashMap.empty[K, ValueWithTs[K]]
+  private[this] val pq = new PriorityQueue[ValueWithTime[K]](Comparator)
+  private[this] val map = mutable.HashMap.empty[K, ValueWithTime[K]]
 
   def size: Int = {
     pq.size()
   }
 
-  def add(ts: Long, key: K): Unit = {
+  def add(time: Long, key: K): Unit = {
     map.get(key) match {
       case Some(x) =>
       // TODO Key is already there. What shall we do?!
@@ -29,13 +29,13 @@ class StuckFinderHelper[K] {
       // 2 => Change map to be K -> List to store all different timestamps
       // Go with first approach for now
       case None =>
-        val valueWithTs = ValueWithTs(key, ts)
+        val valueWithTs = ValueWithTime(key, time)
         pq.add(valueWithTs)
         map.put(key, valueWithTs)
     }
   }
 
-  def removeOldest: Option[ValueWithTs[K]] = {
+  def removeOldest: Option[ValueWithTime[K]] = {
     if (pq.isEmpty) None
     else {
       val result = pq.poll()
@@ -44,7 +44,7 @@ class StuckFinderHelper[K] {
     }
   }
 
-  def removeByKey(key: K): Option[ValueWithTs[K]] = {
+  def removeByKey(key: K): Option[ValueWithTime[K]] = {
     map.remove(key).map { ts =>
       pq.remove(ts)
       ts

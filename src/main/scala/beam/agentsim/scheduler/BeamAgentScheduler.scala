@@ -3,7 +3,7 @@ package beam.agentsim.scheduler
 import java.lang.Double
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -19,6 +19,13 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+
+
+case class RideHailingManagerIsExtremelySlowException
+(
+  message: String,
+  cause: Throwable = null
+) extends Exception(message, cause)
 
 object BeamAgentScheduler {
 
@@ -114,33 +121,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   private var currentIter: Int = -1
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
+  private val stToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] = mutable.HashMap.empty
 
-
-  private val monitorTask =
-    if (beamConfig.beam.debug.debugEnabled)
-      Some(
-        context.system.scheduler.schedule(
-          new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(3, TimeUnit.SECONDS),
-          self,
-          Monitor
-        )
-      )
-    else None
-  private val skipOverBadActorsTask =
-    if (beamConfig.beam.debug.skipOverBadActors)
-      Some(
-        context.system.scheduler.schedule(
-          new FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip * 2, TimeUnit.SECONDS),
-          new FiniteDuration(
-            math.round(beamConfig.beam.debug.secondsToWaitForSkip / 4.0),
-            TimeUnit.SECONDS
-          ),
-          self,
-          SkipOverBadActors
-        )
-      )
-    else None
+  private var monitorTask: Option[Cancellable] = None
+  private var stuckAgentChecker: Option[Cancellable] = None
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
@@ -159,12 +143,21 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     }
   }
 
+  override def aroundPostStop(): Unit = {
+    log.info("aroundPostStop. Stopping all scheduled tasks...")
+    stuckAgentChecker.foreach(_.cancel())
+    scheduleMonitorTask.foreach(_.cancel())
+    super.aroundPostStop()
+  }
+
   def receive: Receive = LoggingReceive {
     case StartSchedule(it) =>
       log.info(s"starting scheduler at iteration $it")
       this.startSender = sender()
       this.currentIter = it
       started = true
+      stuckAgentChecker = scheduleStuckAgentCheck
+      monitorTask = scheduleMonitorTask
       doSimStep(0.0)
 
     case DoSimStep(newNow: Double) =>
@@ -216,48 +209,81 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
-      val stuckAgents = stuckFinder.detectStuckAgents
-      log.info("Cleared {} agents", stuckAgents.size)
+      val stuckAgents = stuckFinder.detectStuckAgents()
+      if (stuckAgents.size > 0) {
+        log.info("{} agents are candidates to be cleaned", stuckAgents.size)
 
-      var numReps = 0L
-      currentTotalAwaitingResponse = awaitingResponse.values().stream().count()
-      if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
-        numberRepeats += 1
-        numReps = numberRepeats
-        log.debug("DEBUG: {} repeats.", numReps)
-      } else {
-        numberRepeats = 0
-      }
+        val canClean = stuckAgents.filterNot { stuckInfo =>
+          val st = stuckInfo.value
+          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger.isInstanceOf[RideHailAllocationManagerTimeout]
+        }
+        log.info("Cleaning {} non-special agents", canClean.size)
+        canClean.foreach { stuckInfo =>
+          val st = stuckInfo.value
+          st.agent ! IllegalTriggerGoToError("Stuck Agent")
+          self ! CompletionNotice(st.triggerWithId.triggerId)
+          log.info("Cleaned {}", st)
+        }
 
-      if (numReps > 4) {
-        // When debugging, use evaulate expression and this to see first stuck agent: awaitingResponse.asMap().firstEntry().getValue.iterator().next().agent.actorCell._actor
-        var numAgentsClearedOut = 0
-        awaitingResponse
-          .get(awaitingResponse.keySet().first())
-          .forEach({ x =>
-            // the check makes sure that slow RideHailManager (repositioning) does not cause kill the rideHailManager actor
-            // however the numReps>50 ensures that we eventually
-            if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger
-              .isInstanceOf[RideHailAllocationManagerTimeout]) {
-              if (numReps == 10) {
-                log.error("RideHailingManager is slow")
-              } else if (numReps == 50) {
-                throw new RuntimeException("RideHailingManager is extremly slow")
-              }
-            } else {
-              x.agent ! IllegalTriggerGoToError("Stuck Agent")
-              currentTotalAwaitingResponse = 0
-              self ! CompletionNotice(x.triggerWithId.triggerId)
-              numAgentsClearedOut += numAgentsClearedOut
-              log.error("clearing agent: " + x)
-            }
-          })
+        val special = stuckAgents.diff(canClean)
+        log.info("Processing {} special agents", special.size)
+        special.foreach { stuckInfo =>
+          val st = stuckInfo.value
+          val times = stToStuckTimes.getOrElse(st, 0)
+          stToStuckTimes.put(st, times + 1)
+          // We have to add them back to `stuckFinder`
+          if (times < 50) {
+            stuckFinder.add(stuckInfo.time, st)
+          }
 
-        if (numAgentsClearedOut > 0) {
-          val reason = s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
-          log.error(reason)
+          if (times == 10) {
+            log.error("RideHailingManager is slow")
+          }
+          else if (times == 50) {
+            throw new RideHailingManagerIsExtremelySlowException("RideHailingManager is extremly slow")
+          }
         }
       }
+
+//      var numReps = 0L
+//      currentTotalAwaitingResponse = awaitingResponse.values().stream().count()
+//      if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
+//        numberRepeats += 1
+//        numReps = numberRepeats
+//        log.debug("DEBUG: {} repeats.", numReps)
+//      } else {
+//        numberRepeats = 0
+//      }
+
+//      if (numReps > 4) {
+//        // When debugging, use evaulate expression and this to see first stuck agent: awaitingResponse.asMap().firstEntry().getValue.iterator().next().agent.actorCell._actor
+//        var numAgentsClearedOut = 0
+//        awaitingResponse
+//          .get(awaitingResponse.keySet().first())
+//          .forEach({ x =>
+//            // the check makes sure that slow RideHailManager (repositioning) does not cause kill the rideHailManager actor
+//            // however the numReps>50 ensures that we eventually
+//            if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger
+//              .isInstanceOf[RideHailAllocationManagerTimeout]) {
+//              if (numReps == 10) {
+//                log.error("RideHailingManager is slow")
+//              } else if (numReps == 50) {
+//                throw new RuntimeException("RideHailingManager is extremly slow")
+//              }
+//            } else {
+//              x.agent ! IllegalTriggerGoToError("Stuck Agent")
+//              currentTotalAwaitingResponse = 0
+//              self ! CompletionNotice(x.triggerWithId.triggerId)
+//              numAgentsClearedOut += numAgentsClearedOut
+//              log.error("clearing agent: " + x)
+//            }
+//          })
+//
+//        if (numAgentsClearedOut > 0) {
+//          val reason = s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
+//          log.error(reason)
+//        }
+//      }
       previousTotalAwaitingRespone = currentTotalAwaitingResponse
       if (started) doSimStep(nowInSeconds)
   }
@@ -319,8 +345,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   }
 
   override def postStop(): Unit = {
-    monitorTask.foreach(_.cancel())
-    skipOverBadActorsTask.foreach(_.cancel())
+    scheduleMonitorTask.foreach(_.cancel())
+    scheduleStuckAgentCheck.foreach(_.cancel())
   }
 
   def awaitingToString: String = {
@@ -331,4 +357,27 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     }
   }
 
+  def scheduleMonitorTask: Option[Cancellable] = {
+    if (beamConfig.beam.debug.debugEnabled)
+      Some(
+        context.system.scheduler.schedule(
+          new FiniteDuration(1, TimeUnit.SECONDS),
+          new FiniteDuration(3, TimeUnit.SECONDS),
+          self,
+          Monitor
+        )
+      )
+    else None
+  }
+  def scheduleStuckAgentCheck: Option[Cancellable] = {
+    if (beamConfig.beam.debug.stuckAgentDetection.isOn)
+      Some(
+        context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),
+          new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),
+          self,
+          SkipOverBadActors
+        )
+      )
+    else None
+  }
 }
