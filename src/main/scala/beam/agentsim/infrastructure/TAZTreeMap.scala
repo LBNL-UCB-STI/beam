@@ -200,7 +200,7 @@ object TAZTreeMap {
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
     lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
-    lazy val wgs2utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910","utm")
+    lazy val wgs2utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "utm")
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter =

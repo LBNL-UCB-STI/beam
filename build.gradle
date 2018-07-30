@@ -12,6 +12,7 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
+        classpath 'cz.alenkacz:gradle-scalafmt:1.6.0'
     }
 }
 
@@ -32,6 +33,7 @@ apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
+apply plugin: 'scalafmt'
 
 group = 'beam'
 version = '0.6.0'
@@ -230,6 +232,14 @@ dependencies {
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 }
 
+// Autoformatting using scalafmt
+
+scalafmt {
+    // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+}
+
+compileScala.dependsOn(scalafmtAll)
+
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
@@ -255,10 +265,10 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
-            (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+    (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+            (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+    (project.hasProperty('config') && project.hasProperty('iterations') ?
+            '-Diterations='+project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -494,7 +504,7 @@ task execute(type:JavaExec) {
     }else{
         main = mainClassName
     }
-   classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }

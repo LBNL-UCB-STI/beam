@@ -323,7 +323,7 @@ class PersonAgentSpec
       val attributesOfIndividual = AttributesOfIndividual(
         person,
         household,
-        Map(Id.create(vehicleId, classOf[BeamVehicle]) → beamVehicle),
+        Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
         Seq(CAR)
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)

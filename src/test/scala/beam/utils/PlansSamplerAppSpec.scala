@@ -7,7 +7,9 @@ import org.matsim.utils.objectattributes.ObjectAttributes
 import org.scalatest.{Matchers, WordSpecLike}
 
 class PlansSamplerAppSpec extends WordSpecLike with Matchers {
-  val inputData: Array[String] = Array("test/input/beamville/population.xml",
+
+  val inputData: Array[String] = Array(
+    "test/input/beamville/population.xml",
     "test/input/beamville/shape/beamville_aoi.shp",
     "test/input/beamville/physsim-network.xml",
     "test/input/beamville/hhOut.csv",
@@ -15,7 +17,8 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
     "3",
     "output/test/plansampler/",
     "epsg:4326",
-    "epsg:32631")
+    "epsg:32631"
+  )
 
   "PlanSamplerApp class" should {
     "assign available modes to agents " in {
@@ -25,15 +28,17 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
       sampler.run()
       val config = ConfigUtils.createConfig
       config.plans().setInputFile("output/test/plansampler/population.xml.gz")
-      config.plans().setInputPersonAttributeFile("output/test/plansampler/populationAttributes.xml.gz")
+      config
+        .plans()
+        .setInputPersonAttributeFile("output/test/plansampler/populationAttributes.xml.gz")
       val dummyScenario: MutableScenario = ScenarioUtils.createMutableScenario(config)
       dummyScenario.setLocked()
       ScenarioUtils.loadScenario(dummyScenario)
       val attributes: ObjectAttributes = dummyScenario.getPopulation.getPersonAttributes
-      attributes.getAttribute("1-0", "available-modes") should equal("car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram")
+      attributes.getAttribute("1-0", "available-modes") should equal(
+        "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
+      )
     }
-    "ensure agents only use available modes" in {
-
-    }
+    "ensure agents only use available modes" in {}
   }
 }

@@ -1,6 +1,7 @@
 package beam.utils
 
 object ProfilingUtils {
+
   def timed[U](work: => U): (U, Long) = {
     val startTime = System.currentTimeMillis()
     val data = work

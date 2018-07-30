@@ -244,7 +244,7 @@ class ChangeModeForTour(
         beam.utils.plansampling.PlansSampler.availableModeString
       )
     ).fold(BeamMode.availableModes)(
-      attr ⇒ availableModeParser(attr.toString)
+      attr => availableModeParser(attr.toString)
     )
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)

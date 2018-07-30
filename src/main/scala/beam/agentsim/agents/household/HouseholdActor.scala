@@ -217,7 +217,7 @@ object HouseholdActor {
           beam.utils.plansampling.PlansSampler.availableModeString
         )
       ).fold(BeamMode.availableModes)(
-        attr ⇒ availableModeParser(attr.toString)
+        attr => availableModeParser(attr.toString)
       )
 
       val attributes =
@@ -351,7 +351,7 @@ object HouseholdActor {
 
         // Assign to requesting individual if mode is available
         availableStreetVehicles.filter(
-          veh ⇒ isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
+          veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
         ) foreach { x =>
           _availableVehicles.remove(x.id)
           _checkedOutVehicles.put(x.id, personId)
@@ -415,8 +415,8 @@ object HouseholdActor {
 
           // Should never reserve for person who doesn't have mode available to them
           val mode = vehicles(vehicleId).beamVehicleType match {
-            case CarVehicle ⇒ CAR
-            case BicycleVehicle ⇒ BIKE
+            case CarVehicle     => CAR
+            case BicycleVehicle => BIKE
           }
 
           if (isModeAvailableForPerson(person, vehicleId, mode)) {

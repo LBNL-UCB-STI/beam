@@ -3,11 +3,7 @@ package beam.utils.plansampling
 import java.util
 
 import beam.utils.gis.Plans2Shapefile
-import beam.utils.plansampling.HouseholdAttrib.{
-  HomeCoordX,
-  HomeCoordY,
-  HousingType
-}
+import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plansampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
 import com.vividsolutions.jts.geom.{
@@ -38,24 +34,23 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households._
-import org.matsim.utils.objectattributes.{
-  ObjectAttributes,
-  ObjectAttributesXmlWriter
-}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.io.Source
 import scala.util.Random
 
-case class SynthHousehold(householdId: Id[Household],
-                          numPersons: Int,
-                          vehicles: Int,
-                          hhIncome: Double,
-                          coord: Coord)
+case class SynthHousehold(
+  householdId: Id[Household],
+  numPersons: Int,
+  vehicles: Int,
+  hhIncome: Double,
+  coord: Coord
+)
 
 sealed trait HouseholdAttrib extends EnumEntry
 
@@ -122,6 +117,7 @@ object HasXY {
 }
 
 case class WGSConverter(sourceCRS: String, targetCRS: String) {
+
   val wgs2Utm: GeotoolsTransformation =
     new GeotoolsTransformation(sourceCRS, targetCRS)
 
@@ -134,15 +130,13 @@ case class WGSConverter(sourceCRS: String, targetCRS: String) {
   }
 }
 
-case class QuadTreeExtent(minx: Double,
-                          miny: Double,
-                          maxx: Double,
-                          maxy: Double)
+case class QuadTreeExtent(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
 class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   private def quadTreeExtentFromShapeFile(
-      features: util.Collection[SimpleFeature]): QuadTreeExtent = {
+    features: util.Collection[SimpleFeature]
+  ): QuadTreeExtent = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue
@@ -165,8 +159,9 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   // Returns a single geometry that is the union of all the polgyons in a shapefile
   def geometryUnionFromShapefile(
-      features: util.Collection[SimpleFeature],
-      sourceCRS: CoordinateReferenceSystem): Geometry = {
+    features: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem
+  ): Geometry = {
 
     import scala.collection.JavaConverters._
     val targetCRS = CRS.decode(wgsConverter.targetCRS)
@@ -188,9 +183,11 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   }
 
   // This version parses all activity locations and only keeps agents who have all activities w/ in the bounds
-  def buildQuadTree[T: HasXY](aoiShapeFileLoc: util.Collection[SimpleFeature],
-                              sourceCRS: CoordinateReferenceSystem,
-                              pop: Vector[Person]): QuadTree[T] = {
+  def buildQuadTree[T: HasXY](
+    aoiShapeFileLoc: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem,
+    pop: Vector[Person]
+  ): QuadTree[T] = {
     val ev = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
@@ -248,14 +245,14 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
     for (line <- Source.fromFile(synthFileName, "utf-8").getLines) {
       val sl = line.split(",")
       val pt = wgsConverter.wgs2Utm.transform(
-        new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))
+        new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble)
+      )
 
       val householdId = Id.create(sl(hhIdIdx), classOf[Household])
       val numCars = sl(carNumIdx).toInt
       val numPeople = sl(hhNumIdx).toInt
       val hhIncome = sl(hhIncomeIdx).toInt
-      res ++= Vector(
-        SynthHousehold(householdId, numPeople, numCars, hhIncome, pt))
+      res ++= Vector(SynthHousehold(householdId, numPeople, numCars, hhIncome, pt))
     }
     res
   }
@@ -267,8 +264,7 @@ object PlansSampler {
   import HasXY._
 
   val availableModeString: String = "available-modes"
-  val counter: Counter = new Counter(
-    "[" + this.getClass.getSimpleName + "] created household # ")
+  val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
   private val logger = Logger.getLogger("PlansSampler")
 
   private var planQt: Option[QuadTree[Plan]] = None
@@ -284,6 +280,7 @@ object PlansSampler {
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
+
   val modeAllocator: AvailableModeUtils.AllowAllModes =
     new AvailableModeUtils.AllowAllModes
 
@@ -311,13 +308,13 @@ object PlansSampler {
       filterSynthHouseholds(
         new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
         shapeFileReader.getFeatureSet,
-        shapeFileReader.getCoordinateSystem)
+        shapeFileReader.getCoordinateSystem
+      )
 
     planQt = Some(
-      new QuadTreeBuilder(wgsConverter.get).buildQuadTree(
-        shapeFileReader.getFeatureSet,
-        shapeFileReader.getCoordinateSystem,
-        pop))
+      new QuadTreeBuilder(wgsConverter.get)
+        .buildQuadTree(shapeFileReader.getFeatureSet, shapeFileReader.getCoordinateSystem, pop)
+    )
 
     outDir = args(6)
   }
@@ -340,12 +337,14 @@ object PlansSampler {
 
     var radius = CoordUtils.calcEuclideanDistance(
       spCoord,
-      PopulationUtils.getFirstActivity(closestPlan).getCoord)
+      PopulationUtils.getFirstActivity(closestPlan).getCoord
+    )
 
     while (col.size < n) {
       radius += 1
       val candidates = JavaConverters.collectionAsScalaIterable(
-        planQt.get.getDisk(spCoord.getX, spCoord.getY, radius))
+        planQt.get.getDisk(spCoord.getX, spCoord.getY, radius)
+      )
       for (plan <- candidates) {
         if (!col.contains(plan)) {
           col ++= Vector(plan)
@@ -360,9 +359,10 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-      synthHouseholds: Vector[SynthHousehold],
-      aoiFeatures: util.Collection[SimpleFeature],
-      sourceCRS: CoordinateReferenceSystem): Vector[SynthHousehold] = {
+    synthHouseholds: Vector[SynthHousehold],
+    aoiFeatures: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem
+  ): Vector[SynthHousehold] = {
 
     val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
@@ -386,7 +386,8 @@ object PlansSampler {
 
     val permissibleModes: Iterable[String] =
       JavaConverters.collectionAsScalaIterable(
-        modeAllocator.getPermissibleModes(person.getSelectedPlan))
+        modeAllocator.getPermissibleModes(person.getSelectedPlan)
+      )
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
@@ -394,9 +395,7 @@ object PlansSampler {
       }
       .stripSuffix(",")
 
-    newPopAttributes.putAttribute(person.getId.toString,
-                                  availableModeString,
-                                  availableModes)
+    newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
   }
 
   def run(): Unit = {
@@ -423,8 +422,7 @@ object PlansSampler {
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
       counter.incCounter()
-      spHH.setIncome(
-        newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
       (0 to sh.vehicles).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
@@ -441,9 +439,8 @@ object PlansSampler {
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
-        newPopAttributes.putAttribute(newPersonId.toString,
-                                      Rank.entryName,
-                                      Random.nextInt(sh.numPersons))
+        newPopAttributes
+          .putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(sh.numPersons))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
@@ -455,18 +452,12 @@ object PlansSampler {
             homePlan = Some(newPlan)
             val homeActs = JavaConverters.collectionAsScalaIterable(
               Plans2Shapefile
-                .getActivities(newPlan.getPlanElements,
-                               new StageActivityTypesImpl("Home")))
+                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
+            )
             val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString,
-                                         HomeCoordX.entryName,
-                                         homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString,
-                                         HomeCoordY.entryName,
-                                         homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString,
-                                         HousingType.entryName,
-                                         "House")
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
             snapPlanActivityLocsToNearestLink(newPlan)
 
           case Some(hp) =>
@@ -474,8 +465,8 @@ object PlansSampler {
             val firstActCoord = firstAct.getCoord
             val homeActs = JavaConverters.collectionAsScalaIterable(
               Plans2Shapefile
-                .getActivities(newPlan.getPlanElements,
-                               new StageActivityTypesImpl("Home")))
+                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
+            )
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }

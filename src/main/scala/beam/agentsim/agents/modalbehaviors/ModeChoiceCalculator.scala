@@ -32,7 +32,7 @@ trait ModeChoiceCalculator extends HasServices {
 
 object ModeChoiceCalculator {
 
-  type ModeChoiceCalculatorFactory = AttributesOfIndividual ⇒ ModeChoiceCalculator
+  type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
   def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
     classname match {

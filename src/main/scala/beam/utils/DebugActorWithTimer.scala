@@ -9,7 +9,7 @@ class DebugActorWithTimer(val rideHailManager: ActorRef, val scheduler: ActorRef
     with ActorLogging {
 
   def receive: PartialFunction[Any, Unit] = {
-    case Tick ⇒
+    case Tick =>
       log.info(DebugLib.gcAndGetMemoryLogMessage("Memory use after GC: "))
       rideHailManager ! DebugRideHailManagerDuringExecution
       scheduler ! Monitor
