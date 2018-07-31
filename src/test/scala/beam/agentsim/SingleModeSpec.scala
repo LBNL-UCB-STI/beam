@@ -18,11 +18,7 @@ import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
-  Event,
-  PersonDepartureEvent
-}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.handler.BasicEventHandler
@@ -43,10 +39,10 @@ import scala.language.postfixOps
 @Ignore
 class SingleModeSpec
     extends TestKit(
-      ActorSystem("single-mode-test",
-                  ConfigFactory.parseString("""
+      ActorSystem("single-mode-test", ConfigFactory.parseString("""
   akka.test.timefactor=10
-  """)))
+  """))
+    )
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -73,17 +69,18 @@ class SingleModeSpec
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    when(services.modeChoiceCalculatorFactory).thenReturn(
-      (_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
+    when(services.modeChoiceCalculatorFactory)
+      .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = new FareCalculator(
-      beamConfig.beam.routing.r5.directory)
+    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcToll(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
@@ -134,18 +131,18 @@ class SingleModeSpec
           }
         }
       })
-      val mobsim =
-        new BeamMobsim(services,
-                       networkCoordinator.transportNetwork,
-                       scenario,
-                       eventsManager,
-                       system,
-                       new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(
+        services,
+        networkCoordinator.transportNetwork,
+        scenario,
+        eventsManager,
+        system,
+        new RideHailSurgePricingManager(beamConfig, None)
+      )
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(
-            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver")
       }
     }
 
@@ -169,18 +166,18 @@ class SingleModeSpec
           }
         }
       })
-      val mobsim =
-        new BeamMobsim(services,
-                       networkCoordinator.transportNetwork,
-                       scenario,
-                       eventsManager,
-                       system,
-                       new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(
+        services,
+        networkCoordinator.transportNetwork,
+        scenario,
+        eventsManager,
+        system,
+        new RideHailSurgePricingManager(beamConfig, None)
+      )
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(
-            event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver")
       }
     }
 
@@ -191,17 +188,14 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach(person => {
-          val newPlanElements =
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case (activity: Activity) if activity.getType == "Home" =>
-                Seq(
-                  activity,
-                  scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case (activity: Activity) =>
-                Seq(activity)
-              case (leg: Leg) =>
-                Nil
-            }.flatten
+          val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+            case (activity: Activity) if activity.getType == "Home" =>
+              Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+            case (activity: Activity) =>
+              Seq(activity)
+            case (leg: Leg) =>
+              Nil
+          }.flatten
           if (newPlanElements.last.isInstanceOf[Leg]) {
             newPlanElements.remove(newPlanElements.size - 1)
           }
@@ -224,28 +218,31 @@ class SingleModeSpec
           }
         }
       })
-      val mobsim =
-        new BeamMobsim(services,
-                       networkCoordinator.transportNetwork,
-                       scenario,
-                       eventsManager,
-                       system,
-                       new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(
+        services,
+        networkCoordinator.transportNetwork,
+        scenario,
+        eventsManager,
+        system,
+        new RideHailSurgePricingManager(beamConfig, None)
+      )
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver"
+          )
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
       val filteredEventsByPerson = eventsByPerson.filter {
         _._2
           .filter(_.isInstanceOf[ActivityEndEvent])
           .sliding(2)
-          .exists(pair =>
-            pair.forall(activity =>
-              activity.asInstanceOf[ActivityEndEvent].getActType != "Home"))
+          .exists(
+            pair =>
+              pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home")
+          )
       }
       eventsByPerson.map {
         _._2.span {

@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
@@ -34,7 +35,7 @@ trait BeamServices extends ActorInject {
   val registry: ActorRef
 
   val geo: GeoUtils
-  var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator
+  var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
   val dates: DateUtils
 
   var beamRouter: ActorRef
@@ -61,14 +62,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
 
-  var modeChoiceCalculatorFactory
-    : AttributesOfIndividual => ModeChoiceCalculator = _
+  var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
-  val personRefs: TrieMap[Id[Person], ActorRef] =
-    TrieMap[Id[Person], ActorRef]()
-  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
-    TrieMap[Id[Vehicle], BeamVehicle]()
+  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   var matsimServices: MatsimServices = _
 
   def clearAll(): Unit = {
@@ -84,6 +82,5 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 }
 
 object BeamServices {
-  implicit val askTimeout: Timeout = Timeout(
-    FiniteDuration(5L, TimeUnit.SECONDS))
+  implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 }

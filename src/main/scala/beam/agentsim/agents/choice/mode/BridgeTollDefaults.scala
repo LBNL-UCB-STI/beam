@@ -13,8 +13,8 @@ object BridgeTollDefaults {
   private var tollPrices: Map[Int, Double] = _
 
   def estimateBridgeFares(
-      alternatives: Seq[EmbodiedBeamTrip],
-      beamServices: BeamServices
+    alternatives: Seq[EmbodiedBeamTrip],
+    beamServices: BeamServices
   ): Seq[BigDecimal] = {
 
     val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
@@ -26,10 +26,7 @@ object BridgeTollDefaults {
           BigDecimal(
             alt.toBeamTrip.legs.map { beamLeg =>
               if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-                beamLeg.travelPath.linkIds
-                  .filter(tollPrices.contains)
-                  .map(tollPrices)
-                  .sum
+                beamLeg.travelPath.linkIds.filter(tollPrices.contains).map(tollPrices).sum
               } else {
                 0
               }

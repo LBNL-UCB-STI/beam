@@ -50,10 +50,7 @@ object TncToday {
               (day, allHours)
           }
           val allDaysWithAllHours = (0 to 6)
-            .map(i =>
-              (i,
-               groupedByDayWithAllData.getOrElse(i,
-                                                 generateDataForDay(i, tazId))))
+            .map(i => (i, groupedByDayWithAllData.getOrElse(i, generateDataForDay(i, tazId))))
             .toMap
           (tazId, allDaysWithAllHours.values.flatten)
       }
@@ -62,9 +59,7 @@ object TncToday {
       .toSeq
   }
 
-  def roundAt(p: Int)(n: Double): Double = {
-    val s = math pow (10, p); (math round n * s) / s
-  }
+  def roundAt(p: Int)(n: Double): Double = { val s = math pow (10, p); (math round n * s) / s }
 
   def generateTotals(data: Seq[TazStats]): Seq[TazStatsTotals] = {
 
@@ -101,9 +96,11 @@ object TncToday {
     (statsOutData, outDataTotalsJson)
   }
 
-  def saveJsonStructure(data: java.util.List[TazStats],
-                        statsOut: String,
-                        statsTotalsOut: String): Unit = {
+  def saveJsonStructure(
+    data: java.util.List[TazStats],
+    statsOut: String,
+    statsTotalsOut: String
+  ): Unit = {
     val (outData, outDataTotalsJson) = statsAndTotalsToJson(data.asScala)
 
     saveTo(statsOut, outData)

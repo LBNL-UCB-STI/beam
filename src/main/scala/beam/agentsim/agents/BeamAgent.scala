@@ -33,8 +33,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def id: Id[_]
 
-  protected implicit val timeout: util.Timeout =
-    akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
 
@@ -43,20 +42,20 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       reason match {
         case FSM.Shutdown =>
           log.error(
-            "Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+            "Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n"
+          )
         case _ =>
       }
       log.error(event.toString)
-      log.error(
-        "Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      context.system.eventStream
-        .publish(TerminatedPrematurelyEvent(self, reason))
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
   }
 
   def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
       throw new IllegalStateException(
-        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
+        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
+      )
 
     _currentTick = Some(tick)
     _currentTriggerId = Some(triggerId)

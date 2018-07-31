@@ -7,6 +7,7 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
 
   lazy val completedStats = TncToday.completeStats(inputData)
   lazy val statsTotals = TncToday.generateTotals(completedStats)
+
   val inputData = Seq(
     TazOutput.TazStats(1l, 0, "00:00:00", 0.5, 0.9),
     TazOutput.TazStats(1l, 0, "01:00:00", 0.2, 0.3),

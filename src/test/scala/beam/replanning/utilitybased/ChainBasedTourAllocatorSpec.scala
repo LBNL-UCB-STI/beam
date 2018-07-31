@@ -16,7 +16,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
 
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
 class ChainBasedTourAllocatorSpec
@@ -29,8 +29,7 @@ class ChainBasedTourAllocatorSpec
   val MODE = "Car"
 
   trait ChainBasedTourAllocatorTestFixture {
-    val pop: Population =
-      ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
+    val pop: Population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
     val popFact: PopulationFactory = pop.getFactory
     val persAttr: ObjectAttributes = pop.getPersonAttributes
     val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
@@ -40,6 +39,7 @@ class ChainBasedTourAllocatorSpec
     val vehicleList: immutable.IndexedSeq[Id[Vehicle]]
 
     val hhs = new HouseholdsImpl
+
     val hh: HouseholdImpl = hhs.getFactory
       .createHousehold(Id.create("hh", classOf[Household]))
       .asInstanceOf[HouseholdImpl]
@@ -69,38 +69,31 @@ class ChainBasedTourAllocatorSpec
 
       // Add people and vehicles to household
       hh.setMemberIds(JavaConverters.seqAsJavaList(personList))
-      hh.setVehicleIds(
-        JavaConverters.seqAsJavaList(vehicleList.map(Id.createVehicleId(_))))
+      hh.setVehicleIds(JavaConverters.seqAsJavaList(vehicleList.map(Id.createVehicleId(_))))
       hhs.addHousehold(hh)
 
       chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(
         vehs,
         HouseholdMembershipAllocator(hhs, pop),
-        Set[String]("car"))
+        Set[String]("car")
+      )
     }
 
     def createPlan(i: Int): Plan = {
       val plan = popFact.createPlan()
 
-      plan.addActivity(
-        popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
+      plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
 
       val hw = popFact.createLeg("some_mode")
-      hw.setRoute(
-        RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(42),
-                                              Id.createLinkId(12)))
+      hw.setRoute(RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(42), Id.createLinkId(12)))
       plan.addLeg(hw)
 
-      plan.addActivity(
-        popFact.createActivityFromLinkId("w", Id.createLinkId(12)))
+      plan.addActivity(popFact.createActivityFromLinkId("w", Id.createLinkId(12)))
 
       val wh = popFact.createLeg("some_other_mode")
-      wh.setRoute(
-        RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(12),
-                                              Id.createLinkId(42)))
+      wh.setRoute(RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(12), Id.createLinkId(42)))
       plan.addLeg(wh)
-      plan.addActivity(
-        popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
+      plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
       plan
     }
 
@@ -115,8 +108,10 @@ class ChainBasedTourAllocatorSpec
           case leg: Leg if leg.getMode == MODE =>
             val r = leg.getRoute.asInstanceOf[NetworkRoute]
             Assert.assertNotNull("null vehicle id in route", r.getVehicleId)
-            Assert.assertTrue(s"vehicle ${r.getVehicleId} not same as $v",
-                              v.isEmpty || r.getVehicleId == v.get)
+            Assert.assertTrue(
+              s"vehicle ${r.getVehicleId} not same as $v",
+              v.isEmpty || r.getVehicleId == v.get
+            )
             v = Option(r.getVehicleId)
         })
 
@@ -124,23 +119,19 @@ class ChainBasedTourAllocatorSpec
     }
   }
 
-  private def createHouseholdWithEnoughVehicles =
-    new ChainBasedTourAllocatorTestFixture {
-      override val personList: immutable.IndexedSeq[Id[Person]] =
-        (1 to 5).map(Id.createPersonId(_))
-      override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
-        personList.map(Id.createVehicleId(_))
-      init()
-    }
+  private def createHouseholdWithEnoughVehicles = new ChainBasedTourAllocatorTestFixture {
+    override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+    override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
+      personList.map(Id.createVehicleId(_))
+    init()
+  }
 
-  private def createHouseholdsWithTooFewVehicles =
-    new ChainBasedTourAllocatorTestFixture {
-      override val personList: immutable.IndexedSeq[Id[Person]] =
-        (1 to 5).map(Id.createPersonId(_))
-      override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
-        (1 to 2).map(Id.createVehicleId(_))
-      init()
-    }
+  private def createHouseholdsWithTooFewVehicles = new ChainBasedTourAllocatorTestFixture {
+    override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+    override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
+      (1 to 2).map(Id.createVehicleId(_))
+    init()
+  }
 
   behavior of "A ChainBasedTourVehicleAllocator"
 
@@ -158,12 +149,11 @@ class ChainBasedTourAllocatorSpec
     val idRankNum = rng.nextInt(5) + 1
 
     val personWithAnyRank = Id.createPersonId(idRankNum)
-    f.persAttr.getAttribute(personWithAnyRank.toString, "rank") should be(
-      idRankNum)
+    f.persAttr.getAttribute(personWithAnyRank.toString, "rank") should be(idRankNum)
 
     And("the person would like to know which chain-based modes are available")
-    val availableVehicleModes = f.chainBasedTourVehicleAllocator
-      .identifyChainBasedModesForAgent(personWithAnyRank)
+    val availableVehicleModes =
+      f.chainBasedTourVehicleAllocator.identifyChainBasedModesForAgent(personWithAnyRank)
 
     Then("a chain-based mode should be available,")
     availableVehicleModes should contain atLeastOneElementOf Modes.BeamMode.chainBasedModes
@@ -171,19 +161,19 @@ class ChainBasedTourAllocatorSpec
     And("if the person requests a tour-based vehicle,")
     val plan = f.pop.getPersons.get(personWithAnyRank).getPlans.get(0)
     val subtour = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils
-        .getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes))
+      .collectionAsScalaIterable(
+        TripStructureUtils.getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+      )
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithAnyRank,
       subtour,
-      plan)
-    val legs =
-      JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap {
-        trip =>
-          JavaConverters
-            .collectionAsScalaIterable(trip.getLegsOnly)
-      }
+      plan
+    )
+    val legs = JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
+    }
 
     Then("it should be allocated to the person.")
 
@@ -213,15 +203,13 @@ class ChainBasedTourAllocatorSpec
     val personWithLowRank = Id.createPersonId(1)
     f.persAttr.getAttribute(personWithLowRank.toString, "rank") should be(1)
 
-    And(
-      "the two members would like to know which chain-based modes are available")
+    And("the two members would like to know which chain-based modes are available")
     val availableLowRankModes = f.chainBasedTourVehicleAllocator
       .identifyChainBasedModesForAgent(personWithLowRank)
     val availableHighRankModes = f.chainBasedTourVehicleAllocator
       .identifyChainBasedModesForAgent(personWithHighRank)
 
-    Then(
-      "a chain-based mode should not be available for a low-ranking individual")
+    Then("a chain-based mode should not be available for a low-ranking individual")
     availableLowRankModes.size should be(0)
 
     And("a chain-based mode should be available for a high-ranking individual")
@@ -231,20 +219,20 @@ class ChainBasedTourAllocatorSpec
     val highRankPlan = f.pop.getPersons.get(personWithHighRank).getPlans.get(0)
     val highRankSubtour = JavaConverters
       .collectionAsScalaIterable(
-        TripStructureUtils.getSubtours(
-          highRankPlan,
-          f.chainBasedTourVehicleAllocator.stageActivitytypes))
+        TripStructureUtils
+          .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+      )
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithHighRank,
       highRankSubtour,
-      highRankPlan)
-    val highRankLegs = JavaConverters
-      .collectionAsScalaIterable(highRankSubtour.getTrips)
-      .flatMap { trip =>
+      highRankPlan
+    )
+    val highRankLegs = JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap {
+      trip =>
         JavaConverters
           .collectionAsScalaIterable(trip.getLegsOnly)
-      }
+    }
     val highRankModes = highRankLegs.map(leg => leg.getMode)
 
 //    highRankModes should contain only "car"

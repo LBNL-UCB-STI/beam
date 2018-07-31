@@ -12,13 +12,12 @@ import org.matsim.core.utils.geometry.transformations.TransformationFactory
 import scala.collection.Searching.{Found, InsertionPoint, _}
 
 object Trajectory {
+
   @Inject
   var beamConfig: BeamConfig = _
 
-  lazy val transformer: CoordinateTransformation =
-    TransformationFactory.getCoordinateTransformation(
-      TransformationFactory.WGS84,
-      defaultCoordinateSystem)
+  lazy val transformer: CoordinateTransformation = TransformationFactory
+    .getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
 
   def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
@@ -59,8 +58,8 @@ class Trajectory(val path: Vector[SpaceTime]) {
   private def interpolateLocation(time: Double, closestPosition: Int) = {
     val timeL = Math.floor(time).toLong
     if (closestPosition > -1 && closestPosition < _path.size) {
-      val (prev, next) = (Math.max(0, closestPosition - 1),
-                          Math.min(closestPosition + 1, _path.length))
+      val (prev, next) =
+        (Math.max(0, closestPosition - 1), Math.min(closestPosition + 1, _path.length))
       val trajectorySegment = _path.slice(prev, next).toArray
       val timeFunction = _path.slice(prev, next).map(_.time.toDouble).toArray
       val xFunc = trajectorySegment.map(_.loc.getX)
@@ -81,19 +80,15 @@ class Trajectory(val path: Vector[SpaceTime]) {
 
   def computePath(time: Double): Double = {
     val searchFor = SpaceTime(0, 0, Math.floor(time).toLong)
-    val currentPath =
-      _path.search[SpaceTime](searchFor)(SpaceTime.orderingByTime) match {
-        case Found(foundIndex) =>
-          val spaceTimes =
-            _path.slice(0, Math.min(foundIndex + 1, _path.length))
-          spaceTimes
-        case InsertionPoint(insertionPoint) =>
-          val knownPath =
-            _path.slice(0, Math.max(0, Math.min(insertionPoint, _path.size)))
-          val interpolatedTail =
-            interpolateLocation(time, closestPosition = insertionPoint)
-          knownPath :+ interpolatedTail
-      }
+    val currentPath = _path.search[SpaceTime](searchFor)(SpaceTime.orderingByTime) match {
+      case Found(foundIndex) =>
+        val spaceTimes = _path.slice(0, Math.min(foundIndex + 1, _path.length))
+        spaceTimes
+      case InsertionPoint(insertionPoint) =>
+        val knownPath = _path.slice(0, Math.max(0, Math.min(insertionPoint, _path.size)))
+        val interpolatedTail = interpolateLocation(time, closestPosition = insertionPoint)
+        knownPath :+ interpolatedTail
+    }
     currentPath
       .sliding(2)
       .map(pair => {

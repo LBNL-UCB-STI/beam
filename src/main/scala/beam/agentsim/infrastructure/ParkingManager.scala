@@ -2,8 +2,7 @@ package beam.agentsim.infrastructure
 
 import org.matsim.utils.objectattributes.ObjectAttributes
 
-abstract class ParkingManager(tazTreeMap: TAZTreeMap,
-                              parkingAttributes: ObjectAttributes) {
+abstract class ParkingManager(tazTreeMap: TAZTreeMap, parkingAttributes: ObjectAttributes) {
 
 // TODO: get closest non-full parking taz of a certain type.
 

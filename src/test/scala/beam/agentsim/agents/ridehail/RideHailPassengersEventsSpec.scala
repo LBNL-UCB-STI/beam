@@ -6,11 +6,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
-import org.matsim.api.core.v01.events.{
-  Event,
-  PersonEntersVehicleEvent,
-  PersonLeavesVehicleEvent
-}
+import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -43,7 +39,8 @@ class RideHailPassengersEventsSpec
 
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
-        module(baseConfig, scenario, networkCoordinator.transportNetwork))
+        module(baseConfig, scenario, networkCoordinator.transportNetwork)
+      )
 
       val beamServices: BeamServices =
         injector.getInstance(classOf[BeamServices])
@@ -62,11 +59,9 @@ class RideHailPassengersEventsSpec
         override def handleEvent(event: Event): Unit = {
           event match {
             case traversalEvent: PathTraversalEvent =>
-              val id = traversalEvent.getAttributes.get(
-                PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-              val numPass = traversalEvent.getAttributes
-                .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-                .toInt
+              val id = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+              val numPass =
+                traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
               val v = events.getOrElse(id, Tuple3(0, 0, 0))
 
               events.put(id, v.copy(_3 = v._3 + numPass))
@@ -75,8 +70,7 @@ class RideHailPassengersEventsSpec
 
             case enterEvent: PersonEntersVehicleEvent
                 if enterEvent.getVehicleId.toString
-                  .startsWith("rideHail") && !enterEvent.getPersonId.toString
-                  .contains("Agent") =>
+                  .startsWith("rideHail") && !enterEvent.getPersonId.toString.contains("Agent") =>
               val id = enterEvent.getVehicleId.toString
               val v = events.getOrElse(id, Tuple3(0, 0, 0))
               events.put(id, v.copy(_1 = v._1 + 1))

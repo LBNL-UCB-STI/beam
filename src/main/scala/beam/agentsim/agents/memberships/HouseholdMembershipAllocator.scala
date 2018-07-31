@@ -6,11 +6,11 @@ import org.matsim.households.{Household, Households}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 case class HouseholdMembershipAllocator(
-    households: Households,
-    implicit val population: org.matsim.api.core.v01.population.Population
+  households: Households,
+  implicit val population: org.matsim.api.core.v01.population.Population
 ) {
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
@@ -36,12 +36,14 @@ case class HouseholdMembershipAllocator(
     : TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
     TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
-  def lookupVehicleForRankedPerson(person: Id[Person]): Option[Id[Vehicle]] = {
-    val household = memberships(person)
+  def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {
+
+    val household = memberships(personId)
     vehicleAllocationsByRank
       .getOrElseUpdate(
         household.getId, {
-          val vehicleRes = mutable.Map[Id[Person], Id[Vehicle]]()
+          val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
+            mutable.Map[Id[Person], Id[Vehicle]]()
 
           val householdVehicles =
             JavaConverters
@@ -57,6 +59,6 @@ case class HouseholdMembershipAllocator(
           vehicleRes
         }
       )
-      .get(person)
+      .get(personId)
   }
 }

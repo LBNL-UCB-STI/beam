@@ -29,14 +29,15 @@ object ExperimentGenerator extends App {
   private def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(
-        s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
+        s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}"
+      )
     }
 
-    val modeChoiceTemplateFile =
-      Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath
+    val modeChoiceTemplateFile = Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath
     if (!Files.exists(modeChoiceTemplateFile)) {
       throw new IllegalArgumentException(
-        "No mode choice template found " + modeChoiceTemplateFile.toString)
+        "No mode choice template found " + modeChoiceTemplateFile.toString
+      )
     }
   }
 
@@ -46,8 +47,7 @@ object ExperimentGenerator extends App {
       .sliding(2, 1)
       .toList
       .collect {
-        case Array("--experiments", filePath: String)
-            if filePath.trim.nonEmpty =>
+        case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
           (ExperimentsParamName, filePath)
         case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
@@ -74,13 +74,11 @@ object ExperimentGenerator extends App {
   val argsMap = parseArgs(args)
 
   if (argsMap.get(ExperimentsParamName).isEmpty) {
-    throw new IllegalArgumentException(
-      s"$ExperimentsParamName param is missing")
+    throw new IllegalArgumentException(s"$ExperimentsParamName param is missing")
   }
   private val experimentFile = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
   if (!Files.exists(experimentFile)) {
-    throw new IllegalArgumentException(
-      s"$ExperimentsParamName file is missing: $experimentFile")
+    throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
   }
 
   val experiment = loadExperimentDefs(experimentFile.toFile)
@@ -99,31 +97,26 @@ object ExperimentGenerator extends App {
     //levelDesc.putMapPropertyType("params", classOf[String], classOf[Any])
     constructor.addTypeDescription(levelDesc)
     val baseScenarioDesc = new TypeDescription(classOf[BaseScenario])
-    factorsDescription.putListPropertyType("baseScenario",
-                                           classOf[BaseScenario])
+    factorsDescription.putListPropertyType("baseScenario", classOf[BaseScenario])
     constructor.addTypeDescription(baseScenarioDesc)
     val yaml = new Yaml(constructor)
-    val experiment =
-      yaml.loadAs(new FileInputStream(file), classOf[ExperimentDef])
+    val experiment = yaml.loadAs(new FileInputStream(file), classOf[ExperimentDef])
     experiment
   }
 
   validateExperimentConfig(experiment)
 
-  val baseConfig = ConfigFactory.parseFile(
-    Paths.get(experiment.header.beamTemplateConfPath).toFile)
+  val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.header.beamTemplateConfPath).toFile)
   val experimentVariations = experiment.combinationsOfLevels()
+
   val experimentRuns = experimentVariations.map { run =>
-    ExperimentRunSandbox(projectRoot,
-                         experimentFile.getParent,
-                         experiment,
-                         run,
-                         baseConfig)
+    ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, run, baseConfig)
   }
 
   val modeChoiceTemplate = Resources.toString(
     Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath.toUri.toURL,
-    Charsets.UTF_8)
+    Charsets.UTF_8
+  )
   val runScriptTemplate = experiment.getRunScriptTemplate
   val batchScriptTemplate = experiment.getBatchRunScriptTemplate
   val jinjava = new Jinjava()
@@ -142,8 +135,7 @@ object ExperimentGenerator extends App {
     if (!Files.exists(runSandbox.beamConfPath.getParent)) {
       runSandbox.beamConfPath.getParent.toFile.mkdirs()
     }
-    val beamConfWriter =
-      new BufferedWriter(new FileWriter(runSandbox.beamConfPath.toFile, false))
+    val beamConfWriter = new BufferedWriter(new FileWriter(runSandbox.beamConfPath.toFile, false))
     try {
       val beamConfStr = runSandbox.runConfig
         .root()
@@ -160,19 +152,17 @@ object ExperimentGenerator extends App {
     if (!Files.exists(runSandbox.runBeamScriptPath.getParent)) {
       runSandbox.runBeamScriptPath.getParent.toFile.mkdirs()
     }
-    val runScriptWriter = new BufferedWriter(
-      new FileWriter(runSandbox.runBeamScriptPath.toFile, false))
+    val runScriptWriter =
+      new BufferedWriter(new FileWriter(runSandbox.runBeamScriptPath.toFile, false))
     try {
-      val renderedTemplate =
-        jinjava.render(runScriptTemplate, templateParams.asJava)
+      val renderedTemplate = jinjava.render(runScriptTemplate, templateParams.asJava)
       runScriptWriter.write(renderedTemplate)
       runScriptWriter.flush()
     } finally {
       IOUtils.closeQuietly(runScriptWriter)
     }
     if (!SystemUtils.IS_OS_WINDOWS) {
-      Runtime.getRuntime.exec(
-        s"chmod +x ${runSandbox.runBeamScriptPath.toFile.toString}")
+      Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runBeamScriptPath.toFile.toString}")
     }
     /*
      * Optionally write the mode choice params file
@@ -185,11 +175,10 @@ object ExperimentGenerator extends App {
         if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
           runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
         }
-        val modeChoiceWriter = new BufferedWriter(
-          new FileWriter(runSandbox.modeChoiceParametersXmlPath.toFile, false))
+        val modeChoiceWriter =
+          new BufferedWriter(new FileWriter(runSandbox.modeChoiceParametersXmlPath.toFile, false))
         try {
-          val renderedTemplate =
-            jinjava.render(modeChoiceTemplate, templateParams.asJava)
+          val renderedTemplate = jinjava.render(modeChoiceTemplate, templateParams.asJava)
           modeChoiceWriter.write(renderedTemplate)
           modeChoiceWriter.flush()
         } finally {
@@ -197,17 +186,16 @@ object ExperimentGenerator extends App {
         }
     }
   }
+
   /*
    * Write a shell script designed to run the batch locally
    */
   val templateParams = Map(
     "EXPERIMENT_PATH" -> getExperimentPath.toString,
   ) ++ experiment.defaultParams.asScala
-  val batchRunWriter = new BufferedWriter(
-    new FileWriter(getBatchRunScriptPath.toFile, false))
+  val batchRunWriter = new BufferedWriter(new FileWriter(getBatchRunScriptPath.toFile, false))
   try {
-    val renderedTemplate =
-      jinjava.render(batchScriptTemplate, templateParams.asJava)
+    val renderedTemplate = jinjava.render(batchScriptTemplate, templateParams.asJava)
     batchRunWriter.write(renderedTemplate)
     batchRunWriter.flush()
   } finally {
@@ -218,23 +206,20 @@ object ExperimentGenerator extends App {
   }
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor
+
   val experimentsCsv = new BufferedWriter(
-    new FileWriter(
-      Paths.get(getExperimentPath.toString, "experiments.csv").toFile,
-      false))
+    new FileWriter(Paths.get(getExperimentPath.toString, "experiments.csv").toFile, false)
+  )
 
   try {
     val factorNames: List[String] = dynamicParamsPerFactor.map(_._1)
     val paramNames: List[String] = dynamicParamsPerFactor.map(_._2)
-    val header = (List("experimentalGroup") ++ factorNames ++ paramNames)
-      .mkString("", ",", "\n")
+    val header = (List("experimentalGroup") ++ factorNames ++ paramNames).mkString("", ",", "\n")
     experimentsCsv.write(header)
     experimentRuns.foreach { run =>
-      val levelNames =
-        factorNames.map(run.experimentRun.getLevelTitle).mkString(",")
+      val levelNames = factorNames.map(run.experimentRun.getLevelTitle).mkString(",")
       val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
-      val row = List(run.experimentRun.name, levelNames, runValues)
-        .mkString("", ",", "\n")
+      val row = List(run.experimentRun.name, levelNames, runValues).mkString("", ",", "\n")
       experimentsCsv.write(row)
     }
     experimentsCsv.flush()

@@ -265,10 +265,10 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
-            (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+    (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+            (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+    (project.hasProperty('config') && project.hasProperty('iterations') ?
+            '-Diterations='+project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -504,7 +504,7 @@ task execute(type:JavaExec) {
     }else{
         main = mainClassName
     }
-   classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }

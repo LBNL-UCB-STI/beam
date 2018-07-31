@@ -13,9 +13,10 @@ import scala.util.control.Breaks._
 object RideHailUtils {
 
   def getUpdatedBeamLegAfterStopDriving(
-      originalBeamLeg: BeamLeg,
-      stopTime: Double,
-      transportNetwork: TransportNetwork): BeamLeg = {
+    originalBeamLeg: BeamLeg,
+    stopTime: Double,
+    transportNetwork: TransportNetwork
+  ): BeamLeg = {
 
     if (stopTime < originalBeamLeg.startTime || stopTime >= originalBeamLeg.endTime)
       return originalBeamLeg
@@ -48,15 +49,14 @@ object RideHailUtils {
     val updatedTravelPath = originalBeamLeg.travelPath.copy(
       linkIds = updatedLinkIds,
       endPoint = updatedEndPoint,
-      distanceInM = updatedDistanceInMeters)
+      distanceInM = updatedDistanceInMeters
+    )
     val updatedDuration = (stopTime - originalBeamLeg.startTime).toLong
 
-    originalBeamLeg.copy(duration = updatedDuration,
-                         travelPath = updatedTravelPath)
+    originalBeamLeg.copy(duration = updatedDuration, travelPath = updatedTravelPath)
   }
 
-  def getDistance(linkIds: Vector[Int],
-                  transportNetwork: TransportNetwork): Double = {
+  def getDistance(linkIds: Vector[Int], transportNetwork: TransportNetwork): Double = {
     linkIds
       .map(linkId => {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
@@ -70,7 +70,8 @@ object RideHailUtils {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(
         new ProfileRequest,
-        StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
+        StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
+      )).toLong
     }
 
     RoutingModel
@@ -79,8 +80,7 @@ object RideHailUtils {
       .max - leg.startTime
   }
 
-  private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg,
-                                                    stopTime: Double): Coord = {
+  private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
     // TODO: implement following solution following along links
     /*
     var currentTime=beamLeg.startTime
@@ -99,30 +99,28 @@ object RideHailUtils {
      */
 
     val pctTravelled = (stopTime - beamLeg.startTime) / (beamLeg.endTime - beamLeg.startTime)
-    val directionCoordVector = getDirectionCoordVector(
+    val directionCoordVector =
+      getDirectionCoordVector(beamLeg.travelPath.startPoint.loc, beamLeg.travelPath.endPoint.loc)
+    getCoord(
       beamLeg.travelPath.startPoint.loc,
-      beamLeg.travelPath.endPoint.loc)
-    getCoord(beamLeg.travelPath.startPoint.loc,
-             scaleDirectionVector(directionCoordVector, pctTravelled))
+      scaleDirectionVector(directionCoordVector, pctTravelled)
+    )
   }
 
   // TODO: move to some utility class,   e.g. geo
-  private def getDirectionCoordVector(startCoord: Coord,
-                                      endCoord: Coord): Coord = {
-    new Coord((endCoord getX ()) - startCoord.getX,
-              endCoord.getY - startCoord.getY)
+  private def getDirectionCoordVector(startCoord: Coord, endCoord: Coord): Coord = {
+    new Coord((endCoord getX ()) - startCoord.getX, endCoord.getY - startCoord.getY)
   }
 
-  private def getCoord(startCoord: Coord,
-                       directionCoordVector: Coord): Coord = {
-    new Coord(startCoord.getX + directionCoordVector.getX,
-              startCoord.getY + directionCoordVector.getY)
+  private def getCoord(startCoord: Coord, directionCoordVector: Coord): Coord = {
+    new Coord(
+      startCoord.getX + directionCoordVector.getX,
+      startCoord.getY + directionCoordVector.getY
+    )
   }
 
-  private def scaleDirectionVector(directionCoordVector: Coord,
-                                   scalingFactor: Double): Coord = {
-    new Coord(directionCoordVector.getX * scalingFactor,
-              directionCoordVector.getY * scalingFactor)
+  private def scaleDirectionVector(directionCoordVector: Coord, scalingFactor: Double): Coord = {
+    new Coord(directionCoordVector.getX * scalingFactor, directionCoordVector.getY * scalingFactor)
   }
 
 }

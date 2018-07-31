@@ -35,32 +35,28 @@ class RideHailNetworkAPI {
             matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)),
             time,
             null,
-            null)
+            null
+          )
           .toLong
       case None =>
         val edge = r5Network.get.streetLayer.edgeStore.getCursor(linkId)
         (edge.getLengthM / edge.calculateSpeed(
           new ProfileRequest,
-          StreetMode.valueOf(StreetMode.CAR.toString))).toLong
+          StreetMode.valueOf(StreetMode.CAR.toString)
+        )).toLong
     }
   }
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
     getLinks() match {
       case Some(links) =>
-        Some(
-          links
-            .get(Id.createLinkId(linkId.toString))
-            .asInstanceOf[Link]
-            .getFreespeed)
+        Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
       case None => None
     }
   }
 
   def getFromLinkIds(linkId: Int): Vector[Int] = {
-    convertLinkIdsToVector(
-      getMATSimLink(linkId).getFromNode.getInLinks
-        .keySet()) // Id[Link].toString
+    convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
   }
 
   def getToLinkIds(linkId: Int): Vector[Int] = {

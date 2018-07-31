@@ -9,35 +9,45 @@ import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
 
 object Reservation {
+
   def nextReservationId: Id[ReservationRequest] =
-    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
-              classOf[ReservationRequest])
+    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[ReservationRequest])
 }
 
-case class ReservationRequest(requestId: Id[ReservationRequest],
-                              departFrom: BeamLeg,
-                              arriveAt: BeamLeg,
-                              passengerVehiclePersonId: VehiclePersonId)
+case class ReservationRequest(
+  requestId: Id[ReservationRequest],
+  departFrom: BeamLeg,
+  arriveAt: BeamLeg,
+  passengerVehiclePersonId: VehiclePersonId
+)
+
 object ReservationRequest {
-  def apply(departFrom: BeamLeg,
-            arriveAt: BeamLeg,
-            passengerVehiclePersonId: VehiclePersonId): ReservationRequest =
-    ReservationRequest(Reservation.nextReservationId,
-                       departFrom,
-                       arriveAt,
-                       passengerVehiclePersonId)
+
+  def apply(
+    departFrom: BeamLeg,
+    arriveAt: BeamLeg,
+    passengerVehiclePersonId: VehiclePersonId
+  ): ReservationRequest =
+    ReservationRequest(
+      Reservation.nextReservationId,
+      departFrom,
+      arriveAt,
+      passengerVehiclePersonId
+    )
 }
 
 case class ReservationResponse(
-    requestId: Id[ReservationRequest],
-    response: Either[ReservationError, ReserveConfirmInfo],
-    reservedMode: BeamMode)
+  requestId: Id[ReservationRequest],
+  response: Either[ReservationError, ReserveConfirmInfo],
+  reservedMode: BeamMode
+)
 
-case class ReserveConfirmInfo(departFrom: BeamLeg,
-                              arriveAt: BeamLeg,
-                              passengerVehiclePersonId: VehiclePersonId,
-                              triggersToSchedule: Vector[ScheduleTrigger] =
-                                Vector())
+case class ReserveConfirmInfo(
+  departFrom: BeamLeg,
+  arriveAt: BeamLeg,
+  passengerVehiclePersonId: VehiclePersonId,
+  triggersToSchedule: Vector[ScheduleTrigger] = Vector()
+)
 
 case object AccessErrorCodes {
 

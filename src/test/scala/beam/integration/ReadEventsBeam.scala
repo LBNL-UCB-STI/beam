@@ -11,8 +11,10 @@ import scala.collection.immutable.Queue
 import scala.io.Source
 
 class ReadEventsBeam extends ReadEvents {
+
   val basicEventHandler = new BasicEventHandler {
     var events: Queue[Event] = Queue()
+
     def handleEvent(event: Event): Unit = {
       events = events :+ event
     }
@@ -20,31 +22,31 @@ class ReadEventsBeam extends ReadEvents {
   }
 
   def getListTagsFromFile(
-      file: File,
-      mkeyValue: Option[(String, String)] = None,
-      tagToReturn: String,
-      eventType: Option[String] = None,
-      tagTwoToReturn: Option[String] = None): Seq[String] = {
+    file: File,
+    mkeyValue: Option[(String, String)] = None,
+    tagToReturn: String,
+    eventType: Option[String] = None,
+    tagTwoToReturn: Option[String] = None
+  ): Seq[String] = {
     getListTagsFrom(file.getAbsolutePath, mkeyValue, tagToReturn, eventType)
   }
 
   def getListTwoTagsFromFile(
-      file: File,
-      mkeyValue: Option[(String, String)] = None,
-      tagToReturn: String,
-      eventType: Option[String] = None,
-      tagTwoToReturn: Option[String] = None): Seq[(String, String)] = {
-    getListTwoTagsFrom(file.getAbsolutePath,
-                       mkeyValue,
-                       tagToReturn,
-                       eventType,
-                       tagTwoToReturn.get)
+    file: File,
+    mkeyValue: Option[(String, String)] = None,
+    tagToReturn: String,
+    eventType: Option[String] = None,
+    tagTwoToReturn: Option[String] = None
+  ): Seq[(String, String)] = {
+    getListTwoTagsFrom(file.getAbsolutePath, mkeyValue, tagToReturn, eventType, tagTwoToReturn.get)
   }
 
-  def getListTagsFrom(filePath: String,
-                      mkeyValue: Option[(String, String)] = None,
-                      tagToReturn: String,
-                      eventType: Option[String] = None): Seq[String] = {
+  def getListTagsFrom(
+    filePath: String,
+    mkeyValue: Option[(String, String)] = None,
+    tagToReturn: String,
+    eventType: Option[String] = None
+  ): Seq[String] = {
     val eventsMan = EventsUtils.createEventsManager()
     eventsMan.addHandler(basicEventHandler)
 
@@ -55,9 +57,7 @@ class ReadEventsBeam extends ReadEvents {
     val filteredEvents = events.filter { event =>
       val attributes = event.getAttributes.asScala
       eventType.forall(_.equals(event.getEventType)) &&
-      mkeyValue.forall {
-        case (key, value) => attributes.get(key).exists(_.contains(value))
-      }
+      mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
     filteredEvents
@@ -67,11 +67,13 @@ class ReadEventsBeam extends ReadEvents {
 
   }
 
-  def getListTwoTagsFrom(filePath: String,
-                         mkeyValue: Option[(String, String)] = None,
-                         tagToReturn: String,
-                         eventType: Option[String] = None,
-                         tagTwoToReturn: String): Seq[(String, String)] = {
+  def getListTwoTagsFrom(
+    filePath: String,
+    mkeyValue: Option[(String, String)] = None,
+    tagToReturn: String,
+    eventType: Option[String] = None,
+    tagTwoToReturn: String
+  ): Seq[(String, String)] = {
     val eventsMan = EventsUtils.createEventsManager()
     eventsMan.addHandler(basicEventHandler)
 
@@ -82,9 +84,7 @@ class ReadEventsBeam extends ReadEvents {
     val filteredEvents = events.filter { event =>
       val attributes = event.getAttributes.asScala
       eventType.forall(_.equals(event.getEventType)) &&
-      mkeyValue.forall {
-        case (key, value) => attributes.get(key).exists(_.contains(value))
-      }
+      mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
     filteredEvents.map(f => {

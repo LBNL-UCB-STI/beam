@@ -9,19 +9,18 @@ import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
 case class ExperimentDef(
-    @BeanProperty var runExperimentScript: String,
-    @BeanProperty var batchRunScript: String,
-    @BeanProperty var header: Header,
-    @BeanProperty var defaultParams: java.util.Map[String, Object],
-    @BeanProperty var factors: java.util.List[Factor]) {
+  @BeanProperty var runExperimentScript: String,
+  @BeanProperty var batchRunScript: String,
+  @BeanProperty var header: Header,
+  @BeanProperty var defaultParams: java.util.Map[String, Object],
+  @BeanProperty var factors: java.util.List[Factor]
+) {
 
   def this() = this("", "", null, null, new java.util.LinkedList())
 
   def combinationsOfLevels(): List[ExperimentRun] = {
 
-    val values = factors.asScala
-      .map(factor => factor.levels.asScala.map(l => (l, factor)))
-      .toArray
+    val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
     val runs = cartesian(values).toList
     runs.map { levels =>
       ExperimentRun(this, levels)
@@ -44,9 +43,9 @@ case class ExperimentDef(
     */
   def getDynamicParamNamesPerFactor: List[(String, String)] = {
     factors.asScala
-      .flatMap(f =>
-        f.levels.asScala.flatMap(l =>
-          l.params.keySet().asScala.map(pname => (f.title, pname))))
+      .flatMap(
+        f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))
+      )
       .distinct
       .toList
   }
@@ -63,20 +62,19 @@ case class ExperimentDef(
     if (script != null) {
       val scriptFile = Paths.get(script).toAbsolutePath
       if (!Files.exists(scriptFile)) {
-        throw new IllegalArgumentException(
-          "No template script found " + scriptFile.toString)
+        throw new IllegalArgumentException("No template script found " + scriptFile.toString)
       }
       scriptFile.toUri.toURL
     }
 
     Resources.toString(Resources.getResource(resourceScript), Charsets.UTF_8)
   }
+
   def getTemplateConfigParentDirAsString: String =
     Paths.get(header.beamTemplateConfPath).getParent.toAbsolutePath.toString
 }
 
-case class ExperimentRun(experiment: ExperimentDef,
-                         combinations: Seq[(Level, Factor)]) {
+case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Factor)]) {
 
   lazy val params: Map[String, Any] = {
     val runParams = combinations.flatMap(_._1.params.asScala)
@@ -98,15 +96,18 @@ case class ExperimentRun(experiment: ExperimentDef,
   }
 }
 
-case class Header(@BeanProperty var title: String,
-                  @BeanProperty var author: String,
-                  @BeanProperty var beamTemplateConfPath: String,
-                  @BeanProperty var modeChoiceTemplate: String,
-                  @BeanProperty var params: java.util.Map[String, Object]) {
+case class Header(
+  @BeanProperty var title: String,
+  @BeanProperty var author: String,
+  @BeanProperty var beamTemplateConfPath: String,
+  @BeanProperty var modeChoiceTemplate: String,
+  @BeanProperty var params: java.util.Map[String, Object]
+) {
   def this() = this("", "", "", "", new java.util.HashMap())
 }
 case class BaseScenario(
-    @BeanProperty var title: String,
-    @BeanProperty var params: java.util.Map[String, Object]) {
+  @BeanProperty var title: String,
+  @BeanProperty var params: java.util.Map[String, Object]
+) {
   def this() = this("", new java.util.HashMap())
 }

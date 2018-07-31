@@ -16,8 +16,11 @@ object JsonUtils {
   object syntax {
     implicit val encodeCoord: Encoder[Coord] = (a: Coord) => {
       Json.fromValues(
-        Seq(Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX, 5)),
-            Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY, 5))))
+        Seq(
+          Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX, 5)),
+          Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY, 5))
+        )
+      )
     }
   }
 
@@ -25,8 +28,7 @@ object JsonUtils {
     val xml = XML.load(IOUtils.getInputStream(inFile))
     val events = xml \\ "events" \ "event"
     val out = for {
-      event <- events
-      if (event.attribute("type").get.toString() == "pathTraversal" | event
+      event <- events if (event.attribute("type").get.toString() == "pathTraversal" | event
         .attribute("type")
         .get
         .toString() == "pointProcess") && event.attribute("viz_data").isDefined

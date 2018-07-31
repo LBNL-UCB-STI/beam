@@ -32,9 +32,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec
-    extends TestKit(
-      ActorSystem("router-test",
-                  ConfigFactory.parseString("""
+    extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
   """)))
@@ -62,10 +60,11 @@ class AbstractSfLightSpec
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(
-      beamConfig)
+    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
@@ -82,7 +81,8 @@ class AbstractSfLightSpec
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
-      ))
+      )
+    )
 
     within(5 minute) { // Router can take a while to initialize
       router ! Identify(0)
@@ -100,6 +100,7 @@ class AbstractSfLightSpec
       .thenReturn(Vector[BeamFareSegment]())
     fareCalculator
   }
+
   def planToVec(plan: Plan): Vector[Activity] = {
     plan.getPlanElements.asScala
       .filter(_.isInstanceOf[Activity])

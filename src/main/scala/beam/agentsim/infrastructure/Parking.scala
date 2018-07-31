@@ -21,6 +21,7 @@ object ChargerLevel {
 
 // TODO: refine levels as needed by current main application
 object ChargerPower {
+
   def getChargingPowerInkW(chargerLevel: String): Double = chargerLevel match {
     case ChargerLevel.L2 => 3.3
     case ChargerLevel.L3 => 120.0

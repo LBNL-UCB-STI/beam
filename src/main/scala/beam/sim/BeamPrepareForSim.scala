@@ -38,16 +38,14 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
   }
 
   def assignInitialModalityStyles(): Unit = {
-    val allStyles =
-      List("class1", "class2", "class3", "class4", "class5", "class6")
+    val allStyles = List("class1", "class2", "class3", "class4", "class5", "class6")
     val rand = new Random()
     scenario.getPopulation.getPersons
       .values()
       .forEach(person => {
         person.getPlans.forEach(plan => {
-          plan.getAttributes.putAttribute(
-            "modality-style",
-            SwitchModalityStyle.getRandomElement(allStyles, rand))
+          plan.getAttributes
+            .putAttribute("modality-style", SwitchModalityStyle.getRandomElement(allStyles, rand))
         })
       })
   }

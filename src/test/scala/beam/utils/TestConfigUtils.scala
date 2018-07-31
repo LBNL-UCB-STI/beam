@@ -8,7 +8,6 @@ object TestConfigUtils {
   def testConfig(conf: String) =
     BeamConfigUtils
       .parseFileSubstitutingInputDirectory(conf)
-      .withValue("beam.outputs.baseOutputDirectory",
-                 ConfigValueFactory.fromAnyRef(testOutputDir))
+      .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .resolve()
 }

@@ -7,10 +7,11 @@ import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.core.api.experimental.events.EventsManager
 
-class RideHailIterationHistoryActor(eventsManager: EventsManager,
-                                    beamServices: BeamServices,
-                                    transportNetwork: TransportNetwork)
-    extends Actor {
+class RideHailIterationHistoryActor(
+  eventsManager: EventsManager,
+  beamServices: BeamServices,
+  transportNetwork: TransportNetwork
+) extends Actor {
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
@@ -24,8 +25,7 @@ class RideHailIterationHistoryActor(eventsManager: EventsManager,
   def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] = {
     if (rideHailIterationStatsHistory.size >= 2) {
       val lastElement = rideHailIterationStatsHistory.last
-      val secondLastElement = rideHailIterationStatsHistory(
-        rideHailIterationStatsHistory.size - 2)
+      val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
       Some(TNCIterationStats.merge(lastElement, secondLastElement))
     } else {
       rideHailIterationStatsHistory.lastOption
@@ -58,23 +58,23 @@ object RideHailIterationHistoryActor {
 
   case class UpdateRideHailStats(rideHailStats: TNCIterationStats)
 
-  case class AddTNCHistoryData(tncIdleTimes: Set[WaitingEvent],
-                               passengerWaitingTimes: Set[WaitingEvent])
+  case class AddTNCHistoryData(
+    tncIdleTimes: Set[WaitingEvent],
+    passengerWaitingTimes: Set[WaitingEvent]
+  )
 
   case object GetCurrentIterationRideHailStats
 
-  case class UpdateHistoricWaitingTimes(
-      historicWaitingTimes: HistoricWaitingTimes)
+  case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
 
   case class HistoricWaitingTimes()
 
   case class CollectRideHailStats()
 
-  def props(eventsManager: EventsManager,
-            beamServices: BeamServices,
-            transportNetwork: TransportNetwork) =
-    Props(
-      new RideHailIterationHistoryActor(eventsManager,
-                                        beamServices,
-                                        transportNetwork))
+  def props(
+    eventsManager: EventsManager,
+    beamServices: BeamServices,
+    transportNetwork: TransportNetwork
+  ) =
+    Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
 }

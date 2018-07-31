@@ -9,11 +9,10 @@ trait IntegrationSpecCommon {
   protected var totalIterations: Int = 1
 
   val configFileName = "test/input/beamville/beam.conf"
+
   val baseConfig: Config = testConfig(configFileName)
-    .withValue("beam.outputs.events.fileOutputFormats",
-               ConfigValueFactory.fromAnyRef("xml"))
-    .withValue(LAST_ITER_CONF_PATH,
-               ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+    .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .resolve
 
   def isOrdered[A](s: Seq[A])(cf: (A, A) => Boolean): Boolean = {

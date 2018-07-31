@@ -31,27 +31,24 @@ import scala.util.Try
 class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 
   def buildMatSamConf(): config.Config = {
-    val matSimConfig =
-      ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
+    val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
     val maybeParameterSets =
       MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].collect {
-        case clazz
-            if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
+        case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
           try {
             Option(clazz.newInstance())
           } catch {
             case e: IllegalAccessException =>
               logger.debug(
-                s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'. It doesn't have default public constructor.Falling back to setAccessible(). Cause : " + e.getMessage)
+                s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'. It doesn't have default public constructor.Falling back to setAccessible(). Cause : " + e.getMessage
+              )
               Try {
                 val c = clazz.getDeclaredConstructor()
                 c.setAccessible(true)
                 c.newInstance()
               }.toOption
             case e: Throwable =>
-              logger.error(
-                s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'",
-                e)
+              logger.error(s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'", e)
               None
           }
       }
@@ -82,10 +79,8 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
                   val unwrappedParamSets = list.asScala
                     .map(
                       paramSet =>
-                        paramSet
-                          .unwrapped()
-                          .asInstanceOf[java.util.Map[String, _]]
-                          .asScala)
+                        paramSet.unwrapped().asInstanceOf[java.util.Map[String, _]].asScala
+                    )
                     .toList
                   unwrappedParamSets.foreach(parameterSet => {
                     parameterSet.get("type") match {
@@ -96,25 +91,23 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
                             val c = paramSetClazz.getDeclaredConstructor()
                             c.setAccessible(true)
                             val paramSetInstance = c.newInstance()
-                            val paramSetProperties =
-                              parameterSet.filterNot(_._1 == "type")
+                            val paramSetProperties = parameterSet.filterNot(_._1 == "type")
                             if (paramSetProperties.nonEmpty) {
                               paramSetProperties.foreach {
                                 case (paramName, paramSetValue) =>
-                                  paramSetInstance
-                                    .addParam(paramName, paramSetValue.toString)
+                                  paramSetInstance.addParam(paramName, paramSetValue.toString)
                               }
                               configGroup.addParameterSet(paramSetInstance)
                             } else {
-                              logger.warn(
-                                s"Configuration is malformed. Empty parameterset in ${unwrappedParamSets
-                                  .mkString(",")}")
+                              logger.warn(s"Configuration is malformed. Empty parameterset in ${unwrappedParamSets
+                                .mkString(",")}")
                             }
                           })
                       case None =>
                         logger.warn(
                           s"Configuration is malformed. Failed to find type of parameterset in ${unwrappedParamSets
-                            .mkString(",")}")
+                            .mkString(",")}"
+                        )
                     }
                   })
               }

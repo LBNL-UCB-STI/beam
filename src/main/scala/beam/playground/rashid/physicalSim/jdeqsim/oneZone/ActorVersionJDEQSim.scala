@@ -7,11 +7,13 @@ import org.matsim.core.scenario.ScenarioUtils
 object ActorVersionJDEQSim {
 
   class ActorJDEQSim extends Actor {
+
     @deprecated("See beam.agentsim.sim.AgentsimServices", "2.0")
     def receive: PartialFunction[Any, Unit] = {
       case "start" => {
         val config = ConfigUtils.loadConfig(
-          "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
+          "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml"
+        )
 
         val scenario = ScenarioUtils.loadScenario(config)
 
@@ -36,6 +38,7 @@ object ActorVersionJDEQSim {
   }
 
   class EventManager extends Actor {
+
     def receive: PartialFunction[Any, Unit] = {
       case s: String => println("String: " + s)
       case i: Int    => println("Number: " + i)
@@ -43,8 +46,6 @@ object ActorVersionJDEQSim {
   }
 
   val system = ActorSystem("SimpleSystem")
-  val jdeqsimActor: ActorRef =
-    system.actorOf(Props[ActorJDEQSim], "ActorJDEQSim")
-  val eventManagerActor: ActorRef =
-    system.actorOf(Props[EventManager], "EventManager")
+  val jdeqsimActor: ActorRef = system.actorOf(Props[ActorJDEQSim], "ActorJDEQSim")
+  val eventManagerActor: ActorRef = system.actorOf(Props[EventManager], "EventManager")
 }

@@ -1,10 +1,7 @@
 package beam.scoring
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
-import beam.agentsim.agents.choice.logit.{
-  AlternativeAttributes,
-  LatentClassChoiceModel
-}
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.RoutingModel.EmbodiedBeamTrip
@@ -46,29 +43,27 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       override def handleLeg(leg: Leg): Unit = {}
 
       override def finish(): Unit = {
-        val attributes = person.getCustomAttributes
-          .get("beam-attributes")
-          .asInstanceOf[AttributesOfIndividual]
+        val attributes =
+          person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
-        val modeChoiceCalculator =
-          beamServices.modeChoiceCalculatorFactory(attributes)
+        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
         val scoreOfThisOutcomeGivenMyClass =
           trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
 
         // Compute and log all-day score w.r.t. all modality styles
         // One of them has many suspicious-looking 0.0 values. Probably something which
         // should be minus infinity or exception instead.
-        val vectorOfUtilities =
-          List("class1", "class2", "class3", "class4", "class5", "class6")
-            .map { style =>
-              style -> beamServices.modeChoiceCalculatorFactory(
-                attributes.copy(modalityStyle = Some(style)))
-            }
-            .toMap
-            .mapValues(modeChoiceCalculatorForStyle =>
-              trips
-                .map(trip => modeChoiceCalculatorForStyle.utilityOf(trip))
-                .sum)
+        val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
+          .map { style =>
+            style -> beamServices.modeChoiceCalculatorFactory(
+              attributes.copy(modalityStyle = Some(style))
+            )
+          }
+          .toMap
+          .mapValues(
+            modeChoiceCalculatorForStyle =>
+              trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+          )
         log.debug(vectorOfUtilities)
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(vectorOfUtilities))
@@ -82,9 +77,11 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                 plan.getAttributes
                   .getAttribute("scores")
                   .asInstanceOf[MapStringDouble]
-                  .data(attributes.modalityStyle.get))
+                  .data(attributes.modalityStyle.get)
+            )
             .map(score => math.exp(score))
-            .sum)
+            .sum
+        )
 
         val scoreOfBeingInClassGivenThisOutcome = lccm
           .classMembershipModels(Mandatory)
@@ -92,18 +89,19 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
             AlternativeAttributes(
               attributes.modalityStyle.get,
               Map(
-                "income" -> attributes.householdAttributes.householdIncome,
+                "income"        -> attributes.householdAttributes.householdIncome,
                 "householdSize" -> attributes.householdAttributes.householdSize.toDouble,
                 "male" -> (if (attributes.isMale) {
                              1.0
                            } else {
                              0.0
                            }),
-                "numCars" -> attributes.householdAttributes.numCars.toDouble,
+                "numCars"  -> attributes.householdAttributes.numCars.toDouble,
                 "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-                "surplus" -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+                "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
               )
-            ))
+            )
+          )
 
         finalScore = Math.max(scoreOfBeingInClassGivenThisOutcome, -100.0) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.

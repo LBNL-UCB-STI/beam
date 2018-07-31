@@ -40,12 +40,11 @@ object Monoid {
   } = new Monoid[Map[K, V]] {
     def zero = Map.empty[K, V]
 
-    def op(m1: Map[K, V], m2: Map[K, V]): Map[K, V] = m2.foldLeft(m1) {
-      (a, e) =>
-        val (key, value) = e
-        a.get(key)
-          .map(v => a + ((key, implicitly[Monoid[V]].op(v, value))))
-          .getOrElse(a + ((key, value)))
+    def op(m1: Map[K, V], m2: Map[K, V]): Map[K, V] = m2.foldLeft(m1) { (a, e) =>
+      val (key, value) = e
+      a.get(key)
+        .map(v => a + ((key, implicitly[Monoid[V]].op(v, value))))
+        .getOrElse(a + ((key, value)))
     }
   }
 }

@@ -2,10 +2,7 @@ package beam.utils
 
 import java.util
 
-import org.matsim.utils.objectattributes.{
-  ObjectAttributes,
-  ObjectAttributesXmlReader
-}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader}
 
 object ObjectAttributesUtils {
 
@@ -14,8 +11,7 @@ object ObjectAttributesUtils {
     new ObjectAttributes
   }
 
-  def writeObjectAttributesToCSV(objAttr: ObjectAttributes,
-                                 csvFilePath: String): Unit = {
+  def writeObjectAttributesToCSV(objAttr: ObjectAttributes, csvFilePath: String): Unit = {
     // TODO: implement
   }
 
@@ -25,15 +21,16 @@ object ObjectAttributesUtils {
     objectAttributes
   }
 
-  def writeObjectAttributesToXML(objAttr: ObjectAttributes,
-                                 xmlFilePath: String): Unit = {
+  def writeObjectAttributesToXML(objAttr: ObjectAttributes, xmlFilePath: String): Unit = {
     // new ObjectAttributesXmlWriter(ObjectAttributes).writeFile(xmlFilePath)
 
   }
 
-  def merge(objectIds: util.Collection[String],
-            objAttrA: ObjectAttributes,
-            objAttrB: ObjectAttributes): ObjectAttributes = {
+  def merge(
+    objectIds: util.Collection[String],
+    objAttrA: ObjectAttributes,
+    objAttrB: ObjectAttributes
+  ): ObjectAttributes = {
     val result = new ObjectAttributes()
 
     /*
@@ -46,8 +43,10 @@ object ObjectAttributesUtils {
     result
   }
 
-  def getAllAttributeNames(attributes: ObjectAttributes,
-                           objectId: String): util.Collection[String] = {
+  def getAllAttributeNames(
+    attributes: ObjectAttributes,
+    objectId: String
+  ): util.Collection[String] = {
     org.matsim.utils.objectattributes.ObjectAttributesUtils
       .getAllAttributeNames(attributes, objectId)
   }

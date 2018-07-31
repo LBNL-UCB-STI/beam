@@ -11,8 +11,8 @@ object NoActorVersion extends LazyLogging {
 
   @deprecated("See beam.agentsim.sim.AgentsimServices", "2.0")
   def main(args: Array[String]) {
-    val config = ConfigUtils.loadConfig(
-      "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
+    val config =
+      ConfigUtils.loadConfig("C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
 
     val scenario = ScenarioUtils.loadScenario(config)
 

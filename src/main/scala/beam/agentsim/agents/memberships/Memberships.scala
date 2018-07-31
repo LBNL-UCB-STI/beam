@@ -25,16 +25,14 @@ object Memberships {
 
   object RankedGroup {
 
-    case class MemberWithRank[T <: Identifiable[T]](memberId: Id[T],
-                                                    rank: Option[Int])
+    case class MemberWithRank[T <: Identifiable[T]](memberId: Id[T], rank: Option[Int])
 
     implicit def rankedHousehold(household: Household)(
-        implicit population: org.matsim.api.core.v01.population.Population)
-      : RankedGroup[Person, Household] = new RankedGroup[Person, Household] {
+      implicit population: org.matsim.api.core.v01.population.Population
+    ): RankedGroup[Person, Household] = new RankedGroup[Person, Household] {
 
       override def lookupMemberRank(member: Id[Person]): Option[Int] = {
-        population.getPersonAttributes
-          .getAttribute(member.toString, "rank") match {
+        population.getPersonAttributes.getAttribute(member.toString, "rank") match {
           case rank: Integer =>
             Some(rank)
           case _ =>
@@ -42,17 +40,15 @@ object Memberships {
         }
       }
 
-      override val members: Seq[Person] = JavaConverters
-        .asScalaBuffer(household.getMemberIds)
-        .map(population.getPersons.get)
+      override val members: Seq[Person] =
+        JavaConverters.asScalaBuffer(household.getMemberIds).map(population.getPersons.get)
 
       /**
         * Members sorted by rank.
         */
-      override val rankedMembers: Vector[MemberWithRank[Person]] =
-        members.toVector
-          .map(memb => MemberWithRank(memb.getId, lookupMemberRank(memb.getId)))
-          .sortWith(sortByRank)
+      override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector
+        .map(memb => MemberWithRank(memb.getId, lookupMemberRank(memb.getId)))
+        .sortWith(sortByRank)
 
     }
   }

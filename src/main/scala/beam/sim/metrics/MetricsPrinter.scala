@@ -16,6 +16,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String])
     with LazyLogging {
   var iterationNumber = 0
   var metricStore: Map[Entity, EntitySnapshot] = null
+
   val collectionContext: CollectionContext {
     val buffer: LongBuffer
   } = new CollectionContext {
@@ -23,6 +24,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String])
   }
 
   import context._
+
   def receive = {
     case Subscribe(category, selection) if (Metrics.isMetricsEnable) =>
       Kamon.metrics.subscribe(category, selection, self)
@@ -53,8 +55,8 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String])
     case Print(ins, exs) =>
       if (metricStore != null) {
         val counters = metricStore.filterKeys(_.category == "counter")
-        val histograms = metricStore.filterKeys(h =>
-          h.category == "histogram" && ins.contains(h.name))
+        val histograms =
+          metricStore.filterKeys(h => h.category == "histogram" && ins.contains(h.name))
 
         var text = ""
 

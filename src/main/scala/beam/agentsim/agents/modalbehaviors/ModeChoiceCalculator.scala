@@ -19,41 +19,34 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 
-  def utilityOf(mode: BeamMode,
-                cost: Double,
-                time: Double,
-                numTransfers: Int = 0): Double
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
-  final def chooseRandomAlternativeIndex(
-      alternatives: Seq[EmbodiedBeamTrip]): Int = {
+  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
     } else {
-      throw new IllegalArgumentException(
-        "Cannot choose from an empty choice set.")
+      throw new IllegalArgumentException("Cannot choose from an empty choice set.")
     }
   }
 }
 
 object ModeChoiceCalculator {
 
-  def apply(
-      classname: String,
-      beamServices: BeamServices
-  ): AttributesOfIndividual => ModeChoiceCalculator = {
+  type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
+
+  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _) =>
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)
               )
             case _ =>
-              throw new RuntimeException(
-                "LCCM needs people to have modality styles")
+              throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
         (_) =>

@@ -12,6 +12,7 @@ import scala.collection.immutable
 /**
   * @author dserdiuk
   */
+
 trait AccessInfo {
   def resource: Option[ActorRef]
 

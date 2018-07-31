@@ -31,14 +31,14 @@ trait Monad[F[_]] extends Functor[F] {
 }
 
 object Monad {
+
   val optionMonad: Monad[Option] {
     def flatMap[A, B](ma: Option[A])(f: A => Option[B]): Option[B]
 
     def unit[A](a: => A): Some[A]
   } = new Monad[Option] {
     def unit[A](a: => A) = Some(a)
-    override def flatMap[A, B](ma: Option[A])(f: A => Option[B]): Option[B] =
-      ma flatMap f
+    override def flatMap[A, B](ma: Option[A])(f: A => Option[B]): Option[B] = ma flatMap f
   }
 
   val listMonad: Monad[List] {
@@ -47,7 +47,6 @@ object Monad {
     def unit[A](a: => A): List[A]
   } = new Monad[List] {
     def unit[A](a: => A) = List(a)
-    override def flatMap[A, B](ma: List[A])(f: A => List[B]): List[B] =
-      ma flatMap f
+    override def flatMap[A, B](ma: List[A])(f: A => List[B]): List[B] = ma flatMap f
   }
 }

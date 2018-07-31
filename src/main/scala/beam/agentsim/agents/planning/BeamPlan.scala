@@ -26,6 +26,7 @@ import scala.collection.mutable
   *
   */
 object BeamPlan {
+
   def apply(matsimPlan: Plan): BeamPlan = {
     val beamPlan = new BeamPlan
     beamPlan.setPerson(matsimPlan.getPerson)
@@ -53,8 +54,7 @@ class BeamPlan extends Plan {
 
   // Beam-Specific members
   var tours: Vector[Tour] = Vector()
-  private val strategies
-    : mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
+  private val strategies: mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
     mutable.Map()
 
   //////////////////////////////////////////////////////////////////////
@@ -85,8 +85,7 @@ class BeamPlan extends Plan {
     indexBeamPlan()
     actsLegs.foreach {
       case l: Leg =>
-        putStrategy(actsLegToTrip(l),
-                    ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
+        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
       case _ =>
     }
   }
@@ -121,8 +120,7 @@ class BeamPlan extends Plan {
     }
   }
 
-  def getStrategy(planElement: PlanElement,
-                  forClass: Class[_ <: Strategy]): Option[Strategy] = {
+  def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
     strategies.getOrElse(planElement, mutable.Map()).get(forClass)
   }
 
@@ -130,14 +128,14 @@ class BeamPlan extends Plan {
     planElement match {
       case _: Tour =>
         throw new RuntimeException(
-          "getTripContaining is only for finding the parent trip to a plan element, not a child.")
+          "getTripContaining is only for finding the parent trip to a plan element, not a child."
+        )
       case actOrLeg: PlanElement =>
         actsLegToTrip.get(actOrLeg) match {
           case Some(trip) =>
             trip
           case None =>
-            throw new RuntimeException(
-              s"Trip not found for plan element $planElement.")
+            throw new RuntimeException(s"Trip not found for plan element $planElement.")
         }
     }
   }
@@ -161,8 +159,8 @@ class BeamPlan extends Plan {
   }
 
   def tourIndexOfElement(planElement: PlanElement): Int = {
-    (for (tour <- tours.zipWithIndex
-          if tour._1 == getTourContaining(planElement)) yield tour._2).head
+    (for (tour <- tours.zipWithIndex if tour._1 == getTourContaining(planElement))
+      yield tour._2).head
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -191,7 +189,8 @@ class BeamPlan extends Plan {
     } else {
       throw new RuntimeException(
         "For compatibility with MATSim, a BeamPlan only supports addLeg during initialization " +
-          "but not after the BeamPlan plan has been created.")
+        "but not after the BeamPlan plan has been created."
+      )
     }
   }
 
@@ -201,7 +200,8 @@ class BeamPlan extends Plan {
     } else {
       throw new RuntimeException(
         "For compatibility with MATSim, a BeamPlan only supports addActivity during initialization " +
-          "but not after the BeamPlan plan has been created.")
+        "but not after the BeamPlan plan has been created."
+      )
     }
   }
 
@@ -217,6 +217,6 @@ class BeamPlan extends Plan {
     var personIdString = "undefined"
     if (this.getPerson != null) personIdString = this.getPerson.getId.toString
     "[score=" + scoreString + "]" + //				"[selected=" + PersonUtils.isSelected(this) + "]" +
-      "[nof_acts_legs=" + getPlanElements.size + "]" + "[type=" + planType + "]" + "[personId=" + personIdString + "]"
+    "[nof_acts_legs=" + getPlanElements.size + "]" + "[type=" + planType + "]" + "[personId=" + personIdString + "]"
   }
 }

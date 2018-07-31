@@ -28,15 +28,8 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{
-  ControlerDefaultCoreListenersModule,
-  EventsHandling
-}
-import org.matsim.core.scenario.{
-  MutableScenario,
-  ScenarioByInstanceModule,
-  ScenarioUtils
-}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
@@ -48,9 +41,11 @@ import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
 
-  def module(typesafeConfig: com.typesafe.config.Config,
-             scenario: Scenario,
-             transportNetwork: TransportNetwork): com.google.inject.Module =
+  def module(
+    typesafeConfig: com.typesafe.config.Config,
+    scenario: Scenario,
+    transportNetwork: TransportNetwork
+  ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
         override def install(): Unit = {
@@ -73,16 +68,15 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           val beamConfig = BeamConfig(typesafeConfig)
 
-          val mTazTreeMap =
-            Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+          val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
           mTazTreeMap.foreach { tazTreeMap =>
             bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
           }
 
           bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager]).toInstance(
-            new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+          bind(classOf[RideHailSurgePricingManager])
+            .toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
 
           addControlerListenerBinding().to(classOf[BeamSim])
 
@@ -92,18 +86,13 @@ trait BeamHelper extends LazyLogging {
           bindMobsim().to(classOf[BeamMobsim])
           bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
           bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
-          if (getConfig
-                .strategy()
-                .getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
             bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
           }
-          addPlanStrategyBinding("GrabExperiencedPlan").to(
-            classOf[GrabExperiencedPlan])
-          addPlanStrategyBinding("SwitchModalityStyle").toProvider(
-            classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
+          addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
-          addPlanStrategyBinding(
-            BeamReplanningStrategy.UtilityBasedModeChoice.toString)
+          addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
             .toInstance(new AttributeConverter[MapStringDouble] {
@@ -111,8 +100,7 @@ trait BeamHelper extends LazyLogging {
                 mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
 
               override def convert(value: String): MapStringDouble =
-                MapStringDouble(
-                  mapper.readValue(value, classOf[Map[String, Double]]))
+                MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
             })
           bind(classOf[TransportNetwork]).toInstance(transportNetwork)
         }
@@ -121,73 +109,65 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfigFile(configFileName: String): Unit = {
     assert(configFileName != null, "Argument is null: configFileName")
-    val config =
-      BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
     props.setProperty("configFile", configFileName)
-    val out = new FileOutputStream(
-      Paths.get(outputDirectory, "beam.properties").toFile)
+    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
-        Paths.get(
-          beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
         Paths.get(
           outputDirectory,
           Paths
             .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
             .getFileName
-            .toString)
+            .toString
+        )
       )
     }
-    Files.copy(Paths.get(configFileName),
-               Paths.get(outputDirectory, "beam.conf"))
+    Files.copy(Paths.get(configFileName), Paths.get(outputDirectory, "beam.conf"))
   }
 
-  def runBeamWithConfig(
-      config: com.typesafe.config.Config): (Config, String) = {
+  def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable)
-      Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
-    ReflectionUtils.setFinalField(classOf[StreetLayer],
-                                  "LINK_RADIUS_METERS",
-                                  2000.0)
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
     val outputDirectory = FileUtils.getConfigOutputFile(
       beamConfig.beam.outputs.baseOutputDirectory,
       beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory)
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
     LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
-    matsimConfig
-      .controler()
-      .setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
-    val scenario =
-      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
     samplePopulation(scenario, beamConfig, matsimConfig)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator.transportNetwork))
+      module(config, scenario, networkCoordinator.transportNetwork)
+    )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
@@ -199,11 +179,12 @@ trait BeamHelper extends LazyLogging {
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
-  def samplePopulation(scenario: MutableScenario,
-                       beamConfig: BeamConfig,
-                       matsimConfig: Config): Unit = {
-    if (scenario.getPopulation.getPersons
-          .size() > beamConfig.beam.agentsim.numAgents) {
+  def samplePopulation(
+    scenario: MutableScenario,
+    beamConfig: BeamConfig,
+    matsimConfig: Config
+  ): Unit = {
+    if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
       var notSelectedPersonIds = mutable.Set[Id[Person]]()
@@ -219,25 +200,20 @@ trait BeamHelper extends LazyLogging {
         .keySet()
         .forEach(persondId => notSelectedPersonIds.add(persondId))
 
-      val iterHouseholds =
-        scenario.getHouseholds.getHouseholds.values().iterator()
+      val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
       while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
         val household = iterHouseholds.next()
         numberOfAgents += household.getMemberIds.size()
-        household.getVehicleIds.forEach(vehicleId =>
-          notSelectedVehicleIds.remove(vehicleId))
+        household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
         notSelectedHouseholdIds.remove(household.getId)
-        household.getMemberIds.forEach(persondId =>
-          notSelectedPersonIds.remove(persondId))
+        household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
       }
 
-      notSelectedVehicleIds.foreach(vehicleId =>
-        scenario.getVehicles.removeVehicle(vehicleId))
+      notSelectedVehicleIds.foreach(vehicleId => scenario.getVehicles.removeVehicle(vehicleId))
 
       notSelectedHouseholdIds.foreach { housholdId =>
         scenario.getHouseholds.getHouseholds.remove(housholdId)
-        scenario.getHouseholds.getHouseholdAttributes
-          .removeAllAttributes(housholdId.toString)
+        scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
       }
 
       notSelectedPersonIds.foreach { personId =>

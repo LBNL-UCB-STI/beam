@@ -22,9 +22,9 @@ object Metrics {
 
   def defaultTags: Map[String, String] =
     Map(
-      "run-name" -> runName,
+      "run-name"        -> runName,
       "unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
-      "iteration-num" -> s"$iterationNumber"
+      "iteration-num"   -> s"$iterationNumber"
     )
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
@@ -83,6 +83,5 @@ object Metrics {
     */
   def isMetricsEnable: Boolean = metricLevel != OffLevel
 
-  def isRightLevel(level: MetricLevel): Boolean =
-    level <= metricLevel && level != OffLevel
+  def isRightLevel(level: MetricLevel): Boolean = level <= metricLevel && level != OffLevel
 }

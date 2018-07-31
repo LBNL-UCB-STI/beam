@@ -1,28 +1,20 @@
 package beam.agentsim.agents
 
+import java.text.AttributedCharacterIterator.Attribute
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
-import akka.testkit.{
-  ImplicitSender,
-  TestActorRef,
-  TestFSMRef,
-  TestKit,
-  TestProbe
-}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
   NotifyLegEndTrigger,
   NotifyLegStartTrigger
 }
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  RideHailRequest,
-  RideHailResponse
-}
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.ridehail.RideHailManager.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{
   BeamVehicle,
@@ -38,14 +30,10 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
   StartSchedule
 }
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
-import beam.router.BeamRouter.{
-  EmbodyWithCurrentTravelTime,
-  RoutingRequest,
-  RoutingResponse
-}
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -59,10 +47,12 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
+import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
@@ -102,6 +92,8 @@ class PersonAgentSpec
 
   val services: BeamServices = {
     val theServices = mock[BeamServices]
+    val matsimServices = mock[MatsimServices]
+    when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -111,16 +103,15 @@ class PersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(
-        alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
-        mode: Modes.BeamMode,
-        cost: Double,
-        time: Double,
-        numTransfers: Int
+      mode: Modes.BeamMode,
+      cost: Double,
+      time: Double,
+      numTransfers: Int
     ): Double = 0.0
   }
 
@@ -153,12 +144,9 @@ class PersonAgentSpec
         }
       })
       val scheduler =
-        TestActorRef[BeamAgentScheduler](
-          SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
-      val household = householdsFactory.createHousehold(
-        Id.create("dummy", classOf[Household]))
-      val homeActivity =
-        PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
@@ -194,26 +182,26 @@ class PersonAgentSpec
           self ! event
         }
       })
-      val household = householdsFactory.createHousehold(
-        Id.create("dummy", classOf[Household]))
-      val population =
-        PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person =
-        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      val population = PopulationUtils.createPopulation(matsimConfig)
+
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity =
-        PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
-      val workActivity =
-        PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(
-        JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(services.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
@@ -302,18 +290,16 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle =
-        new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       vehicles.put(vehicleId, beamVehicle)
-      val household = householdsFactory.createHousehold(
-        Id.create("dummy", classOf[Household]))
-      val population =
-        PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person =
-        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity =
-        PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("car")
@@ -325,14 +311,23 @@ class PersonAgentSpec
       route.setVehicleId(vehicleId)
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity =
-        PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(
-        JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      val attributesOfIndividual = AttributesOfIndividual(
+        person,
+        household,
+        Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
+        Seq(CAR)
+      )
+      person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+      when(services.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
@@ -397,8 +392,7 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
-    it(
-      "should know how to take a walk_transit trip when it's already in its plan") {
+    it("should know how to take a walk_transit trip when it's already in its plan") {
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -416,7 +410,7 @@ class PersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -424,7 +418,7 @@ class PersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -490,16 +484,12 @@ class PersonAgentSpec
         false
       )
 
-      val household = householdsFactory.createHousehold(
-        Id.create("dummy", classOf[Household]))
-      val population =
-        PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person =
-        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity =
-        PopulationUtils.createActivityFromCoord("home",
-                                                new Coord(166321.9, 1568.87))
+        PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -510,32 +500,25 @@ class PersonAgentSpec
       )
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity =
-        PopulationUtils.createActivityFromCoord("work",
-                                                new Coord(167138.4, 1117))
+      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(
-        JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       bus.becomeDriver(
         Await.result(
-          system
-            .actorSelection("/user/router/TransitDriverAgent-my_bus")
-            .resolveOne(),
+          system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
           timeout.duration
         )
       )
       tram.becomeDriver(
         Await.result(
-          system
-            .actorSelection("/user/router/TransitDriverAgent-my_tram")
-            .resolveOne(),
+          system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
           timeout.duration
         )
       )

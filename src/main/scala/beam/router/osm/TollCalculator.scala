@@ -51,13 +51,12 @@ class TollCalculator(val directory: String) {
     }
 
     def readTolls(osm: OSM) = {
-      val ways =
-        osm.ways.asScala
-          .filter(
-            ns =>
-              ns._2.tags != null && ns._2.tags.asScala.exists(t =>
-                (t.key == "toll" && t.value != "no") || t.key.startsWith(
-                  "toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
+      val ways = osm.ways.asScala.filter(
+        ns =>
+          ns._2.tags != null && ns._2.tags.asScala.exists(
+            t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")
+          ) && ns._2.tags.asScala.exists(_.key == "charge")
+      )
       //osm.nodes.values().asScala.filter(ns => ns.tags != null && ns.tags.size() > 1 && ns.tags.asScala.exists(t => (t.key == "fee" && t.value == "yes") || t.key == "charge") && ns.tags.asScala.exists(t => t.key == "toll" || (t.key == "barrier" && t.value == "toll_booth")))
       ways.map(w => (w._1, wayToToll(w._2)))
     }
@@ -71,11 +70,7 @@ class TollCalculator(val directory: String) {
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile
-        .listFiles(hasOSM(_))
-        .map(_.getAbsolutePath)
-        .headOption
-        .foreach(loadOSM)
+      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM)
     }
 
     ways
@@ -83,10 +78,7 @@ class TollCalculator(val directory: String) {
 
   def calcToll(osmIds: Vector[Long]): Double = {
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
-    ways
-      .filter(w => osmIds.contains(w._1))
-      .map(_._2.charges.map(_.amount).sum)
-      .sum
+    ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
   }
 
   def main(args: Array[String]): Unit = {
@@ -98,17 +90,22 @@ object TollCalculator {
 
   val MIN_TOLL = 1.0
 
-  case class Toll(charges: Vector[Charge],
-                  vehicleTypes: Set[String] = Set(),
-                  isExclusionType: Boolean = false)
+  case class Toll(
+    charges: Vector[Charge],
+    vehicleTypes: Set[String] = Set(),
+    isExclusionType: Boolean = false
+  )
 
-  case class Charge(amount: Double,
-                    currency: String,
-                    item: String = "",
-                    timeUnit: Option[String] = None,
-                    dates: Vector[ChargeDate] = Vector())
+  case class Charge(
+    amount: Double,
+    currency: String,
+    item: String = "",
+    timeUnit: Option[String] = None,
+    dates: Vector[ChargeDate] = Vector()
+  )
 
   object Charge {
+
     def apply(charge: String): Vector[Charge] = {
       charge
         .split(";")
@@ -126,13 +123,13 @@ object TollCalculator {
               tts match {
                 case 2 => Vector()
                 case 3 => Vector(ChargeDate.apply(tokens(0)))
-                case 4 =>
-                  Vector(ChargeDate.apply(tokens(0)),
-                         ChargeDate.apply(tokens(1)))
+                case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
                 case 5 =>
-                  Vector(ChargeDate.apply(tokens(0)),
-                         ChargeDate.apply(tokens(1)),
-                         ChargeDate.apply(tokens(2)))
+                  Vector(
+                    ChargeDate.apply(tokens(0)),
+                    ChargeDate.apply(tokens(1)),
+                    ChargeDate.apply(tokens(2))
+                  )
               }
             )
           } else empty
@@ -150,27 +147,14 @@ object TollCalculator {
     val on: String
   }
 
-  case class DiscreteDate(override val dType: String, override val on: String)
-      extends ChargeDate
+  case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
 
-  case class DateRange(override val dType: String,
-                       override val on: String,
-                       till: String)
+  case class DateRange(override val dType: String, override val on: String, till: String)
       extends ChargeDate
 
   object ChargeDate {
-    private val months = Set("jan",
-                             "feb",
-                             "mar",
-                             "apr",
-                             "may",
-                             "jun",
-                             "jul",
-                             "aug",
-                             "sep",
-                             "oct",
-                             "nov",
-                             "dec")
+    private val months =
+      Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
     private val events = Set("dawn", "sunrise", "sunset", "dusk")
 
@@ -193,7 +177,6 @@ object TollCalculator {
 
     def isDay(d: String): Boolean = days.contains(d.toLowerCase)
 
-    def isHour(h: String): Boolean =
-      h.contains(":") || events.exists(h.contains)
+    def isHour(h: String): Boolean = h.contains(":") || events.exists(h.contains)
   }
 }

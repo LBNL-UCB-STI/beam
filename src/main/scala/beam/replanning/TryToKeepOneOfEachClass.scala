@@ -12,19 +12,22 @@ class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
     val (someClassWithMoreThanOnePlan, thosePlans) = scala.util.Random
       .shuffle(
         member.getPlans.asScala
-          .groupBy(plan =>
-            plan.getAttributes.getAttribute("modality-style").toString)
-          .filter(e => e._2.size > 1))
+          .groupBy(plan => plan.getAttributes.getAttribute("modality-style").toString)
+          .filter(e => e._2.size > 1)
+      )
       .head
 
     val worstPlanOfThatClassWithRespectToThatClass = thosePlans
       .map(
         plan =>
-          (plan,
-           plan.getAttributes
-             .getAttribute("scores")
-             .asInstanceOf[MapStringDouble]
-             .data(someClassWithMoreThanOnePlan)))
+          (
+            plan,
+            plan.getAttributes
+              .getAttribute("scores")
+              .asInstanceOf[MapStringDouble]
+              .data(someClassWithMoreThanOnePlan)
+        )
+      )
       .minBy(_._2)
       ._1
 

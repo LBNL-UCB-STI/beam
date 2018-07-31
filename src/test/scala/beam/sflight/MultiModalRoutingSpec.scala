@@ -24,11 +24,13 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec {
         time,
         Vector(),
         Vector(
-          StreetVehicle(Id.createVehicleId("body-667520-0"),
-                        new SpaceTime(new Coord(origin.getX, origin.getY),
-                                      time.atTime),
-                        Modes.BeamMode.WALK,
-                        asDriver = true))
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.WALK,
+            asDriver = true
+          )
+        )
       )
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime

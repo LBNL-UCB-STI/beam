@@ -20,8 +20,7 @@ class Modeling {
   }
 
   object TourPurpose {
-    private def inferTourPurposeFromAP(
-        activityPattern: String): Option[TourPurpose] = {
+    private def inferTourPurposeFromAP(activityPattern: String): Option[TourPurpose] = {
       activityPattern match {
         case "HWH" | "HWOH" => Some(Mandatory(activityPattern))
         case "WOW"          => Some(NonMandatory(activityPattern))
@@ -32,8 +31,7 @@ class Modeling {
 
   case class Mandatory(override val activityPattern: String) extends TourPurpose
 
-  case class NonMandatory(override val activityPattern: String)
-      extends TourPurpose
+  case class NonMandatory(override val activityPattern: String) extends TourPurpose
 
   trait Alternative[A] {
     def alternativeId(t: A): Id[A]

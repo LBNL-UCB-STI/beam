@@ -10,9 +10,7 @@ import scala.io.Source
 trait EventsFileHandlingCommon {
   def beamConfig: BeamConfig
 
-  def getListIDsWithTag(file: File,
-                        tagIgnore: String,
-                        positionID: Int): List[String] = {
+  def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
     var listResult = List[String]()
     for (line <- Source.fromFile(file.getPath).getLines) {
       if (!line.startsWith(tagIgnore)) {
@@ -24,10 +22,9 @@ trait EventsFileHandlingCommon {
 
   }
 
-  def getEventsFilePath(matsimConfig: Config,
-                        extension: String,
-                        iteration: Int = 0): File = {
+  def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
     new File(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension")
+      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
+    )
   }
 }

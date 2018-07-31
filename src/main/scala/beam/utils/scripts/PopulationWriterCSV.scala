@@ -14,11 +14,11 @@ import org.matsim.core.utils.io.{AbstractMatsimWriter, UncheckedIOException}
   * BEAM
   */
 class PopulationWriterCSV(
-    val coordinateTransformation: CoordinateTransformation,
-    val population: Population,
-    val network: Network,
-    val write_person_fraction: Double)
-    extends AbstractMatsimWriter
+  val coordinateTransformation: CoordinateTransformation,
+  val population: Population,
+  val network: Network,
+  val write_person_fraction: Double
+) extends AbstractMatsimWriter
     with MatsimWriter {
 
   /**
@@ -28,26 +28,24 @@ class PopulationWriterCSV(
     * If plans-streaming is off, the file will not be created until {@link #write(java.lang.String)} is called.
     *
     **/
+
   val handler: PopulationWriterHandler = new PopulationWriterHandler {
     override def writeHeaderAndStartElement(out: BufferedWriter): Unit =
       out.write("id,type,x,y,end.time,customAttributes\n")
 
     override def writeSeparator(out: BufferedWriter): Unit = out.flush()
 
-    override def startPlans(plans: Population, out: BufferedWriter): Unit =
-      out.flush()
+    override def startPlans(plans: Population, out: BufferedWriter): Unit = out.flush()
 
     override def endPlans(out: BufferedWriter): Unit = out.flush()
 
     override def writePerson(person: Person, out: BufferedWriter): Unit = {
       val planAttribs = person.getSelectedPlan.getAttributes
-      val modalityStyle =
-        if (planAttribs.getAttribute("modality-style") != null) {
-          planAttribs.getAttribute("modality-style")
-        } else { "" }
+      val modalityStyle = if (planAttribs.getAttribute("modality-style") != null) {
+        planAttribs.getAttribute("modality-style")
+      } else { "" }
       val modalityScores = if (planAttribs.getAttribute("scores") != null) {
-        val scoreMap =
-          planAttribs.getAttribute("scores").asInstanceOf[MapStringDouble].data
+        val scoreMap = planAttribs.getAttribute("scores").asInstanceOf[MapStringDouble].data
         scoreMap.keySet.toVector.sorted
           .map(key => Vector(key, scoreMap(key).toString).mkString(","))
           .mkString(",")
@@ -56,7 +54,8 @@ class PopulationWriterCSV(
       person.getSelectedPlan.getPlanElements.forEach {
         case activity: Activity =>
           out.write(
-            s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime},$planAttribsString\n")
+            s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime},$planAttribsString\n"
+          )
           planAttribsString = "" // only write for first activity to avoid dups
         case _ =>
       }
@@ -85,6 +84,7 @@ class PopulationWriterCSV(
 }
 
 object PopulationWriterCSV {
+
   def apply(population: Population): PopulationWriterCSV =
     new PopulationWriterCSV(null, population, null, 1.0)
 

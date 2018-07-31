@@ -13,7 +13,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
 }
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{
   BeamVehicle,
@@ -144,7 +144,7 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -152,7 +152,7 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
