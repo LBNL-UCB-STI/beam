@@ -325,7 +325,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     else None
   }
   def scheduleStuckAgentCheck: Option[Cancellable] = {
-    if (beamConfig.beam.debug.stuckAgentDetection.isOn)
+    if (beamConfig.beam.debug.stuckAgentDetection.enabled)
       Some(
         context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),
           new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),

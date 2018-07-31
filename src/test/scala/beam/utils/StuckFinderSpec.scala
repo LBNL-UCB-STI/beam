@@ -8,7 +8,7 @@ import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import org.scalatest.{Matchers, WordSpec}
 
 class StuckFinderSpec extends WordSpec with Matchers {
-  val stuckAgentDetectionCfg = StuckAgentDetection(isOn = true, checkIntervalMs = 100, markAsStuckAfterMs = 100)
+  val stuckAgentDetectionCfg = StuckAgentDetection(enabled = true, checkIntervalMs = 100, markAsStuckAfterMs = 100)
   val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1.0), 1L),  Actor.noSender, 1)
 
   "A StuckFinder" should {
