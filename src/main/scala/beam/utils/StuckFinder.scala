@@ -18,10 +18,6 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
     helper.add(time, st)
   }
 
-  def removeOldest: Option[ValueWithTime[ScheduledTrigger]] = {
-    helper.removeOldest
-  }
-
   def removeByKey(st: ScheduledTrigger): Option[ValueWithTime[ScheduledTrigger]] = {
     helper.removeByKey(st)
   }
@@ -29,7 +25,7 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
   def detectStuckAgents(time: Long = System.currentTimeMillis()): Seq[ValueWithTime[ScheduledTrigger]] = {
     @tailrec
     def detectStuckAgents0(stuckAgents: mutable.ArrayBuffer[ValueWithTime[ScheduledTrigger]]): Seq[ValueWithTime[ScheduledTrigger]] = {
-      removeOldest match {
+      helper.removeOldest match {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
           if (!isStuck) {
