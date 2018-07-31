@@ -213,7 +213,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           val st = stuckInfo.value
           st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger.isInstanceOf[RideHailAllocationManagerTimeout]
         }
-        log.warning("Cleaning {} non-special agents", canClean.size)
+        log.warning("Cleaning {} agents", canClean.size)
         canClean.foreach { stuckInfo =>
           val st = stuckInfo.value
           st.agent ! IllegalTriggerGoToError("Stuck Agent")
@@ -221,9 +221,9 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           log.warning("Cleaned {}", st)
         }
 
-        val special = stuckAgents.diff(canClean)
-        log.warning("Processing {} special agents", special.size)
-        special.foreach { stuckInfo =>
+        val unexpectedStuckAgents = stuckAgents.diff(canClean)
+        log.warning("Processing {} unexpected agents", unexpectedStuckAgents.size)
+        unexpectedStuckAgents.foreach { stuckInfo =>
           val st = stuckInfo.value
           val times = scheduledTriggerToStuckTimes.getOrElse(st, 0)
           scheduledTriggerToStuckTimes.put(st, times + 1)
