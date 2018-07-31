@@ -117,7 +117,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   private var currentIter: Int = -1
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
-  private val stToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] = mutable.HashMap.empty
+  private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] = mutable.HashMap.empty
 
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
@@ -225,8 +225,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
         log.warning("Processing {} special agents", special.size)
         special.foreach { stuckInfo =>
           val st = stuckInfo.value
-          val times = stToStuckTimes.getOrElse(st, 0)
-          stToStuckTimes.put(st, times + 1)
+          val times = scheduledTriggerToStuckTimes.getOrElse(st, 0)
+          scheduledTriggerToStuckTimes.put(st, times + 1)
           // We have to add them back to `stuckFinder`
           if (times < 50) {
             stuckFinder.add(stuckInfo.time, st)
@@ -300,8 +300,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   }
 
   override def postStop(): Unit = {
-    scheduleMonitorTask.foreach(_.cancel())
-    scheduleStuckAgentCheck.foreach(_.cancel())
+    monitorTask.foreach(_.cancel())
+    stuckAgentChecker.foreach(_.cancel())
   }
 
   def awaitingToString: String = {
