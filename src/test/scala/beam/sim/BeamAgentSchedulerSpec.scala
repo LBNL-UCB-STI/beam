@@ -9,6 +9,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.sim.BeamAgentSchedulerSpec._
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -29,7 +30,8 @@ class BeamAgentSchedulerSpec
 
     it("should send trigger to a BeamAgent") {
       val scheduler =
-        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       agent.stateName should be(Uninitialized)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), agent)
@@ -42,7 +44,8 @@ class BeamAgentSchedulerSpec
 
     it("should fail to schedule events with negative tick value") {
       val scheduler =
-        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       watch(agent)
       scheduler ! ScheduleTrigger(InitializeTrigger(-1), agent)
@@ -51,7 +54,8 @@ class BeamAgentSchedulerSpec
 
     it("should dispatch triggers in chronological order") {
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0)
+        SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection))
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), self)
       scheduler ! ScheduleTrigger(ReportState(1.0), self)
