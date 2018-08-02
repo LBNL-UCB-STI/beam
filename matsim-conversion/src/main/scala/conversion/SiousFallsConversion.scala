@@ -24,8 +24,21 @@ object SiouxFallsConversion extends App {
 
   val network = NetworkUtils.createNetwork()
   new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
-
   generateTazDefaults(ConversionConfig(config), network)
+  generateOsmFilteringCommand(OSMFilteringConfig(config))
+
+  def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
+    val commandOut =
+      s"""
+         |osmosis --read-pbf file=~${ofc.pbfFile} --bounding-box top=${ofc.boundingBox.top}
+         |left=${ofc.boundingBox.left} bottom=${ofc.boundingBox.bottom}
+         |right=${ofc.boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true
+         |--write-pbf file=${ofc.outputFile}
+      """.stripMargin
+
+    println(commandOut)
+  }
+
 
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
     val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"
