@@ -20,7 +20,6 @@
 package beam.playground.jdeqsim_with_cacc.jdeqsim;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 
 import org.matsim.api.core.v01.Id;
@@ -35,7 +34,7 @@ import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVeh
  *
  * @author rashid_waraich
  */
-public class Road extends SimUnit {
+public class Road extends SimUnit implements TravelTimeFunction {
 
 	//TODO: where is output, test outputs for change in travel time
 
@@ -55,6 +54,7 @@ public class Road extends SimUnit {
 	static HashMap<Id<Link>, Road> allRoads = null;
 
 	public static HashMap<Id<Link>, Road> getAllRoads() {
+
 		return allRoads;
 	}
 
@@ -108,6 +108,8 @@ public class Road extends SimUnit {
 	 * the queue this allows a car to enter the road, even if no space on it
 	 */
 	private LinkedList<DeadlockPreventionMessage> deadlockPreventionMessages = new LinkedList<>();
+
+	public static double TravelTime=0;
 
 	public Road(Scheduler scheduler, Link link) {
 		super(scheduler);
@@ -204,8 +206,20 @@ public class Road extends SimUnit {
 	}
 	//TODO: Plot share CACC vs Travel Times, travel time decreases as number of CACC increases
 	//TODO: 100% equal half travel time
-	//TODO: improve code structure, Adding tests and refactoring
+	//TODO: improve code structure, Adding tests and refactoring, test events
 	//
+
+	@Override
+	public double calcTravelTime(double factor, double simTime){
+
+		return ((getShareCACC()*factor)*(this.link.getLength()) / this.link.getFreespeed(simTime));
+
+	}
+
+
+
+
+
 
 	public double getShareCACC(){
 		double numCACC = 0;
@@ -221,7 +235,13 @@ public class Road extends SimUnit {
 	}
 
 	public void enterRoad(Vehicle vehicle, double simTime) {
-		if(Integer.parseInt(this.link.getId().toString())==6) {
+
+		if (((this.link.getLength()) / this.getLink().getFreespeed(simTime)) >= 300) {
+			if (Integer.parseInt(this.link.getId().toString()) == 6) {
+				System.out.println("Speed: " + ((this.link.getLength()) / this.getLink().getFreespeed(simTime)));
+			}
+
+		if (Integer.parseInt(this.link.getId().toString()) == 6) {
 			System.out.println(getShareCACC());
 		}
 		// calculate time, when the car reaches the end of the road
@@ -230,8 +250,8 @@ public class Road extends SimUnit {
 		this.noOfCarsPromisedToEnterRoad--;
 		this.carsOnTheRoad.add(vehicle);
 
-		double nextAvailableTimeForLeavingStreet = simTime + ((getShareCACC()/2)*(this.link.getLength()) / this.link.getFreespeed(simTime));
-
+		double nextAvailableTimeForLeavingStreet = simTime + calcTravelTime(10, simTime);
+		TravelTime += nextAvailableTimeForLeavingStreet;
 
 		/*
 		 * needed to remove the following assertion because for deadlock
@@ -257,6 +277,7 @@ public class Road extends SimUnit {
 			 * the front car, it will be waken up.
 			 */
 		}
+	}
 
 	}
 
@@ -369,4 +390,7 @@ public class Road extends SimUnit {
 		return getAllRoads().get(linkId);
 	}
 
+	public static double getTravelTime() {
+		return TravelTime/100;
+	}
 }
