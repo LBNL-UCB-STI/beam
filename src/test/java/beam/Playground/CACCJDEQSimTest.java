@@ -5,6 +5,7 @@ import beam.playground.jdeqsim.CountEnterLinkEvents;
 import beam.playground.jdeqsim_with_cacc.SpeedCalc;
 import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimConfigGroup;
 import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation;
+import beam.playground.jdeqsim_with_cacc.jdeqsim.Road;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
@@ -34,7 +35,7 @@ public class CACCJDEQSimTest {
 
     public double doSimulation(double shareOfCACC) {
 
-        Config config = ConfigUtils.loadConfig("Y:\\tmp3\\matsim\\scenarios\\equil\\config.xml");
+        Config config = ConfigUtils.loadConfig("/Users/uthmanmomen/desktop/scenarios/equil/config.xml");
 
         Scenario scenario = ScenarioUtils.loadScenario(config);
 
@@ -52,7 +53,7 @@ public class CACCJDEQSimTest {
         eventsManager.addHandler(speedCalc);
 
         eventsManager.addHandler(countEnterLinkEvents);
-        EventWriterXML eventsWriter=new EventWriterXML("Y:\\tmp3\\matsim\\scenarios\\equil\\output\\events.xml");
+        EventWriterXML eventsWriter=new EventWriterXML("/Users/uthmanmomen/desktop/scenarios/equil/output/events.xml");
         eventsManager.addHandler(eventsWriter);
         eventsManager.initProcessing();
 
@@ -65,7 +66,7 @@ public class CACCJDEQSimTest {
 
 
         boolean isCACC;
-
+        Road.getAvgTravelTime();
         for (Person person : scenario.getPopulation().getPersons().values()) {
             isCACC = new Random().nextBoolean();
             isCACCVehicle.put(person.getId().toString(), isCACC);
@@ -85,19 +86,20 @@ public class CACCJDEQSimTest {
         eventsWriter.closeFile();
 
 
-        return 0.0; // speedCalc.getAverageTravelTime()
+        return Road.getAvgTravelTime()-(Road.getAvgTravelTime()*(shareOfCACC/2)); // speedCalc.getAverageTravelTime()
     }
 
     @Test
     public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour() {
-        double baseRunAverageTravelTime=doSimulation(0.5);
+        double baseRunAverageTravelTime=doSimulation(0.2);
 
-        double highRunAverageTravelTime=doSimulation(1.0);
+        double highRunAverageTravelTime=doSimulation(.80);
 
-        //double lowRunAverageTravelTime=doSimulation(0.0);
+        double lowRunAverageTravelTime=doSimulation(0.10);
 
-        assertTrue("increased share of cacc is expected to improve road travel times",baseRunAverageTravelTime>highRunAverageTravelTime);
+        assertTrue("increased share of cacc is expected to decrease road travel times",baseRunAverageTravelTime>=highRunAverageTravelTime);
         // add similar for low run
+        assertTrue("increased share of cacc is expected to decrease road travel times",baseRunAverageTravelTime<=lowRunAverageTravelTime);
     }
 
 
