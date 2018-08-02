@@ -1,50 +1,45 @@
-package matsim.conversion
+package conversion
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
+import java.nio.file.Paths
 import java.util
 
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.utils.scripts.HasXY.wgs2Utm
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.supercsv.io.{CsvMapWriter, ICsvMapWriter}
 import org.supercsv.prefs.CsvPreference
 
+import scala.collection.JavaConverters._
+
 object SiouxFallsConversion extends App {
 
-  generateTazDefaults(ConversionConfig.getConversionConfig)
-  generateOsmFilteringCommand(ConversionConfig.getOSMFilteringConfig())
+  val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326", "EPSG:26910")
+  val beamConfigFilePath = "test/input/beamville/beam.conf"
 
+  val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
 
-  def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
-    val commandOut =
-      s"""
-        osmosis --read-pbf file=~${ofc.pbfFile} --bounding-box top=${ofc.boundingBox.top}
-        left=${ofc.boundingBox.left} bottom=${ofc.boundingBox.bottom}
-        right=${ofc.boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true
-        --write-pbf file=${ofc.outputFile}
-      """.stripMargin
-
-    println(commandOut)
-  }
+  generateTazDefaults(ConversionConfig(config))
 
   def generateTazDefaults(conversionConfig: ConversionConfig) = {
     val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"
-    if(conversionConfig.shapeFile.isDefined && conversionConfig.tazIDFieldName.isDefined){
-      TAZTreeMap.shapeFileToCsv(conversionConfig.shapeFile.get, conversionConfig.tazIDFieldName.get, outputFilePath)
+
+    if(conversionConfig.shapeConfig.isDefined){
+      val shapeConfig = conversionConfig.shapeConfig.get
+      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath, conversionConfig.localCRS)
     }else {
       val defaultTaz = getDefaultTaz()
       generateSingleDefaultTaz(defaultTaz, outputFilePath)
     }
   }
 
-  def generateSingleDefaultTaz(default: TAZTreeMap.CsvTaz, outputFilePath: String) = {
+  def generateSingleDefaultTaz(default: ShapeUtils.CsvTaz, outputFilePath: String) = {
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter =
         new CsvMapWriter(new FileWriter(outputFilePath), CsvPreference.STANDARD_PREFERENCE)
 
-      val processors = TAZTreeMap.getProcessors
+      val processors = ShapeUtils.getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
 
       mapWriter.writeHeader(header: _*)
@@ -66,11 +61,22 @@ object SiouxFallsConversion extends App {
     }
   }
 
-  def getDefaultTaz(): TAZTreeMap.CsvTaz = {
+  def getDefaultTaz(): ShapeUtils.CsvTaz = {
     //TODO create where center is the midpoint of the overall extent of the region (as defined by the bounding box around the Network).
-    TAZTreeMap.CsvTaz("1", 0.0, 0.0)
+    ShapeUtils.CsvTaz("1", 0.0, 0.0)
   }
 
+
+  def parseFileSubstitutingInputDirectory(fileName: String): com.typesafe.config.Config = {
+    val file = Paths.get(fileName).toFile
+    parseFileSubstitutingInputDirectory(file)
+  }
+
+  def parseFileSubstitutingInputDirectory(file: File): com.typesafe.config.Config = {
+    ConfigFactory.parseFile(file)
+      .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava))
+      .resolve
+  }
 
 
 }

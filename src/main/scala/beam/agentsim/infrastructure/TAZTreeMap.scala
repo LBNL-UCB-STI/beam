@@ -199,7 +199,7 @@ object TAZTreeMap {
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
-//    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("UTM", "EPSG:26910")
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("epsg:32631", "EPSG:4326")
 
     var mapWriter: ICsvMapWriter = null
     try {
@@ -239,12 +239,12 @@ object TAZTreeMap {
 
         val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
 
-//        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
-//        tazToWrite.put(header(1), tcoord.getX.toString)
-//        tazToWrite.put(header(2), tcoord.getY.toString)
+        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
+        tazToWrite.put(header(1), tcoord.getX.toString)
+        tazToWrite.put(header(2), tcoord.getY.toString)
 
-        tazToWrite.put(header(1), transFormedCoord.getX.toString)
-        tazToWrite.put(header(2), transFormedCoord.getY.toString)
+//        tazToWrite.put(header(1), transFormedCoord.getX.toString)
+//        tazToWrite.put(header(2), transFormedCoord.getY.toString)
 
         mapWriter.write(tazToWrite, header, processors)
       }
