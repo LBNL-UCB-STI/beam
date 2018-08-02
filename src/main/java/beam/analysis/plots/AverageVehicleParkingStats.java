@@ -30,10 +30,11 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
     private static Set<String> parkingTypeSet = new HashSet();
     private static Set<String> iterationTypeSet = new HashSet();
-    private static final String graphTitle = "Parking Occupancy Stats";
+    private static final String graphTitle = "average parking duration";
+    private static final String graphTitleRoot = "parking occupancy stats";
     private static final String xAxisTitle = "Time";
     private static final String yAxisTitle = "# avg occupancy in sec ";
-    private static final String fileName = "average_parking_occupancy";
+    private static final String fileName = "average_parking_duration";
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     @Override
@@ -298,7 +299,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
     public void notifyShutdown(ShutdownEvent event) throws Exception {
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("parkingOccupancy.png");
+        String fileName = outputDirectoryHierarchy.getOutputFilename("vehicleParkingOccupancy.png");
         CategoryDataset dataset = buildParkingTypeOccupancyDatasetForGraph();
         if (dataset != null)
             createParkingOccupancyGraph(dataset, fileName);
@@ -360,7 +361,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
     private void createParkingOccupancyGraph(CategoryDataset dataset, String fileName) throws IOException {
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "occupancy", fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleRoot, "Iteration", "occupancy", fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> parkingAreatype = new ArrayList<>();
         parkingAreatype.addAll(parkingTypeSet);

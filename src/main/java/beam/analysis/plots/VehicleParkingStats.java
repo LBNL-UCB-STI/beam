@@ -21,11 +21,12 @@ public class VehicleParkingStats implements IGraphStats {
 
     private static Map<String, Map<String, String>> vehicleEnterTime = new HashMap<>();
     private static Map<Integer, Map<String, Double>> vehicleOccupancy = new HashMap<>();
+    private static Map<Integer, Map<String,Integer>> vehicleOccupancyCount = new HashMap<>();
     private static Set<String> parkingTypeSet = new HashSet();
-    private static final String graphTitle = "Parking Occupancy Stats";
+    private static final String graphTitle = "Vehicle Parking Stats";
     private static final String xAxisTitle = "Time";
-    private static final String yAxisTitle = "# occupancy (sec) ";
-    private static final String fileName = "parking_occupancy";
+    private static final String yAxisTitle = "# number of vehicles ";
+    private static final String fileName = "vehicle_parking_occupancy";
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
 
@@ -66,13 +67,7 @@ public class VehicleParkingStats implements IGraphStats {
                 double parkingTime = Double.parseDouble(timeInParkingType.get(parkingType));
                 int hour = GraphsStatsAgentSimEventsListener.getEventHour(parkingTime);
                 for (int i = hour; i < 24; i++) {
-                    double time;
-                    if (i == hour) {
-                        time = (i + 1) * 3600 - parkingTime;
-                    } else {
-                        time = 3600;
-                    }
-                    updateVehicleOccupancy(parkingType, time, i);
+                    updateVehicleOccupancyCount(parkingType,i);
                 }
             }
         }
@@ -115,39 +110,35 @@ public class VehicleParkingStats implements IGraphStats {
 
             for (int hour = parkingTimeHour; hour < leavingTimeHour; hour++) {
 
-                double occupancyTimeInHour = (hour + 1) * 3600 - parkingTimeInDouble;
-                parkingTimeInDouble = (hour + 1) * 3600;
-                updateVehicleOccupancy(parkingType, occupancyTimeInHour, hour);
+                updateVehicleOccupancyCount(parkingType,hour);
             }
-
-            parkingTimeInDouble = leavingTimeInDouble - parkingTimeInDouble;
-            updateVehicleOccupancy(parkingType, parkingTimeInDouble, leavingTimeHour);
 
         }
     }
 
-    private void updateVehicleOccupancy(String parkingType, Double parkingTime, int hour) {
 
-        Map<String, Double> parkingOccupancy = vehicleOccupancy.get(hour);
+    private void updateVehicleOccupancyCount(String parkingType, int hour) {
+
+        Map<String, Integer> parkingOccupancy = vehicleOccupancyCount.get(hour);
         if (parkingOccupancy == null) {
             parkingOccupancy = new HashMap<>();
-            parkingOccupancy.put(parkingType, parkingTime);
+            parkingOccupancy.put(parkingType, 1);
         } else {
-            Double previousParkingTime = parkingOccupancy.get(parkingType);
-            if (previousParkingTime == null) {
-                parkingOccupancy.put(parkingType, parkingTime);
+            Integer previousParking = parkingOccupancy.get(parkingType);
+            if (previousParking == null) {
+                parkingOccupancy.put(parkingType, 1);
             } else {
-                parkingOccupancy.put(parkingType, parkingTime + previousParkingTime);
+                parkingOccupancy.put(parkingType, previousParking + 1);
             }
         }
-        vehicleOccupancy.put(hour, parkingOccupancy);
+        vehicleOccupancyCount.put(hour, parkingOccupancy);
     }
 
     private double[] getHoursDataPerOccurrenceAgainstParkingType(String parkingType, int maxHour) {
         double[] OccurrenceAgainstParkingType = new double[maxHour + 1];
         int index = 0;
         for (int hour = 0; hour <= maxHour; hour++) {
-            Map<String, Double> hourOccupancy = vehicleOccupancy.get(hour);
+            Map<String, Integer> hourOccupancy = vehicleOccupancyCount.get(hour);
             if (hourOccupancy != null) {
                 OccurrenceAgainstParkingType[index] = hourOccupancy.get(parkingType) == null ? 0 : hourOccupancy.get(parkingType);
             } else {
@@ -160,7 +151,7 @@ public class VehicleParkingStats implements IGraphStats {
 
     private double[][] buildParkingTypeOccupancyDataset() {
 
-        List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(vehicleOccupancy.keySet());
+        List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(vehicleOccupancyCount.keySet());
         List<String> parkingChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(parkingTypeSet);
         if (0 == hoursList.size())
             return null;
@@ -205,10 +196,10 @@ public class VehicleParkingStats implements IGraphStats {
             out.write("hours," + heading);
             out.newLine();
 
-            int max = vehicleOccupancy.keySet().stream().mapToInt(x -> x).max().getAsInt();
+            int max = vehicleOccupancyCount.keySet().stream().mapToInt(x -> x).max().getAsInt();
 
             for (int hour = 0; hour <= max; hour++) {
-                Map<String, Double> parkingData = vehicleOccupancy.get(hour);
+                Map<String, Integer> parkingData = vehicleOccupancyCount.get(hour);
                 StringBuilder builder = new StringBuilder(hour + 1 + "");
                 if (parkingData != null) {
                     for (String parking : parkingTypeSet) {
