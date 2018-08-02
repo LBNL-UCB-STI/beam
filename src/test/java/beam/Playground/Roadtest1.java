@@ -22,7 +22,7 @@ public class Roadtest1 implements LinkEnterEventHandler, PersonArrivalEventHandl
 
     }*/
 
-    @Test
+
     public void handleEvent(LinkEnterEvent event) {
 
     }
