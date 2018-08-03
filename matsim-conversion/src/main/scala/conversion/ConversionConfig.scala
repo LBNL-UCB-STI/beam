@@ -1,5 +1,8 @@
 package conversion
 
+import org.matsim.api.core.v01.network.Network
+import org.matsim.core.network.NetworkUtils
+
 case class ConversionConfig( outputDirectory: String, localCRS: String, matsimNetworkFile: String, shapeConfig: Option[ShapeConfig] = None )
 
 case class ShapeConfig(shapeFile: String, tazIDFieldName: String)
@@ -33,7 +36,7 @@ object ConversionConfig {
 
 object OSMFilteringConfig {
 
-  def apply(c: com.typesafe.config.Config): OSMFilteringConfig = {
+  def apply(c: com.typesafe.config.Config, network: Network): OSMFilteringConfig = {
     val osmFilteringConfig = c.getConfig("matsim.conversion.osmFiltering")
     val pbfFile = osmFilteringConfig.getString("pbfFile")
     val outputFile = osmFilteringConfig.getString("outputFile")
@@ -41,15 +44,17 @@ object OSMFilteringConfig {
     val spatialConfig = c.getConfig("beam.spatial")
     val boundingBoxBuffer = spatialConfig.getInt("boundingBoxBuffer")
 
-    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(boundingBoxBuffer), outputFile)
+    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(boundingBoxBuffer, network), outputFile)
   }
 
-  def getBoundingBoxConfig(boundingBoxBuffer: Int) = {
-    //TODO get bounding box from x/y extents of every node in the network.
-    val top = 0
-    val bottom = 0
-    val left = 0
-    val right = 0
+  def getBoundingBoxConfig(boundingBoxBuffer: Int, network: Network) = {
+
+    val bbox = NetworkUtils.getBoundingBox(network.getNodes.values())
+
+    val left = bbox(0)
+    val bottom = bbox(1)
+    val right = bbox(2)
+    val top = bbox(3)
 
     BoundingBoxConfig(top + boundingBoxBuffer, left + boundingBoxBuffer, bottom + boundingBoxBuffer, right + boundingBoxBuffer)
   }

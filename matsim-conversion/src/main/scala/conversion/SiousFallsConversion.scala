@@ -24,8 +24,9 @@ object SiouxFallsConversion extends App {
 
   val network = NetworkUtils.createNetwork()
   new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
+
   generateTazDefaults(ConversionConfig(config), network)
-  generateOsmFilteringCommand(OSMFilteringConfig(config))
+  generateOsmFilteringCommand(OSMFilteringConfig(config, network))
 
   def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
     val commandOut =
