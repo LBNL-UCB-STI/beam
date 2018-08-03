@@ -46,6 +46,10 @@ object DrivesVehicle {
 
   case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
 
+  case object StopDrivingIfNoPassengerOnBoard
+
+  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean)
+
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {

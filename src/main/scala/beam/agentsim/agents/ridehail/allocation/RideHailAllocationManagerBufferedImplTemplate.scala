@@ -36,6 +36,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
   var firstRidehailRequestDuringDay = true
 
   def rideCancellationResponse(): Unit = {
+
+    // CONTINUE HERE ###########
     // failed or successful
 
   }
@@ -46,7 +48,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
       // TODO: cancel the ride
       val firstRequestOfDay = bufferedRideHailRequests.head
 
-      rideHailManager.attemptToCancelCurrentRideRequest
+      rideHailManager.attemptToCancelCurrentRideRequest(firstRequestOfDay) // CONTINUE HERE
 
       // TODO: ask vehicle, if customer already picked up (can't rely on tick, as RHM tick might be in same window as driver pickup).
       //  -> make method custom
