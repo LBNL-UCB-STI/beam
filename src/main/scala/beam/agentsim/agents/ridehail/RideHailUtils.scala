@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import scala.collection.mutable.ListBuffer
+
 import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
@@ -7,7 +9,6 @@ import beam.utils.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
-
 import scala.util.control.Breaks._
 
 object RideHailUtils {
@@ -18,51 +19,48 @@ object RideHailUtils {
     transportNetwork: TransportNetwork
   ): BeamLeg = {
 
-    if (stopTime < originalBeamLeg.startTime || stopTime >= originalBeamLeg.endTime)
-      return originalBeamLeg
+    if (stopTime < originalBeamLeg.startTime || stopTime >= originalBeamLeg.endTime) {
+      originalBeamLeg
+    } else {
 
-    val pctTravelled = (stopTime - originalBeamLeg.startTime) / originalBeamLeg.duration
-    val distanceOfNewPath = originalBeamLeg.travelPath.distanceInM * pctTravelled
+      val duration = stopTime - originalBeamLeg.startTime
 
-    var updatedLinkIds: Vector[Int] = Vector()
+      val pctTravelled: Double = duration / originalBeamLeg.duration
 
-    var endPointLocation = originalBeamLeg.travelPath.endPoint.loc
-    var updatedDistanceInMeters = distanceOfNewPath
+      val distanceOfNewPath = originalBeamLeg.travelPath.distanceInM * pctTravelled
 
-    var linkIds = updatedLinkIds
-    for (linkId <- originalBeamLeg.travelPath.linkIds) {
-      linkIds = linkIds :+ linkId
-      val distance = getDistance(linkIds, transportNetwork)
+      var endPointLocation: Coord = originalBeamLeg.travelPath.endPoint.loc
 
-      breakable {
-        if (distanceOfNewPath < distance) {
-          break
-        } else {
-          endPointLocation = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
-          updatedDistanceInMeters = distance
-          updatedLinkIds = linkIds
+      var updatedDistanceInMeters: Double = distanceOfNewPath
+
+      val linkIds = ListBuffer[Int]()
+
+      var distance: Double = 0D
+
+      for (linkId: Int <- originalBeamLeg.travelPath.linkIds) {
+        linkIds += linkId
+        distance += transportNetwork.streetLayer.edgeStore.getCursor(linkId).getLengthM
+
+        breakable {
+          if (distanceOfNewPath < distance) {
+            break
+          } else {
+            endPointLocation = GeoUtils.getR5EdgeCoord(linkId, transportNetwork)
+            updatedDistanceInMeters = distance
+          }
         }
       }
+
+      val updatedEndPoint = SpaceTime(endPointLocation, stopTime.toLong)
+
+      val updatedTravelPath = originalBeamLeg.travelPath.copy(
+        linkIds = linkIds.toVector,
+        endPoint = updatedEndPoint,
+        distanceInM = updatedDistanceInMeters
+      )
+
+      originalBeamLeg.copy(duration = duration.toLong, travelPath = updatedTravelPath)
     }
-
-    val updatedEndPoint = SpaceTime(endPointLocation, stopTime.toLong)
-    val updatedTravelPath = originalBeamLeg.travelPath.copy(
-      linkIds = updatedLinkIds,
-      endPoint = updatedEndPoint,
-      distanceInM = updatedDistanceInMeters
-    )
-    val updatedDuration = (stopTime - originalBeamLeg.startTime).toLong
-
-    originalBeamLeg.copy(duration = updatedDuration, travelPath = updatedTravelPath)
-  }
-
-  def getDistance(linkIds: Vector[Int], transportNetwork: TransportNetwork): Double = {
-    linkIds
-      .map(linkId => {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        edge.getLengthM
-      })
-      .sum
   }
 
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
