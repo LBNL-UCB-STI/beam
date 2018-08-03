@@ -46,7 +46,6 @@ object ShapeUtils {
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
-    val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(localCRS, "EPSG:4326")
 
     var mapWriter: ICsvMapWriter = null
     try {
@@ -80,17 +79,28 @@ object ShapeUtils {
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
       println(s"Total all TAZ ${allNonRepeatedTaz.length}")
 
-      val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation(localCRS, "EPSG:26910")
+      val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326", localCRS)
+//      val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("epsg:32631", "EPSG:4326")
+
 
       for (t <- allNonRepeatedTaz) {
         val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
 
-        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+//        println(s"Coord: x ${t.coordX}, y ${t.coordY}")
 
-        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
-        tazToWrite.put(header(1), tcoord.getX.toString)
-        tazToWrite.put(header(2), tcoord.getY.toString)
+        val utmTransFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+
+//        println(s"utmTransFormedCoord Coord: x ${utmTransFormedCoord.getX}, y ${utmTransFormedCoord.getY}")
+
+//        val wgsTransformedcoord = utm2Wgs.transform(new Coord(t.coordX, t.coordY))
+//        println(s"wgsTransformedcoord Coord: x ${wgsTransformedcoord.getX}, y ${wgsTransformedcoord.getY}")
+//
+//        val backWgsTransformedcoord = utm2Wgs.transform(new Coord(utmTransFormedCoord.getX, utmTransFormedCoord.getY))
+//        println(s"backWgsTransformedcoord Coord: x ${backWgsTransformedcoord.getX}, y ${backWgsTransformedcoord.getY}")
+
+        tazToWrite.put(header(1), utmTransFormedCoord.getX.toString)
+        tazToWrite.put(header(2), utmTransFormedCoord.getY.toString)
 
         mapWriter.write(tazToWrite, header, processors)
       }

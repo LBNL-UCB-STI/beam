@@ -1,6 +1,6 @@
 package conversion
 
-case class ConversionConfig( outputDirectory: String, localCRS: String, shapeConfig: Option[ShapeConfig] = None )
+case class ConversionConfig( outputDirectory: String, localCRS: String, matsimNetworkFile: String, shapeConfig: Option[ShapeConfig] = None )
 
 case class ShapeConfig(shapeFile: String, tazIDFieldName: String)
 
@@ -13,6 +13,7 @@ object ConversionConfig {
   def apply(c: com.typesafe.config.Config): ConversionConfig = {
     val matsimConversionConfig = c.getConfig("matsim.conversion")
     val output = matsimConversionConfig.getString("output")
+    val matsimNetworkFile = matsimConversionConfig.getString("matsimNetworkFile")
 
     val spatialConfig = c.getConfig("beam.spatial")
 
@@ -26,7 +27,7 @@ object ConversionConfig {
       Some(ShapeConfig(shapeFile, tazIdField))
     } else
       None
-    ConversionConfig(output, localCRS, mShapeConfig)
+    ConversionConfig(output, localCRS, matsimNetworkFile, mShapeConfig)
   }
 }
 
