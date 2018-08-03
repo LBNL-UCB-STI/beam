@@ -5,7 +5,10 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocationManager {
+class DefaultRideHailResourceAllocationManager
+    extends RideHailResourceAllocationManager
+    with HandelsDispatching
+    with HandlesRedistribution {
 
   val bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
 

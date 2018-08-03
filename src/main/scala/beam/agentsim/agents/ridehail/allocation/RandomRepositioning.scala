@@ -6,7 +6,9 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager {
+    extends RideHailResourceAllocationManager
+    with HandelsDispatching
+    with HandlesRedistribution {
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest

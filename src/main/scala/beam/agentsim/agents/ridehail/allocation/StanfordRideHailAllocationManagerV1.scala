@@ -22,7 +22,9 @@ TODO: repositioning vehicles should be able to get duty any time
 class StanfordRideHailAllocationManagerV1(
   val rideHailManager: RideHailManager,
   val rideHailNetworkApi: RideHailNetworkAPI
-) extends RideHailResourceAllocationManager {
+) extends RideHailResourceAllocationManager
+    with HandelsDispatching
+    with HandlesRedistribution {
 
   /*
   This method is used to provide an initial vehicle allocation proposal (vehicleAllocationRequest.isInquiry==true).

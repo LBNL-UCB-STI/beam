@@ -23,13 +23,7 @@ trait RideHailResourceAllocationManager {
   // def allocateBatchCustomers()
 
   // TODO: add distinguish param inquiry vs. reservation
-  def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation]
-
   // add assigned and get back new
-
-  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)]
 
 }
 

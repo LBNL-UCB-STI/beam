@@ -1,3 +1,9 @@
 package beam.agentsim.agents.ridehail.allocation
 
-trait HandelsDispatching {}
+trait HandelsDispatching {
+
+  def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): Option[VehicleAllocation]
+
+}
