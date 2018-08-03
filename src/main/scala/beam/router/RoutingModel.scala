@@ -4,7 +4,16 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHail
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -31,13 +40,16 @@ object RoutingModel {
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
-    lazy val requiresReservationConfirmation: Boolean = tripClassifier!= WALK && legs.exists(!_.asDriver)
+    lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
+      !_.asDriver
+    )
 
     val totalTravelTimeInSecs: Long = legs.map(_.beamLeg.duration).sum
 
-    def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
+    def beamLegs(): Vector[BeamLeg] =
+      legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
-    def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
+    def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
 
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
@@ -47,34 +59,34 @@ object RoutingModel {
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
-        } else if (theMode == WALK && leg.isRideHail){
+        } else if (theMode == WALK && leg.isRideHail) {
           theMode = RIDE_HAIL
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
           theMode = CAR
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
-        if(leg.beamLeg.mode == CAR)hasUsedCar = true
-        if(leg.isRideHail)hasUsedRideHail = true
+        if (leg.beamLeg.mode == CAR) hasUsedCar = true
+        if (leg.isRideHail) hasUsedRideHail = true
       }
-      if(theMode == TRANSIT && hasUsedRideHail){
+      if (theMode == TRANSIT && hasUsedRideHail) {
         RIDE_HAIL_TRANSIT
-      }else if(theMode == TRANSIT && hasUsedCar){
+      } else if (theMode == TRANSIT && hasUsedCar) {
         DRIVE_TRANSIT
-      }else if(theMode == TRANSIT && !hasUsedCar){
+      } else if (theMode == TRANSIT && !hasUsedCar) {
         WALK_TRANSIT
-      }else{
+      } else {
         theMode
       }
     }
 
-
-
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
-    override def toString(): String = {
-      s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    override def toString: String = {
+      s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
+        .map(head => head.beamLeg.startTime)
+        .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 
@@ -85,41 +97,53 @@ object RoutingModel {
   /**
     *
     * @param startTime time in seconds from base midnight
-    * @param mode
+    * @param mode BeamMode
     * @param duration  period in seconds
-    * @param travelPath
+    * @param travelPath BeamPath
     */
-  case class BeamLeg(startTime: Long,
-                     mode: BeamMode,
-                     duration: Long,
-                     travelPath: BeamPath) {
+  case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long, travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
-    def updateLinks(newLinks: Vector[Int]): BeamLeg = this.copy(travelPath = this.travelPath.copy(newLinks))
-    def updateStartTime(newStartTime: Long): BeamLeg = this.copy(startTime = newStartTime, travelPath = this.travelPath.updateStartTime(newStartTime))
+    def updateLinks(newLinks: Vector[Int]): BeamLeg =
+      this.copy(travelPath = this.travelPath.copy(newLinks))
 
-    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
+    def updateStartTime(newStartTime: Long): BeamLeg =
+      this
+        .copy(startTime = newStartTime, travelPath = this.travelPath.updateStartTime(newStartTime))
+
+    override def toString: String =
+      s"BeamLeg($mode @ $startTime,dur:$duration,path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+
+    def dummyWalk(startTime: Long): BeamLeg =
+      new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
   }
 
-  case class EmbodiedBeamLeg(beamLeg: BeamLeg,
-                             beamVehicleId: Id[Vehicle],
-                             asDriver: Boolean,
-                             passengerSchedule: Option[PassengerSchedule],
-                             cost: BigDecimal,
-                             unbecomeDriverOnCompletion: Boolean
-                            ) {
-    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
+  case class EmbodiedBeamLeg(
+    beamLeg: BeamLeg,
+    beamVehicleId: Id[Vehicle],
+    asDriver: Boolean,
+    passengerSchedule: Option[PassengerSchedule],
+    cost: BigDecimal,
+    unbecomeDriverOnCompletion: Boolean
+  ) {
+
+    val isHumanBodyVehicle: Boolean =
+      HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
     val isRideHail: Boolean = RideHailVehicle.isRideHailVehicle(beamVehicleId)
   }
 
-  def traverseStreetLeg(leg: BeamLeg, vehicleId: Id[Vehicle], travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
+  def traverseStreetLeg(
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    travelTimeByEnterTimeAndLinkId: (Long, Int) => Long
+  ): Iterator[Event] = {
     if (leg.travelPath.linkIds.size >= 2) {
       val fullyTraversedLinks = leg.travelPath.linkIds.drop(1).dropRight(1)
-      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
+      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
+        enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
       leg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
         case (Seq(from, to), timeAtNode) =>
@@ -132,14 +156,31 @@ object RoutingModel {
       Iterator.empty
     }
   }
-  def linksToTimeAndDistance(linkIds: Vector[Int], startTime: Long, travelTimeByEnterTimeAndLinkId: (Long, Int, StreetMode) => Long, mode: StreetMode, streetLayer: StreetLayer) = {
-    def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
-    val traversalTimes = linkIds.scanLeft(startTime)(exitTimeByEnterTimeAndLinkId).sliding(2).map(pair => pair.last - pair.head).toVector
-    val cumulDistance = linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
+
+  def linksToTimeAndDistance(
+    linkIds: Vector[Int],
+    startTime: Long,
+    travelTimeByEnterTimeAndLinkId: (Long, Int, StreetMode) => Long,
+    mode: StreetMode,
+    streetLayer: StreetLayer
+  ): LinksTimesDistances = {
+    def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
+      enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
+    val traversalTimes = linkIds
+      .scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)
+      .sliding(2)
+      .map(pair => pair.last - pair.head)
+      .toVector
+    val cumulDistance =
+      linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
     LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
   }
 
-  case class LinksTimesDistances(linkIds: Vector[Int], travelTimes: Vector[Long], distances: Vector[Double])
+  case class LinksTimesDistances(
+    linkIds: Vector[Int],
+    travelTimes: Vector[Long],
+    distances: Vector[Double]
+  )
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
   /**
@@ -147,11 +188,25 @@ object RoutingModel {
     * @param linkIds either matsim linkId or R5 edgeIds that describes whole path
     * @param transitStops start and end stop if this path is transit (partial) route
     */
-  case class BeamPath(linkIds: Vector[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
-    def duration = endPoint.time - startPoint.time
+  case class BeamPath(
+    linkIds: Vector[Int],
+    transitStops: Option[TransitStopsInfo],
+    startPoint: SpaceTime,
+    endPoint: SpaceTime,
+    distanceInM: Double
+  ) {
+    def duration: Long = endPoint.time - startPoint.time
 
-    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
-    def updateStartTime(newStartTime: Long): BeamPath = this.copy(startPoint = this.startPoint.copy(time = newStartTime), endPoint = this.endPoint.copy(time = newStartTime + this.duration))
+    def toShortString: String =
+      if (linkIds.nonEmpty) {
+        s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"
+      } else { "" }
+
+    def updateStartTime(newStartTime: Long): BeamPath =
+      this.copy(
+        startPoint = this.startPoint.copy(time = newStartTime),
+        endPoint = this.endPoint.copy(time = newStartTime + this.duration)
+      )
 
   }
 
@@ -176,9 +231,9 @@ object RoutingModel {
   }
 
   object WindowTime {
+
     def apply(atTime: Int, departureWindow: Double): WindowTime =
       new WindowTime(atTime, math.round(departureWindow * 60.0).toInt)
   }
 
 }
-

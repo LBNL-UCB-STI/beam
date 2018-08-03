@@ -24,14 +24,14 @@ import static beam.sim.metrics.Metrics.ShortLevel;
 public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
 
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "realized_mode";
+    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static List<String> personIdList = new ArrayList<>();
-    private Logger log = LoggerFactory.getLogger(this.getClass());
     private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public void processStats(Event event) {
@@ -55,7 +55,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType) {
 
     }
 
@@ -70,10 +70,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
-        if (event.getEventType() == ModeChoiceEvent.EVENT_TYPE) {
+        Map<String, String> eventAttributes = event.getAttributes();
+        if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
 
-            String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
-            String personId = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
+            String mode = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE);
+            String personId = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
             Map<String, String> tags = new HashMap<>();
             tags.put("stats-type", "mode-choice");
             tags.put("hour", "" + (hour + 1));
@@ -99,10 +100,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             hourPerson.put(new ModePerson(mode, personId), hour);
             hourModeFrequency.put(hour, hourData);
         }
-        if (event.getEventType() == ReplanningEvent.EVENT_TYPE) {
-            Map<String, String> attributes = event.getAttributes();
-            if (attributes != null) {
-                String person = attributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
+        if (ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            if (eventAttributes != null) {
+                String person = eventAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
                 personIdList.add(person);
                 int modeHour = -1;
                 String mode = null;
@@ -115,7 +115,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 }
 
                 if (mode != null && modeHour != -1) {
-                    hourPerson.remove(new ModePerson(mode,person));
+                    hourPerson.remove(new ModePerson(mode, person));
                     Integer replanning = 1;
                     if (hourData != null) {
                         replanning = hourData.get("others");
@@ -184,11 +184,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(getModesChosen());
+        List<String> modesChosenList = new ArrayList<>(getModesChosen());
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
@@ -200,7 +198,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Set<String> modes = new TreeSet<>();
         Map<String, Integer> modeCountBucket = new HashMap<>();
-        hourModeFrequency.keySet().stream().forEach(hour -> hourModeFrequency.get(hour).keySet().stream().
+        hourModeFrequency.keySet().forEach(hour -> hourModeFrequency.get(hour).keySet().
                 forEach(mode -> {
                     Integer count = modeCountBucket.get(mode);
                     Map<String, Integer> modeFrequency = hourModeFrequency.get(hour);
@@ -213,7 +211,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     }
                 }));
 
-        modeCountBucket.keySet().stream().forEach(mode -> {
+        modeCountBucket.keySet().forEach(mode -> {
             if (modeCountBucket.get(mode) != null && modeCountBucket.get(mode) != 0) {
                 modes.add(mode);
             }
@@ -229,11 +227,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
             Set<String> modes = getModesChosen();
 
-            String heading = modes.stream().reduce((x, y) -> x + "," + y).get();
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("hours," + heading);
             out.newLine();
 
-            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().getAsInt();
+            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
 
             for (int hour = 0; hour <= max; hour++) {
                 Map<String, Integer> modeCount = hourModeFrequency.get(hour);
@@ -241,13 +239,13 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 if (modeCount != null) {
                     for (String mode : modes) {
                         if (modeCount.get(mode) != null) {
-                            builder.append("," + modeCount.get(mode));
+                            builder.append(",").append(modeCount.get(mode));
                         } else {
                             builder.append(",0");
                         }
                     }
                 } else {
-                    for (String mode : modes) {
+                    for (String ignored : modes) {
                         builder.append(",0");
                     }
                 }
@@ -264,7 +262,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         private String mode;
         private String person;
 
-        public ModePerson(String mode, String person) {
+        ModePerson(String mode, String person) {
             this.mode = mode;
             this.person = person;
         }
@@ -279,7 +277,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         @Override
         public String toString() {
-            return "[mode: "+mode+", person: "+person+"]";
+            return "[mode: " + mode + ", person: " + person + "]";
         }
 
         @Override

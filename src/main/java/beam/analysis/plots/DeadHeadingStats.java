@@ -24,21 +24,39 @@ public class DeadHeadingStats implements IGraphStats {
     private static final String deadHeadingTNC0YAxisTitle = "Distance in kilometers";
     private static final String deadHeadingXAxisTitle = "Hour";
     private static final String deadHeadingYAxisTitle = "# trips";
+    private static final String fileNameBase = "rideHail";
+    private static final int DEFAULT_OCCURRENCE = 1;
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private static final String fileNameBase = "rideHail";
-    private String graphTitle = null;
-    private static final int DEFAULT_OCCURRENCE = 1;
+    private Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
+    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private Double passengerVkt = 0d;
+    private Double deadHeadingVkt = 0d;
+    private Double repositioningVkt = 0d;
+    private int reservationCount = 0;
 
-    Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
-    Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private static String getLegendText(String graphName, int i, int bucketSize) {
 
-    Double passengerVkt = 0d;
-    Double deadHeadingVkt = 0d;
-    Double repositioningVkt = 0d;
-    int reservationCount = 0;
+        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
+            return Integer.toString(i);
+        } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
+                || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
 
+            if (i == 0) {
+                return "repositioning";
+            }
+            return Integer.toString(i - 1);
+        } else {
+            if (i == 0) {
+                return "0";
+            } else {
+                int start = (i - 1) * bucketSize + 1;
+                int end = (i - 1) * bucketSize + bucketSize;
+                return start + "-" + end;
+            }
+        }
+    }
 
     @Override
     public void processStats(Event event) {
@@ -46,7 +64,7 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
+    public void createGraph(IterationEndsEvent event) {
     }
 
     @Override
@@ -73,6 +91,7 @@ public class DeadHeadingStats implements IGraphStats {
         reservationCount = 0;
     }
 
+    // Deadheading Distance Graph
 
     private void processDeadHeading(Event event) {
 
@@ -82,8 +101,6 @@ public class DeadHeadingStats implements IGraphStats {
         // Process Event for "tnc_deadheading_distance.png" graph
         processEventForTncPassengerPerTripGraph(event);
     }
-
-    // Deadheading Distance Graph
 
     private void processDeadHeadingDistanceRemainingRepositionings() {
 
@@ -197,7 +214,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers){
+    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -230,7 +247,7 @@ public class DeadHeadingStats implements IGraphStats {
         writeRideHailStatsCSV(event);
     }
 
-    private void updateRideHailStatsModel(IterationEndsEvent event){
+    private void updateRideHailStatsModel(IterationEndsEvent event) {
         RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(event.getIteration(), new RideHailDistanceRowModel());
 
         model.setPassengerVkt(passengerVkt);
@@ -404,7 +421,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers){
+    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers) {
 
         Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
         Map<Integer, Integer> hourData = null;
@@ -432,7 +449,7 @@ public class DeadHeadingStats implements IGraphStats {
     private void createDeadHeadingPassengerPerTripGraph(IterationEndsEvent event, String graphType) throws IOException {
         List<String> graphNamesList = GraphsStatsAgentSimEventsListener.getSortedStringList(deadHeadingsMap.keySet());
         for (String graphName : graphNamesList) {
-            double[][] dataSet = buildDeadHeadingDataSet(this.deadHeadingsMap.get(graphName), graphName);
+            double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
             CategoryDataset tncDeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
             createDeadHeadingGraph(tncDeadHeadingDataSet, event.getIteration(), graphName);
         }
@@ -554,20 +571,20 @@ public class DeadHeadingStats implements IGraphStats {
 
                         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
-                        if(hourData.keySet().contains(passengerKey)){
+                        if (hourData.keySet().contains(passengerKey)) {
                             vkt = hourData.get(passengerKey);
 
-                            if(passengerKey == 0){
+                            if (passengerKey == 0) {
 
                                 deadHeadingVkt += vkt;
-                            }else if(passengerKey == -1){
+                            } else if (passengerKey == -1) {
 
                                 repositioningVkt += vkt;
-                            }else{
+                            } else {
 
                                 passengerVkt += vkt;
                             }
-                        }else{
+                        } else {
                             vkt = 0d;
                         }
                     } else {
@@ -584,7 +601,6 @@ public class DeadHeadingStats implements IGraphStats {
             e.printStackTrace();
         }
     }
-
 
     ////
     // Utility Methods
@@ -636,28 +652,6 @@ public class DeadHeadingStats implements IGraphStats {
             legendItemList.add(getLegendText(graphName, i, bucketSize));
         }
         return legendItemList;
-    }
-
-    private static String getLegendText(String graphName, int i, int bucketSize) {
-
-        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
-            return Integer.toString(i);
-        } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)
-                || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-
-            if (i == 0) {
-                return "repositioning";
-            }
-            return Integer.toString(i - 1);
-        } else {
-            if (i == 0) {
-                return "0";
-            } else {
-                int start = (i - 1) * bucketSize + 1;
-                int end = (i - 1) * bucketSize + bucketSize;
-                return start + "-" + end;
-            }
-        }
     }
 
     private Integer getPathTraversalEventNumOfPassengers(Event event) {

@@ -14,9 +14,6 @@ import java.util.LinkedList;
 import java.util.Map;
 
 public class AgentSimPhysSimInterfaceDebugger {
-
-    // TODO: push this parameter to config
-    public static final boolean DEBUGGER_ON = false;
     private final GeoUtils geoUtils;
     private final TransportNetwork transportNetwork;
 
