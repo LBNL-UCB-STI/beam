@@ -29,7 +29,7 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
     private int timeBinSize = 3600;
-    private int qsimEndTime = 24;
+    private int noOfTimeBins = 24;
 
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
@@ -50,7 +50,7 @@ public class RideHailWaitingStats implements IGraphStats {
             double _endTime2 = Time.parseTime(_endTime);
             Double _endTime3 = Math.floor(_endTime2 / this.timeBinSize);
 
-            this.qsimEndTime = _endTime3.intValue() + 1;
+            this.noOfTimeBins = _endTime3.intValue() + 1;
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -210,7 +210,7 @@ public class RideHailWaitingStats implements IGraphStats {
                 Double _category = getRoundedCategoryUpperBound(category);
                 //out.write(_category + "");
                 String line = "";
-                for (int i = 0; i < this.qsimEndTime; i++) {
+                for (int i = 0; i < this.noOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
 
