@@ -8,18 +8,13 @@ import org.matsim.vehicles.Vehicle
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
-  val isBufferedRideHailAllocationMode = false
-
   def proposeVehicleAllocation(
-      vehicleAllocationRequest: VehicleAllocationRequest
+    vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
   }
 
-  def updateVehicleAllocations(): Unit = {}
-
-  override def repositionVehicles(
-      tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     val repositioningShare =
       rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare

@@ -10,16 +10,14 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
-class RideHailAllocationManagerBufferedImplTemplate(
-    val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager {
-
-  val isBufferedRideHailAllocationMode = true
+class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
+    extends RideHailResourceAllocationManager
+    with HandelsBufferedRequests {
 
   val bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
 
   def proposeVehicleAllocation(
-      vehicleAllocationRequest: VehicleAllocationRequest
+    vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
 
     if (!vehicleAllocationRequest.isInquiry) {
@@ -30,7 +28,19 @@ class RideHailAllocationManagerBufferedImplTemplate(
     None
   }
 
-  def updateVehicleAllocations(): Unit = {
+  var firstRidehailRequestDuringDay = true
+
+  override def updateVehicleAllocations(tick: Double): Unit = {
+
+    if (firstRidehailRequestDuringDay && bufferedRideHailRequests.size > 0) {
+      // TODO: cancel the ride
+      val firstRequestOfDay = bufferedRideHailRequests.head
+
+      firstRidehailRequestDuringDay = false
+    }
+    // uncomment again after basic things function:
+
+    /*
 
     for (vehicleAllocationRequest <- bufferedRideHailRequests) {
 
@@ -59,11 +69,10 @@ class RideHailAllocationManagerBufferedImplTemplate(
     }
 
     bufferedRideHailRequests.clear()
-
+   */
   }
 
-  override def repositionVehicles(
-      tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailManager.getIdleVehicles.size >= 2) {
       val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, _) = iter.next()
