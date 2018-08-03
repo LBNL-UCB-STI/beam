@@ -6,10 +6,12 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.utils.misc.Time;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -26,6 +28,8 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
+    private int timeBinSize = 3600;
+    private int qsimEndTime = 24;
 
     private double lastMaximumTime = 0;
     private double NUMBER_OF_CATEGORIES = 6.0;
@@ -34,12 +38,33 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
 
+
+
+    RideHailWaitingStats(){}
+
+    RideHailWaitingStats(Scenario scenario){
+
+        try {
+
+            String _endTime = scenario.getConfig().qsim().getValue("endTime");
+            double _endTime2 = Time.parseTime(_endTime);
+            Double _endTime3 = Math.floor(_endTime2 / this.timeBinSize);
+
+            this.qsimEndTime = _endTime3.intValue() + 1;
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void resetStats() {
         lastMaximumTime = 0;
 
         rideHailWaiting.clear();
         hoursTimesMap.clear();
+
+        //val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
+
     }
 
     @Override
@@ -185,7 +210,7 @@ public class RideHailWaitingStats implements IGraphStats {
                 Double _category = getRoundedCategoryUpperBound(category);
                 //out.write(_category + "");
                 String line = "";
-                for (int i = 0; i < 24; i++) {
+                for (int i = 0; i < this.qsimEndTime; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
 

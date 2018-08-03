@@ -38,7 +38,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
-    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
+    private IGraphStats rideHailWaitingStats;
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -46,9 +46,14 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario) {
+
+        this.rideHailWaitingStats = new RideHailWaitingStats(scenario);
+
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+
+
     }
 
     @Override
