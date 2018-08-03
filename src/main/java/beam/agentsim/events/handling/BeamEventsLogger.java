@@ -78,14 +78,10 @@ class BeamEventsLogger {
     }
 
     private LoggerLevels getDefaultLevel() {
-        final String defaultWritingLevel = beamOutputEvents().defaultWritingLevel();
+        final String defaultWritingLevel = beamServices.beamConfig().beam().outputs().events().defaultWritingLevel();
         return "".equals(defaultWritingLevel)
                 ? OFF
                 : LoggerLevels.valueOf(defaultWritingLevel);
-    }
-
-    private beam.sim.config.BeamConfig.Beam.Outputs.Events beamOutputEvents() {
-        return beamServices.beamConfig().beam().outputs().events();
     }
 
     void iterationEnds() {
@@ -109,7 +105,7 @@ class BeamEventsLogger {
 
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter = null;
-                if (beamOutputEvents().explodeIntoFiles()) {
+                if (beamServices.beamConfig().beam().outputs().events().explodeIntoFiles()) {
                     for (Class<?> eventTypeToLog : getAllEventsToLog()) {
                         newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, eventTypeToLog, fmt);
                         writers.add(newWriter);
@@ -169,7 +165,7 @@ class BeamEventsLogger {
 
     private void setEventsFileFormats() {
         eventsFileFormatsArray.clear();
-        String eventsFileFormats = beamOutputEvents().fileOutputFormats();
+        String eventsFileFormats = beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
         for (String format : eventsFileFormats.split(",")) {
             BeamEventsFileFormats.from(format)
                     .ifPresent(eventsFileFormatsArray::add);
@@ -199,7 +195,8 @@ class BeamEventsLogger {
     private void overrideDefaultLoggerSetup() {
         Class<?> theClass = null;
 
-        for (String classAndLevel : beamOutputEvents().overrideWritingLevels().split(",")) {
+        for (String classAndLevel : beamServices.beamConfig().beam().outputs().events().overrideWritingLevels()
+                .split(",")) {
             String[] splitClassLevel = classAndLevel.split(":");
             String classString = splitClassLevel[0].trim();
             String levelString = splitClassLevel[1].trim();
