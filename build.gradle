@@ -173,7 +173,7 @@ dependencies {
     // 3rd Party Scala //
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
-    compile ('com.github.carueda:tscfg:v0.8.0'){ // config
+    compile ('com.github.carueda:tscfg:v0.9.4'){ // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
     // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
@@ -423,16 +423,16 @@ task stopEC2(type: AWSLambdaInvokeTask) {
 //////////////////////////////////////////////////////////////////////
 task generateConfig {
     doLast {
-        if (!project.file('build/tscfg-0.8.1.jar').exists()) {
+        if (!project.file('build/tscfg-0.9.4.jar').exists()) {
             download {
-                src 'https://github.com/carueda/tscfg/releases/download/v0.8.1/tscfg-0.8.1.jar'
+                src 'https://github.com/carueda/tscfg/releases/download/v0.9.4/tscfg-0.9.4.jar'
                 dest buildDir
             }
         }
         javaexec {
             main = "-jar"
             args = [
-                    "build/tscfg-0.8.1.jar",
+                    "build/tscfg-0.9.4.jar",
                     "--spec", "src/main/resources/beam-template.conf",
                     "--scala",
                     "--pn", "beam.sim.config",
