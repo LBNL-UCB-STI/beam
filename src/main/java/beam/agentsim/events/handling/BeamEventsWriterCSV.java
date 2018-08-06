@@ -8,9 +8,9 @@ import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static beam.agentsim.events.LoggerLevels.*;
 
@@ -71,7 +71,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
         String[] row = new String[attributeToColumnIndexMapping.keySet().size()];
 
         Map<String, String> eventAttributes = event.getAttributes();
-        HashSet<String> attributeKeys = this.beamEventLogger.getKeysToWrite(event, eventAttributes);
+        Set<String> attributeKeys = this.beamEventLogger.getKeysToWrite(event, eventAttributes);
         for (String attribute : attributeKeys) {
             if (!attributeToColumnIndexMapping.containsKey(attribute)) {
                 if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
@@ -108,19 +108,17 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
     private void registerClass(Class cla) {
         LoggerLevels level = beamEventLogger.getLoggingLevel(cla);
-        Field[] fields = cla.getFields();
 
         if (level != OFF) {
+            Field[] fields = cla.getFields();
             for (Field field : fields) {
-                if (level != SHORT || !beamEventLogger.eventFieldsToDropWhenShort.get(cla).contains(field.getName())) {
-                    if ((field.getName().startsWith("ATTRIBUTE_") && (this.eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
-                            (level == VERBOSE && field.getName().startsWith("VERBOSE_") && (this.eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
+                if (level != SHORT || !beamEventLogger.getEventFieldsToDropWhenShort().get(cla).contains(field.getName())) {
+                    if ((field.getName().startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
+                            (level == VERBOSE && field.getName().startsWith("VERBOSE_") && (eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
                             ) {
                         try {
                             attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
-                        } catch (IllegalArgumentException e) {
-                            e.printStackTrace();
-                        } catch (IllegalAccessException e) {
+                        } catch (IllegalArgumentException | IllegalAccessException e) {
                             e.printStackTrace();
                         }
                     }
