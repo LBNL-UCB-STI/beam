@@ -125,7 +125,9 @@ public class AverageVehicleParkingStats implements IGraphStats {
                 double parkingTime = Double.parseDouble(timeInParkingType.get(parkingType));
                 int hour = GraphsStatsAgentSimEventsListener.getEventHour(parkingTime);
                 updateVehicleOccupancyCount(parkingType, hour);
-                updateVehicleOccupancy(parkingType, parkingTime, hour);
+                double parkingTimeinParking = 24 * 3600 - parkingTime;
+                updateVehicleOccupancy(parkingType, parkingTimeinParking, hour);
+
             }
         }
     }
