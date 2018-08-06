@@ -59,13 +59,9 @@ public class RideHailWaitingStats implements IGraphStats {
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
-
         Double _noOfTimeBins = _endTime / timeBinSize;
         _noOfTimeBins = Math.floor(_noOfTimeBins);
         this.numberOfTimeBins = _noOfTimeBins.intValue() + 1;
-
-
-        System.out.println("TimeBinSize: " + this.timeBinSize + ", NumberOfTimeBins: " + this.numberOfTimeBins);
     }
     @Override
     public void resetStats() {
