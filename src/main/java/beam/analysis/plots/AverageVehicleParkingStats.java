@@ -44,6 +44,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
+        collectEventsForPendingPark();
         calculateAvgParking();
         updateParkingOccupancyInIteration(event.getIteration());
         CategoryDataset dataset = buildParkTypeOccupancyDatasetForGraph();
@@ -56,7 +57,6 @@ public class AverageVehicleParkingStats implements IGraphStats {
         Set<Integer> hours = vehicleOccupancy.keySet();
         Set<Integer> hours1 = vehicleOccupancyCount.keySet();
         assert hours.size() == hours1.size();
-
         for (Integer hour : hours) {
             Map<String, Double> vehicleOccupancyInParking = vehicleOccupancy.get(hour);
             Map<String, Integer> vehicleOccupancyInParkingCount = vehicleOccupancyCount.get(hour);
@@ -115,6 +115,20 @@ public class AverageVehicleParkingStats implements IGraphStats {
         vehicleOccupancyCount.clear();
     }
 
+    private void collectEventsForPendingPark() {
+
+        Set<String> vehicleIds = vehicleEnterTime.keySet();
+        for (String vehicleId : vehicleIds) {
+            Map<String, String> timeInParkingType = vehicleEnterTime.get(vehicleId);
+            Set<String> parkingTypes = timeInParkingType.keySet();
+            for (String parkingType : parkingTypes) {
+                double parkingTime = Double.parseDouble(timeInParkingType.get(parkingType));
+                int hour = GraphsStatsAgentSimEventsListener.getEventHour(parkingTime);
+                updateVehicleOccupancyCount(parkingType, hour);
+                updateVehicleOccupancy(parkingType, parkingTime, hour);
+            }
+        }
+    }
 
     private void processVehicleParking(Event event) {
 
@@ -199,7 +213,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
         List<String> parkingChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(parkingTypeSet);
         if (0 == hoursList.size())
             return null;
-        int maxHour = hoursList.get(hoursList.size() - 1);
+        int maxHour = 23;
         double[][] dataset = new double[parkingTypeSet.size()][];
         for (int i = 0; i < parkingChosenList.size(); i++) {
             String parkingType = parkingChosenList.get(i);
@@ -308,7 +322,7 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
         List<Integer> iterationList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(parkingOccupancyInIteration.keySet());
         List<String> parkingChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(parkingTypeSet);
-        if (0 == iterationList.size())
+        if (iterationList.size() == 0)
             return null;
         Integer maxIteration = iterationList.get(iterationList.size() - 1);
         double[][] dataset = new double[parkingTypeSet.size()][];
