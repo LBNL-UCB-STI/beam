@@ -248,9 +248,10 @@ class ChangeModeForTour(
     )
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)
-
+    val valueOfTime =
+      personAttributes.getAttribute(person.getId.toString, "valueOfTime").asInstanceOf[Double]
     val attributesOfIndividual =
-      AttributesOfIndividual(person, household, householdVehicles, availableModes)
+      AttributesOfIndividual(person, household, householdVehicles, availableModes, valueOfTime)
 
     person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)

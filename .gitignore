@@ -33,14 +33,4 @@ native/
 .Rapp.history 
 beam-gui/build
 /test/input/sf-light/counts/preprocessing/2015_all/
-/src/main/python/household_generator/.ipynb_checkpoints/
-logs
-src/main/python/household_generator/.ipynb_checkpoints/
-src/main/python/household_generator/Untitled.ipynb
-src/main/python/household_generator/__pycache__/
-src/main/python/household_generator/input/sfbay_household_pums_data.csv
-src/main/python/household_generator/input/sfbay_person_pums_data.csv
-src/main/python/household_generator/input/ss16hca.csv
-src/main/python/household_generator/input/ss16pca.csv
-src/main/python/household_generator/logs
-test/input/sf-light/shape/sflight_muni_mask.shp.xml
+gc_*.log

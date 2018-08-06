@@ -161,13 +161,19 @@ def population_generator():
         delayed(_generate_for_puma_data)
         (households_raw_data, persons_raw_data, preprocessor, puma_tract_mappings, puma_id)
         for puma_id in pumas_to_go)
-    households = dd.read_csv(r'output/state_{}_puma_*_households.csv'.format(STATE))
-    people = dd.read_csv(r'output/state_{}_puma_*_people.csv'.format(STATE))
+
+    sum(results)
+
+
+
+def write_out_combined_data():
+    households = dd.read_csv(r'output/state_{}_puma_*_households.csv'.format(state_id))
+    people = dd.read_csv(r'output/state_{}_puma_*_people.csv'.format(state_id))
     combined = dd.merge(people, households, on=[inputs.HOUSEHOLD_ID.name])
     cdf = combined.compute()
+    cdf.sort_values('household_id', axis=0, inplace=True)
+    cdf.loc[:, 'num_people'] = cdf.num_people.replace('4+', 4).astype(int)
     cdf.to_csv(r'output/state_06_combined_data_full.csv')
-
-    return sum(results)
 
 
 def get_random_point_in_polygon(poly):
@@ -218,7 +224,8 @@ if __name__ == '__main__':
     # (i.e., <AOI_NAME>_<person|household>_pums_data.csv generated)
     # create_household_and_population_dfs()
 
-    print("{}s generated".format(population_generator()))
+    people_generated = population_generator()
 
+    write_out_combined_data()
 
     combine_and_synthesize()

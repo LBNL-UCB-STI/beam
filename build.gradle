@@ -1,6 +1,10 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.Instant
+
 buildscript {
     repositories {
         jcenter()
@@ -473,10 +477,20 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 mainClassName = "beam.sim.RunBeam"
 
 def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
-println(applicationDefaultJvmArgs)
+
+def getCurrentTimestamp = {
+    DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
+            .withLocale(Locale.US)
+            .withZone(ZoneOffset.UTC)
+            .format(Instant.now())
+}
+
+def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
+
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx130g"]
+applicationDefaultJvmArgs = ["-Xmx130g"] + logGC
+println(applicationDefaultJvmArgs)
 
 run {
     if (project.hasProperty("appArgs")) {
@@ -499,6 +513,7 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
+    jvmArgs = applicationDefaultJvmArgs
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{

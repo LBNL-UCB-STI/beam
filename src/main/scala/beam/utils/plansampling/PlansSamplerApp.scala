@@ -1,6 +1,8 @@
 package beam.utils.plansampling
 
 import java.util
+import java.util.function.BiFunction
+import java.util.stream
 
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
@@ -23,7 +25,7 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -32,6 +34,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
+import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
@@ -49,8 +52,84 @@ case class SynthHousehold(
   numPersons: Int,
   vehicles: Int,
   hhIncome: Double,
-  coord: Coord
-)
+  tract: Int,
+  coord: Coord,
+  var individuals: Array[SynthIndividual]
+) {
+
+  def addIndividual(individual: SynthIndividual): Unit = {
+    individuals ++= Array(individual)
+  }
+}
+
+case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double)
+
+class SynthHouseholdParser(wgsConverter: WGSConverter) {
+
+  import SynthHouseholdParser._
+
+  /**
+    * Parses the synthetic households file.
+    *
+    * @param synthFileName : synthetic households filename
+    * @return the [[Vector]] of [[SynthHousehold]]s
+    */
+  def parseFile(synthFileName: String): Vector[SynthHousehold] = {
+    val resHHMap = scala.collection.mutable.Map[String, SynthHousehold]()
+
+    IOUtils
+      .getBufferedReader(synthFileName)
+      .lines()
+      .forEach(line => {
+        val row = line.split(",")
+        val hhIdStr = row(hhIdIdx)
+        resHHMap.get(hhIdStr) match {
+          case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
+          case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
+        }
+      })
+
+    resHHMap.values.toVector
+  }
+
+  def parseIndividual(row: Array[String]): SynthIndividual = {
+    SynthIndividual(
+      Id.createPersonId(row(indIdIdx)),
+      row(indSexIdx).toInt,
+      row(indAgeIdx).toInt,
+      row(indValTime).toDouble
+    )
+  }
+
+  def parseHousehold(row: Array[String], hhIdStr: String): SynthHousehold = {
+    SynthHousehold(
+      Id.create(hhIdStr, classOf[Household]),
+      row(carNumIdx).toInt,
+      row(hhNumIdx).toInt,
+      row(hhIncomeIdx).toInt,
+      row(hhTractIdx).toInt,
+      wgsConverter.wgs2Utm.transform(
+        new Coord(row(homeCoordXIdx).toDouble, row(homeCoordYIdx).toDouble)
+      ),
+      Array(parseIndividual(row))
+    )
+  }
+}
+
+object SynthHouseholdParser {
+  private val indIdIdx: Int = 0
+  private val hhIdIdx: Int = 1
+  private val hhNumIdx: Int = 2
+  private val carNumIdx: Int = 3
+  private val hhIncomeIdx: Int = 4
+  private val indIncomeIdx: Int = 5
+  private val indSexIdx: Int = 6
+  private val indAgeIdx = 7
+  private val hhTractIdx = 8
+  private val homeCoordXIdx: Int = 9
+  private val homeCoordYIdx: Int = 10
+  private val indValTime: Int = 11
+}
 
 sealed trait HouseholdAttrib extends EnumEntry
 
@@ -146,7 +225,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          val ca = g.getEnvelope.getEnvelopeInternal
+          val ca = wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
           minX = Math.min(minX, ca.getMinX)
           minY = Math.min(minY, ca.getMinY)
           maxX = Math.max(maxX, ca.getMaxX)
@@ -224,39 +303,6 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     }
     qt
   }
-}
-
-class SynthHouseholdParser(wgsConverter: WGSConverter) {
-
-  private val hhIdIdx: Int = 0
-  private val hhNumIdx: Int = 1
-  private val carNumIdx: Int = 2
-  private val hhIncomeIdx: Int = 3
-  private val homeCoordXIdx: Int = 4
-  private val homeCoordYIdx: Int = 5
-
-  /**
-    *
-    * @param synthFileName : synthetic households filename
-    * @return the [[Vector]] of [[SynthHousehold]]s
-    */
-  def parseFile(synthFileName: String): Vector[SynthHousehold] = {
-    var res = Vector[SynthHousehold]()
-    for (line <- Source.fromFile(synthFileName, "utf-8").getLines) {
-      val sl = line.split(",")
-      val pt = wgsConverter.wgs2Utm.transform(
-        new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble)
-      )
-
-      val householdId = Id.create(sl(hhIdIdx), classOf[Household])
-      val numCars = sl(carNumIdx).toInt
-      val numPeople = sl(hhNumIdx).toInt
-      val hhIncome = sl(hhIncomeIdx).toInt
-      res ++= Vector(SynthHousehold(householdId, numPeople, numCars, hhIncome, pt))
-    }
-    res
-  }
-
 }
 
 object PlansSampler {
@@ -368,7 +414,9 @@ object PlansSampler {
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
     var totalPersonNumber = 0
     var idx = 0
-    val popSize = synthHouseholds.size
+    val popSize = synthHouseholds.map { hh =>
+      hh.individuals.size
+    }.sum
     val shuffledHouseholds = Random.shuffle(synthHouseholds) // Randomize here
     var ret = ListBuffer[SynthHousehold]()
     while (totalPersonNumber < popSize && totalPersonNumber < sampleNumber) {
@@ -406,18 +454,18 @@ object PlansSampler {
         .head
     newVehicles.addVehicleType(defaultVehicleType)
     synthHouseholds foreach (sh => {
-
-      val N = if (sh.numPersons * 2 > 0) {
-        sh.numPersons * 2
+      val numPersons = sh.individuals.size
+      val N = if (numPersons * 2 > 0) {
+        numPersons * 2
       } else {
         1
       }
 
       val closestPlans: Set[Plan] = getClosestNPlans(sh.coord, N)
 
-      val selectedPlans = Random.shuffle(closestPlans).take(sh.numPersons)
+      val selectedPlans = Random.shuffle(closestPlans).take(numPersons)
 
-      val hhId = Id.create(counter.getCounter, classOf[Household])
+      val hhId = sh.householdId
       val spHH = newHHFac.createHousehold(hhId)
 
       // Add household to households and increment counter now
@@ -435,13 +483,13 @@ object PlansSampler {
 
       var homePlan: Option[Plan] = None
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
-
-        val newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
+        val synthPerson = sh.individuals.toVector(idx)
+        val newPersonId = synthPerson.indId
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
         newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(sh.numPersons))
+          .putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(numPersons))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
@@ -474,6 +522,12 @@ object PlansSampler {
             snapPlanActivityLocsToNearestLink(newPlan)
         }
 
+        PersonUtils.setAge(newPerson, synthPerson.age)
+        val sex = if (synthPerson.sex == 0) { "M" } else { "F" }
+        // TODO: Include non-binary gender if data available
+        PersonUtils.setSex(newPerson, sex)
+        newPopAttributes
+          .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
         addModeExclusions(newPerson)
       }
 
@@ -483,8 +537,6 @@ object PlansSampler {
     counter.reset()
 
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
-    //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
-    //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
     new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")

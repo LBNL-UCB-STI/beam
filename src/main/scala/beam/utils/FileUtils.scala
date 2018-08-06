@@ -1,6 +1,6 @@
 package beam.utils
 
-import java.io.{ByteArrayInputStream, File}
+import java.io.{BufferedInputStream, ByteArrayInputStream, File, FileInputStream}
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
@@ -11,6 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
+import org.matsim.core.utils.io.IOUtils
 
 import scala.language.reflectiveCalls
 import scala.util.Try
@@ -66,12 +67,6 @@ object FileUtils extends LazyLogging {
 
   private def getDateString: String =
     new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
-
-  def decompress(compressed: Array[Byte]): Option[String] =
-    Try {
-      val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
-      scala.io.Source.fromInputStream(inputStream).mkString
-    }.toOption
 
   def createDirectoryIfNotExists(path: String): Boolean = {
     val dir = new File(path).getAbsoluteFile

@@ -105,7 +105,8 @@ object HouseholdActor {
     householdId: Id[Household],
     modalityStyle: Option[String],
     isMale: Boolean,
-    availableModes: Seq[BeamMode]
+    availableModes: Seq[BeamMode],
+    valueOfTime: Double
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -126,7 +127,8 @@ object HouseholdActor {
         household.getId,
         modalityStyle,
         new Random().nextBoolean(),
-        BeamMode.availableModes
+        BeamMode.availableModes,
+        14.5 // Average Income
       )
     }
 
@@ -134,7 +136,8 @@ object HouseholdActor {
       person: Person,
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
-      availableModes: Seq[BeamMode]
+      availableModes: Seq[BeamMode],
+      valueOfTime: Double
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -146,7 +149,8 @@ object HouseholdActor {
         household.getId,
         modalityStyle,
         new Random().nextBoolean(),
-        availableModes
+        availableModes,
+        valueOfTime
       )
     }
 
@@ -220,8 +224,11 @@ object HouseholdActor {
         attr => availableModeParser(attr.toString)
       )
 
+      val valueOfTime: Double =
+        personAttributes.getAttribute(person.getId.toString, "valueOfTime").asInstanceOf[Double]
+
       val attributes =
-        AttributesOfIndividual(person, household, vehicles, availableModes)
+        AttributesOfIndividual(person, household, vehicles, availableModes, valueOfTime)
 
       person.getCustomAttributes.put("beam-attributes", attributes)
 
