@@ -1,8 +1,35 @@
 package beam.agentsim.events.handling;
 
+import java.util.Optional;
+
 /**
  * BEAM
  */
 public enum BeamEventsFileFormats {
-    xml,csv,xmlgz,csvgz;
+    XML("xml"), CSV("csv"), XML_GZ("xml.gz"), CSV_GZ("csv.gz");
+
+    private final String suffix;
+
+    BeamEventsFileFormats(String suffix) {
+        this.suffix = suffix;
+    }
+
+    public String getSuffix() {
+        return suffix;
+    }
+
+    public static Optional<BeamEventsFileFormats> from(String format) {
+        BeamEventsFileFormats fmt = null;
+        if (format.equalsIgnoreCase(XML.suffix)) {
+            fmt = BeamEventsFileFormats.XML;
+        } else if (format.equalsIgnoreCase(XML_GZ.suffix)) {
+            fmt = BeamEventsFileFormats.XML_GZ;
+        } else if (format.equalsIgnoreCase(CSV.suffix)) {
+            fmt = BeamEventsFileFormats.CSV;
+        } else if (format.equalsIgnoreCase(CSV_GZ.suffix)) {
+            fmt = BeamEventsFileFormats.CSV_GZ;
+        }
+        return Optional.ofNullable(fmt);
+    }
+
 }

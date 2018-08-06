@@ -19,7 +19,7 @@ class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule wi
   implicit class ExtendedBeamConfig(beamConfig: BeamConfig) {
 
     val bbBuffer = 100000
-    val MaxPickupTimeInSeconds = 15 * 60
+    val MaxPickupTimeInSeconds: Int = 15 * 60
   }
 
   override def configure(): Unit = {

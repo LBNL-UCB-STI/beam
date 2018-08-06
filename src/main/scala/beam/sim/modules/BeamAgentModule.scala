@@ -13,7 +13,10 @@ import net.codingwell.scalaguice.ScalaModule
   *
   * Created by sfeygin on 2/6/17.
   */
-class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with AkkaGuiceSupport with ScalaModule {
+class BeamAgentModule(val beamConfig: BeamConfig)
+    extends AbstractModule
+    with AkkaGuiceSupport
+    with ScalaModule {
 
   @Provides @Singleton
   def provideActorSystem(injector: Injector, config: Config): ActorSystem = {

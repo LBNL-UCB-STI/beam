@@ -9,9 +9,12 @@
         <Root level="ERROR">
             <AppenderRef ref="Console"/>
         </Root>
-
-        <!--<Logger name="beam" level="DEBUG" additivity="false">
+        <Logger name="beam.agentsim.agents.ridehail.RideHailDebugEventHandler" level="DEBUG">
             <AppenderRef ref="Console"/>
-        </Logger>-->
+        </Logger>
+        <!--<Logger name="beam" level="DEBUG"-->
+        <!--additivity="false">-->
+        <!--<AppenderRef ref="Console"/>-->
+        <!--</Logger>-->
     </Loggers>
 </Configuration>

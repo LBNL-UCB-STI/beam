@@ -16,15 +16,15 @@ import java.io.IOException;
 import java.util.*;
 
 public class ModalityStyleStats {
-    private Set<String> className ;
-    private Map<Integer, Map<String, Double>> iterationVsModalityClassCount ;
     private final String graphTile;
     private final String xAxisTitle;
     private final String yAxisTitle;
     private final String fileName;
     private final String attributeName;
+    private Set<String> className;
+    private Map<Integer, Map<String, Double>> iterationVsModalityClassCount;
 
-    public ModalityStyleStats(){
+    public ModalityStyleStats() {
         className = new TreeSet<>();
         iterationVsModalityClassCount = new HashMap<>();
         graphTile = "Modality Style";

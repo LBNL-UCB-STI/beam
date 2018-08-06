@@ -35,8 +35,12 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
 
     "should contain the same activities and legs as the MATSimn plan used in creation" in {
       val beamPlan = BeamPlan(matsimPlan)
-      beamPlan.getPlanElements.asScala.zip(matsimPlan.getPlanElements.asScala).forall(both => both._1.equals(both._2)) should be(true)
-      matsimPlan.getPlanElements.asScala.zip(beamPlan.getPlanElements.asScala).forall(both => both._1.equals(both._2)) should be(true)
+      beamPlan.getPlanElements.asScala
+        .zip(matsimPlan.getPlanElements.asScala)
+        .forall(both => both._1.equals(both._2)) should be(true)
+      matsimPlan.getPlanElements.asScala
+        .zip(beamPlan.getPlanElements.asScala)
+        .forall(both => both._1.equals(both._2)) should be(true)
     }
     "should attach a strategy to an activity" in {
       val beamPlan = BeamPlan(matsimPlan)
@@ -97,4 +101,3 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
     }
   }
 }
-

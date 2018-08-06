@@ -12,13 +12,13 @@ class RunExperiments extends App with BeamHelper {
   try {
     stream = Files.find(Paths.get(dirPath), maxDepth, (path: Path, _) => path.endsWith(".conf"))
 
-      stream.forEach(fileName => {
-        logger.info(s"Going to run config $fileName")
-        runBeamWithConfigFile(Some(fileName.toString))
-      })
-    } catch {
-      case e: IOException =>
-        logger.error("Error while executing experiment.",e )
-    } finally if (stream != null) stream.close()
+    stream.forEach(fileName => {
+      logger.info(s"Going to run config $fileName")
+      runBeamWithConfigFile(fileName.toString)
+    })
+  } catch {
+    case e: IOException =>
+      logger.error("Error while executing experiment.", e)
+  } finally if (stream != null) stream.close()
 
 }

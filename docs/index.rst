@@ -17,6 +17,8 @@ Contents:
    users
    developers
    agents
+   behaviors
+   events
    protocols
    devops
 

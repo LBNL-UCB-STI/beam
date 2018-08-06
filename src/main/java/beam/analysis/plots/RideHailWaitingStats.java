@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -28,68 +30,88 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
-    private int timeBinSize = 3600;
-    private int noOfTimeBins = 24;
-
+    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
-
+    private static final double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
-
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private double waitTimeSum = 0;   //sum of all wait times experienced by customers
+    private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
+
+    private int timeBinSize = 3600;
+    private int numberOfTimeBins = 30;
+
+    RideHailWaitingStats(Scenario scenario, BeamConfig beamConfig) {
 
 
+        /*
+          val timeBinSize
+            : Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+          val numberOfCategories
+            : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+          val numberOfTimeBins: Int = Math
+            .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
+            .toInt + 1
+         */
 
-    RideHailWaitingStats(){}
+        this.timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
-    RideHailWaitingStats(Scenario scenario){
 
-        try {
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        Double _endTime = Time.parseTime(endTime);
 
-            String _endTime = scenario.getConfig().qsim().getValue("endTime");
-            double _endTime2 = Time.parseTime(_endTime);
-            Double _endTime3 = Math.floor(_endTime2 / this.timeBinSize);
+        Double _noOfTimeBins = _endTime / timeBinSize;
+        _noOfTimeBins = Math.floor(_noOfTimeBins);
+        this.numberOfTimeBins = _noOfTimeBins.intValue() + 1;
 
-            this.noOfTimeBins = _endTime3.intValue() + 1;
-        }catch(Exception e){
-            e.printStackTrace();
-        }
+
+        System.out.println("TimeBinSize: " + this.timeBinSize + ", NumberOfTimeBins: " + this.numberOfTimeBins);
     }
-
     @Override
     public void resetStats() {
         lastMaximumTime = 0;
-
+        waitTimeSum = 0;
+        rideHailCount = 0;
         rideHailWaiting.clear();
         hoursTimesMap.clear();
-
-        //val numberOfTimeBins = Math.floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt+1
-
+        rideHailWaitingIndividualStatList.clear();
     }
 
     @Override
     public void processStats(Event event) {
 
         Map<String, String> eventAttributes = event.getAttributes();
-        if (event instanceof ModeChoiceEvent){
+        if (event instanceof ModeChoiceEvent) {
             String mode = eventAttributes.get("mode");
-            if(mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hailing")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
-        } else if(event instanceof PersonEntersVehicleEvent) {
+        } else if (event instanceof PersonEntersVehicleEvent) {
 
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent)event;
+            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if(rideHailWaiting.containsKey(personId.toString())) {
+            if (rideHailWaiting.containsKey(personId.toString())) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailWaitingTimes(modeChoiceEvent, difference);
+
+                // Building the RideHailWaitingIndividualStat List
+                String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
+                String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+
+                RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
+                rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
+                rideHailWaitingIndividualStat.personId = __personId;
+                rideHailWaitingIndividualStat.vehicleId = __vehicleId;
+                rideHailWaitingIndividualStat.waitingTime = difference;
+                rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
+
 
                 // Remove the personId from the list of ModeChoiceEvent
                 rideHailWaiting.remove(_personId);
@@ -99,15 +121,47 @@ public class RideHailWaitingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-
+        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+        if (model == null)
+            model = new RideHailDistanceRowModel();
+        model.setRideHailWaitingTimeSum(this.waitTimeSum);
+        model.setTotalRideHailCount(this.rideHailCount);
+        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
         List<Double> listOfBounds = getCategories();
         Map<Integer, Map<Double, Integer>> hourModeFrequency = calculateHourlyData(hoursTimesMap, listOfBounds);
-
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(hourModeFrequency);
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         writeToCSV(event.getIteration(), hourModeFrequency);
+        writeRideHailWaitingIndividualStatCSV(event.getIteration());
+    }
+
+    private void writeRideHailWaitingIndividualStatCSV(int iteration) {
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "rideHailIndividualWaitingTimes.csv");
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            String heading = "timeOfDayInSeconds,personId,rideHailVehicleId,waitingTimeInSeconds";
+
+            out.write(heading);
+            out.newLine();
+
+            for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList) {
+
+
+                String line = rideHailWaitingIndividualStat.time + "," +
+                        rideHailWaitingIndividualStat.personId + "," +
+                        rideHailWaitingIndividualStat.vehicleId + "," +
+                        rideHailWaitingIndividualStat.waitingTime;
+
+                out.write(line);
+
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -115,13 +169,10 @@ public class RideHailWaitingStats implements IGraphStats {
         throw new IOException("Not implemented");
     }
 
-
-
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        //waitingTime = Math.ceil(waitingTime / 60);
-        waitingTime = waitingTime/60;
+        //waitingTime = waitingTime/60;
 
         if (waitingTime > lastMaximumTime) {
             lastMaximumTime = waitingTime;
@@ -132,9 +183,12 @@ public class RideHailWaitingStats implements IGraphStats {
             timeList = new ArrayList<>();
         }
         timeList.add(waitingTime);
+        this.waitTimeSum += waitingTime;
+        this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
     }
 
+    //    TODO only two significant digits needed this means, 682 enough, no digits there
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
 
@@ -174,8 +228,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         // Legends
@@ -187,7 +240,36 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
+    /*private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
+            for (int hours = 1; hours <= 24; hours++) {
+                heading.append(",").append(hours);
+            }
+            out.write(heading.toString());
+            out.newLine();
 
+            List<Double> categories = getCategories();
+
+
+            for (Double category : categories) {
+
+                Double _category = getRoundedCategoryUpperBound(category);
+                out.write(_category + "");
+                String line;
+                for (int i = 0; i < this.numberOfTimeBins; i++) {
+                    Map<Double, Integer> innerMap = hourModeFrequency.get(i);
+                    line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
+                    out.write(line);
+                }
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }*/
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
@@ -195,22 +277,18 @@ public class RideHailWaitingStats implements IGraphStats {
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
             String heading = "WaitingTime,Hour,Count";
-//            for (int hours = 1; hours <= 24; hours++) {
-//                heading += "," + hours;
-//            }
             out.write(heading);
             out.newLine();
 
             List<Double> categories = getCategories();
 
-
             for (int j = 0; j < categories.size(); j++){
 
                 Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
-                //out.write(_category + "");
+
                 String line = "";
-                for (int i = 0; i < this.noOfTimeBins; i++) {
+                for (int i = 0; i < this.numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
 
@@ -218,7 +296,6 @@ public class RideHailWaitingStats implements IGraphStats {
                     out.write(line);
                     out.newLine();
                 }
-                //out.newLine();
             }
             out.flush();
             out.close();
@@ -235,7 +312,7 @@ public class RideHailWaitingStats implements IGraphStats {
      * Calculate the data and populate the dataset i.e. "hourModeFrequency"
      */
     private synchronized Map<Integer, Map<Double, Integer>>
-        calculateHourlyData(Map<Integer, List<Double>> hoursTimesMap, List<Double> categories) {
+    calculateHourlyData(Map<Integer, List<Double>> hoursTimesMap, List<Double> categories) {
 
         Map<Integer, Map<Double, Integer>> hourModeFrequency = new HashMap<>();
 
@@ -263,7 +340,6 @@ public class RideHailWaitingStats implements IGraphStats {
         return hourModeFrequency;
     }
 
-
     // Utility Methods
     private List<Double> getCategories() {
 
@@ -274,11 +350,11 @@ public class RideHailWaitingStats implements IGraphStats {
 
         //listOfBounds.add(0.0);
 
-        for(double x = bound; x < upperBound; x += bound){
+        for (double x = bound; x < upperBound; x += bound) {
             listOfBounds.add(x);
         }
 
-        if(!listOfBounds.isEmpty()) {
+        if (!listOfBounds.isEmpty()) {
             listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
             Collections.sort(listOfBounds);
         }
@@ -300,21 +376,26 @@ public class RideHailWaitingStats implements IGraphStats {
         return categoryUpperBound;
     }
 
-    private List<String> getLegends(List<Double> categories){
+    private List<String> getLegends(List<Double> categories) {
 
         List<String> legends = new ArrayList<>();
-        for(int i = 0; i<categories.size(); i++){
+        for (Double category : categories) {
 
-            Double category = categories.get(i);
             double legend = getRoundedCategoryUpperBound(category);
-
-            legends.add( legend + "_min");
+            legends.add(legend + "_sec");
         }
         //Collections.sort(legends);
         return legends;
     }
 
-    private double getRoundedCategoryUpperBound(double category){
-        return Math.round(category * 100)/100.0;
+    private double getRoundedCategoryUpperBound(double category) {
+        return Math.round(category * 100) / 100.0;
+    }
+
+    class RideHailWaitingIndividualStat {
+        double time;
+        String personId;
+        String vehicleId;
+        double waitingTime;
     }
 }

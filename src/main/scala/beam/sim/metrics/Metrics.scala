@@ -18,10 +18,14 @@ object Metrics {
 
   var currentContext: TraceContext = null
 
-  def setCurrentContext(context: TraceContext) = currentContext = context
+  def setCurrentContext(context: TraceContext): Unit = currentContext = context
 
-  def defaultTags: Map[String, String] = Map("run-name" -> runName,"unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
-    "iteration-num" -> s"$iterationNumber")
+  def defaultTags: Map[String, String] =
+    Map(
+      "run-name"        -> runName,
+      "unique-run-name" -> s"${runName}_${FileUtils.runStartTime}",
+      "iteration-num"   -> s"$iterationNumber"
+    )
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
 
@@ -29,15 +33,14 @@ object Metrics {
     * Marker trait for annotating MetricLevel, which must be Int after erasure.
     */
   final case class MetricLevel(asInt: Int) extends AnyVal {
-    @inline final def >=(other: MetricLevel): Boolean = asInt >= other.asInt
+    @inline def >=(other: MetricLevel): Boolean = asInt >= other.asInt
 
-    @inline final def <=(other: MetricLevel): Boolean = asInt <= other.asInt
+    @inline def <=(other: MetricLevel): Boolean = asInt <= other.asInt
 
-    @inline final def >(other: MetricLevel): Boolean = asInt > other.asInt
+    @inline def >(other: MetricLevel): Boolean = asInt > other.asInt
 
-    @inline final def <(other: MetricLevel): Boolean = asInt < other.asInt
+    @inline def <(other: MetricLevel): Boolean = asInt < other.asInt
   }
-
 
   /**
     * Metric level in numeric form, used when deciding whether a certain metric
@@ -60,11 +63,11 @@ object Metrics {
     * "short", "regular" and "verbose"
     */
   def levelFor(s: String): Option[MetricLevel] = toRootLowerCase(s) match {
-    case "off" ⇒ Some(OffLevel)
-    case "short" ⇒ Some(ShortLevel)
-    case "regular" ⇒ Some(RegularLevel)
-    case "verbose" ⇒ Some(VerboseLevel)
-    case _ ⇒ None
+    case "off"     => Some(OffLevel)
+    case "short"   => Some(ShortLevel)
+    case "regular" => Some(RegularLevel)
+    case "verbose" => Some(VerboseLevel)
+    case _         => None
   }
 
   /**
@@ -78,7 +81,7 @@ object Metrics {
   /**
     * Returns true if associated string is a valid level else false
     */
-  def isMetricsEnable(): Boolean = metricLevel != OffLevel
+  def isMetricsEnable: Boolean = metricLevel != OffLevel
 
-  def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
+  def isRightLevel(level: MetricLevel): Boolean = level <= metricLevel && level != OffLevel
 }

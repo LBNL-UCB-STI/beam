@@ -19,19 +19,16 @@ Instructions:
 
 """
 
+import dask.dataframe as dd
+import geopandas as gpd
 import logging
+import numpy as np
 import os
 import pandas as pd
-import dask.dataframe as dd
 import random
-from shapely.geometry import Polygon, Point
-import geopandas as gpd
-import numpy as np
-from tqdm import tnrange, tqdm_notebook
-
 from doppelganger import Configuration, allocation, Preprocessor, PumsData, Accuracy
-
-
+from shapely.geometry import Point
+from tqdm import tnrange
 
 logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
 
