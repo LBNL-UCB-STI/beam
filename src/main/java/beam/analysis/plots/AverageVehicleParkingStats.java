@@ -44,7 +44,6 @@ public class AverageVehicleParkingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        collectEventsForPendingPark();
         calculateAvgParking();
         updateParkingOccupancyInIteration(event.getIteration());
         CategoryDataset dataset = buildParkTypeOccupancyDatasetForGraph();
@@ -116,29 +115,6 @@ public class AverageVehicleParkingStats implements IGraphStats {
         vehicleOccupancyCount.clear();
     }
 
-    private void collectEventsForPendingPark() {
-
-        Set<String> vehicleIds = vehicleEnterTime.keySet();
-        for (String vehicleId : vehicleIds) {
-            Map<String, String> timeInParkingType = vehicleEnterTime.get(vehicleId);
-            Set<String> parkingTypes = timeInParkingType.keySet();
-            for (String parkingType : parkingTypes) {
-                double parkingTime = Double.parseDouble(timeInParkingType.get(parkingType));
-                int hour = GraphsStatsAgentSimEventsListener.getEventHour(parkingTime);
-                for (int i = hour; i < 24; i++) {
-                    double time;
-                    if (i == hour) {
-                        time = (i + 1) * 3600 - parkingTime;
-                    } else {
-                        time = 3600;
-                    }
-                    updateVehicleOccupancyCount(parkingType, i);
-
-                    updateVehicleOccupancy(parkingType, time, i);
-                }
-            }
-        }
-    }
 
     private void processVehicleParking(Event event) {
 
