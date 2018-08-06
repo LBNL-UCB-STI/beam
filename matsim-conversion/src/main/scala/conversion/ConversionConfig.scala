@@ -1,6 +1,8 @@
 package conversion
 
-case class ConversionConfig( outputDirectory: String, localCRS: String, matsimNetworkFile: String, shapeConfig: Option[ShapeConfig] = None )
+case class ConversionConfig( outputDirectory: String, localCRS: String,
+                             matsimNetworkFile: String, shapeConfig: Option[ShapeConfig] = None,
+                             populationInput: String, vehiclesInput: String)
 
 case class ShapeConfig(shapeFile: String, tazIDFieldName: String)
 
@@ -27,7 +29,11 @@ object ConversionConfig {
       Some(ShapeConfig(shapeFile, tazIdField))
     } else
       None
-    ConversionConfig(output, localCRS, matsimNetworkFile, mShapeConfig)
+
+    val populationInput = matsimConversionConfig.getString("populationInput")
+    val vehiclesInput = matsimConversionConfig.getString("vehiclesInput")
+
+    ConversionConfig(output, localCRS, matsimNetworkFile, mShapeConfig, populationInput, vehiclesInput)
   }
 }
 

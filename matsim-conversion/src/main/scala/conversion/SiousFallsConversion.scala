@@ -22,10 +22,12 @@ object SiouxFallsConversion extends App {
   val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
   val conversionConfig = ConversionConfig(config)
 
-  val network = NetworkUtils.createNetwork()
-  new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
+//  val network = NetworkUtils.createNetwork()
+//  new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
-  generateTazDefaults(ConversionConfig(config), network)
+  //generateTazDefaults(ConversionConfig(config), network)
+
+  getSiouxFallsXml(ConversionConfig(config))
 
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
     val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"
@@ -90,5 +92,12 @@ object SiouxFallsConversion extends App {
       .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava))
       .resolve
   }
+
+ def  getSiouxFallsXml(conversionConfig: ConversionConfig): Unit = {
+
+   val populationFile = conversionConfig.populationInput
+   val siouxPopulation =  scala.xml.XML.loadFile(populationFile)
+   println("Log")
+ }
 
 }
