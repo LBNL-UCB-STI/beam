@@ -23,7 +23,7 @@ class StanfordRideHailAllocationManagerV1(
   val rideHailManager: RideHailManager,
   val rideHailNetworkApi: RideHailNetworkAPI
 ) extends RideHailResourceAllocationManager {
-  val isBufferedRideHailAllocationMode = false
+  override val isBufferedRideHailAllocationMode = false
 
   /*
   This method is used to provide an initial vehicle allocation proposal (vehicleAllocationRequest.isInquiry==true).
@@ -58,7 +58,7 @@ class StanfordRideHailAllocationManagerV1(
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def allocateVehicles(
+  override def allocateVehicles(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
     val result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
