@@ -40,7 +40,8 @@ class PassengerScheduleTest
       val leg = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg))
+        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId),
+                      Vector(leg))
 
       passengerSchedule.schedule.size should be(1)
       passengerSchedule.schedule(leg).riders.size should ===(1)
@@ -57,7 +58,8 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId),
+                      Vector(leg1, leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 
@@ -86,8 +88,10 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))
-        .addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2), Vector(leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId),
+                      Vector(leg1, leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2),
+                      Vector(leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 

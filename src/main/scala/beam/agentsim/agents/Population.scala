@@ -10,7 +10,7 @@ import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -181,7 +181,7 @@ object Population {
           powerTrain,
           matsimVehicle,
           vehicleAttribute,
-          Car,
+          CarVehicle,
           None,
           None
         ) // TODO: Asif load from config (later csv).

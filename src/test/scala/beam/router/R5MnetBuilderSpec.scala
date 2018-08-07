@@ -13,10 +13,12 @@ class R5MnetBuilderSpec extends FlatSpec {
 
   it should "do something" in {
     val config = testConfig("test/input/beamville/beam.conf")
-    var transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
+    var transportNetwork =
+      TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
     val cursor = transportNetwork.streetLayer.edgeStore.getCursor
     transportNetwork.write(new File("test/input/beamville/r5/network.dat"))
-    transportNetwork = TransportNetwork.read(new File("test/input/beamville/r5/network.dat"))
+    transportNetwork =
+      TransportNetwork.read(new File("test/input/beamville/r5/network.dat"))
     val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config))
     builder.buildMNet()
     val network = builder.getNetwork

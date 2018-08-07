@@ -25,13 +25,14 @@ trait RideHailResourceAllocationManager {
 
   // TODO: add distinguish param inquiry vs. reservation
   def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation]
 
   // add assigned and get back new
 
   def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+      allocationsDuringReservation: Vector[(VehicleAllocationRequest,
+                                            Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])]
 
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)]
@@ -49,10 +50,10 @@ object RideHailResourceAllocationManager {
 case class VehicleAllocation(vehicleId: Id[Vehicle], availableAt: SpaceTime)
 
 case class VehicleAllocationRequest(
-  pickUpLocation: Location,
-  departAt: BeamTime,
-  destination: Location,
-  isInquiry: Boolean
+    pickUpLocation: Location,
+    departAt: BeamTime,
+    destination: Location,
+    isInquiry: Boolean
 )
 
 // TODO (RW): mention to CS that cost removed from VehicleAllocationResult, as not needed to be returned (RHM default implementation calculates it already)

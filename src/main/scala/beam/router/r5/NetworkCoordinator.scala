@@ -21,10 +21,11 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
       logger.info(
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
-      transportNetwork =
-        TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork = TransportNetwork.read(
+        Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       network = NetworkUtils.createNetwork()
-      new MatsimNetworkReader(network).readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+      new MatsimNetworkReader(network)
+        .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
     } else { // Need to create the unpruned and pruned networks from directory
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
@@ -34,7 +35,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         true,
         false
       ) // Uses the new signature Andrew created
-      transportNetwork.write(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork.write(
+        Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       transportNetwork = TransportNetwork.read(
         Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
       ) // Needed because R5 closes DB on write
@@ -43,7 +45,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
       rmNetBuilder.buildMNet()
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
-      new NetworkWriter(network).write(beamConfig.matsim.modules.network.inputNetworkFile)
+      new NetworkWriter(network)
+        .write(beamConfig.matsim.modules.network.inputNetworkFile)
       logger.info(s"MATSim network written")
     }
   }

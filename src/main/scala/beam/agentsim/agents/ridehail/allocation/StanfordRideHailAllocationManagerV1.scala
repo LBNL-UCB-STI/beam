@@ -20,8 +20,8 @@ TODO: repositioning vehicles should be able to get duty any time
 
  */
 class StanfordRideHailAllocationManagerV1(
-  val rideHailManager: RideHailManager,
-  val rideHailNetworkApi: RideHailNetworkAPI
+    val rideHailManager: RideHailManager,
+    val rideHailNetworkApi: RideHailNetworkAPI
 ) extends RideHailResourceAllocationManager {
   val isBufferedRideHailAllocationMode = false
 
@@ -34,7 +34,7 @@ class StanfordRideHailAllocationManagerV1(
    */
 
   override def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
       vehicleAllocationRequest.pickUpLocation,
@@ -43,7 +43,9 @@ class StanfordRideHailAllocationManagerV1(
 
     rideHailAgentLocation match {
       case Some(rideHailLocation) =>
-        Some(VehicleAllocation(rideHailLocation.vehicleId, rideHailLocation.currentLocation))
+        Some(
+          VehicleAllocation(rideHailLocation.vehicleId,
+                            rideHailLocation.currentLocation))
       case None => None
     }
   }
@@ -54,18 +56,21 @@ class StanfordRideHailAllocationManagerV1(
    */
 
   def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+      allocationsDuringReservation: Vector[(VehicleAllocationRequest,
+                                            Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+    var result =
+      ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
     val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((vehicleAllocationRequest, _) <- allocationsDuringReservation) {
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for (rideHailAgentLocation <- rideHailManager.getClosestIdleVehiclesWithinRadius(
-               vehicleAllocationRequest.pickUpLocation,
-               rideHailManager.radiusInMeters
-             )) {
+        for (rideHailAgentLocation <- rideHailManager
+               .getClosestIdleVehiclesWithinRadius(
+                 vehicleAllocationRequest.pickUpLocation,
+                 rideHailManager.radiusInMeters
+               )) {
           if (!alreadyUsedVehicles.contains(rideHailAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailAgentLocation.vehicleId)
             vehicleAllocation = Some(
@@ -87,7 +92,8 @@ class StanfordRideHailAllocationManagerV1(
   /*
     This method is called periodically, e.g. every 60 seconds to reposition ride hailing vehicles, e.g. towards areas of higher demand
    */
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+      tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailManager.getIdleVehicles.size >= 2) {
       val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, _) = iter.next()
@@ -105,14 +111,16 @@ class StanfordRideHailAllocationManagerV1(
   API available to implement allocation manager
    */
   def apiExamples(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
 
     // network operations
     val linkId = 5
     rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
     val links = rideHailNetworkApi.getLinks
-    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
+    rideHailNetworkApi.getTravelTimeEstimate(
+      vehicleAllocationRequest.departAt.atTime,
+      linkId)
     rideHailNetworkApi.getFreeFlowTravelTime(linkId)
     val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
     val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)

@@ -131,8 +131,8 @@ object RoutingModel {
   ) {
 
     val isHumanBodyVehicle: Boolean =
-      HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
-    val isRideHail: Boolean = RideHailVehicle.isRideHailVehicle(beamVehicleId)
+      HumanBodyVehicle.isVehicleType(beamVehicleId)
+    val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
   }
 
   def traverseStreetLeg(

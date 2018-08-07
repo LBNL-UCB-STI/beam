@@ -5,15 +5,23 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterResource}
+import beam.agentsim.Resource.{
+  CheckInResource,
+  NotifyResourceIdle,
+  RegisterResource
+}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{
+  BeamVehicle,
+  PassengerSchedule,
+  VehiclePersonId
+}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
@@ -165,7 +173,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
+        new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -230,7 +238,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
+        new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -286,7 +294,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
+        new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 

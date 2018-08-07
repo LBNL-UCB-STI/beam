@@ -5,14 +5,15 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
+class RideHailAllocationManagerBufferedImplTemplate(
+    val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false // TODO: this should be true - change back later!
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
       vehicleAllocationRequest.pickUpLocation,
@@ -21,7 +22,9 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
     rideHailAgentLocation match {
       case Some(agentLocation) =>
-        Some(VehicleAllocation(agentLocation.vehicleId, agentLocation.currentLocation))
+        Some(
+          VehicleAllocation(agentLocation.vehicleId,
+                            agentLocation.currentLocation))
       case None => None
     }
 
@@ -30,7 +33,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 // TODO: should we use normal without break
   // use lockVehicle
   def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
+      allocationsDuringReservation: Vector[(VehicleAllocationRequest,
+                                            Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
     /*
     var result = Map[Id[RideHailInquiry], VehicleAllocation]()
@@ -60,7 +64,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
     allocationsDuringReservation
   }
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(
+      tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailManager.getIdleVehicles.size >= 2) {
       val iter = rideHailManager.getIdleVehicles.iterator
       val (vehicleIdA, _) = iter.next()
