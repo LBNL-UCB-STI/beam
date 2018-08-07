@@ -14,6 +14,7 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.misc.Time;
 
 import java.awt.*;
 import java.io.File;
@@ -59,8 +60,15 @@ public class PhyssimCalcLinkStats {
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
 
-        if (isNotTestMode())
+        if (isNotTestMode()) {
             binSize = this.beamConfig.beam().physsim().linkStatsBinSize();
+
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            Double _endTime = Time.parseTime(endTime);
+            Double _noOfTimeBins = _endTime / binSize;
+            _noOfTimeBins = Math.floor(_noOfTimeBins);
+            this.noOfBins = _noOfTimeBins.intValue() + 1;
+        }
 
         linkStats = new BeamCalcLinkStats(network);
     }
