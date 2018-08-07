@@ -29,7 +29,7 @@ public class FuelUsageStats implements IGraphStats {
         this.statsComputation = statsComputation;
     }
 
-    static class FuelUsageStatsComputation implements IStatComputation<Map<Integer, Map<String, Double>>, double[][]> {
+    public static class FuelUsageStatsComputation implements IStatComputation<Map<Integer, Map<String, Double>>, double[][]> {
         @Override
         public double[][] compute(Map<Integer, Map<String, Double>> stat) {
             List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.keySet());

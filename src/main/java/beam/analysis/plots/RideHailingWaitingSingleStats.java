@@ -35,7 +35,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
     private final IStatComputation<Map<Integer, Double>, double[][]> statComputation;
 
-    static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
+    public static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
 
         @Override
         public double[][] compute(Map<Integer, Double> stat) {

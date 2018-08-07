@@ -32,7 +32,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         this.statComputation = statComputation;
     }
 
-    static class PersonTravelTimeComputation implements IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
+    public static class PersonTravelTimeComputation implements IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
 
         @Override
         public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
