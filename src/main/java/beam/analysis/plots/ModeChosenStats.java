@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.via.CSVWriter;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -9,6 +10,9 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,9 +23,49 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "mode_choice.png";
+    private static final String fileName = "mode_choice";
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+
+    private final IStatComputation<Map<Integer, Map<String, Integer>>, double[][]> statComputation;
+
+    public static class ModeChosenComputation implements IStatComputation<Map<Integer, Map<String, Integer>>, double[][]> {
+
+        @Override
+        public double[][] compute(Map<Integer, Map<String, Integer>> stat) {
+            List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.keySet());
+            List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
+            if (0 == hoursList.size())
+                return null;
+            int maxHour = hoursList.get(hoursList.size() - 1);
+            double[][] dataset = new double[modesChosen.size()][maxHour + 1];
+            for (int i = 0; i < modesChosenList.size(); i++) {
+                String modeChosen = modesChosenList.get(i);
+                dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour, stat);
+            }
+            return dataset;
+        }
+
+        private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Integer>> stat) {
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            int index = 0;
+            for (int hour = 0; hour <= maxHour; hour++) {
+                Map<String, Integer> hourData = stat.get(hour);
+                if (hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                } else {
+                    modeOccurrencePerHour[index] = 0;
+                }
+                index = index + 1;
+            }
+            return modeOccurrencePerHour;
+        }
+    }
+
+    ModeChosenStats(IStatComputation<Map<Integer, Map<String, Integer>>, double[][]> statComputation) {
+        this.statComputation = statComputation;
+    }
+
 
     @Override
     public void processStats(Event event) {
@@ -39,6 +83,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        createModeChosenCSV(hourModeFrequency, event.getIteration());
     }
 
     @Override
@@ -50,16 +95,6 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     public void resetStats() {
         hourModeFrequency.clear();
         modesChosen.clear();
-    }
-
-    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        return (int) Arrays.stream(modeOccurrencePerHour).sum();
-    }
-
-    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, int hour) {
-        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        return (int) Math.ceil(modeOccurrencePerHour[hour]);
     }
 
     public List<Integer> getSortedHourModeFrequencyList() {
@@ -90,39 +125,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         hourModeFrequency.put(hour, hourData);
     }
 
-    private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double[] modeOccurrencePerHour = new double[maxHour + 1];
-        int index = 0;
-        for (int hour = 0; hour <= maxHour; hour++) {
-            Map<String, Integer> hourData = hourModeFrequency.get(hour);
-            if (hourData != null) {
-                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-            } else {
-                modeOccurrencePerHour[index] = 0;
-            }
-            index = index + 1;
-        }
-        return modeOccurrencePerHour;
-    }
-
-    private double[][] buildModesFrequencyDataset() {
-
-        List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
-        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
-        if (0 == hoursList.size())
-            return null;
-        int maxHour = hoursList.get(hoursList.size() - 1);
-        double[][] dataset = new double[modesChosen.size()][maxHour + 1];
-        for (int i = 0; i < modesChosenList.size(); i++) {
-            String modeChosen = modesChosenList.get(i);
-            dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        }
-        return dataset;
-    }
-
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = buildModesFrequencyDataset();
+        double[][] dataset = statComputation.compute(hourModeFrequency);
         if (dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
 
@@ -135,8 +140,60 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber) {
+
+        String SEPERATOR = ",";
+
+        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv"));
+        BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
+
+
+        List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeChosen.keySet());
+        List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
+
+        int maxHour = hours.get(hours.size() - 1);
+        try {
+            bufferedWriter.append("Modes");
+            bufferedWriter.append(SEPERATOR);
+            for (int j = 0; j < maxHour; j++) {
+                bufferedWriter.append("Bin_")
+                        .append(String.valueOf(j))
+                        .append(SEPERATOR);
+            }
+            bufferedWriter.append("\n");
+
+            for (String modeChosen : modesFuelList) {
+
+                bufferedWriter.append(modeChosen);
+                bufferedWriter.append(SEPERATOR);
+
+                for (int j = 0; j < maxHour; j++) {
+                    Map<String, Integer> modesData = hourModeChosen.get(j);
+
+
+                    String modeHourValue = "0";
+
+                    if (modesData != null) {
+                        if (modesData.get(modeChosen) != null) {
+                            modeHourValue = modesData.get(modeChosen).toString();
+                        }
+                    }
+
+                    bufferedWriter.append(modeHourValue);
+                    bufferedWriter.append(SEPERATOR);
+                }
+                bufferedWriter.append("\n");
+            }
+            bufferedWriter.flush();
+            csvWriter.closeFile();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

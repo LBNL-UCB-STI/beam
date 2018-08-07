@@ -23,6 +23,42 @@ public class FuelUsageStats implements IGraphStats {
     private static Set<String> modesFuel = new TreeSet<>();
     private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
+    private final IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation;
+
+    FuelUsageStats(IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation) {
+        this.statsComputation = statsComputation;
+    }
+
+    static class FuelUsageStatsComputation implements IStatComputation<Map<Integer, Map<String, Double>>, double[][]> {
+        @Override
+        public double[][] compute(Map<Integer, Map<String, Double>> stat) {
+            List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.keySet());
+            List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
+            int maxHour = hours.get(hours.size() - 1);
+            double[][] dataset = new double[modesFuel.size()][maxHour + 1];
+            for (int i = 0; i < modesFuelList.size(); i++) {
+                String modeChosen = modesFuelList.get(i);
+                dataset[i] = getFuelageHourDataAgainstMode(modeChosen, maxHour, stat);
+            }
+            return dataset;
+        }
+
+        private double[] getFuelageHourDataAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Double>> stat) {
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            int index = 0;
+            for (int hour = 0; hour <= maxHour; hour++) {
+                Map<String, Double> hourData = stat.get(hour);
+                if (hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                } else {
+                    modeOccurrencePerHour[index] = 0;
+                }
+                index = index + 1;
+            }
+            return modeOccurrencePerHour;
+        }
+    }
+
     @Override
     public void processStats(Event event) {
         processFuelUsage(event);
@@ -47,44 +83,8 @@ public class FuelUsageStats implements IGraphStats {
         modesFuel.clear();
     }
 
-    public List<Integer> getSortedHourModeFuelageList() {
-        return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
-    }
-
-    public int getFuelageHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double count = 0;
-        double[] modeOccurrencePerHour = getFuelageHourDataAgainstMode(modeChosen, maxHour);
-        for (double aModeOccurrencePerHour : modeOccurrencePerHour) {
-            count = count + aModeOccurrencePerHour;
-        }
-        return (int) Math.ceil(count);
-    }
-
-    private double[] getFuelageHourDataAgainstMode(String modeChosen, int maxHour) {
-        double[] modeOccurrencePerHour = new double[maxHour + 1];
-        int index = 0;
-        for (int hour = 0; hour <= maxHour; hour++) {
-            Map<String, Double> hourData = hourModeFuelage.get(hour);
-            if (hourData != null) {
-                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-            } else {
-                modeOccurrencePerHour[index] = 0;
-            }
-            index = index + 1;
-        }
-        return modeOccurrencePerHour;
-    }
-
     private CategoryDataset buildModesFuelageGraphDataset() {
-
-        List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
-        List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
-        int maxHour = hours.get(hours.size() - 1);
-        double[][] dataset = new double[modesFuel.size()][maxHour + 1];
-        for (int i = 0; i < modesFuelList.size(); i++) {
-            String modeChosen = modesFuelList.get(i);
-            dataset[i] = getFuelageHourDataAgainstMode(modeChosen, maxHour);
-        }
+        double[][] dataset = statsComputation.compute(hourModeFuelage);
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 
@@ -163,8 +163,6 @@ public class FuelUsageStats implements IGraphStats {
             bufferedWriter.append("\n");
 
             for (String modeChosen : modesFuelList) {
-                //dataset[i] = getFuelageHourDataAgainstMode(modeChosen,maxHour);
-
                 bufferedWriter.append(modeChosen);
                 bufferedWriter.append(SEPERATOR);
 

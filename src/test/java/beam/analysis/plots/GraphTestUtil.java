@@ -1,7 +1,6 @@
-package beam.analysis.plot.graph;
+package beam.analysis.plots;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;

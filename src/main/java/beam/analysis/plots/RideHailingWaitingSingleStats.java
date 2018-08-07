@@ -33,8 +33,30 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
+    private final IStatComputation<Map<Integer, Double>, double[][]> statComputation;
 
-    RideHailingWaitingSingleStats(BeamConfig beamConfig) {
+    static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
+
+        @Override
+        public double[][] compute(Map<Integer, Double> stat) {
+            List<Integer> hours = new ArrayList<>(stat.keySet());
+            Collections.sort(hours);
+            int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
+
+            double[][] data = new double[1][maxHour + 1];
+            for (Integer key : stat.keySet()) {
+
+                if (key >= data[0].length) {
+                    DebugLib.emptyFunctionForSettingBreakPoint();
+                }
+                data[0][key] = stat.get(key);
+            }
+            return data;
+        }
+    }
+
+    RideHailingWaitingSingleStats(BeamConfig beamConfig, IStatComputation<Map<Integer, Double>, double[][]> statComputation) {
+        this.statComputation = statComputation;
 
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
         double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
@@ -83,19 +105,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
 
-        List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
-        Collections.sort(hours);
-        int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
-
-        double[][] data = new double[1][maxHour + 1];
-        for (Integer key : hoursTimesMap.keySet()) {
-
-            if (key >= data[0].length) {
-                DebugLib.emptyFunctionForSettingBreakPoint();
-            }
-
-            data[0][key] = hoursTimesMap.get(key);
-        }
+        double[][] data = statComputation.compute(hoursTimesMap);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
         if (dataset != null)
             createModesFrequencyGraph(dataset, event.getIteration());

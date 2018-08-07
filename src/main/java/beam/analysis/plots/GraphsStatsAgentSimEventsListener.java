@@ -36,18 +36,18 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public static OutputDirectoryHierarchy CONTROLLER_IO;
     // Static Initializer
     private IGraphStats deadHeadingStats = new DeadHeadingStats();
-    private IGraphStats fuelUsageStats = new FuelUsageStats();
-    private IGraphStats modeChoseStats = new ModeChosenStats();
-    private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
+    private IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
+    private IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
+    private IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
-    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
+    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation());
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
-    private IGraphStats realizedModeStats = new RealizedModeStats();
+    private IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
+        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
     }
 
     // Constructor
@@ -127,7 +127,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
         deadHeadingStats.createGraph(event, "TNC0");
         deadHeadingStats.createGraph(event, "");
-        personTravelTimeStats.resetStats();
+        personTravelTimeStats.createGraph(event);
         personVehicleTransitionStats.createGraph(event);
 
         realizedModeStats.createGraph(event);
