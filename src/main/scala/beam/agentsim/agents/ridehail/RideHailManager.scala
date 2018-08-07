@@ -26,7 +26,6 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.{
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -39,7 +38,6 @@ import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -65,10 +63,11 @@ class RideHailManager(
     with ActorLogging
     with HasServices {
 
-  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
+
   override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] =
     mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
@@ -114,7 +113,7 @@ class RideHailManager(
         new RandomRepositioning(this)
       case _ =>
         throw new IllegalStateException(
-          s"unknonwn RideHailResourceAllocationManager: $allocationManager"
+          s"Unknown RideHailResourceAllocationManager: $allocationManager"
         )
     }
 
@@ -841,9 +840,11 @@ class RideHailManager(
     //TODO: Possibly get multiple taxis in this block
     val result = distances2RideHailAgents
       .filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
-      .sorted((vehicleRadius1: (RideHailAgentLocation, Double),
-               vehicleRadius2: (RideHailAgentLocation, Double)) =>
-        java.lang.Double.compare(vehicleRadius1._2, vehicleRadius2._2)
+      .sorted(
+        (
+          vehicleRadius1: (RideHailAgentLocation, Double),
+          vehicleRadius2: (RideHailAgentLocation, Double)
+        ) => java.lang.Double.compare(vehicleRadius1._2, vehicleRadius2._2)
       )
       .map(_._1)
     result
@@ -966,35 +967,6 @@ object RideHailManager {
 
   case class NotifyIterationEnds()
 
-  sealed trait RideHailRequestType
-
-  case object RideHailInquiry extends RideHailRequestType
-
-  case object ReserveRide extends RideHailRequestType
-
-  case class RideHailRequest(
-    requestType: RideHailRequestType,
-    customer: VehiclePersonId,
-    pickUpLocation: Location,
-    departAt: BeamTime,
-    destination: Location
-  ) {
-    // We make requestId be independent of request type, all that matters is details of the customer
-    lazy val requestId: Int =
-      this.copy(requestType = RideHailInquiry).hashCode()
-  }
-
-  object RideHailRequest {
-
-    val dummy = RideHailRequest(
-      RideHailInquiry,
-      VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
-      new Coord(Double.NaN, Double.NaN),
-      DiscreteTime(Int.MaxValue),
-      new Coord(Double.NaN, Double.NaN)
-    )
-  }
-
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
     timeToCustomer: Long,
@@ -1003,20 +975,6 @@ object RideHailManager {
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
   )
-
-  case class RideHailResponse(
-    request: RideHailRequest,
-    travelProposal: Option[TravelProposal],
-    error: Option[ReservationError] = None,
-    triggersToSchedule: Vector[ScheduleTrigger] = Vector()
-  )
-
-  object RideHailResponse {
-    val dummy = RideHailResponse(RideHailRequest.dummy, None, None)
-
-    def dummyWithError(error: ReservationError) =
-      RideHailResponse(RideHailRequest.dummy, None, Some(error))
-  }
 
   private case class RoutingResponses(
     request: RideHailRequest,

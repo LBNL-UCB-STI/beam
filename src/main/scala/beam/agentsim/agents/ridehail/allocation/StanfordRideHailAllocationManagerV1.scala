@@ -5,10 +5,8 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
-
 /*
 TODO: check all network api, if they can use them properly
 
@@ -23,7 +21,7 @@ class StanfordRideHailAllocationManagerV1(
   val rideHailManager: RideHailManager,
   val rideHailNetworkApi: RideHailNetworkAPI
 ) extends RideHailResourceAllocationManager {
-  val isBufferedRideHailAllocationMode = false
+  override val isBufferedRideHailAllocationMode = false
 
   /*
   This method is used to provide an initial vehicle allocation proposal (vehicleAllocationRequest.isInquiry==true).
@@ -36,6 +34,11 @@ class StanfordRideHailAllocationManagerV1(
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
+    require(
+      vehicleAllocationRequest.isInquiry,
+      "vehicleAllocationRequest.isInquiry should be true for proposal"
+    )
+
     val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
       vehicleAllocationRequest.pickUpLocation,
       rideHailManager.radiusInMeters
@@ -53,10 +56,10 @@ class StanfordRideHailAllocationManagerV1(
     This method is called periodically, e.g. every 60 seconds.
    */
 
-  def allocateVehicles(
+  override def allocateVehicles(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+    val result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
     val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((vehicleAllocationRequest, _) <- allocationsDuringReservation) {
       var vehicleAllocation: Option[VehicleAllocation] = None
@@ -101,37 +104,5 @@ class StanfordRideHailAllocationManagerV1(
   // TODO: allow specifying route not only dest coord
   // need capacity and number of vehicles on road to implement it
 
-  /*
-  API available to implement allocation manager
-   */
-  def apiExamples(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
-
-    // network operations
-    val linkId = 5
-    rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailNetworkApi.getLinks
-    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
-    rideHailNetworkApi.getFreeFlowTravelTime(linkId)
-    val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
-    val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)
-    val coord = rideHailNetworkApi.getLinkCoord(linkId)
-    val fromCoord = rideHailNetworkApi.getFromNodeCoordinate(linkId)
-    val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
-
-    // RHM
-    val rideHailAgentLocation = rideHailManager
-      .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.pickUpLocation,
-        rideHailManager.radiusInMeters
-      )
-      .get
-    rideHailManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailManager.getClosestIdleVehiclesWithinRadius(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-    rideHailManager.getIdleVehicles
-  }
 }
+
