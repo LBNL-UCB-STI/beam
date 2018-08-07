@@ -6,21 +6,18 @@ import org.matsim.vehicles.Vehicle
 
 class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocationManager {
 
-  val isBufferedRideHailAllocationMode = false
+  override val isBufferedRideHailAllocationMode = false
 
-  def proposeVehicleAllocation(
+  override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
   }
 
-// TODO RW/Asif: how to make sure no one ever can call this?
-  def allocateVehicles(
+  override def allocateVehicles(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
-    //???
-    allocationsDuringReservation
+    throw new NotImplementedError("DefaultRideHailResourceAllocationManager.allocateVehicles not implemented.")
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {

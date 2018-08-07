@@ -8,7 +8,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
-
+import StanfordRideHailAllocationManagerV1.LINK_ID
 /*
 TODO: check all network api, if they can use them properly
 
@@ -36,6 +36,11 @@ class StanfordRideHailAllocationManagerV1(
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
+    require(
+      vehicleAllocationRequest.isInquiry,
+      "vehicleAllocationRequest.isInquiry should be true for proposal"
+    )
+
     val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
       vehicleAllocationRequest.pickUpLocation,
       rideHailManager.radiusInMeters
@@ -56,7 +61,7 @@ class StanfordRideHailAllocationManagerV1(
   def allocateVehicles(
     allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    var result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+    val result = ArrayBuffer[(VehicleAllocationRequest, Option[VehicleAllocation])]()
     val alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((vehicleAllocationRequest, _) <- allocationsDuringReservation) {
       var vehicleAllocation: Option[VehicleAllocation] = None
@@ -108,18 +113,6 @@ class StanfordRideHailAllocationManagerV1(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
 
-    // network operations
-    val linkId = 5
-    rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailNetworkApi.getLinks
-    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
-    rideHailNetworkApi.getFreeFlowTravelTime(linkId)
-    val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
-    val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)
-    val coord = rideHailNetworkApi.getLinkCoord(linkId)
-    val fromCoord = rideHailNetworkApi.getFromNodeCoordinate(linkId)
-    val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
-
     // RHM
     val rideHailAgentLocation = rideHailManager
       .getClosestIdleRideHailAgent(
@@ -134,4 +127,9 @@ class StanfordRideHailAllocationManagerV1(
     )
     rideHailManager.getIdleVehicles
   }
+}
+
+object StanfordRideHailAllocationManagerV1 {
+  // TODO: Should be described. Where this number come from?
+  val LINK_ID = 5
 }
