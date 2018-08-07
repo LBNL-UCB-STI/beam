@@ -5,10 +5,8 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
-import StanfordRideHailAllocationManagerV1.LINK_ID
 /*
 TODO: check all network api, if they can use them properly
 
@@ -106,30 +104,5 @@ class StanfordRideHailAllocationManagerV1(
   // TODO: allow specifying route not only dest coord
   // need capacity and number of vehicles on road to implement it
 
-  /*
-  API available to implement allocation manager
-   */
-  def apiExamples(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
-
-    // RHM
-    val rideHailAgentLocation = rideHailManager
-      .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.pickUpLocation,
-        rideHailManager.radiusInMeters
-      )
-      .get
-    rideHailManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailManager.getClosestIdleVehiclesWithinRadius(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-    rideHailManager.getIdleVehicles
-  }
 }
 
-object StanfordRideHailAllocationManagerV1 {
-  // TODO: Should be described. Where this number come from?
-  val LINK_ID = 5
-}
