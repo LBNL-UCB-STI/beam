@@ -174,9 +174,9 @@ public class RideHailWaitingStats implements IGraphStats {
 
     //    TODO only two significant digits needed this means, 682 enough, no digits there
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
-        double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
+        double[] timeRangeOccurrencePerHour = new double[maxHour];
 
-        for (int hour = 0; hour <= maxHour; hour++) {
+        for (int hour = 0; hour < maxHour; hour++) {
             Map<Double, Integer> hourData = hourModeFrequency.get(hour);
             timeRangeOccurrencePerHour[hour] = (hourData == null || hourData.get(category) == null) ? 0 : hourData.get(category);
 
@@ -191,10 +191,11 @@ public class RideHailWaitingStats implements IGraphStats {
         if (hoursList.isEmpty())
             return null;
 
-        int maxHour = hoursList.get(hoursList.size() - 1);
+        //int maxHour = hoursList.get(hoursList.size() - 1);
+        int maxHour = this.numberOfTimeBins;
 
         List<Double> categories = getCategories();
-        double[][] dataset = new double[categories.size()][maxHour + 1];
+        double[][] dataset = new double[categories.size()][maxHour];
 
         for (int i = 0; i < categories.size(); i++) {
             dataset[i] = getHoursDataPerTimeRange(categories.get(i), maxHour, hourModeFrequency);
