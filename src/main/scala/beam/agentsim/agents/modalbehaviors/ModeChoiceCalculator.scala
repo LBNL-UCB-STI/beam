@@ -5,9 +5,20 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{
+  CAR,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, HasServices}
+import beam.utils.MathUtils
 
+import scala.collection.mutable
 import scala.util.Random
 
 /**
@@ -15,11 +26,70 @@ import scala.util.Random
   */
 trait ModeChoiceCalculator extends HasServices {
 
+  implicit val random: Random = new Random(4711)
+
+  /// VOT-Specific fields and methods
+  import ModeChoiceCalculator._
+
+  /**
+    * Adds heterogeneous VOT to mode choice computation.
+    *
+    * Implemented as a scaling factor on cost parameters. Default value of time is added at initialization.
+    */
+  // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
+  // Could be refactored if this is a performance issue, but prefer not to.
+  val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
+    mutable.Map[VotType, BigDecimal](
+      DefaultVot -> MathUtils.roundDouble(
+        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+        -3
+      )
+    )
+
+  /**
+    * Converts [[BeamMode BeamModes]] into their appropriate [[VotType VotTypes]].
+    *
+    * This level of indirection is used in order ot abstract the
+    *  details of the VOT logic from the business logic.
+    *
+    * @param beamMode The [[BeamMode]] to convert.
+    * @return the target [[VotType]].
+    */
+  // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
+  // matching enforced by sealed traits.
+  private def modeMatcher(beamMode: Option[BeamMode]): VotType = beamMode match {
+    case Some(CAR)                                        => DrivingVot
+    case Some(WALK)                                       => WalkingVot
+    case Some(WALK_TRANSIT)                               => WalkToTransitVot
+    case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
+    case Some(RIDE_HAIL)                                  => RideHailVot
+    case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
+    case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
+    case None                                             => GeneralizedVot
+  }
+
+  // NOTE: If the generalized value of time is not yet instantiated, then this will return
+  // the default VOT as defined in the config.
+  private def getVot(beamMode: Option[BeamMode]): BigDecimal =
+    _valuesOfTime.getOrElse(
+      modeMatcher(beamMode),
+      _valuesOfTime.getOrElse(GeneralizedVot, _valuesOfTime(DefaultVot))
+    )
+
+  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): _valuesOfTime.type = {
+    _valuesOfTime += modeMatcher(beamMode) -> value
+  }
+
+  def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
+    time / 3600 * getVot(beamMode)
+  }
+  ///~
+
   def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
@@ -32,6 +102,18 @@ trait ModeChoiceCalculator extends HasServices {
 
 object ModeChoiceCalculator {
 
+  sealed trait VotType
+  private case object DefaultVot extends VotType
+  private case object GeneralizedVot extends VotType
+
+  // TODO: Implement usage of mode-specific VotTypes defined below
+  private case object DrivingVot extends VotType
+  private case object OnTransitVot extends VotType
+  private case object WalkingVot extends VotType
+  private case object WalkToTransitVot extends VotType // Separate from walking
+  private case object DriveToTransitVot extends VotType
+  private case object RideHailVot extends VotType // No separate ride hail to transit VOT
+
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
   def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
@@ -40,7 +122,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _) =>
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)

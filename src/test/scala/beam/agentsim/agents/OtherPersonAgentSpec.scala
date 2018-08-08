@@ -89,8 +89,10 @@ class OtherPersonAgentSpec
   })
 
   val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
+
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
     TrieMap[Id[Vehicle], BeamVehicle]()
+
   val personRefs: TrieMap[Id[Person], ActorRef] =
     TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -106,16 +108,15 @@ class OtherPersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(
-        alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
-        mode: Modes.BeamMode,
-        cost: Double,
-        time: Double,
-        numTransfers: Int
+      mode: BeamMode,
+      cost: BigDecimal,
+      time: BigDecimal,
+      numTransfers: Int
     ): Double = 0.0
   }
 
@@ -237,16 +238,14 @@ class OtherPersonAgentSpec
         false
       )
 
-      val household = householdsFactory.createHousehold(
-        Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population =
         PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person =
         PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity =
-        PopulationUtils.createActivityFromCoord("home",
-                                                new Coord(166321.9, 1568.87))
+        PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -258,14 +257,12 @@ class OtherPersonAgentSpec
       leg.setRoute(route)
       plan.addLeg(leg)
       val workActivity =
-        PopulationUtils.createActivityFromCoord("work",
-                                                new Coord(167138.4, 1117))
+        PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(
-        JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
@@ -449,15 +446,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(35000,
-                              replannedTramLeg.beamLeg,
-                              replannedTramLeg.beamVehicleId),
+        NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(40000,
-                            replannedTramLeg.beamLeg,
-                            replannedTramLeg.beamVehicleId),
+        NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]

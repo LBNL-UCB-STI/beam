@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
@@ -24,6 +25,7 @@ import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.population.PersonUtils
 import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
@@ -106,7 +108,7 @@ object HouseholdActor {
     modalityStyle: Option[String],
     isMale: Boolean,
     availableModes: Seq[BeamMode],
-    valueOfTime: Double
+    valueOfTime: BigDecimal
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -116,7 +118,8 @@ object HouseholdActor {
     def apply(
       person: Person,
       household: Household,
-      vehicles: Map[Id[BeamVehicle], BeamVehicle]
+      vehicles: Map[Id[BeamVehicle], BeamVehicle],
+      valueOfTime: BigDecimal
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -128,7 +131,7 @@ object HouseholdActor {
         modalityStyle,
         new Random().nextBoolean(),
         BeamMode.availableModes,
-        14.5 // Average Income
+        valueOfTime
       )
     }
 
@@ -137,7 +140,7 @@ object HouseholdActor {
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
       availableModes: Seq[BeamMode],
-      valueOfTime: Double
+      valueOfTime: BigDecimal
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -148,7 +151,7 @@ object HouseholdActor {
         HouseholdAttributes(household, vehicles),
         household.getId,
         modalityStyle,
-        new Random().nextBoolean(),
+        person.getCustomAttributes.get("sex").asInstanceOf[Boolean],
         availableModes,
         valueOfTime
       )
@@ -232,11 +235,15 @@ object HouseholdActor {
 
       person.getCustomAttributes.put("beam-attributes", attributes)
 
+      val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+
+      modeChoiceCalculator.setVot(valueOfTime)
+
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(
           schedulerRef,
           beamServices,
-          modeChoiceCalculatorFactory(attributes),
+          modeChoiceCalculator,
           transportNetwork,
           router,
           rideHailManager,

@@ -36,7 +36,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, HasServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -62,6 +62,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import scala.util.Random
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -89,6 +90,7 @@ class PersonAgentSpec
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  val randomSeed: Int = 4771
 
   val services: BeamServices = {
     val theServices = mock[BeamServices]
@@ -103,14 +105,15 @@ class PersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
+    override val beamServices: BeamServices = services
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = services
+
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
-      mode: Modes.BeamMode,
-      cost: Double,
-      time: Double,
+      mode: BeamMode,
+      cost: BigDecimal,
+      time: BigDecimal,
       numTransfers: Int
     ): Double = 0.0
   }
@@ -324,7 +327,8 @@ class PersonAgentSpec
         person,
         household,
         Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
-        Seq(CAR)
+        Seq(CAR),
+        BigDecimal(18.0)
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
       when(services.matsimServices.getScenario).thenReturn(scenario)
@@ -336,7 +340,7 @@ class PersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           services,
-          (_) => modeChoiceCalculator,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,

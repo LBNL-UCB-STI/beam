@@ -1,11 +1,15 @@
 package beam.agentsim.agents.choice.logit
 
+import java.lang
+import java.lang.Double._
+
 import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
 import scala.beans.BeanProperty
+import scala.collection.immutable
 import scala.util.Random
 
 /**
@@ -15,8 +19,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
 
   def sampleAlternative(
     alternatives: Vector[AlternativeAttributes],
-    random: Random
-  ): Option[String] = {
+  )(implicit rng: Random): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
@@ -27,7 +30,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
     } else {
       val sumExpV = expV.sum
       val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
-      val randDraw = random.nextDouble()
+      val randDraw = rng.nextDouble()
       val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
       if (idxAboveDraw.isEmpty) {
         None
@@ -39,8 +42,10 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
   }
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
-    val util = if (!alternativeParams.contains(alternative.alternativeName)) {
-      Double.NegativeInfinity
+    // Scala has a hard time dealing with implicit conversions here... make it explicit in this method
+
+    if (!alternativeParams.contains(alternative.alternativeName)) {
+      NEGATIVE_INFINITY
     } else {
       (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(
         alternative.alternativeName
@@ -49,23 +54,22 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
           if (alternative.attributes.contains(theParam._1)) {
             theParam._2.paramType match {
               case Multiplier =>
-                theParam._2.paramValue * alternative.attributes(theParam._1)
+                theParam._2.paramValue.toDouble * alternative.attributes(theParam._1).toDouble
               case Intercept =>
-                theParam._2.paramValue
+                theParam._2.paramValue.toDouble
             }
           } else if (theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase(
                        "asc"
                      )) {
-            theParam._2.paramValue
+            theParam._2.paramValue.toDouble
           } else {
-            Double.NaN
+            NaN
           }
         }
         .toVector
         .sum
     }
 
-    util
   }
 
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
@@ -125,10 +129,10 @@ case class AlternativeParams(alternativeName: String, params: Map[String, Utilit
 object AlternativeParams {
   def empty: AlternativeParams = AlternativeParams("", Map())
 }
-case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
+case class UtilityParam(paramName: String, paramValue: BigDecimal, paramType: UtilityParamType)
 
 // Alternative attributes
-case class AlternativeAttributes(alternativeName: String, attributes: Map[String, Double])
+case class AlternativeAttributes(alternativeName: String, attributes: Map[String, BigDecimal])
 
 object UtilityParam {
   sealed trait UtilityParamType
