@@ -106,7 +106,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
           self ! event
         }
       })
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,11.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
@@ -143,7 +146,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,1000000.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
+
 
       val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self,null,eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -209,7 +216,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,1000000.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, null,eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -281,7 +293,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,1000000.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       bus.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(), timeout.duration))
       tram.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(), timeout.duration))

@@ -22,6 +22,7 @@ object BeamAgentScheduler {
 
   sealed trait SchedulerMessage
 
+
   /**
     * Message to start (or restart) the scheduler at the start of each iteration
     * @param iteration current iteration (to update internal state)
@@ -66,8 +67,8 @@ object BeamAgentScheduler {
     }
   }
 
-  def SchedulerProps(beamConfig: BeamConfig, stopTick: Double = 3600.0 * 24.0, maxWindow: Double = 1.0): Props = {
-    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
+  def SchedulerProps(beamConfig: BeamConfig): Props = {
+    Props(classOf[BeamAgentScheduler], beamConfig, beamConfig.beam.agentsim.stopTick, beamConfig.beam.agentsim.maxWindow)
   }
 }
 

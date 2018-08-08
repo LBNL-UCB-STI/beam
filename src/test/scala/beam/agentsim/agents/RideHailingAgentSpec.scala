@@ -115,7 +115,11 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,64800.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 
@@ -167,7 +171,12 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,64800.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 
@@ -209,7 +218,12 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,64800.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
 

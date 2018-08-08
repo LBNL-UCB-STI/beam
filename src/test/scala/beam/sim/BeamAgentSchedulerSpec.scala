@@ -22,7 +22,12 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", te
   describe("A BEAM Agent Scheduler") {
 
     it("should send trigger to a BeamAgent") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,10.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       agent.stateName should be(Uninitialized)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), agent)
@@ -34,7 +39,13 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", te
     }
 
     it("should fail to schedule events with negative tick value") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,0.0,agentsim.numAgents,agentsim.simulationName,10.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       watch(agent)
       scheduler ! ScheduleTrigger(InitializeTrigger(-1), agent)
@@ -42,7 +53,12 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", te
     }
 
     it("should dispatch triggers in chronological order") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,100.0,agentsim.numAgents,agentsim.simulationName,100.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), self)
       scheduler ! ScheduleTrigger(ReportState(1.0), self)
       scheduler ! ScheduleTrigger(ReportState(10.0), self)

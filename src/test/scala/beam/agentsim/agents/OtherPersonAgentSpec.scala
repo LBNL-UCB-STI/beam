@@ -132,7 +132,13 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+
+      val agentsim = config.beam.agentsim
+      val newAgentsim = config.beam.agentsim.copy(agentsim.agents,10.0,agentsim.numAgents,agentsim.simulationName,1000000.0,agentsim.taz,agentsim.thresholdForMakingParkingChoiceInMeters,agentsim.thresholdForWalkingInMeters,agentsim.tuning)
+      val newConfig = config.copy(config.beam.copy(newAgentsim))
+
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(newConfig))
 
       bus.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(), timeout.duration))
       tram.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(), timeout.duration))
