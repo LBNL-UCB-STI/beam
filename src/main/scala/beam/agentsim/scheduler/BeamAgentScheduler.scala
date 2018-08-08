@@ -78,7 +78,7 @@ object BeamAgentScheduler {
   def SchedulerProps(
     beamConfig: BeamConfig,
     stopTick: Double = 3600.0 * 24.0,
-    maxWindow: Double = 1.0
+    maxWindow: Double = 300.0
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
   }
