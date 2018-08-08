@@ -8,7 +8,11 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse,  ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
-import beam.agentsim.agents.ridehail.{RideHailInquiry,  RideHailRequest,  RideHailResponse}
+import beam.agentsim.agents.ridehail.{
+  RideHailInquiry,
+  RideHailRequest,
+  RideHailResponse
+}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
