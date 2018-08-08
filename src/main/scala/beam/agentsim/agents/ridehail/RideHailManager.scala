@@ -11,10 +11,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  BeamVehicleFuelLevelUpdate,
-  GetBeamVehicleFuelLevel
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager.{RoutingResponses, _}
@@ -28,7 +25,7 @@ import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
@@ -127,9 +124,6 @@ class RideHailManager(
       beamServices.beamConfig
     )
 
-  private var bufferedReserveRideMessages =
-    mutable.Map[String, RideHailRequest]()
-
   private val handleRideHailInquirySubmitted = mutable.Set[String]()
 
   var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
@@ -160,6 +154,8 @@ class RideHailManager(
   private val inServiceRideHailVehicles =
     concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
 
+  var bufferedRideHailRequests: BufferedRideHailRequests = _
+
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
@@ -182,6 +178,21 @@ class RideHailManager(
   DebugLib.emptyFunctionForSettingBreakPoint()
 
   override def receive: Receive = {
+    case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
+      Option(travelProposalCache.getIfPresent(requestId.toString)) match {
+        case Some(travelProposal) =>
+          if (success) {
+            travelProposal.rideHailAgentLocation.rideHailAgent ! StopDriving(tick)
+            travelProposal.rideHailAgentLocation.rideHailAgent ! Resume()
+          }
+          rideHailResourceAllocationManager
+            .asInstanceOf[HandlesBufferedRequests]
+            .handleRideCancellationReply(ev)
+
+        case None =>
+          log.error(s"request not found: ${ev}")
+      }
+
     case NotifyIterationEnds() =>
       surgePricingManager.incrementIteration()
 
@@ -403,13 +414,16 @@ class RideHailManager(
     case TriggerWithId(BufferedRideHailRequestsTimeout(tick), triggerId) =>
       DebugLib.emptyFunctionForSettingBreakPoint()
 
+      bufferedRideHailRequests = new BufferedRideHailRequests(scheduler, triggerId, tick)
+
       val nextMessage =
-        if (rideHailResourceAllocationManager.isInstanceOf[HandelsBufferedRequests]) {
+        if (rideHailResourceAllocationManager.isInstanceOf[HandlesBufferedRequests]) {
           rideHailResourceAllocationManager
-            .asInstanceOf[HandelsBufferedRequests]
+            .asInstanceOf[HandlesBufferedRequests]
             .updateVehicleAllocations(tick)
           val timerTrigger = BufferedRideHailRequestsTimeout(
-            tick + 30 // TODO: replace with new config variable
+            tick + 10 // TODO: replace with new config variable
+            // TODO:
           )
           val timerMessage = ScheduleTrigger(timerTrigger, this.self)
           Vector(timerMessage)
@@ -417,7 +431,11 @@ class RideHailManager(
           Vector()
         }
 
-      scheduler ! CompletionNotice(triggerId, nextMessage)
+      // bufferedRideHailRequests.nextBufferedTriggerMessages = bufferedRideHailRequests.nextBufferedTriggerMessages ++ nextMessage
+
+      bufferedRideHailRequests.addTriggerMessages(nextMessage)
+
+      bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
       val produceDebugImages = true
@@ -464,7 +482,9 @@ class RideHailManager(
       getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}", x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-        rideHailResourceAllocationManager.repositionVehicles(tick)
+        rideHailResourceAllocationManager
+          .asInstanceOf[HandlesRedistribution]
+          .repositionVehicles(tick)
 
       if (repositionVehicles.isEmpty) {
         modifyPassengerScheduleManager
@@ -610,7 +630,8 @@ class RideHailManager(
     )
 
     val rideHailLocationOpt =
-      rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest) match {
+      rideHailResourceAllocationManager
+        .proposeVehicleAllocation(vehicleAllocationRequest) match {
         case Some(allocation) =>
           // TODO (RW): Test following code with stanford class
           val rideHailAgent = resources
@@ -835,9 +856,27 @@ class RideHailManager(
       case Some(response) =>
         log.debug("Completing reservation for {}", requestId)
         unlockVehicle(response.travelProposal.get.rideHailAgentLocation.vehicleId)
-        response.request.customer.personRef.get ! response.copy(
-          triggersToSchedule = triggersToSchedule.toVector
+
+        println(
+          s"completing reservation -   customer: ${response.request.customer.personId} - vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
         )
+
+        if (bufferedRideHailRequests.isReplacementVehicle(
+              response.travelProposal.get.rideHailAgentLocation.vehicleId
+            )) {
+
+          bufferedRideHailRequests.addTriggerMessages(triggersToSchedule.toVector)
+
+          bufferedRideHailRequests.replacementVehicleReservationCompleted(
+            response.travelProposal.get.rideHailAgentLocation.vehicleId
+          )
+
+          bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+        } else {
+          response.request.customer.personRef.get ! response.copy(
+            triggersToSchedule = triggersToSchedule.toVector
+          )
+        }
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $requestId")
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
@@ -888,6 +927,7 @@ class RideHailManager(
           }
         } else {
           handleReservation(request, travelProposal)
+
         }
       case None =>
         if (!findDriverAndSendRoutingRequests(request, false)) {
@@ -898,6 +938,22 @@ class RideHailManager(
           )
         }
     }
+  }
+
+  def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
+    Option(travelProposalCache.getIfPresent(requestId.toString)) match {
+      case Some(travelProposal) =>
+        println(
+          s"trying to stop vehicle: ${travelProposal.rideHailAgentLocation.vehicleId}, tick: $tick"
+        )
+        travelProposal.rideHailAgentLocation.rideHailAgent ! StopDrivingIfNoPassengerOnBoard(
+          tick,
+          requestId
+        )
+
+      case None =>
+    }
+
   }
 
   def unlockVehicle(vehicleId: Id[Vehicle]): Unit = {

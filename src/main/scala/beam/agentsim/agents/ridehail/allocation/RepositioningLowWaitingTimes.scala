@@ -15,7 +15,7 @@ class RepositioningLowWaitingTimes(
   val rideHailManager: RideHailManager,
   tncIterationStats: Option[TNCIterationStats]
 ) extends RideHailResourceAllocationManager
-    with HandelsDispatching
+    with HandlesDispatching
     with HandlesRedistribution {
 
   def proposeVehicleAllocation(

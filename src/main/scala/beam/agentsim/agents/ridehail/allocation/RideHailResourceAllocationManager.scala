@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
-trait RideHailResourceAllocationManager {
+trait RideHailResourceAllocationManager extends HandlesDispatching {
 
   lazy val log: Logger = LoggerFactory.getLogger(getClass)
 

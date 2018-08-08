@@ -1,9 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.{RideHailManager, TNCIterationsStatsCollector}
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
+import beam.router.RoutingModel.DiscreteTime
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -13,13 +15,11 @@ import scala.collection.mutable
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager
-    with HandelsBufferedRequests
-    with HandelsDispatching
+    with HandlesBufferedRequests
+    with HandlesDispatching
     with HandlesRedistribution {
 
-  private val log = LoggerFactory.getLogger(classOf[RideHailAllocationManagerBufferedImplTemplate])
-
-  val bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
+  var bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
@@ -35,7 +35,42 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
   var firstRidehailRequestDuringDay = true
 
-  def rideCancellationResponse(): Unit = {
+  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+
+    rideHailManager.bufferedRideHailRequests.decreaseNumberOfOpenOverwriteRequests()
+
+    if (reply.success) {
+      val firstRequestOfDay = bufferedRideHailRequests.head
+
+      val rhl = rideHailManager
+        .getClosestIdleRideHailAgent(
+          firstRequestOfDay.pickUpLocation,
+          rideHailManager.radiusInMeters
+        )
+        .get
+
+      val request = firstRequestOfDay.request.copy(
+        departAt = DiscreteTime(rideHailManager.bufferedRideHailRequests.tick.toInt)
+      )
+
+      rideHailManager.requestRoutesToCustomerAndDestination(
+        request,
+        rhl
+      )
+
+      println(
+        s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
+      )
+
+      rideHailManager.bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
+
+    } else {
+      firstRidehailRequestDuringDay = true
+      bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
+      rideHailManager.bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+    }
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
 
     // CONTINUE HERE ###########
     // failed or successful
@@ -48,13 +83,18 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
       // TODO: cancel the ride
       val firstRequestOfDay = bufferedRideHailRequests.head
 
-      rideHailManager.attemptToCancelCurrentRideRequest(firstRequestOfDay) // CONTINUE HERE
+      println(
+        s" trying to rassign vehicle to customer:${firstRequestOfDay.request.customer}, tick: $tick"
+      )
+      rideHailManager.attemptToCancelCurrentRideRequest(tick, firstRequestOfDay.request.requestId) // CONTINUE HERE
 
       // TODO: ask vehicle, if customer already picked up (can't rely on tick, as RHM tick might be in same window as driver pickup).
       //  -> make method custom
       //
       // , if not, cancel it (go to idle state properly) - make new request type for this?
       // let us lock the other ride and unlock if already picked up, otherwise dispatch it to customer
+
+      rideHailManager.bufferedRideHailRequests.setNumberOfOverwriteRequests(1)
 
       firstRidehailRequestDuringDay = false
     }
@@ -93,14 +133,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    if (rideHailManager.getIdleVehicles.size >= 2) {
-      val iter = rideHailManager.getIdleVehicles.iterator
-      val (vehicleIdA, _) = iter.next()
-      val (_, vehicleLocationB) = iter.next()
-      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
-    } else {
-      Vector()
-    }
+
+    Vector()
 
   }
 }

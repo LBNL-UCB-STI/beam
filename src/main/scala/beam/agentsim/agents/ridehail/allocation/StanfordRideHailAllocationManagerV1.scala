@@ -23,7 +23,7 @@ class StanfordRideHailAllocationManagerV1(
   val rideHailManager: RideHailManager,
   val rideHailNetworkApi: RideHailNetworkAPI
 ) extends RideHailResourceAllocationManager
-    with HandelsDispatching
+    with HandlesDispatching
     with HandlesRedistribution {
 
   /*

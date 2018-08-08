@@ -7,21 +7,13 @@ import org.matsim.vehicles.Vehicle
 
 class DefaultRideHailResourceAllocationManager
     extends RideHailResourceAllocationManager
-    with HandelsDispatching
-    with HandlesRedistribution {
-
-  val bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
+    with HandlesDispatching {
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
 
-    bufferedRideHailRequests += vehicleAllocationRequest
-
     None
   }
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    Vector()
-  }
 }
