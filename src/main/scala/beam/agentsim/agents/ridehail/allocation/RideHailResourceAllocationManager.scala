@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailRequest
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
@@ -8,31 +9,36 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
-trait RideHailResourceAllocationManager extends HandlesDispatching {
+trait RideHailResourceAllocationManager {
 
   lazy val log: Logger = LoggerFactory.getLogger(getClass)
 
-  // TODO RW make two traits, one for rideHail manager and one for buffered RideHail Manager?
+  def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): Option[VehicleAllocation]
 
-  // def respondToCustomerInquiry()
+  def updateVehicleAllocations(tick: Double): Unit = {
+    log.trace("default implementation updateVehicleAllocations executed")
+  }
 
-  // def allocateSingleCustomer()
-  // NON batch: None means: go to default behaviour
-  // batch none means: allocate dummy vehicle (person should send confirmation to scheduler, don't move any vehicle).
+  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+    log.trace("default implementation handleRideCancellationReply executed")
+  }
 
-  // def allocateBatchCustomers()
-
-  // TODO: add distinguish param inquiry vs. reservation
-  // add assigned and get back new
+  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+    log.trace("default implementation repositionVehicles executed")
+    Vector()
+  }
 
 }
 
 object RideHailResourceAllocationManager {
   val DEFAULT_MANAGER = "DEFAULT_MANAGER"
-  val BUFFERED_IMPL_TEMPLATE = "BUFFERED_IMPL_TEMPLATE"
+  val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val STANFORD_V1 = "STANFORD_V1"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
+  val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 }
 
 case class VehicleAllocation(vehicleId: Id[Vehicle], availableAt: SpaceTime)

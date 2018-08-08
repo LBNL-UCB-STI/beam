@@ -103,12 +103,14 @@ class RideHailManager(
         new DefaultRideHailResourceAllocationManager()
       case RideHailResourceAllocationManager.STANFORD_V1 =>
         new StanfordRideHailAllocationManagerV1(this, rideHailNetworkApi)
-      case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE =>
-        new RideHailAllocationManagerBufferedImplTemplate(this)
+      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
+        new RideHailAllocationManagerBufferedWithOverwriteRequest(this)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(this, tncIterationStats)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(this)
+      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
+        new DummyRideHailDispatchWithBufferingRequests(this)
       case _ =>
         throw new IllegalStateException(
           s"unknonwn RideHailResourceAllocationManager: $allocationManager"
@@ -185,9 +187,7 @@ class RideHailManager(
             travelProposal.rideHailAgentLocation.rideHailAgent ! StopDriving(tick)
             travelProposal.rideHailAgentLocation.rideHailAgent ! Resume()
           }
-          rideHailResourceAllocationManager
-            .asInstanceOf[HandlesBufferedRequests]
-            .handleRideCancellationReply(ev)
+          rideHailResourceAllocationManager.handleRideCancellationReply(ev)
 
         case None =>
           log.error(s"request not found: ${ev}")
@@ -416,20 +416,15 @@ class RideHailManager(
 
       bufferedRideHailRequests = new BufferedRideHailRequests(scheduler, triggerId, tick)
 
-      val nextMessage =
-        if (rideHailResourceAllocationManager.isInstanceOf[HandlesBufferedRequests]) {
-          rideHailResourceAllocationManager
-            .asInstanceOf[HandlesBufferedRequests]
-            .updateVehicleAllocations(tick)
-          val timerTrigger = BufferedRideHailRequestsTimeout(
-            tick + 10 // TODO: replace with new config variable
-            // TODO:
-          )
-          val timerMessage = ScheduleTrigger(timerTrigger, this.self)
-          Vector(timerMessage)
-        } else {
-          Vector()
-        }
+      rideHailResourceAllocationManager.updateVehicleAllocations(tick)
+      val timerTrigger = BufferedRideHailRequestsTimeout(
+        tick + 10 // TODO: replace with new config variable
+        // TODO:
+      )
+      val timerMessage = ScheduleTrigger(timerTrigger, this.self)
+      Vector(timerMessage)
+
+      val nextMessage = Vector(timerMessage)
 
       // bufferedRideHailRequests.nextBufferedTriggerMessages = bufferedRideHailRequests.nextBufferedTriggerMessages ++ nextMessage
 
@@ -482,9 +477,7 @@ class RideHailManager(
       getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}", x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-        rideHailResourceAllocationManager
-          .asInstanceOf[HandlesRedistribution]
-          .repositionVehicles(tick)
+        rideHailResourceAllocationManager.repositionVehicles(tick)
 
       if (repositionVehicles.isEmpty) {
         modifyPassengerScheduleManager
@@ -628,6 +621,13 @@ class RideHailManager(
       isInquiry = isInquiry,
       request
     )
+
+    // code for dummy ride hail - continue here.
+    //if (){
+    // remember when query comes back!
+    // TODO: we only have query going to dispatch, not actual, why????
+    //  request.customer.personRef.get ! RideHailResponse.dummy
+    // }
 
     val rideHailLocationOpt =
       rideHailResourceAllocationManager
@@ -1060,6 +1060,8 @@ object RideHailManager {
   def nextRideHailInquiryId: Id[RideHailRequest] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailRequest])
   }
+
+  val dummyRideHailVehicleId = Id.createVehicleId("dummyRideHailVehicle")
 
   case class NotifyIterationEnds()
 

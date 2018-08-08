@@ -13,11 +13,8 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
-class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager
-    with HandlesBufferedRequests
-    with HandlesDispatching
-    with HandlesRedistribution {
+class RideHailAllocationManagerBufferedWithOverwriteRequest(val rideHailManager: RideHailManager)
+    extends RideHailResourceAllocationManager {
 
   var bufferedRideHailRequests = new mutable.Queue[VehicleAllocationRequest]
 
@@ -35,7 +32,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailManager: RideHai
 
   var firstRidehailRequestDuringDay = true
 
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+  override def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
 
     rideHailManager.bufferedRideHailRequests.decreaseNumberOfOpenOverwriteRequests()
 

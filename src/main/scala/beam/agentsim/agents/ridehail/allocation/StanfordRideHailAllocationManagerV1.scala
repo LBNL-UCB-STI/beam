@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailNetworkAPI}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
@@ -22,9 +23,7 @@ TODO: repositioning vehicles should be able to get duty any time
 class StanfordRideHailAllocationManagerV1(
   val rideHailManager: RideHailManager,
   val rideHailNetworkApi: RideHailNetworkAPI
-) extends RideHailResourceAllocationManager
-    with HandlesDispatching
-    with HandlesRedistribution {
+) extends RideHailResourceAllocationManager {
 
   /*
   This method is used to provide an initial vehicle allocation proposal (vehicleAllocationRequest.isInquiry==true).
@@ -104,4 +103,5 @@ class StanfordRideHailAllocationManagerV1(
     )
     rideHailManager.getIdleVehicles
   }
+
 }
