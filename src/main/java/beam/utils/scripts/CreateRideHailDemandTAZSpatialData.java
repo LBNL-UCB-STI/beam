@@ -20,28 +20,30 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation;
 
 public class CreateRideHailDemandTAZSpatialData implements BasicEventHandler {
 
-    private static final int BIN_SIZE = 1800;
-    private static Map<Integer, Map<Coord, Integer>> timeBinsCoord = new HashMap();
-    private static TAZTreeMap tree;
+    private  final int BIN_SIZE = 1800;
+    private  Map<Integer, Map<Coord, Integer>> timeBinsCoord = new HashMap();
+    private  TAZTreeMap tree;
     GeotoolsTransformation utm2wgs = new GeotoolsTransformation("EPSG:4326", "EPSG:26910");
 
 
     public static void main(String[] args) {
-        tree = TAZTreeMap.fromCsv("/home/rajnikant/IdeaProjects/beam/test/input/sf-light/taz-centers.csv.gz");
-        EventsManager events = EventsUtils.createEventsManager();
         CreateRideHailDemandTAZSpatialData createRideHailDemandTAZSpatialData = new CreateRideHailDemandTAZSpatialData();
+
+        createRideHailDemandTAZSpatialData.tree = TAZTreeMap.fromCsv("/home/rajnikant/IdeaProjects/beam/test/input/sf-light/taz-centers.csv.gz");
+        EventsManager events = EventsUtils.createEventsManager();
         events.addHandler(createRideHailDemandTAZSpatialData);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
         reader.readFile("/home/rajnikant/IdeaProjects/beam/output/sf-light/sf-light-1k__2018-08-07_00-50-11/ITERS/it.0/0.events.xml");
 
-        printMinDistance();
+        createRideHailDemandTAZSpatialData.printMinDistance("/home/rajnikant/IdeaProjects/beam/test/input/minDistance.csv");
+
     }
 
 
-    public static void printMinDistance() {
+    //  generating csv which included timeBin, taz coords, and rideHailDemand for min distance
+    public void printMinDistance(String csvFileName) {
 
-        String csvFileName = "/home/rajnikant/IdeaProjects/beam/test/input/minDistance.csv";
         try
                 (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("timeBin,taz-x-coord,taz-y-coord,ridehaildemand");
@@ -69,7 +71,7 @@ public class CreateRideHailDemandTAZSpatialData implements BasicEventHandler {
         }
     }
 
-
+    //  calculating rideHailDemand
     private void updateCoordMap(int timeBin, Coord coord) {
         Map<Coord, Integer> coordCount = timeBinsCoord.get(timeBin);
         if (coordCount == null) {
@@ -87,6 +89,7 @@ public class CreateRideHailDemandTAZSpatialData implements BasicEventHandler {
 
     }
 
+    //    handling reservedRideHail events and transforming events coords in to taz coords.
     @Override
     public void handleEvent(Event event) {
         if (event.getEventType().equals("ReserveRideHail")) {
