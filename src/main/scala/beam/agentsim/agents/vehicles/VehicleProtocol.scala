@@ -10,14 +10,10 @@ object VehicleProtocol {
 
   case object BecomeDriverOfVehicleSuccessAck
 
-  case class DriverAlreadyAssigned(vehicleId: Id[Vehicle],
-                                   currentDriver: ActorRef)
+  case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
-  case class StreetVehicle(id: Id[Vehicle],
-                           location: SpaceTime,
-                           mode: BeamMode,
-                           asDriver: Boolean)
+  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
 
 }

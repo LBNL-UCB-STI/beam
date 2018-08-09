@@ -79,7 +79,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               .map(score => math.exp(score))
               .sum
           )
-        ).filter(x => x != Double.PositiveInfinity).getOrElse(-1E100)
+        ).filterNot(x => x < -100D).getOrElse(-100D)
 
         val scoreOfBeingInClassGivenThisOutcome = lccm
           .classMembershipModels(Mandatory)

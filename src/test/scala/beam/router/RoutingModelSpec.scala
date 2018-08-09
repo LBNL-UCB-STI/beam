@@ -17,11 +17,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         0,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2, 3, 4, 5),
-                 None,
-                 SpaceTime.zero,
-                 SpaceTime.zero,
-                 10.0)
+        BeamPath(Vector(1, 2, 3, 4, 5), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
       asDriver = true,
@@ -52,11 +48,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         0,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2, 3, 4, 5),
-                 None,
-                 SpaceTime.zero,
-                 SpaceTime.zero,
-                 10.0)
+        BeamPath(Vector(1, 2, 3, 4, 5), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
       asDriver = true,
@@ -106,10 +98,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     def travelTime(enterTime: Long, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
-      BeamLeg(0,
-              BeamMode.CAR,
-              0,
-              BeamPath(Vector(1), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
       asDriver = true,
       None,
@@ -127,10 +116,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     def travelTime(enterTime: Long, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
-      BeamLeg(0,
-              BeamMode.CAR,
-              0,
-              BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
       asDriver = true,
       None,

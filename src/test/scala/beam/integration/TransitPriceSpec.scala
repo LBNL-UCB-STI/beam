@@ -25,8 +25,7 @@ class TransitPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.transitPrice",
-                         ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.transitPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 
