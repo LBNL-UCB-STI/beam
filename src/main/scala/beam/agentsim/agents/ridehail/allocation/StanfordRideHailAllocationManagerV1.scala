@@ -20,10 +20,8 @@ TODO: changing previous allocation should work
 TODO: repositioning vehicles should be able to get duty any time
 
  */
-class StanfordRideHailAllocationManagerV1(
-  val rideHailManager: RideHailManager,
-  val rideHailNetworkApi: RideHailNetworkAPI
-) extends RideHailResourceAllocationManager {
+class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager)
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
   /*
   This method is used to provide an initial vehicle allocation proposal (vehicleAllocationRequest.isInquiry==true).
@@ -73,6 +71,7 @@ class StanfordRideHailAllocationManagerV1(
   /*
   API available to implement allocation manager
    */
+  /*
   def apiExamples(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
@@ -102,6 +101,8 @@ class StanfordRideHailAllocationManagerV1(
       rideHailManager.radiusInMeters
     )
     rideHailManager.getIdleVehicles
+
   }
+ */
 
 }

@@ -14,7 +14,7 @@ import scala.collection.concurrent.TrieMap
 class RepositioningLowWaitingTimes(
   val rideHailManager: RideHailManager,
   tncIterationStats: Option[TNCIterationStats]
-) extends RideHailResourceAllocationManager {
+) extends RideHailResourceAllocationManager(rideHailManager) {
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest

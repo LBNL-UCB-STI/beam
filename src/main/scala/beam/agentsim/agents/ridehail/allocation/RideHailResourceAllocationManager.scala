@@ -1,23 +1,56 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailRequest
+import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  RideHailRequest
+}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
-trait RideHailResourceAllocationManager {
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) {
 
   lazy val log: Logger = LoggerFactory.getLogger(getClass)
+
+  val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
+    rideHailManager.scheduler
+  )
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation]
 
-  def updateVehicleAllocations(tick: Double): Unit = {
+  def updateVehicleAllocations(
+    tick: Double,
+    triggerId: Long,
+    rideHailManager: RideHailManager
+  ): Unit = {
+    bufferedRideHailRequests.newTimeout(tick, triggerId)
+
+    updateVehicleAllocations(tick, triggerId)
+
+    // TODO: refactor to BufferedRideHailRequests?
+    val timerTrigger = BufferedRideHailRequestsTimeout(
+      tick + 10 // TODO: replace with new config variable
+    )
+    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
+    Vector(timerMessage)
+
+    val nextMessage = Vector(timerMessage)
+
+    bufferedRideHailRequests.addTriggerMessages(nextMessage)
+
+    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+
+  }
+
+  def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
     log.trace("default implementation updateVehicleAllocations executed")
   }
 
@@ -29,6 +62,8 @@ trait RideHailResourceAllocationManager {
     log.trace("default implementation repositionVehicles executed")
     Vector()
   }
+
+  def setBufferedRideHailRequests(bufferedRideHailRequests: BufferedRideHailRequests): Unit = {}
 
 }
 

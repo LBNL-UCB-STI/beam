@@ -7,9 +7,9 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager {
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def updateVehicleAllocations(tick: Double): Unit = ???
+  override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = ???
 
   override def handleRideCancellationReply(
     reply: DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
