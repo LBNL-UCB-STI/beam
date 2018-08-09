@@ -25,11 +25,13 @@ import scala.util.Random
   * BEAM
   */
 trait ModeChoiceCalculator extends HasServices {
+  import ModeChoiceCalculator._
 
-  implicit val random: Random = new Random(4711)
+  implicit lazy val random: Random = new Random(
+    beamServices.beamConfig.matsim.modules.global.randomSeed
+  )
 
   /// VOT-Specific fields and methods
-  import ModeChoiceCalculator._
 
   /**
     * Adds heterogeneous VOT to mode choice computation.
@@ -38,7 +40,7 @@ trait ModeChoiceCalculator extends HasServices {
     */
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
-  val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
+  lazy val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
       DefaultVot -> MathUtils.roundDouble(
         beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
@@ -57,7 +59,7 @@ trait ModeChoiceCalculator extends HasServices {
     */
   // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
   // matching enforced by sealed traits.
-  private def modeMatcher(beamMode: Option[BeamMode]): VotType = beamMode match {
+  private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
     case Some(CAR)                                        => DrivingVot
     case Some(WALK)                                       => WalkingVot
     case Some(WALK_TRANSIT)                               => WalkToTransitVot
@@ -72,12 +74,12 @@ trait ModeChoiceCalculator extends HasServices {
   // the default VOT as defined in the config.
   private def getVot(beamMode: Option[BeamMode]): BigDecimal =
     _valuesOfTime.getOrElse(
-      modeMatcher(beamMode),
+      matchMode2Vot(beamMode),
       _valuesOfTime.getOrElse(GeneralizedVot, _valuesOfTime(DefaultVot))
     )
 
   def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): _valuesOfTime.type = {
-    _valuesOfTime += modeMatcher(beamMode) -> value
+    _valuesOfTime += matchMode2Vot(beamMode) -> value
   }
 
   def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {

@@ -42,10 +42,8 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
   }
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
-    // Scala has a hard time dealing with implicit conversions here... make it explicit in this method
-
     if (!alternativeParams.contains(alternative.alternativeName)) {
-      NEGATIVE_INFINITY
+      0.0D
     } else {
       (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(
         alternative.alternativeName
@@ -54,7 +52,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
           if (alternative.attributes.contains(theParam._1)) {
             theParam._2.paramType match {
               case Multiplier =>
-                theParam._2.paramValue.toDouble * alternative.attributes(theParam._1).toDouble
+                (theParam._2.paramValue * alternative.attributes(theParam._1)).toDouble
               case Intercept =>
                 theParam._2.paramValue.toDouble
             }
@@ -63,7 +61,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
                      )) {
             theParam._2.paramValue.toDouble
           } else {
-            NaN
+            0.0D
           }
         }
         .toVector

@@ -36,7 +36,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -105,10 +105,9 @@ class PersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override val beamServices: BeamServices = services
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-
+    override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,

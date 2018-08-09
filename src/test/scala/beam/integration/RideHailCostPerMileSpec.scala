@@ -1,5 +1,6 @@
 package beam.integration
 
+import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
@@ -33,7 +34,7 @@ class RideHailCostPerMileSpec
       )
 
       val tc = modeChoice
-        .map(_.get("ride_hailing"))
+        .map(_.get(BeamMode.RIDE_HAIL.value))
         .filter(_.isDefined)
         .map(_.get)
 

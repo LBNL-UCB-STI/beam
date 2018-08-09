@@ -31,11 +31,11 @@
                     <param name="transfer" type="MULTIPLIER">{{ mnl_walk_transit_transfer }}</param>
                 </utility>
             </alternative>
-            <alternative name="ride_hailing">
+            <alternative name="ride_hail">
                 <utility>
-                    <param name="intercept" type="INTERCEPT">{{ mnl_ride_hailing_intercept }}</param>
-                    <param name="cost" type="MULTIPLIER">{{ mnl_ride_hailing_cost }}</param>
-                    <param name="time" type="MULTIPLIER">{{ mnl_ride_hailing_time }}</param>
+                    <param name="intercept" type="INTERCEPT">{{ mnl_ride_hail_intercept }}</param>
+                    <param name="cost" type="MULTIPLIER">{{ mnl_ride_hail_cost }}</param>
+                    <param name="time" type="MULTIPLIER">{{ mnl_ride_hail_time }}</param>
                 </utility>
             </alternative>
             <alternative name="walk">

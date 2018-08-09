@@ -56,7 +56,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         if (event instanceof ModeChoiceEvent) {
 
             String mode = event.getAttributes().get("mode");
-            if (mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hail")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();

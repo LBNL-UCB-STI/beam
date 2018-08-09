@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.router.Modes;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
@@ -28,7 +29,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public static final String RIDE = "ride";
     public static final String TNC = "tnc";
     public static final String WALK = "walk";
-    public static final String RIDE_HAILING = "ride_hailing";
+    public static final String RIDE_HAILING = "ride_hail";
     public static final String TNC_DEAD_HEADING_DISTANCE = "tnc_deadheading_distance";
     public static final int GRAPH_HEIGHT = 600;
     public static final int GRAPH_WIDTH = 800;

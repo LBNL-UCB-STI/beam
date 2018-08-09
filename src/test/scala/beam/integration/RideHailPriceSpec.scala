@@ -1,5 +1,6 @@
 package beam.integration
 
+import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
@@ -24,13 +25,12 @@ class RideHailPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.rideHailPrice",
-                         ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 
       val tc = modeChoice
-        .map(_.get("ride_hailing"))
+        .map(_.get(BeamMode.RIDE_HAIL.value))
         .filter(_.isDefined)
         .map(_.get)
 

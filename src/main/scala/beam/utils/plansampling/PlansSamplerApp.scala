@@ -1,8 +1,6 @@
 package beam.utils.plansampling
 
 import java.util
-import java.util.function.BiFunction
-import java.util.stream
 
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
@@ -25,8 +23,8 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.io.PopulationWriter
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
@@ -44,7 +42,6 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, JavaConverters}
-import scala.io.Source
 import scala.util.Random
 
 case class SynthHousehold(
@@ -67,6 +64,7 @@ case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: D
 class SynthHouseholdParser(wgsConverter: WGSConverter) {
 
   import SynthHouseholdParser._
+  import scala.util.control.Breaks._
 
   /**
     * Parses the synthetic households file.
@@ -74,18 +72,26 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
     * @param synthFileName : synthetic households filename
     * @return the [[Vector]] of [[SynthHousehold]]s
     */
-  def parseFile(synthFileName: String): Vector[SynthHousehold] = {
+  def parseFile(synthFileName: String, sampleNumber: Int): Vector[SynthHousehold] = {
     val resHHMap = scala.collection.mutable.Map[String, SynthHousehold]()
+
+    var counter: Int = 0
 
     IOUtils
       .getBufferedReader(synthFileName)
       .lines()
       .forEach(line => {
-        val row = line.split(",")
-        val hhIdStr = row(hhIdIdx)
-        resHHMap.get(hhIdStr) match {
-          case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
-          case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
+        breakable {
+          if (counter > sampleNumber) {
+            break()
+          }
+          val row = line.split(",")
+          val hhIdStr = row(hhIdIdx)
+          resHHMap.get(hhIdStr) match {
+            case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
+            case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
+          }
+          counter += resHHMap(hhIdStr).individuals.length
         }
       })
 
@@ -352,7 +358,7 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
+        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3), sampleNumber),
         shapeFileReader.getFeatureSet,
         shapeFileReader.getCoordinateSystem
       )
@@ -415,7 +421,7 @@ object PlansSampler {
     var totalPersonNumber = 0
     var idx = 0
     val popSize = synthHouseholds.map { hh =>
-      hh.individuals.size
+      hh.individuals.length
     }.sum
     val shuffledHouseholds = Random.shuffle(synthHouseholds) // Randomize here
     var ret = ListBuffer[SynthHousehold]()
@@ -423,7 +429,7 @@ object PlansSampler {
       val hh: SynthHousehold = shuffledHouseholds(idx)
       if (aoi.contains(MGC.coord2Point(hh.coord))) {
         ret += hh
-        totalPersonNumber += hh.numPersons
+        totalPersonNumber += hh.individuals.length
       }
       idx += 1
     }

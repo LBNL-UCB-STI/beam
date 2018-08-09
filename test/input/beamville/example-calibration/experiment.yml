@@ -32,9 +32,9 @@ defaultParams:
     mnl_walk_transit_time: -0.0047
     mnl_walk_transit_transfer: -1.4
 
-    mnl_ride_hailing_intercept: -11.0
-    mnl_ride_hailing_cost: -1.0
-    mnl_ride_hailing_time: -0.0047
+    mnl_ride_hail_intercept: -11.0
+    mnl_ride_hail_cost: -1.0
+    mnl_ride_hail_time: -0.0047
 
     mnl_walk_intercept: -20.0
     mnl_walk_cost: -1.0
@@ -66,10 +66,10 @@ factors:
     levels:
     - name: Low
       params:
-        mnl_ride_hailing_intercept: -1.0
+        mnl_ride_hail_intercept: -1.0
     - name: High
       params:
-        mnl_ride_hailing_intercept: 1.0
+        mnl_ride_hail_intercept: 1.0
 
   - title: car
     levels:

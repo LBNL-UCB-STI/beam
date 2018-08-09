@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.plansampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -9,19 +10,19 @@ import org.scalatest.{Matchers, WordSpecLike}
 class PlansSamplerAppSpec extends WordSpecLike with Matchers {
 
   val inputData: Array[String] = Array(
-    "test/input/beamville/population.xml",
-    "test/input/beamville/shape/beamville_aoi.shp",
-    "test/input/beamville/physsim-network.xml",
-    "test/input/beamville/hhOut.csv",
-    "test/input/beamville/vehicles.xml",
-    "3",
+    "test/input/sf-light/population.xml",
+    "test/input/sf-light/shape/sflight_muni_mask.shp",
+    "test/input/sf-light/physsim-network.xml",
+    "test/input/sf-light/ind_X_hh_out.csv.gz",
+    "test/input/sf-light/vehicles.xml",
+    "10",
     "output/test/plansampler/",
     "epsg:4326",
     "epsg:32631"
   )
 
   "PlanSamplerApp class" should {
-    "assign available modes to agents " in {
+    "assign available modes to agents " taggedAs (Periodic, ExcludeRegular) in {
       FileUtils.createDirectoryIfNotExists(inputData(6))
       val sampler = PlansSampler
       sampler.init(inputData)
