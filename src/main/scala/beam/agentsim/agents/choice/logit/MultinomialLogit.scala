@@ -43,7 +43,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     if (!alternativeParams.contains(alternative.alternativeName)) {
-      0.0D
+      -1E100
     } else {
       (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(
         alternative.alternativeName
@@ -61,7 +61,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
                      )) {
             theParam._2.paramValue.toDouble
           } else {
-            0.0D
+            -1E100
           }
         }
         .toVector

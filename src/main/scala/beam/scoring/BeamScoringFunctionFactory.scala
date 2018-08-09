@@ -46,10 +46,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val attributes =
           person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
-        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
-        val scoreOfThisOutcomeGivenMyClass =
-          trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
-
         // Compute and log all-day score w.r.t. all modality styles
         // One of them has many suspicious-looking 0.0 values. Probably something which
         // should be minus infinity or exception instead.
@@ -70,18 +66,20 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
         // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
 
-        val logsum = math.log(
-          person.getPlans.asScala
-            .map(
-              plan =>
-                plan.getAttributes
-                  .getAttribute("scores")
-                  .asInstanceOf[MapStringDouble]
-                  .data(attributes.modalityStyle.get)
-            )
-            .map(score => math.exp(score))
-            .sum
-        )
+        val logsum = Option(
+          math.log(
+            person.getPlans.asScala
+              .map(
+                plan =>
+                  plan.getAttributes
+                    .getAttribute("scores")
+                    .asInstanceOf[MapStringDouble]
+                    .data(attributes.modalityStyle.get)
+              )
+              .map(score => math.exp(score))
+              .sum
+          )
+        ).filter(x => x != Double.PositiveInfinity).getOrElse(-1E100)
 
         val scoreOfBeingInClassGivenThisOutcome = lccm
           .classMembershipModels(Mandatory)

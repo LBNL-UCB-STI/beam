@@ -72,26 +72,18 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
     * @param synthFileName : synthetic households filename
     * @return the [[Vector]] of [[SynthHousehold]]s
     */
-  def parseFile(synthFileName: String, sampleNumber: Int): Vector[SynthHousehold] = {
+  def parseFile(synthFileName: String): Vector[SynthHousehold] = {
     val resHHMap = scala.collection.mutable.Map[String, SynthHousehold]()
-
-    var counter: Int = 0
 
     IOUtils
       .getBufferedReader(synthFileName)
       .lines()
       .forEach(line => {
-        breakable {
-          if (counter > sampleNumber) {
-            break()
-          }
-          val row = line.split(",")
-          val hhIdStr = row(hhIdIdx)
-          resHHMap.get(hhIdStr) match {
-            case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
-            case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
-          }
-          counter += resHHMap(hhIdStr).individuals.length
+        val row = line.split(",")
+        val hhIdStr = row(hhIdIdx)
+        resHHMap.get(hhIdStr) match {
+          case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
+          case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
         }
       })
 
@@ -358,7 +350,7 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3), sampleNumber),
+        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
         shapeFileReader.getFeatureSet,
         shapeFileReader.getCoordinateSystem
       )
@@ -418,22 +410,12 @@ object PlansSampler {
 
     val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-    var totalPersonNumber = 0
-    var idx = 0
-    val popSize = synthHouseholds.map { hh =>
-      hh.individuals.length
-    }.sum
-    val shuffledHouseholds = Random.shuffle(synthHouseholds) // Randomize here
-    var ret = ListBuffer[SynthHousehold]()
-    while (totalPersonNumber < popSize && totalPersonNumber < sampleNumber) {
-      val hh: SynthHousehold = shuffledHouseholds(idx)
-      if (aoi.contains(MGC.coord2Point(hh.coord))) {
-        ret += hh
-        totalPersonNumber += hh.individuals.length
-      }
-      idx += 1
-    }
-    ret.toVector
+
+    Random
+      .shuffle(synthHouseholds)
+      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+      .take(sampleNumber)
+
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -460,7 +442,7 @@ object PlansSampler {
         .head
     newVehicles.addVehicleType(defaultVehicleType)
     synthHouseholds foreach (sh => {
-      val numPersons = sh.individuals.size
+      val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
         numPersons * 2
       } else {

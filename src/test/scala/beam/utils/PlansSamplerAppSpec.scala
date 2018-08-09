@@ -13,12 +13,12 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
     "test/input/sf-light/population.xml",
     "test/input/sf-light/shape/sflight_muni_mask.shp",
     "test/input/sf-light/physsim-network.xml",
-    "test/input/sf-light/ind_X_hh_out.csv.gz",
+    "test/input/sf-light/ind_X_hh_out_test.csv",
     "test/input/sf-light/vehicles.xml",
     "10",
     "output/test/plansampler/",
     "epsg:4326",
-    "epsg:32631"
+    "epsg:32610"
   )
 
   "PlanSamplerApp class" should {
@@ -36,7 +36,11 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
       dummyScenario.setLocked()
       ScenarioUtils.loadScenario(dummyScenario)
       val attributes: ObjectAttributes = dummyScenario.getPopulation.getPersonAttributes
-      attributes.getAttribute("1-0", "available-modes") should equal(
+
+      attributes.getAttribute(
+        attributes.toString.split(";")(0).stripPrefix("key="),
+        "available-modes"
+      ) should equal(
         "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
       )
     }
