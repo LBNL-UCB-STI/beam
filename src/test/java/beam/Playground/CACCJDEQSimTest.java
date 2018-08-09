@@ -6,6 +6,7 @@ import beam.playground.jdeqsim_with_cacc.SpeedCalc;
 import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimConfigGroup;
 import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation;
 import beam.playground.jdeqsim_with_cacc.jdeqsim.Road;
+import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
@@ -35,7 +36,7 @@ public class CACCJDEQSimTest {
 
     public double doSimulation(double shareOfCACC) {
 
-        Config config = ConfigUtils.loadConfig("/Users/uthmanmomen/desktop/scenarios/equil/config.xml");
+        Config config = ConfigUtils.loadConfig("Y:\\tmp3\\matsim\\scenarios\\equil\\config.xml");
 
         Scenario scenario = ScenarioUtils.loadScenario(config);
 
@@ -53,7 +54,7 @@ public class CACCJDEQSimTest {
         eventsManager.addHandler(speedCalc);
 
         eventsManager.addHandler(countEnterLinkEvents);
-        EventWriterXML eventsWriter=new EventWriterXML("/Users/uthmanmomen/desktop/scenarios/equil/output/events.xml");
+        EventWriterXML eventsWriter=new EventWriterXML("Y:\\tmp3\\matsim\\scenarios\\equil\\output\\events.xml");
         eventsManager.addHandler(eventsWriter);
         eventsManager.initProcessing();
 
@@ -77,7 +78,7 @@ public class CACCJDEQSimTest {
         // TODO: pass vehicle to isCACC mapping to JDEQSim //Done\\
 
 
-        JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle);
+        JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle, new CACCTravelTimeFunctionA());
 
         jdeqSimulation.run();
 
