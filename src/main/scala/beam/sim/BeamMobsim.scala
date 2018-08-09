@@ -28,7 +28,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
   RideHailAllocationManagerTimeout
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -292,7 +292,7 @@ class BeamMobsim @Inject()(
                 powerTrain,
                 rideHailVehicle,
                 vehicleAttribute,
-                Car,
+                CarVehicle,
                 Some(1.0),
                 Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
               )

@@ -5,7 +5,7 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.utils.scripts.HasXY.wgs2Utm
+import beam.utils.plansampling.WGSConverter
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -200,7 +200,7 @@ object TAZTreeMap {
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
     lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
-
+    lazy val wgs2utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "utm")
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter =
@@ -237,7 +237,7 @@ object TAZTreeMap {
         val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
         //
-        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+        val transFormedCoord: Coord = wgs2utm.transform(new Coord(t.coordX, t.coordY))
         val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
         tazToWrite.put(header(1), tcoord.getX.toString)
         tazToWrite.put(header(2), tcoord.getY.toString)

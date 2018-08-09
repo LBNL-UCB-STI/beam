@@ -32,16 +32,15 @@ trait ModeChoiceCalculator extends HasServices {
 
 object ModeChoiceCalculator {
 
-  def apply(
-    classname: String,
-    beamServices: BeamServices
-  ): AttributesOfIndividual => ModeChoiceCalculator = {
+  type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
+
+  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _) =>
+            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)

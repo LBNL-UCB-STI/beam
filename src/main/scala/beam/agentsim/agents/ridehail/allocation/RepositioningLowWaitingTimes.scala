@@ -12,12 +12,12 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.concurrent.TrieMap
 
 class RepositioningLowWaitingTimes(
-  val rideHailManager: RideHailManager,
-  tncIterationStats: Option[TNCIterationStats]
+    val rideHailManager: RideHailManager,
+    tncIterationStats: Option[TNCIterationStats]
 ) extends RideHailResourceAllocationManager {
 
   def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
+      vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
   }

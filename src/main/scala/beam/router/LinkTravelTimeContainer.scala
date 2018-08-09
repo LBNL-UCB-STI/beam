@@ -52,7 +52,10 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int)
     logger.debug("LinkTravelTimeMap is initialized")
   }
 
-  def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
+  def getLinkTravelTime(link: Link,
+                        time: Double,
+                        person: Person,
+                        vehicle: Vehicle): Double = {
     linkTravelTimeMap.get(link.getId) match {
       case Some(linkTravelTime) =>
         linkTravelTime.get(getSlot(time)) match {

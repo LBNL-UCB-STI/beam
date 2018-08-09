@@ -927,7 +927,6 @@ class RideHailManager(
           }
         } else {
           handleReservation(request, travelProposal)
-
         }
       case None =>
         if (!findDriverAndSendRoutingRequests(request, false)) {

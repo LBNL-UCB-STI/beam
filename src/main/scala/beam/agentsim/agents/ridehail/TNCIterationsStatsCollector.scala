@@ -8,7 +8,11 @@ import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  Event,
+  PersonEntersVehicleEvent
+}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.misc.Time
@@ -32,10 +36,10 @@ import scala.util.Try
   * @param sumOfIdlingVehicles total number of idling vehicles
   */
 case class RideHailStatsEntry(
-  sumOfRequestedRides: Long,
-  sumOfWaitingTimes: Long,
-  sumOfIdlingVehicles: Long,
-  sumOfActivityEndEvents: Long
+    sumOfRequestedRides: Long,
+    sumOfWaitingTimes: Long,
+    sumOfIdlingVehicles: Long,
+    sumOfActivityEndEvents: Long
 ) {
 
   def aggregate(other: RideHailStatsEntry): RideHailStatsEntry =
@@ -64,10 +68,10 @@ object RideHailStatsEntry {
   def empty: RideHailStatsEntry = RideHailStatsEntry()
 
   def apply(
-    sumOfRequestedRides: Long = 0,
-    sumOfWaitingTimes: Long = 0,
-    sumOfIdlingVehicles: Long = 0,
-    sumOfActivityEndEvents: Long = 0
+      sumOfRequestedRides: Long = 0,
+      sumOfWaitingTimes: Long = 0,
+      sumOfIdlingVehicles: Long = 0,
+      sumOfActivityEndEvents: Long = 0
   ): RideHailStatsEntry =
     new RideHailStatsEntry(
       sumOfRequestedRides,
@@ -76,40 +80,47 @@ object RideHailStatsEntry {
       sumOfActivityEndEvents
     )
 
-  def aggregate(first: RideHailStatsEntry, second: RideHailStatsEntry): RideHailStatsEntry =
+  def aggregate(first: RideHailStatsEntry,
+                second: RideHailStatsEntry): RideHailStatsEntry =
     first.aggregate(second)
 
-  def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry =
+  def aggregate(
+      rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry =
     rideHailStats.flatten.reduceOption(aggregate).getOrElse(empty)
 }
 
 class TNCIterationsStatsCollector(
-  eventsManager: EventsManager,
-  beamServices: BeamServices,
-  rideHailIterationHistoryActor: ActorRef,
-  transportNetwork: TransportNetwork
+    eventsManager: EventsManager,
+    beamServices: BeamServices,
+    rideHailIterationHistoryActor: ActorRef,
+    transportNetwork: TransportNetwork
 ) extends BasicEventHandler {
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
+  private val log =
+    LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
-  private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+  private val mTazTreeMap = Try(
+    TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
   private val timeBinSizeInSec = rideHailConfig.iterationStats.timeBinSizeInSec
   private val numberOfTimeBins = Math
-    .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec)
+    .floor(
+      Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec)
     .toInt + 1
 
   private val rideHailModeChoiceEvents = mutable.Map[String, ModeChoiceEvent]()
   private val rideHailEventsTuples =
     mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
-  private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
+  private val vehicleIdlingBins =
+    mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicles = mutable.Map[String, Int]()
 
-  var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = Map()
+  var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] =
+    Map()
 
   eventsManager.addHandler(this)
 
@@ -167,7 +178,7 @@ class TNCIterationsStatsCollector(
   }
 
   private def collectPersonEntersEvents(
-    personEntersVehicleEvent: PersonEntersVehicleEvent
+      personEntersVehicleEvent: PersonEntersVehicleEvent
   ): Unit = {
 
     val attr = personEntersVehicleEvent.getAttributes
@@ -180,7 +191,8 @@ class TNCIterationsStatsCollector(
 
       rideHailModeChoiceEvents.get(personId) match {
         case Some(modeChoiceEvent) =>
-          rideHailEventsTuples.put(vehicleId, (modeChoiceEvent, personEntersVehicleEvent))
+          rideHailEventsTuples.put(vehicleId,
+                                   (modeChoiceEvent, personEntersVehicleEvent))
           rideHailModeChoiceEvents.remove(personId)
         case None =>
       }
@@ -206,7 +218,8 @@ class TNCIterationsStatsCollector(
     }
   }
 
-  private def processPathTraversalEvent(pathTraversalEvent: PathTraversalEvent): Unit = {
+  private def processPathTraversalEvent(
+      pathTraversalEvent: PathTraversalEvent): Unit = {
 
     val attr = pathTraversalEvent.getAttributes
     val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
@@ -224,7 +237,8 @@ class TNCIterationsStatsCollector(
         val tazBins = rideHailStats.get(tazId) match {
           case Some(bins) => bins
           case None =>
-            val bins = mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+            val bins = mutable.ArrayBuffer
+              .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
             rideHailStats += (tazId -> bins)
             bins
         }
@@ -251,12 +265,17 @@ class TNCIterationsStatsCollector(
     }
   }
 
-  private def collectIdlingVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
+  private def collectIdlingVehicles(vehicleId: String,
+                                    currentEvent: PathTraversalEvent) = {
 
     val startX =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble
     val startY =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
 
@@ -264,8 +283,12 @@ class TNCIterationsStatsCollector(
     val endTazId = getEndTazId(currentEvent)
 
     val startTime =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-    val endTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)
+        .toLong
+    val endTime = currentEvent.getAttributes
+      .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+      .toLong
 
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
@@ -287,7 +310,9 @@ class TNCIterationsStatsCollector(
 
       case Some(lastEvent) =>
         val endTazId = getEndTazId(lastEvent)
-        val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+        val endTime = lastEvent.getAttributes
+          .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+          .toLong
         val endingBin = getTimeBin(endTime)
         ((endingBin + 1) until startBin).map((_, endTazId)).toMap
 
@@ -319,9 +344,13 @@ class TNCIterationsStatsCollector(
 
       val lastEvent = rhEvent._2
       val endTazId = getEndTazId(lastEvent)
-      val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+      val endTime = lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+        .toLong
       val endingBin = getTimeBin(endTime)
-      idlingBins ++= ((endingBin + 1) until numberOfTimeBins).map((_, endTazId)).toMap
+      idlingBins ++= ((endingBin + 1) until numberOfTimeBins)
+        .map((_, endTazId))
+        .toMap
     })
 
     addMissingTaz()
@@ -336,8 +365,10 @@ class TNCIterationsStatsCollector(
 
         if (noOfIdlingVehicles > 0) {
           bins(binIndex) = bin._1 match {
-            case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
-            case None        => Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
+            case Some(entry) =>
+              Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
+            case None =>
+              Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
           }
         }
       }
@@ -348,9 +379,13 @@ class TNCIterationsStatsCollector(
 
   private def addMissingTaz(): Unit = {
     val remainingTaz =
-      vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
+      vehicleIdlingBins
+        .flatMap(_._2.values)
+        .filter(!rideHailStats.contains(_))
+        .toSet
     rideHailStats ++= remainingTaz.map(
-      _ -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+      _ -> mutable.ArrayBuffer
+        .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
     )
   }
 
@@ -397,23 +432,36 @@ class TNCIterationsStatsCollector(
     vehicles.clear()
   }
 
-  private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
+  private def isSameCoords(currentEvent: PathTraversalEvent,
+                           lastEvent: PathTraversalEvent) = {
     val lastCoord = (
-      lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble,
-      lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble
+      lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)
+        .toDouble,
+      lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y)
+        .toDouble
     )
     val currentCoord = (
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble,
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble,
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
     )
     lastCoord == currentCoord
   }
 
   private def getStartTazId(pathTraversalEvent: PathTraversalEvent): String = {
     val startX =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble
     val startY =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
 
@@ -423,9 +471,13 @@ class TNCIterationsStatsCollector(
 
   private def getEndTazId(pathTraversalEvent: PathTraversalEvent): String = {
     val x =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)
+        .toDouble
     val y =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(x, y))
 
@@ -450,7 +502,8 @@ class TNCIterationsStatsCollector(
     val tazBins = rideHailStats.get(tazId) match {
       case Some(bins) => bins
       case None =>
-        val bins = mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+        val bins = mutable.ArrayBuffer
+          .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
         rideHailStats += (tazId -> bins)
         bins
     }
