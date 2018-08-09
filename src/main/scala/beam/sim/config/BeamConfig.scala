@@ -549,6 +549,7 @@ object BeamConfig {
       addTimestampToOutputDirectory: scala.Boolean,
       baseOutputDirectory: java.lang.String,
       events: BeamConfig.Beam.Outputs.Events,
+      stats: BeamConfig.Beam.Outputs.Stats,
       writeEventsInterval: scala.Int,
       writePlansInterval: scala.Int
     )
@@ -581,6 +582,19 @@ object BeamConfig {
         }
       }
 
+      case class Stats(
+        binSize: scala.Int
+      )
+
+      object Stats {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs.Stats = {
+          BeamConfig.Beam.Outputs.Stats(
+            binSize = if (c.hasPathOrNull("binSize")) c.getInt("binSize") else 3600
+          )
+        }
+      }
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory = !c.hasPathOrNull("addTimestampToOutputDirectory") || c
@@ -589,6 +603,7 @@ object BeamConfig {
             if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
             else "output",
           events = BeamConfig.Beam.Outputs.Events(c.getConfig("events")),
+          stats = BeamConfig.Beam.Outputs.Stats(c.getConfig("stats")),
           writeEventsInterval =
             if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
           writePlansInterval =
