@@ -1,5 +1,6 @@
-package beam.integration
+package beam.integration.ridehail
 
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
@@ -9,27 +10,23 @@ import org.scalatest.{Matchers, WordSpecLike}
   *
   */
 
-class RideHailNumDriversSpec
+class RideHailPriceSpec
     extends WordSpecLike
     with Matchers
     with BeamHelper
     with IntegrationSpecCommon {
-
-  "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
-    "create less entries for mode choice rideHail as value increases" in {
-      val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
-      val modeChoice = numDriversAsFractionOfPopulation.map(
+  "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
+    "create less entries for mode choice rideHail as value increases" ignore {
+      val inputRideHailPrice = Seq(0.1, 1.0)
+      val modeChoice = inputRideHailPrice.map(
         tc =>
           new StartWithCustomConfig(
             baseConfig
               .withValue(
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-                ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
+                ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue(
-                "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
-                ConfigValueFactory.fromAnyRef(tc)
-              )
+              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 
@@ -42,12 +39,13 @@ class RideHailNumDriversSpec
       //      val z2 = tc.dropRight(1)
       //      val zip = z2 zip z1
 
+      //      println("Transit")
       //      println(tc)
       //      println(z1)
       //      println(z2)
       //      println(zip)
 
-      isOrdered(tc)((a, b) => a <= b) shouldBe true
+      isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
 

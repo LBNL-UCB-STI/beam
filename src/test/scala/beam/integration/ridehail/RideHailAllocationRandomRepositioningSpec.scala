@@ -1,4 +1,4 @@
-package beam.integration
+package beam.integration.ridehail
 
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
