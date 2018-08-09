@@ -3,7 +3,10 @@ package beam.agentsim.agents.ridehail
 import java.{lang, util}
 import java.util.{List, Map}
 
-import beam.agentsim.agents.ridehail.GraphRailHandlingDataSpec.{RideHailingWaitingGraph, RideHailingWaitingSingleGraph}
+import beam.agentsim.agents.ridehail.GraphRailHandlingDataSpec.{
+  RideHailingWaitingGraph,
+  RideHailingWaitingSingleGraph
+}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
 import beam.analysis.plots.modality.RideHailDistanceRowModel
 import beam.analysis.plots.{ModeChosenStats, RealizedModeStats, _}
@@ -13,7 +16,12 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import com.google.inject.Provides
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{
+  Event,
+  PersonArrivalEvent,
+  PersonDepartureEvent,
+  PersonEntersVehicleEvent
+}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -27,10 +35,11 @@ import org.scalatest.{Matchers, WordSpecLike}
 import scala.collection.JavaConverters._
 
 object GraphRailHandlingDataSpec {
+
   class RideHailingWaitingSingleGraph(
-      beamServices: BeamServices,
-      waitingComp: RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation)
-      extends BasicEventHandler
+    beamServices: BeamServices,
+    waitingComp: RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation
+  ) extends BasicEventHandler
       with IterationEndsListener {
 
     private val railHailingStat =
@@ -44,8 +53,7 @@ object GraphRailHandlingDataSpec {
       event match {
         case evn
             if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
-              || event.getEventType.equalsIgnoreCase(
-                PersonEntersVehicleEvent.EVENT_TYPE) =>
+            || event.getEventType.equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) =>
           railHailingStat.processStats(event)
         case evn @ (_: ModeChoiceEvent | _: PersonEntersVehicleEvent) =>
           railHailingStat.processStats(evn)
@@ -59,8 +67,7 @@ object GraphRailHandlingDataSpec {
     }
   }
 
-  class RideHailingWaitingGraph(
-      waitingComp: RideHailWaitingStats.WaitingStatsComputation)
+  class RideHailingWaitingGraph(waitingComp: RideHailWaitingStats.WaitingStatsComputation)
       extends BasicEventHandler
       with IterationEndsListener {
 
@@ -75,8 +82,7 @@ object GraphRailHandlingDataSpec {
       event match {
         case evn
             if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
-              || event.getEventType.equalsIgnoreCase(
-                PersonEntersVehicleEvent.EVENT_TYPE) =>
+            || event.getEventType.equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) =>
           railHailingStat.processStats(event)
         case evn @ (_: ModeChoiceEvent | _: PersonEntersVehicleEvent) =>
           railHailingStat.processStats(evn)
@@ -103,15 +109,11 @@ object GraphRailHandlingDataSpec {
 
     override def handleEvent(event: Event): Unit = {
       event match {
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            ModeChoiceEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE) =>
           realizedModeStats.processStats(event)
         case evn: ModeChoiceEvent =>
           realizedModeStats.processStats(evn)
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            ReplanningEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(ReplanningEvent.EVENT_TYPE) =>
           realizedModeStats.processStats(event)
         case evn: ReplanningEvent =>
           realizedModeStats.processStats(evn)
@@ -126,8 +128,8 @@ object GraphRailHandlingDataSpec {
   }
 
   class PersonTravelTimeStatsGraph(comp: PersonTravelTimeStats.PersonTravelTimeComputation)
-    extends BasicEventHandler
-    with IterationEndsListener {
+      extends BasicEventHandler
+      with IterationEndsListener {
 
     private val personTravelTimeStats =
       new PersonTravelTimeStats(comp)
@@ -138,13 +140,9 @@ object GraphRailHandlingDataSpec {
 
     override def handleEvent(event: Event): Unit = {
       event match {
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            PersonDepartureEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE) =>
           personTravelTimeStats.processStats(event)
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            PersonArrivalEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE) =>
           personTravelTimeStats.processStats(event)
         case evn: PersonArrivalEvent =>
           personTravelTimeStats.processStats(evn)
@@ -161,8 +159,8 @@ object GraphRailHandlingDataSpec {
   }
 
   class ModeChosenStatsGraph(compute: ModeChosenStats.ModeChosenComputation)
-    extends BasicEventHandler
-    with IterationEndsListener {
+      extends BasicEventHandler
+      with IterationEndsListener {
 
     private val modeChosenStats =
       new ModeChosenStats(compute)
@@ -173,9 +171,7 @@ object GraphRailHandlingDataSpec {
 
     override def handleEvent(event: Event): Unit = {
       event match {
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            ModeChoiceEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE) =>
           modeChosenStats.processStats(event)
         case evn: ModeChoiceEvent =>
           modeChosenStats.processStats(evn)
@@ -190,8 +186,8 @@ object GraphRailHandlingDataSpec {
   }
 
   class FuelUsageStatsGraph(compute: FuelUsageStats.FuelUsageStatsComputation)
-    extends BasicEventHandler
-    with IterationEndsListener {
+      extends BasicEventHandler
+      with IterationEndsListener {
 
     private val fuelUsageStats =
       new FuelUsageStats(compute)
@@ -202,9 +198,7 @@ object GraphRailHandlingDataSpec {
 
     override def handleEvent(event: Event): Unit = {
       event match {
-        case evn
-          if evn.getEventType.equalsIgnoreCase(
-            PathTraversalEvent.EVENT_TYPE) =>
+        case evn if evn.getEventType.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) =>
           fuelUsageStats.processStats(event)
         case evn: PathTraversalEvent =>
           fuelUsageStats.processStats(evn)
@@ -245,7 +239,8 @@ class GraphRailHandlingDataSpec
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
         module(baseConfig, scenario, networkCoordinator.transportNetwork),
-        childModule)
+        childModule
+      )
 
       val beamServices: BeamServices =
         injector.getInstance(classOf[BeamServices])
@@ -257,8 +252,7 @@ class GraphRailHandlingDataSpec
 
       val waitingStat =
         new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation {
-          override def compute(stat: util.Map[Integer, lang.Double])
-            : Array[Array[Double]] = {
+          override def compute(stat: util.Map[Integer, lang.Double]): Array[Array[Double]] = {
             val data = super.compute(stat)
             data.length should be > 0
             data.foldRight(0) { case (arr, acc) => acc + arr.length } should be > 0
@@ -268,13 +262,13 @@ class GraphRailHandlingDataSpec
 
       initialSetup(new AbstractModule() {
         override def install(): Unit = {
-          addControlerListenerBinding().to(
-            classOf[RideHailingWaitingSingleGraph])
+          addControlerListenerBinding().to(classOf[RideHailingWaitingSingleGraph])
         }
 
         @Provides def provideGraph(
-            beamServices: BeamServices,
-            eventsManager: EventsManager): RideHailingWaitingSingleGraph = {
+          beamServices: BeamServices,
+          eventsManager: EventsManager
+        ): RideHailingWaitingSingleGraph = {
           val graph =
             new RideHailingWaitingSingleGraph(beamServices, waitingStat)
           eventsManager.addHandler(graph)
@@ -288,9 +282,8 @@ class GraphRailHandlingDataSpec
       val waitingStat =
         new RideHailWaitingStats.WaitingStatsComputation {
           override def compute(
-              stat: Tuple[util.List[java.lang.Double],
-                          util.Map[Integer, util.List[java.lang.Double]]])
-            : Tuple[util.Map[Integer, util.Map[java.lang.Double, Integer]], Array[Array[Double]]] = {
+            stat: Tuple[util.List[java.lang.Double], util.Map[Integer, util.List[java.lang.Double]]]
+          ): Tuple[util.Map[Integer, util.Map[java.lang.Double, Integer]], Array[Array[Double]]] = {
             val data = super.compute(stat)
             val asScala = data.getFirst.asScala
             asScala.isEmpty shouldBe false
@@ -304,8 +297,7 @@ class GraphRailHandlingDataSpec
           addControlerListenerBinding().to(classOf[RideHailingWaitingGraph])
         }
 
-        @Provides def provideGraph(
-            eventsManager: EventsManager): RideHailingWaitingGraph = {
+        @Provides def provideGraph(eventsManager: EventsManager): RideHailingWaitingGraph = {
           val graph =
             new RideHailingWaitingGraph(waitingStat)
           eventsManager.addHandler(graph)
