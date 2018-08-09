@@ -9,6 +9,6 @@ public interface LeavingParkingEventAttrs {
     String ATTRIBUTE_PRICING_MODEL = "pricing_model";
     String ATTRIBUTE_CHARGING_TYPE = "charging_type";
     String ATTRIBUTE_PARKING_TAZ = "parking_taz";
-    String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
+    String ATTRIBUTE_VEHICLE_ID = "vehicle";
 
 }

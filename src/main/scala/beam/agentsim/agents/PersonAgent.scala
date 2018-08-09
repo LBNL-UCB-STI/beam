@@ -2,41 +2,24 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{
-  CheckInResource,
-  NotifyResourceIdle,
-  NotifyResourceInUse,
-  RegisterResource
-}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{
-  NotifyLegEndTrigger,
-  NotifyLegStartTrigger,
-  StartLegTrigger
-}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.rideHail.RideHailManager.{
-  ReserveRide,
-  RideHailRequest,
-  RideHailResponse
-}
+import beam.agentsim.agents.rideHail.RideHailManager.{ReserveRide, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.WALK_TRANSIT
+import beam.router.Modes.BeamMode.{NONE, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -261,7 +244,13 @@ class PersonAgent(
               currentTourMode = data.currentTourMode.orElse(
                 _experiencedBeamPlan.getPlanElements
                   .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
-                  case leg: Leg => Some(BeamMode.withValue(leg.getMode))
+                  case leg: Leg =>
+                    BeamMode.fromString(leg.getMode) match {
+                      case NONE =>
+                        None
+                      case anyOther: BeamMode =>
+                        Some(anyOther)
+                    }
                   case _        => None
                 }
               )

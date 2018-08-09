@@ -1,7 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK}
-import beam.router.Modes.BeamMode.{FERRY, RAIL, RIDE_HAIL, SUBWAY, TRAM}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, FERRY, NONE, RAIL, RIDE_HAIL, SUBWAY, TRAM, WALK}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -29,6 +28,8 @@ object Modes {
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
+
+    case object NONE extends BeamMode(value = "none", None, "")
 
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
@@ -73,10 +74,17 @@ object Modes {
 
     case object RIDE_HAIL_TRANSIT extends BeamMode(value = "ride_hail_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
 
-
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
     val chainBasedModes = Seq(CAR, EV, BIKE)
+
+    def fromString(stringMode: String) : BeamMode = {
+      if(stringMode.equals("")){
+        NONE
+      }else{
+        BeamMode.withValue(stringMode)
+      }
+    }
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean =BeamMode.chainBasedModes.contains(beamMode)
@@ -147,5 +155,7 @@ object Modes {
   def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter(mode => isR5TransitMode(mode))
 
   def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter(mode => isR5LegMode(mode))
+
+
 
 }

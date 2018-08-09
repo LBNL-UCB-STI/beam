@@ -76,7 +76,7 @@ trait ChoosesParking extends {
         val energyCharge: Double = 0.0 //TODO
         val valueOfTime: Double = getValueOfTime
         val score = calculateScore(distance, cost, energyCharge, valueOfTime)
-        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
+        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
       goto(WaitingToDrive) using data
 
@@ -184,6 +184,6 @@ trait ChoosesParking extends {
         restOfCurrentTrip = newRestOfTrip.toList,passengerSchedule = newPassengerSchedule,currentLegPassengerScheduleIndex = 0)
   }
 
-  def calculateScore(walkingDistance: Double, cost: Double, energyCharge: Double, valueOfTime: Double): Double = 0.0 //TODO
+  def calculateScore(walkingDistance: Double, cost: Double, energyCharge: Double, valueOfTime: Double): Double = - cost - energyCharge
 }
 

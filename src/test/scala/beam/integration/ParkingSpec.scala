@@ -34,11 +34,12 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   def runAndCollectForIterations(parkingScenario: String, iterations: Int):  Seq[Queue[Event]] = {
-
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
       .withValue("beam.agentsim.taz.parking", ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv"))
+      .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+//      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(50))
       .withValue("beam.outputs.events.overrideWritingLevels", ConfigValueFactory.fromAnyRef("beam.agentsim.events.ParkEvent:VERBOSE, beam.agentsim.events.LeavingParkingEvent:VERBOSE, org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR, org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonEntersVehicleEvent:REGULAR, org.matsim.api.core.v01.events.PersonLeavesVehicleEvent:REGULAR, beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE"))
       .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(iterations))
       .resolve()
@@ -52,30 +53,29 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     queueEvents
   }
 
-  lazy val limitedEvents = runAndCollectEvents("limited")
-  lazy val defaultEvents = runAndCollectEvents("default")
-  lazy val emptyEvents = runAndCollectEvents("empty")
-  lazy val expensiveEvents = runAndCollectEvents("expensive")
+  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
+  lazy val defaultEvents = runAndCollectForIterations("default", 10)
+  lazy val emptyEvents = runAndCollectForIterations("empty",10)
 
   lazy val filterForCarMode: Seq[Event] => Int = { events =>
     events.filter { e =>
-      val mMode = Option(e.getAttributes.get("mode"))
+      val mMode = Option(e.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
     }.size
   }
 
   "Parking system " must {
     "guarantee at least some parking used " in {
-      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val parkingEvents = defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
     "departure and arrival should be from same parking 4 tuple" in {
 
-      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val parkingEvents = defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()){ case (c, ev) =>
-        val vehId = ev.getAttributes.get("vehicle_id")
+        val vehId = ev.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
         array.append(ev)
         c.updated(vehId, array)
@@ -107,10 +107,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "Park event should be thrown after last path traversal" in {
-      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val parkingEvents = defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()){ case (c, ev) =>
-        val vehId = ev.getAttributes.get("vehicle_id")
+        val vehId = ev.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
         array.append(ev)
         c.updated(vehId, array)
@@ -121,16 +121,16 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         (id, leavingEvents zip parkEvents)
       }
 
-      val pathTraversalEvents = defaultEvents.filter(event => PathTraversalEvent.EVENT_TYPE.equals(event.getEventType))
+      val pathTraversalEvents = defaultEvents.head.filter(event => PathTraversalEvent.EVENT_TYPE.equals(event.getEventType))
 
       vehToParkLeavingEvents.foreach{ case (currVehId, events) =>
         events.foreach{case (leavingParkEvent, parkEvent) =>
-            val pathTraversalEventsInRange = pathTraversalEvents.filter{ event =>
-              val vehId = event.getAttributes.get("vehicle_id")
-              currVehId.equals(vehId) &&
-                event.getTime >= leavingParkEvent.getTime &&
-                event.getTime <= parkEvent.getTime
-            }
+          val pathTraversalEventsInRange = pathTraversalEvents.filter{ event =>
+            val vehId = event.getAttributes.get(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID)
+            currVehId.equals(vehId) &&
+              event.getTime >= leavingParkEvent.getTime &&
+              event.getTime <= parkEvent.getTime
+          }
           pathTraversalEventsInRange.size shouldBe 2
           val lastPathTravInRange = pathTraversalEventsInRange.maxBy(_.getTime)
           val indexOfLastPathTravInRange = defaultEvents.indexOf(lastPathTravInRange)
@@ -156,51 +156,43 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "empty parking access should reduce driving" in {
-      val iterations = 10
-      val defaultIterations = runAndCollectForIterations("default", iterations)
-      val emptyIterations = runAndCollectForIterations("empty", iterations)
+      val emptyModeChoiceCarCount = emptyEvents.map(filterForCarMode)
+      val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
-      val emptyModeChoiceCarCount = emptyIterations.map(filterForCarMode)
+      println(s"Default iterations ${defaultModeChoiceCarCount}")
+      println(s"Empty iterations ${emptyModeChoiceCarCount}")
 
-//      println(s"Default iterations ${defaultModeChoiceCarCount}")
-//      println(s"Limited iterations ${emptyModeChoiceCarCount}")
-
-      defaultModeChoiceCarCount.last > emptyModeChoiceCarCount.last shouldBe true
+      defaultModeChoiceCarCount.takeRight(5).sum > emptyModeChoiceCarCount.takeRight(5).sum  shouldBe true
     }
 
     "limited parking access should reduce driving" in {
-      val iterations = 10
-      val defaultIterations = runAndCollectForIterations("default", iterations)
-      val limitedIterations = runAndCollectForIterations("limited", iterations)
-
-      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
-      val limitedModeChoiceCarCount = limitedIterations.map(filterForCarMode)
+      val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
+      val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
       println(s"Default iterations ${defaultModeChoiceCarCount}")
       println(s"Limited iterations ${limitedModeChoiceCarCount}")
 
-      defaultModeChoiceCarCount.last > limitedModeChoiceCarCount.last shouldBe true
+      defaultModeChoiceCarCount.takeRight(5).sum > limitedModeChoiceCarCount.takeRight(5).sum shouldBe true
 
     }
 
     "limited parking access should increase VMT" in {
       def filterPathTraversalForCar(e: Event): Boolean = {
         PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
-          "Car".equalsIgnoreCase(e.getAttributes.get("vehicle_type")) &&
-          e.getAttributes.get("vehicle_id").matches("\\d+")
+          "Car".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE)) &&
+          e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID).matches("\\d+")
       }
-      val defaultPathTraversalEvents = defaultEvents.filter(filterPathTraversalForCar)
+      val defaultPathTraversalEvents = defaultEvents.head.filter(filterPathTraversalForCar)
 
       val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0){case (acc, ev) =>
-          val currLength = ev.getAttributes.get("length").toDouble
+          val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
           acc + currLength
       }
 
-      val limitedPathTraversalEvents = limitedEvents.filter(filterPathTraversalForCar)
+      val limitedPathTraversalEvents = limitedEvents.head.filter(filterPathTraversalForCar)
 
       val limitedPathLength = limitedPathTraversalEvents.foldLeft(0.0){case (acc, ev) =>
-        val currLength = ev.getAttributes.get("length").toDouble
+        val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
         acc + currLength
       }
 

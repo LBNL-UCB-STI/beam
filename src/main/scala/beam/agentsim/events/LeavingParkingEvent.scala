@@ -16,9 +16,9 @@ import org.matsim.vehicles.Vehicle
 //  val ATTRIBUTE_SCORE: String = "score"
 //}
 
-class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double, vehId: Id[Vehicle]) extends Event(time) with LeavingParkingEventAttrs with HasPersonId{
+class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double, personId: Id[Person], vehId: Id[Vehicle]) extends Event(time) with LeavingParkingEventAttrs with HasPersonId{
 
-  override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
+  override def getPersonId: Id[Person] = personId
 
   override def getEventType: String = LeavingParkingEventAttrs.EVENT_TYPE
 

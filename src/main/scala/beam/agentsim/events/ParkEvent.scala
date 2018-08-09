@@ -42,16 +42,3 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
 }
 
 object ParkEvent extends ParkEventAttrs
-//  val EVENT_TYPE = "ParkEvent"
-//
-//  val ATTRIBUTE_VEHICLE_ID = "vehicleId"
-//  val ATTRIBUTE_DISTANCE = "distance"
-//  val ATTRIBUTE_PARKING_ID = "parkingId"
-//  val ATTRIBUTE_COST = "cost"
-//  val ATTRIBUTE_LOCATION = "location"
-
-//  val PARKING_TYPE = "ParkingType"
-//  val PRICING_MODEL = "PricingModel"
-//  val CHARGING_TYPE = "ChargingType"
-
-//}
