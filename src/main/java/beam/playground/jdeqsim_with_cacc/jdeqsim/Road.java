@@ -109,7 +109,7 @@ public class Road extends SimUnit implements TravelTimeFunction {
 	 */
 	private LinkedList<DeadlockPreventionMessage> deadlockPreventionMessages = new LinkedList<>();
 
-	public static double TravelTime=0;
+
 
 	public Road(Scheduler scheduler, Link link) {
 		super(scheduler);
@@ -148,7 +148,12 @@ public class Road extends SimUnit implements TravelTimeFunction {
 		this.gap = null;
 	}
 
-	public void leaveRoad(Vehicle vehicle, double simTime) {
+    public static void setTravelTimeFunction() {
+
+
+    }
+
+    public void leaveRoad(Vehicle vehicle, double simTime) {
 		assert (this.carsOnTheRoad.getFirst() == vehicle);
 		assert (this.interestedInEnteringRoad.size()==this.deadlockPreventionMessages.size());
 
@@ -236,7 +241,7 @@ public class Road extends SimUnit implements TravelTimeFunction {
 
 	public void enterRoad(Vehicle vehicle, double simTime) {
 
-		if (((this.link.getLength()) / this.getLink().getFreespeed(simTime)) >= 300) {
+		if (((this.link.getLength()) / this.getLink().getFreespeed(simTime)) >= 370) {
 			if (Integer.parseInt(this.link.getId().toString()) == 6) {
 				System.out.println("Speed: " + ((this.link.getLength()) / this.getLink().getFreespeed(simTime)));
 			}
@@ -251,7 +256,8 @@ public class Road extends SimUnit implements TravelTimeFunction {
 		this.carsOnTheRoad.add(vehicle);
 
 		double nextAvailableTimeForLeavingStreet = simTime + calcTravelTime(10, simTime);
-		TravelTime += nextAvailableTimeForLeavingStreet;
+
+
 
 		/*
 		 * needed to remove the following assertion because for deadlock
@@ -390,7 +396,5 @@ public class Road extends SimUnit implements TravelTimeFunction {
 		return getAllRoads().get(linkId);
 	}
 
-	public static double getTravelTime() {
-		return TravelTime/100;
-	}
+
 }

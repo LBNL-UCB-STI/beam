@@ -11,6 +11,7 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.algorithms.EventWriterXML;
 import org.matsim.core.scenario.ScenarioUtils;
+import scalaz.Ran;
 
 import java.util.HashMap;
 import java.util.*;
@@ -50,9 +51,9 @@ public class JDEQSimMain {
 
 
         boolean isCACC;
-
+        Random rand = new Random(1);
         for (Person person : scenario.getPopulation().getPersons().values()) {
-            isCACC = new Random().nextBoolean();
+            isCACC = rand.nextBoolean();
             isCACCVehicle.put(person.getId().toString(), isCACC);
 
         }
@@ -69,7 +70,6 @@ public class JDEQSimMain {
         System.out.println("enter link count: " +  countEnterLinkEvents.getLinkEnterCount());
         eventsWriter.closeFile();
 
-        //speedCalc.printArray();
     }
 
 }

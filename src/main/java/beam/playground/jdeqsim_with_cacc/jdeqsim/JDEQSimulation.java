@@ -58,9 +58,11 @@ public class JDEQSimulation implements Mobsim {
 
 	@Inject
 	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final HashMap<String, Boolean> isCACCVehicle) {
+
+
 		Road.setConfig(config);
 		Message.setEventsManager(events);
-
+		Road.setTravelTimeFunction();
 		this.isCACCVehicle = isCACCVehicle;
 		this.config = config;
 		this.scenario = scenario;
@@ -70,6 +72,7 @@ public class JDEQSimulation implements Mobsim {
 
 	@Override
 	public void run() {
+		Road road;
 		events.initProcessing();
 		Timer t = new Timer();
 		t.startTimer();
@@ -78,7 +81,7 @@ public class JDEQSimulation implements Mobsim {
 		Road.setAllRoads(new HashMap<Id<Link>, Road>());
 
 		// initialize network
-		Road road;
+
 		for (Link link : this.scenario.getNetwork().getLinks().values()) {
 			road = new Road(scheduler, link);
 			Road.getAllRoads().put(link.getId(), road);

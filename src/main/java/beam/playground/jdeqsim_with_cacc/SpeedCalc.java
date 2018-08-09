@@ -13,6 +13,7 @@ import scala.Int;
 
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
@@ -56,7 +57,7 @@ public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandl
 
         return (numCACC / vehicleIDs.size()) * 100;
     }
-
+    public static HashMap<String,Integer> allTravelTimes = new HashMap();
 
     public HashMap<String , Integer> travelTimes = new HashMap<>();
 
@@ -84,35 +85,31 @@ public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandl
         }
     }
 
+
+
     @Override
     //Leave Link
     public void handleEvent(LinkLeaveEvent event) {
         if (Integer.parseInt(event.getLinkId().toString()) == 6) {
 
         double timeLeave = Double.parseDouble(event.getAttributes().get(LinkEnterEvent.ATTRIBUTE_TIME));
-        /*System.out.print("Time Leave " + timeLeave);
-        System.out.print(" Vehicle ID " + event.getVehicleId()+ " from ");
-        System.out.print("Link ID " + event.getLinkId());
 
-        System.out.println(", Travel Time " + (timeLeave - travelTimes.get(event.getVehicleId().toString())));
-        System.out.println(percentCACC(travelTimes.keySet())+"%");
-        travelTimes.remove(event.getVehicleId().toString());*/
         System.out.println((int) (timeLeave - travelTimes.get(event.getVehicleId().toString())));
-
-
+        allTravelTimes.put(event.getVehicleId().toString(),(int) (timeLeave - travelTimes.get(event.getVehicleId().toString())));
         }
     }
 
+    public static double getAvgTravelTime(){
+        
+    int totalTime = 0;
+        for ( int i:allTravelTimes.values() ) {
+            totalTime+=i;
+        }
+      return totalTime/100;
+    }
 
     @Override
     public void handleEvent(PersonArrivalEvent event) {
-            //System.out.print(event.getPersonId() + " has arrived at ");
-            //System.out.println("Link " + event.getLinkId().toString());
-            //provides the link length
-            //System.out.println(scenario.getNetwork().getLinks().get(event.getLinkId()));
-
-
-
 
 
     }
