@@ -12,7 +12,6 @@ import scala.reflect.ClassTag
 /**
   * Created by dserdiuk on 5/19/17.
   */
-
 trait ReflectionUtils {
 
   /**
@@ -21,20 +20,24 @@ trait ReflectionUtils {
     */
   def packageName: String
 
-  lazy val reflections = {
+  lazy val reflections: Reflections = {
     val locationToLookIn = ClasspathHelper.forPackage(packageName)
     new Reflections(new ConfigurationBuilder().addUrls(locationToLookIn))
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
-    reflections.getSubTypesOf(ct.runtimeClass).asScala.map(_.asInstanceOf[Class[T]]).toList
+    reflections
+      .getSubTypesOf(ct.runtimeClass)
+      .asScala
+      .map(_.asInstanceOf[Class[T]])
+      .toList
   }
 
   def concreteClassesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
     classesOfType[T](ct).filter(isConcrete)
   }
 
-  def isConcrete[T](clazz: Class[T]) = {
+  def isConcrete[T](clazz: Class[T]): Boolean = {
     val modifiers = clazz.getModifiers
     !isAbstract(modifiers) && !isInterface(modifiers)
   }
@@ -47,7 +50,7 @@ trait ReflectionUtils {
 
 object ReflectionUtils {
 
-  def setFinalField(clazz: Class[_], fieldName: String, value: Any) = {
+  def setFinalField(clazz: Class[_], fieldName: String, value: Any): Unit = {
     val field: Field = clazz.getField(fieldName)
     field.setAccessible(true)
     val modifiersField: Field = classOf[Field].getDeclaredField("modifiers")

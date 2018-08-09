@@ -5,7 +5,8 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
+import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.sim.BeamAgentSchedulerSpec._
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -15,14 +16,23 @@ import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", testConfig("test/input/beamville/beam.conf"))) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
+class BeamAgentSchedulerSpec
+    extends TestKit(
+      ActorSystem("beam-actor-system",
+                  testConfig("test/input/beamville/beam.conf")))
+    with FunSpecLike
+    with BeforeAndAfterAll
+    with MustMatchers
+    with ImplicitSender {
 
   val config = BeamConfig(system.settings.config)
 
   describe("A BEAM Agent Scheduler") {
 
     it("should send trigger to a BeamAgent") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
+      val scheduler =
+        TestActorRef[BeamAgentScheduler](
+          SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       agent.stateName should be(Uninitialized)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), agent)
@@ -34,7 +44,9 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", te
     }
 
     it("should fail to schedule events with negative tick value") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
+      val scheduler =
+        TestActorRef[BeamAgentScheduler](
+          SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       watch(agent)
       scheduler ! ScheduleTrigger(InitializeTrigger(-1), agent)
@@ -42,7 +54,9 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", te
     }
 
     it("should dispatch triggers in chronological order") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0))
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0)
+      )
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), self)
       scheduler ! ScheduleTrigger(ReportState(1.0), self)
       scheduler ! ScheduleTrigger(ReportState(10.0), self)
@@ -78,7 +92,9 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(tick: Double) extends Trigger
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
+  class TestBeamAgent(override val id: Id[Person],
+                      override val scheduler: ActorRef)
+      extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 
     override def logPrefix(): String = "TestBeamAgent"

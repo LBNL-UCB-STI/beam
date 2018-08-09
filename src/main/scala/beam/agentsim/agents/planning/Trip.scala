@@ -6,6 +6,7 @@ import org.matsim.utils.objectattributes.attributable.Attributes
 /**
   * BEAM
   */
-case class Trip(activity: Activity, leg: Option[Leg], parentTour: Tour) extends PlanElement {
+case class Trip(activity: Activity, leg: Option[Leg], parentTour: Tour)
+    extends PlanElement {
   override def getAttributes = new Attributes
 }

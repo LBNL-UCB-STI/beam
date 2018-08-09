@@ -1,6 +1,10 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.Instant
+
 buildscript {
     repositories {
         jcenter()
@@ -12,6 +16,7 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
+        classpath 'cz.alenkacz:gradle-scalafmt:1.6.0'
     }
 }
 
@@ -32,9 +37,10 @@ apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
+apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.5.0-SNAPSHOT'
+version = '0.6.0'
 
 description = """"""
 
@@ -51,8 +57,8 @@ def kamonVersion = "0.6.7"
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
 sourceSets.main.java.srcDirs = []
 
-sourceSets.test.java.srcDirs = ["src/test/java"]
-sourceSets.test.scala.srcDirs = ["src/test/scala"]
+sourceSets.test.java.srcDirs = []
+sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
 
 if (project.hasProperty('env')) {
     sourceSets {
@@ -230,6 +236,14 @@ dependencies {
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 }
 
+// Autoformatting using scalafmt
+
+scalafmt {
+    // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+}
+
+compileScala.dependsOn(scalafmtAll)
+
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
@@ -255,10 +269,10 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
-            (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+    (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+            (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+    (project.hasProperty('config') && project.hasProperty('iterations') ?
+            '-Diterations='+project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -464,9 +478,19 @@ mainClassName = "beam.sim.RunBeam"
 
 def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
 
+def getCurrentTimestamp = {
+    DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
+            .withLocale(Locale.US)
+            .withZone(ZoneOffset.UTC)
+            .format(Instant.now())
+}
+
+def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
+
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-javaagent:build/aspectjweaver-1.8.10.jar"]
+applicationDefaultJvmArgs = ["-Xmx130g"] + logGC
+println(applicationDefaultJvmArgs)
 
 run {
     if (project.hasProperty("appArgs")) {
@@ -489,12 +513,13 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
+    jvmArgs = applicationDefaultJvmArgs
     if(project.hasProperty("mainClass")){
         main = mainClass
     }else{
         main = mainClassName
     }
-   classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }

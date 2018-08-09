@@ -1,7 +1,6 @@
 package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
-import beam.sim.config.ConfigModule;
 import org.matsim.pt.utils.TransitScheduleValidator;
 import org.xml.sax.SAXException;
 
@@ -30,13 +29,22 @@ import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
  */
 public class SFBayPT2MATSim {
 
+    public static final BeamConfig BEAM_CONFIG = null; //FIXME
     private String outputDir;
     private String apiKey;
-    public static final BeamConfig BEAM_CONFIG  = null; //FIXME
 
     public SFBayPT2MATSim() {
         outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
 //        apiKey = BEAM_CONFIG.beam().routing().gtfs().apiKey();
+    }
+
+    public static void main(String[] args) {
+        final SFBayPT2MATSim sfBayPT2MATSim = new SFBayPT2MATSim();
+        sfBayPT2MATSim.mapSingleGtfsOperator("Alcatraz Hornblower Ferry", "HF");
+//        final OperatorDataUtility operatorDataUtility = new OperatorDataUtility();
+//        final Map<String, String> operatorMap = operatorDataUtility.getOperatorMap();
+//        operatorDataUtility.saveOperatorMap(String.format("%sGTFSOperators.csv",sfBayPT2MATSim.outputDir),operatorMap);
+
     }
 
     public void mapSingleGtfsOperator(String opName, String opKey) {
@@ -60,7 +68,6 @@ public class SFBayPT2MATSim {
 
         runPT2MATSim(opName, opKey);
     }
-
 
     private void runPT2MATSim(String agency, String agencyId) {
 
@@ -153,15 +160,5 @@ public class SFBayPT2MATSim {
 //        } catch (UncheckedIOException e) {
 //            e.printStackTrace();
 //        }
-    }
-
-
-    public static void main(String[] args) {
-        final SFBayPT2MATSim sfBayPT2MATSim = new SFBayPT2MATSim();
-        sfBayPT2MATSim.mapSingleGtfsOperator("Alcatraz Hornblower Ferry", "HF");
-//        final OperatorDataUtility operatorDataUtility = new OperatorDataUtility();
-//        final Map<String, String> operatorMap = operatorDataUtility.getOperatorMap();
-//        operatorDataUtility.saveOperatorMap(String.format("%sGTFSOperators.csv",sfBayPT2MATSim.outputDir),operatorMap);
-
     }
 }

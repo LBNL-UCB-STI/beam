@@ -4,5 +4,8 @@ trait Trigger {
   def tick: Double
 }
 
-case class TriggerWithId(trigger: Trigger, triggerId: Long)
+object Trigger {
 
+  case class TriggerWithId(trigger: Trigger, triggerId: Long)
+
+}

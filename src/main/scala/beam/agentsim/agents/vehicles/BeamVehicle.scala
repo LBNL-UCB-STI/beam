@@ -12,7 +12,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
-  * implementing [[beam.agentsim.agents.modalBehaviors.DrivesVehicle]]). The passengers in the [[BeamVehicle]]
+  * implementing [[beam.agentsim.agents.modalbehaviors.DrivesVehicle]]). The passengers in the [[BeamVehicle]]
   * are also [[BeamVehicle]]s, however, others are possible). The
   * reference to a parent [[BeamVehicle]] is maintained in its carrier. All other information is
   * managed either through the MATSim [[Vehicle]] interface or within several other classes.
@@ -24,15 +24,15 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 // If we need immutable state, we will need to operate on this through lenses.
 
 // TODO: safety for
-class BeamVehicle(val powerTrain: Powertrain,
-                  val matSimVehicle: Vehicle,
-                  val  initialMatsimAttributes: Option[ObjectAttributes],
-                  val  beamVehicleType: BeamVehicleType,
-                  var fuelLevel: Option[Double],
-                  val fuelCapacityInJoules: Option[Double]
-  )
-  extends Resource[BeamVehicle] {
-    val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+class BeamVehicle(
+    val powerTrain: Powertrain,
+    val matSimVehicle: Vehicle,
+    val initialMatsimAttributes: Option[ObjectAttributes],
+    val beamVehicleType: BeamVehicleType,
+    var fuelLevel: Option[Double],
+    val fuelCapacityInJoules: Option[Double]
+) extends Resource[BeamVehicle] {
+  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
   /**
     * Identifier for this vehicle
@@ -65,8 +65,9 @@ class BeamVehicle(val powerTrain: Powertrain,
     *
     * @param newDriverRef incoming driver
     */
-  def becomeDriver(newDriverRef: ActorRef)
-  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type ] = {
+  def becomeDriver(
+      newDriverRef: ActorRef
+  ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
       Right(BecomeDriverOfVehicleSuccessAck)
@@ -75,18 +76,21 @@ class BeamVehicle(val powerTrain: Powertrain,
     }
   }
 
-
-  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach {
-    fLevel => fuelLevel = Some(fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules.get )
+  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
+    fuelLevel = Some(
+      fLevel - powerTrain
+        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
+    )
   }
 
-  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach  {
-    fLevel => fuelLevel = Some(fLevel + fuelInJoules/fuelCapacityInJoules.get)
+  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach { fLevel =>
+    fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
   }
 
 }
 
 object BeamVehicle {
+
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 }

@@ -1,29 +1,27 @@
 package beam.sim
 
-object RunBeam extends BeamHelper with App {
-  print(
-    """
-  ________
-  ___  __ )__________ _______ ___
-  __  __  |  _ \  __ `/_  __ `__ \
-  _  /_/ //  __/ /_/ /_  / / / / /
-  /_____/ \___/\__,_/ /_/ /_/ /_/
+object RunBeam extends BeamHelper {
 
- _____________________________________
-
- """)
-
-  def parseArgs() = {
-
-    args.sliding(2, 1).toList.collect {
-      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+  def matchConfigFile(args: Array[String]): String = args.toList match {
+    case "--config" :: config :: _ => config
+    case _                         => throw new IllegalArgumentException("Missing required argument: config")
   }
 
-  val argsMap = parseArgs()
+  def main(args: Array[String]): Unit = {
+    print("""
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
+     """.stripMargin)
 
-  runBeamWithConfigFile(argsMap.get("config"))
-  logger.info("Exiting BEAM")
+    val configFile: String = matchConfigFile(args)
+    runBeamWithConfigFile(configFile)
+    logger.info("Exiting BEAM")
+  }
+
 }
