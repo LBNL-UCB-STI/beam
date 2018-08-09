@@ -20,6 +20,7 @@
 
 package beam.playground.jdeqsim_with_cacc.jdeqsim;
 
+import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.TravelTimeFunction;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -57,12 +58,10 @@ public class JDEQSimulation implements Mobsim {
 	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final HashMap<String, Boolean> isCACCVehicle) {
-
-
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final HashMap<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction) {
 		Road.setConfig(config);
 		Message.setEventsManager(events);
-		Road.setTravelTimeFunction();
+		Road.setTravelTimeFunction(travelTimeFunction);
 		this.isCACCVehicle = isCACCVehicle;
 		this.config = config;
 		this.scenario = scenario;

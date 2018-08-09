@@ -22,6 +22,7 @@ package beam.playground.jdeqsim_with_cacc.jdeqsim;
 import java.util.HashMap;
 import java.util.LinkedList;
 
+import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.TravelTimeFunction;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.network.NetworkUtils;
@@ -34,7 +35,7 @@ import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVeh
  *
  * @author rashid_waraich
  */
-public class Road extends SimUnit implements TravelTimeFunction {
+public class Road extends SimUnit {
 
 	//TODO: where is output, test outputs for change in travel time
 
@@ -110,6 +111,13 @@ public class Road extends SimUnit implements TravelTimeFunction {
 	private LinkedList<DeadlockPreventionMessage> deadlockPreventionMessages = new LinkedList<>();
 
 
+	private static TravelTimeFunction travelTimeFunction;
+
+	public static void setTravelTimeFunction(TravelTimeFunction travelTimeFunction) {
+		Road.travelTimeFunction=travelTimeFunction;
+	}
+
+
 
 	public Road(Scheduler scheduler, Link link) {
 		super(scheduler);
@@ -148,10 +156,9 @@ public class Road extends SimUnit implements TravelTimeFunction {
 		this.gap = null;
 	}
 
-    public static void setTravelTimeFunction() {
 
 
-    }
+
 
     public void leaveRoad(Vehicle vehicle, double simTime) {
 		assert (this.carsOnTheRoad.getFirst() == vehicle);
@@ -214,12 +221,6 @@ public class Road extends SimUnit implements TravelTimeFunction {
 	//TODO: improve code structure, Adding tests and refactoring, test events
 	//
 
-	@Override
-	public double calcTravelTime(double factor, double simTime){
-
-		return ((getShareCACC()*factor)*(this.link.getLength()) / this.link.getFreespeed(simTime));
-
-	}
 
 
 
@@ -255,7 +256,7 @@ public class Road extends SimUnit implements TravelTimeFunction {
 		this.noOfCarsPromisedToEnterRoad--;
 		this.carsOnTheRoad.add(vehicle);
 
-		double nextAvailableTimeForLeavingStreet = simTime + calcTravelTime(10, simTime);
+		double nextAvailableTimeForLeavingStreet = simTime + travelTimeFunction.calcTravelTime(link, getShareCACC());
 
 
 
