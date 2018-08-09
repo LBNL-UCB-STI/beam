@@ -24,7 +24,8 @@ object NoActorVersion extends LazyLogging {
     eventsManager.initProcessing()
 
     val jdeqSimConfigGroup = new JDEQSimConfigGroup()
-    val jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
+    val jdeqSimulation =
+      new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
 
     jdeqSimulation.run()
 

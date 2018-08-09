@@ -9,7 +9,6 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
 class RideHailCostPerMinuteSpec
     extends WordSpecLike
     with Matchers

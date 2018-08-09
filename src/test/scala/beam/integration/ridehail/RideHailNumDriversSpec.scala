@@ -9,7 +9,6 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
 class RideHailNumDriversSpec
     extends WordSpecLike
     with Matchers

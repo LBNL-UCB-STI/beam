@@ -7,7 +7,11 @@ import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{
+  Event,
+  PersonArrivalEvent,
+  PersonDepartureEvent
+}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -16,7 +20,6 @@ import org.scalatest.{Matchers, WordSpecLike}
 /**
   * Created by colinsheppard 2018-05-14
   */
-
 class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
 
   /*
@@ -40,14 +43,16 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
             "org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR, org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonEntersVehicleEvent:REGULAR, org.matsim.api.core.v01.events.PersonLeavesVehicleEvent:REGULAR, beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE, org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE, org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE"
           )
         )
-        .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
+        .withValue("matsim.modules.controler.lastIteration",
+                   ConfigValueFactory.fromAnyRef(0))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+      val scenario =
+        ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       scenario.setNetwork(networkCoordinator.network)
@@ -57,15 +62,18 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator.transportNetwork))
+            install(
+              module(config, scenario, networkCoordinator.transportNetwork))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
                   case depEvent: PersonDepartureEvent
-                      if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                      if depEvent.getLegMode.equalsIgnoreCase(
+                        "drive_transit") =>
                     nDepartures = nDepartures + 1
                   case arrEvent: PersonArrivalEvent
-                      if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                      if arrEvent.getLegMode.equalsIgnoreCase(
+                        "drive_transit") =>
                     nArrivals = nArrivals + 1
                   case _ =>
                 }

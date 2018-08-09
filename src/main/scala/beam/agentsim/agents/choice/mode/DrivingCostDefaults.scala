@@ -11,17 +11,19 @@ object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
 
   def estimateDrivingCost(
-    alternatives: Seq[EmbodiedBeamTrip],
-    beamServices: BeamServices
+      alternatives: Seq[EmbodiedBeamTrip],
+      beamServices: BeamServices
   ): Seq[BigDecimal] = {
 
-    val drivingCostConfig = beamServices.beamConfig.beam.agentsim.agents.drivingCost
+    val drivingCostConfig =
+      beamServices.beamConfig.beam.agentsim.agents.drivingCost
 
     alternatives.map { alt =>
       alt.tripClassifier match {
         case CAR if alt.costEstimate == 0.0 =>
           val vehicle =
-            beamServices.vehicles(alt.legs.filter(_.beamLeg.mode == CAR).head.beamVehicleId)
+            beamServices.vehicles(
+              alt.legs.filter(_.beamLeg.mode == CAR).head.beamVehicleId)
           val litersPerMeter =
             if (vehicle == null || vehicle.getType == null || vehicle.getType.getEngineInformation == null) {
               drivingCostConfig.defaultLitersPerMeter

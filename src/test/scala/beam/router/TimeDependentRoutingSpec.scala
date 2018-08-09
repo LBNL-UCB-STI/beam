@@ -36,7 +36,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
-    extends TestKit(ActorSystem("router-test", testConfig("test/input/beamville/beam.conf")))
+    extends TestKit(
+      ActorSystem("router-test", testConfig("test/input/beamville/beam.conf")))
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -131,7 +132,8 @@ class TimeDependentRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
+      router ! UpdateTravelTime(
+        (_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(
         origin,
         destination,
@@ -151,7 +153,8 @@ class TimeDependentRoutingSpec
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) =>
+        1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
         origin,
         destination,
@@ -197,7 +200,9 @@ class TimeDependentRoutingSpec
           )
         )
       )
-      var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
+      var carOption = expectMsgType[RoutingResponse].itineraries
+        .find(_.tripClassifier == CAR)
+        .get
 
       // Now feed the TravelTimeCalculator events resulting from me traversing the proposed route,
       // but taking me 2000s (a lot) for each link.
@@ -215,7 +220,9 @@ class TimeDependentRoutingSpec
 
       for (_ <- 1 to 5) {
         RoutingModel
-          .traverseStreetLeg(carOption.legs(0).beamLeg, vehicleId, longerTravelTimes)
+          .traverseStreetLeg(carOption.legs(0).beamLeg,
+                             vehicleId,
+                             longerTravelTimes)
           .foreach(eventsForTravelTimeCalculator.processEvent)
 
         // Now send the router the travel times resulting from that, and try again.
@@ -234,14 +241,17 @@ class TimeDependentRoutingSpec
             )
           )
         )
-        carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
+        carOption = expectMsgType[RoutingResponse].itineraries
+          .find(_.tripClassifier == CAR)
+          .get
       }
 
       assert(scala.math.abs(gap) < 71) // isn't exactly 0, probably rounding errors?
     }
 
     "give updated travel times for a given route after travel times were updated" in {
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) =>
+        1000) // Every link takes 1000 sec to traverse.
       val leg = BeamLeg(
         28800,
         BeamMode.WALK,

@@ -18,7 +18,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.xml.XML
 
-class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class BeamCalcLinkStatsSpec
+    extends WordSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
 
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-test"
@@ -61,7 +64,9 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
     val reader = new MatsimEventsReader(events)
     reader.readFile(EVENTS_FILE_PATH)
 
-    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(0, Controler.FILENAME_LINKSTATS)
+    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(
+      0,
+      Controler.FILENAME_LINKSTATS)
     new File(fileCsvPath).getParentFile.mkdirs()
 
     beamCalcLinkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes)
@@ -87,7 +92,8 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
   }
 
   private def gzToBufferedSource(path: String) = {
-    Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(path))))
+    Source.fromInputStream(
+      new GZIPInputStream(new BufferedInputStream(new FileInputStream(path))))
   }
 
   private def countLinksFromFileXML(pathFile: String) = {

@@ -8,7 +8,6 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
 class TransitPriceSpec
     extends WordSpecLike
     with Matchers
@@ -26,7 +25,8 @@ class TransitPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.transitPrice", ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.transitPrice",
+                         ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 

@@ -9,7 +9,6 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
 class RideHailPriceSpec
     extends WordSpecLike
     with Matchers
@@ -26,7 +25,8 @@ class RideHailPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.rideHailPrice",
+                         ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 
