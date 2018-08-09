@@ -9,7 +9,7 @@ source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-function
 peeps <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/person-attributes-from-reg-with-spatial-group.csv'))
 vehs <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/vehicle-types-bigger-batteries-1.5x.csv'))
 plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-plug-types.csv'))
-peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName','fuelEconomyInKwhPerMile'))
+peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
 peeps[,veh.type:='BEV']
 peeps[vehicleClassName=='PHEV',veh.type:='PHEV']
 peeps[vehicleClassName=='NEV',veh.type:='NEV']
@@ -19,16 +19,16 @@ out.dirs <- list()
 # Base
 out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
-out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
-out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
-out.dirs[['morework-2x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
-out.dirs[['morework-2x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
-out.dirs[['morework-2x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
+#out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
+#out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+#out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+#out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+#out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+#out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+#out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+#out.dirs[['morework-2x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
+#out.dirs[['morework-2x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
+#out.dirs[['morework-2x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
 
 scens <- names(out.dirs)
 all.soc.sums <- list()
@@ -72,7 +72,7 @@ for(scen in scens){
     ev[,native.order:=1:nrow(ev)]
 
     # first extract VMT data, then remove the travelled events and stranded folks, note that eVMT is estimated below
-    ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type','fuelEconomyInKwhPerMile'))
+    ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
     ev[,hr:=as.numeric(time)/3600]
     ev[,hour:=floor(hr)]
     stranded.peeps <- u(ev[choice=='stranded']$person)
@@ -87,6 +87,7 @@ for(scen in scens){
     ev <- ev[!type=='travelled' & !person%in%stranded.peeps]
 
     setkey(ev,native.order)
+    ev[,actType:=as.character(actType)]
     ev[actType=="",actType:=NA]
     ev[,actType:=ifelse(type=='BeginChargingSessionEvent',repeat_last(as.character(actType),forward=F),as.character(NA)),by=c('scenario','person')]
     ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by=c('scenario','person')]
@@ -118,11 +119,11 @@ for(scen in scens){
     setkey(ev,scenario,hr,native.order)
 
     # First fill in the SOC gaps, plugType, vehilceBatteryCap, and activityType
-    ev[,soc:=ifelse(type=='BeginChargingSessionEvent',c(NA,head(soc,-1)),soc),by=c('scenario','person')]
-    ev[,soc:=as.numeric(soc)]
+    ev[,soc:=as.numeric(repeat_last(soc)),by=c('scenario','person')]
     ev[,time:=as.numeric(time)]
     #ev[,kwhNeeded:=as.numeric(kwhNeeded)]
     kwhNeeded <- 0
+    ev[,plugType:=as.character(plugType)]
     ev[plugType=='',plugType:=NA]
     ev[,plugType:=repeat_last(plugType),by=c('scenario','person')]
 
@@ -132,8 +133,11 @@ for(scen in scens){
     ev <- ev[type%in%c('BeginChargingSessionEvent','EndChargingSessionEvent','UnplugEvent')]
 
     # Assign battery cap and charging rates
-    ev[,kw:=c("j-1772-2"=6.7,"sae-combo-3"=50,"j-1772-1"=1.9,"chademo"=50,"tesla-2"=20,"tesla-3"=120)[plugType]]
-
+    #ev[,kw:=c("j-1772-2"=6.7,"sae-combo-3"=50,"j-1772-1"=1.92,"chademo"=50,"tesla-2"=20,"tesla-3"=120)[plugType]]
+    ev[,maxPlugKw:=c("j-1772-2"=20,"sae-combo-3"=240,"j-1772-1"=1.92,"chademo"=50,"tesla-2"=20,"tesla-3"=120)[plugType]]
+    #ev[,kw.new:=ifelse(maxPlugKw<=2, maxPlugKw,ifelse(maxPlugKw<=20,maxLevel2ChargingPowerInKW, maxLevel3ChargingPowerInKW))]
+    ev[,kw:=ifelse(maxPlugKw<=2, maxPlugKw,ifelse(maxPlugKw<=20,maxLevel2ChargingPowerInKW, maxLevel3ChargingPowerInKW))]
+    
     # The following adjustments are needed for comparative runs on battery size, we are now assuming 1.5x as our base
     # For scenarios with bigger batteries, we need to adjust
     #ev[scenario%in%c('base','batt-1.5x'),batteryCapacityInKWh:=batteryCapacityInKWh*1.5]
@@ -210,6 +214,8 @@ for(scen in scens){
       ev[,hour:=floor(hr)]
     }
 
+    # 4191098
+
     ev[,':='(energy.level.min=c(energy.level[1],energy.level[1],energy.level[2]),
              hr.min=c(hr[1],hr[3] - (hr[2] - hr[1]),hr[3])),by=c('scenario','person','decisionEventId')]
     #peeps.to.fix <- ev[,all(hr.min==hr.min[1]),by=c('scenario','person','decisionEventId')][V1==T]$person
@@ -219,7 +225,8 @@ for(scen in scens){
     my.cat(pp('Removing ',length(bad.peeps),' peeps'))
     ev <- ev[!person%in%bad.peeps]
 
-
+    # Make our power be average power derived from energy and time of session instead of charger power which is easy to mix up what assumptions were used
+    ev[,kw:=(energy.level[2]-energy.level[1])/(hr[2]-hr[1]),by=c('scenario','person','decisionEventId')]
 
     # Now back out the eVMT from the charge delivered
     evmt <- ev[,.(veh.type=veh.type[1],evmt=(energy.level[2]-energy.level[1])/fuelEconomyInKwhPerMile[1]),by=c('scenario','person','decisionEventId')]
@@ -309,7 +316,7 @@ for(scen in scens){
   wdays <- c('Sun'=1,'Mon'=2,'Tus'=3,'Wed'=4,'Thu'=5,'Fri'=6,'Sat'=7)
   cp[,start.wday:=factor(names(wdays[start.wday]),levels=names(wdays))]
   cp.hr <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw),wday=start.wday[1]),by=c('hour.of.week','type')]
-  #ggplot(cp.hr,aes(x=hour.of.week%%24,y=kw,colour=factor(wday)))+geom_line(lwd=1.5)+facet_wrap(~type,scales='free_y')+labs(title="ChargePoint Average Load",x="Hour",y="Load (kW)",colour="Day of Week")
+  ggplot(cp.hr,aes(x=hour.of.week%%24,y=kw,colour=factor(wday)))+geom_line(lwd=1.5)+facet_wrap(~type,scales='free_y')+labs(title="ChargePoint Average Load",x="Hour",y="Load (kW)",colour="Day of Week")
   cp.day <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw)),by=c('start.wday','type')]
   cp.day.norm <- cp.day[,list(norm.load= kw/mean(kw[!start.wday%in%c('Sat','Sun')]),wday=start.wday),by='type']
 
@@ -413,9 +420,9 @@ for(scen in scens){
 
   # Finally, scale according to the scenarios developed by Julia
   scenarios <- load.scenarios()
-  scenarios <- scenarios[penetration=='High' & veh.type.split=='6040']
+  scenarios <- scenarios[veh.type.split=='6040']
 
-  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v9'
+  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v11'
   make.dir(results.dir.base)
   make.dir(pp(results.dir.base,'/',scen))
   the.utility <- scenarios$Electric.Utility[3]
@@ -492,7 +499,7 @@ for(vari in u(all.agg$variable)){
 }
 
 
-if(T){
+if(F){
   ## Go through and splice together data sets from differen TOU scenarios
   #scenarios <- load.scenarios()
 
@@ -544,8 +551,19 @@ if(T){
       }
     }
   }
+
+  # Export for collaborators (Baptist&Reshma and SERC-SEIN)
+
+  setkey(virt,final.type,veh.type,hr)
+  virt[,load:=c(NA,diff(max)),by=c('final.type','veh.type')]
+  to.write <- join.on(virt,vmt,'veh.type','veh.type','n.veh')[day>1 & day<9]
+  to.write[,load:=load/n.veh]
+  to.write[,wday:=names(wdays[(1+(day-1)%%7)])]
+
+  write.csv(na.omit(to.write[,.(charger.location=final.type,vehicle.type=veh.type,day=wday,hour=dhr,load)]),file=pp(results.dir.base,'/',scen,'/beam-sf-bay-normalized-load.csv'))
+  write.csv(vmt[,.(VMT=vmt,eVMT=evmt,target.eVMT=target)],file=pp(results.dir.base,'/',scen,'/beam-sf-bay-simulated-annual-vmt.csv'))
+
+  to.write <- ev[,.(vid=person[1],pev_type=veh.type[1],battery_capacity=batteryCapacityInKWh[1],start_time=time[1],end_time_chg=time[2],end_time_prk=time[3],dest_type=final.type[1],dest_chg_level=plugType[1],avg_kw=kw[1],kwh=energy.level[2]-energy.level[1],veh.range=batteryCapacityInKWh[1]/fuelEconomyInKwhPerMile[1]),by=c('person','decisionEventId')]
+  to.write[,':='(person=NULL,sessionId=decisionEventId,decisionEventId=NULL)]
+  write.csv(to.write,file=pp(results.dir.base,'/',scen,'/beam-charging-sessions-evi-pro-format.csv'),quote=F,row.names=F)
 }
-
-
-
-
