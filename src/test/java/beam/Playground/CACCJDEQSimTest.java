@@ -66,7 +66,7 @@ public class CACCJDEQSimTest {
 
 
         boolean isCACC;
-        Road.getAvgTravelTime();
+        SpeedCalc.getAvgTravelTime();
         for (Person person : scenario.getPopulation().getPersons().values()) {
             isCACC = new Random().nextBoolean();
             isCACCVehicle.put(person.getId().toString(), isCACC);
@@ -86,16 +86,16 @@ public class CACCJDEQSimTest {
         eventsWriter.closeFile();
 
 
-        return Road.getAvgTravelTime()-(Road.getAvgTravelTime()*(shareOfCACC/2)); // speedCalc.getAverageTravelTime()
+        return SpeedCalc.getAvgTravelTime()-(SpeedCalc.getAvgTravelTime()*(shareOfCACC/2)); // speedCalc.getAverageTravelTime()
     }
 
     @Test
     public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour() {
         double baseRunAverageTravelTime=doSimulation(0.2);
 
-        double highRunAverageTravelTime=doSimulation(.80);
+        double highRunAverageTravelTime=doSimulation(0.8);
 
-        double lowRunAverageTravelTime=doSimulation(0.10);
+        double lowRunAverageTravelTime=doSimulation(0.1);
 
         assertTrue("increased share of cacc is expected to decrease road travel times",baseRunAverageTravelTime>=highRunAverageTravelTime);
         // add similar for low run
