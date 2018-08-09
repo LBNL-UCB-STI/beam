@@ -1,4 +1,4 @@
-package beam.playground.jdeqsim_with_cacc.travelTimeFunctions;
+package beam.physsim.jdeqsim.cacc.travelTimeFunctions;
 
 import org.matsim.api.core.v01.network.Link;
 

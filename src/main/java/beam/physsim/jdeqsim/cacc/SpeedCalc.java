@@ -1,4 +1,4 @@
-package beam.playground.jdeqsim_with_cacc;
+package beam.physsim.jdeqsim.cacc;
 
 
 import org.matsim.api.core.v01.Scenario;
@@ -8,15 +8,12 @@ import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.handler.LinkEnterEventHandler;
 import org.matsim.api.core.v01.events.handler.LinkLeaveEventHandler;
 import org.matsim.api.core.v01.events.handler.PersonArrivalEventHandler;
-import org.matsim.vehicles.Vehicle;
-import scala.Int;
 
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Set;
 
-import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
+import static beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
 
 public class SpeedCalc implements LinkEnterEventHandler, PersonArrivalEventHandler, LinkLeaveEventHandler {
     private int linkEnterCount;

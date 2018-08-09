@@ -1,9 +1,9 @@
-package beam.playground.jdeqsim_with_cacc;
+package beam.physsim.jdeqsim.cacc;
 
 import beam.playground.jdeqsim.CountEnterLinkEvents;
-import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimConfigGroup;
-import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation;
-import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
+import beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimConfigGroup;
+import beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimulation;
+import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -12,7 +12,6 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.algorithms.EventWriterXML;
 import org.matsim.core.scenario.ScenarioUtils;
-import scalaz.Ran;
 
 import java.util.HashMap;
 import java.util.*;

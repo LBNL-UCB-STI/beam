@@ -17,29 +17,26 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 /**
- * The basic building block for all simulation units.
+ * The basic EventMessage type.
  *
  * @author rashid_waraich
  */
-public abstract class SimUnit {
+public abstract class EventMessage extends Message {
+	public Vehicle vehicle;
+	public Scheduler scheduler;
 
-	protected Scheduler scheduler = null;
-
-	public SimUnit(Scheduler scheduler) {
+	public EventMessage(Scheduler scheduler, Vehicle vehicle) {
+		super();
+		this.vehicle = vehicle;
 		this.scheduler = scheduler;
 	}
 
-	public void sendMessage(Message m, SimUnit targetUnit, double messageArrivalTime) {
-		m.setSendingUnit(this);
-		m.setReceivingUnit(targetUnit);
-		m.setMessageArrivalTime(messageArrivalTime);
-		scheduler.schedule(m);
+	public void resetMessage(Scheduler scheduler, Vehicle vehicle) {
+		this.scheduler = scheduler;
+		this.vehicle = vehicle;
 	}
 
-	public Scheduler getScheduler() {
-		return scheduler;
-	}
 }

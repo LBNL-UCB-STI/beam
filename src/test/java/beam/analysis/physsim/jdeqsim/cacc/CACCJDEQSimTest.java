@@ -1,31 +1,21 @@
-package beam.Playground;
+package beam.analysis.physsim.jdeqsim.cacc;
 
-import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.playground.jdeqsim.CountEnterLinkEvents;
-import beam.playground.jdeqsim_with_cacc.SpeedCalc;
-import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimConfigGroup;
-import beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation;
-import beam.playground.jdeqsim_with_cacc.jdeqsim.Road;
-import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
-import org.junit.BeforeClass;
+import beam.physsim.jdeqsim.cacc.SpeedCalc;
+import beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimConfigGroup;
+import beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimulation;
+import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.algorithms.EventWriterXML;
-import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.scenario.ScenarioUtils;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
-import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Random;
 
 import static junit.framework.TestCase.assertTrue;

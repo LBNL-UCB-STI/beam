@@ -17,38 +17,29 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
-
-import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.LinkLeaveEvent;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 /**
- * The micro-simulation internal handler for leaving a road.
+ * The basic building block for all simulation units.
  *
  * @author rashid_waraich
  */
-public class LeaveRoadMessage extends EventMessage {
+public abstract class SimUnit {
 
-	@Override
-	public void handleMessage() {
-		Road road = (Road) this.getReceivingUnit();
-		road.leaveRoad(vehicle, getMessageArrivalTime());
+	protected Scheduler scheduler = null;
+
+	public SimUnit(Scheduler scheduler) {
+		this.scheduler = scheduler;
 	}
 
-	public LeaveRoadMessage(Scheduler scheduler, Vehicle vehicle) {
-		super(scheduler, vehicle);
-		priority = JDEQSimConfigGroup.PRIORITY_LEAVE_ROAD_MESSAGE;
+	public void sendMessage(Message m, SimUnit targetUnit, double messageArrivalTime) {
+		m.setSendingUnit(this);
+		m.setReceivingUnit(targetUnit);
+		m.setMessageArrivalTime(messageArrivalTime);
+		scheduler.schedule(m);
 	}
 
-	@Override
-	public void processEvent() {
-		Road road = (Road) this.getReceivingUnit();
-		Event event = null;
-
-		event = new LinkLeaveEvent(this.getMessageArrivalTime(), Id.create(vehicle.getOwnerPerson().getId(), org.matsim.vehicles.Vehicle.class), road.getLink().getId());
-
-		eventsManager.processEvent(event);
+	public Scheduler getScheduler() {
+		return scheduler;
 	}
-
 }

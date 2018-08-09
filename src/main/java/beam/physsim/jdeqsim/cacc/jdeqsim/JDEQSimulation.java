@@ -18,9 +18,9 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
-import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.TravelTimeFunction;
+import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -28,14 +28,12 @@ import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.PlansConfigGroup;
-import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.jdeqsim.util.Timer;
 
 import javax.inject.Inject;
 
 import java.util.HashMap;
-import java.util.Random;
 
 
 /**

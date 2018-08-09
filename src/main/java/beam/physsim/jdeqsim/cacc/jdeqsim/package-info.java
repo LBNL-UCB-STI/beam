@@ -6,4 +6,4 @@
  *   <li>Rashid Waraich</li>
  * </ul>
  */
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;

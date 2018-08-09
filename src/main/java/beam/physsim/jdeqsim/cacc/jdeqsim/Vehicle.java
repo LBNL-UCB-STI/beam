@@ -17,7 +17,7 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 import java.util.List;
 
@@ -30,7 +30,6 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.core.config.groups.PlansConfigGroup;
-import org.matsim.core.config.groups.PlansConfigGroup.ActivityDurationInterpretation;
 import org.matsim.core.population.routes.NetworkRoute;
 
 /**

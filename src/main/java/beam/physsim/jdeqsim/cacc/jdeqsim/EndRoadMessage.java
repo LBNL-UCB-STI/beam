@@ -17,44 +17,44 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
-
-import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.LinkEnterEvent;
-import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 /**
- * The micro-simulation internal handler for entering a road.
+ * The micro-simulation internal handler, when the end of a road is reached.
  *
  * @author rashid_waraich
  */
-public class EnterRoadMessage extends EventMessage {
+public class EndRoadMessage extends EventMessage {
 
 	@Override
 	public void handleMessage() {
-		// enter the next road
-		Road road = Road.getRoad(vehicle.getCurrentLinkId());
-		road.enterRoad(vehicle, getMessageArrivalTime());
+		if (vehicle.isCurrentLegFinished()) {
+			/*
+			 * the leg is completed, try to enter the last link but do not enter
+			 * it (just wait, until you have clearance for enter and then leave
+			 * the road)
+			 */
+
+			vehicle.initiateEndingLegMode();
+			vehicle.moveToFirstLinkInNextLeg();
+			Road road = Road.getRoad(vehicle.getCurrentLinkId());
+			road.enterRequest(vehicle, getMessageArrivalTime());
+		} else if (!vehicle.isCurrentLegFinished()) {
+			// if leg is not finished yet
+			vehicle.moveToNextLinkInLeg();
+
+			Road nextRoad = Road.getRoad(vehicle.getCurrentLinkId());
+			nextRoad.enterRequest(vehicle, getMessageArrivalTime());
+		}
 	}
 
-	public EnterRoadMessage(Scheduler scheduler, Vehicle vehicle) {
+	public EndRoadMessage(Scheduler scheduler, Vehicle vehicle) {
 		super(scheduler, vehicle);
-		priority = JDEQSimConfigGroup.PRIORITY_ENTER_ROAD_MESSAGE;
 	}
 
 	@Override
 	public void processEvent() {
-		Event event = null;
-
-		// the first EnterLink in a leg is a Wait2LinkEvent
-		if (vehicle.getLinkIndex() == -1) {
-			event = new VehicleEntersTrafficEvent(this.getMessageArrivalTime(), vehicle.getOwnerPerson().getId(), vehicle.getCurrentLinkId(), 
-					Id.create(vehicle.getOwnerPerson().getId(), org.matsim.vehicles.Vehicle.class), null, 1.0);
-		} else {
-			event = new LinkEnterEvent(this.getMessageArrivalTime(), Id.create(vehicle.getOwnerPerson().getId(), org.matsim.vehicles.Vehicle.class), vehicle.getCurrentLinkId());
-		}
-		eventsManager.processEvent(event);
+		// don't need to output any event
 	}
 
 }

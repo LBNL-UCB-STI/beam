@@ -17,18 +17,18 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 
-import beam.playground.jdeqsim_with_cacc.travelTimeFunctions.TravelTimeFunction;
+import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.misc.Time;
 
-import static beam.playground.jdeqsim_with_cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
+import static beam.physsim.jdeqsim.cacc.jdeqsim.JDEQSimulation.isCACCVehicle;
 
 /**
  * The road is simulated as an active agent, moving around vehicles.

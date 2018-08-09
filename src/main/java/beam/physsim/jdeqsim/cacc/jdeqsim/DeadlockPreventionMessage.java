@@ -17,7 +17,7 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
 /**
  * The micro-simulation internal handler for preventig deadlocks.

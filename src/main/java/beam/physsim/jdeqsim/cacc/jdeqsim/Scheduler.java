@@ -17,75 +17,67 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
 
-import java.util.PriorityQueue;
+import org.apache.log4j.Logger;
+import org.matsim.core.gbl.Gbl;
 
 /**
- * The message queue of the micro-simulation.
+ * The scheduler of the micro-simulation.
  *
  * @author rashid_waraich
  */
-public class MessageQueue {
-	private PriorityQueue<Message> queue1 = new PriorityQueue<Message>();
-	private int queueSize = 0;
+public class Scheduler {
+	
+	private static final Logger log = Logger.getLogger(Scheduler.class);
+	private double simTime = 0;
+	protected final MessageQueue queue;
+	private double simulationStartTime = System.currentTimeMillis();
+	private final double simulationEndTime;
+	private double hourlyLogTime = 3600;
 
-	/**
-	 * 
-	 * Putting a message into the queue
-	 *
-	 * @param m
-	 */
-	public void putMessage(Message m) {
-		queue1.add(m);
-		queueSize++;
+	public Scheduler(MessageQueue queue) {
+		this(queue, Double.MAX_VALUE);
 	}
 
-	/**
-	 * 
-	 * Remove the message from the queue and discard it. - queue1.remove(m) does
-	 * not function, because it discards all message with the same priority as m
-	 * from the queue. - This java api bug is reported at:
-	 * http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6207984
-	 * 
-	 * => queue1.removeAll(Collections.singletonList(m)); can be used, but it has
-	 * been removed because of just putting a flag to kill a message is more efficient.
-	 * 
-	 * @param m
-	 */
-	public void removeMessage(Message m) {
-		m.killMessage();
-		queueSize--;
+	public Scheduler(MessageQueue messageQueue, double simulationEndTime) {
+		this.queue = messageQueue;
+		this.simulationEndTime = simulationEndTime;
 	}
 
-	/**
-	 * 
-	 * get the first message in the queue (with least time stamp)
-	 *
-	 * @return
-	 */
-	public Message getNextMessage() {
-		Message m = null;
-		if (queue1.peek() != null) {
-			// skip over dead messages
-			while ((m = queue1.poll()) != null && !m.isAlive()) {
+	public void schedule(Message m) {
+		queue.putMessage(m);
+	}
 
-			}
-			// only decrement, if message fetched
+	public void unschedule(Message m) {
+		queue.removeMessage(m);
+	}
+
+	public void startSimulation() {
+		Message m;
+		while (!queue.isEmpty() && simTime < simulationEndTime) {
+			m = queue.getNextMessage();
 			if (m != null) {
-				queueSize--;
+				simTime = m.getMessageArrivalTime();
+				m.processEvent();
+				m.handleMessage();
 			}
+			printLog();
 		}
-
-		return m;
 	}
 
-	public boolean isEmpty() {
-		return queue1.size() == 0;
+	public double getSimTime() {
+		return simTime;
 	}
 
-	public int getQueueSize() {
-		return queueSize;
+	private void printLog() {
+
+		// print output each hour
+		if (simTime / hourlyLogTime > 1) {
+			hourlyLogTime = simTime + 3600;
+			log.info("Simulation at " + simTime / 3600 + "[h]; s/r:" + simTime / (System.currentTimeMillis() - simulationStartTime) * 1000);
+			Gbl.printMemoryUsage();
+		}
 	}
 
 }

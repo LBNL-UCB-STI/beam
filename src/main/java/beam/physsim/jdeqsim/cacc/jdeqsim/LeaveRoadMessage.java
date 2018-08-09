@@ -17,44 +17,38 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.playground.jdeqsim_with_cacc.jdeqsim;
+package beam.physsim.jdeqsim.cacc.jdeqsim;
+
+import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.events.Event;
+import org.matsim.api.core.v01.events.LinkLeaveEvent;
 
 /**
- * The micro-simulation internal handler, when the end of a road is reached.
+ * The micro-simulation internal handler for leaving a road.
  *
  * @author rashid_waraich
  */
-public class EndRoadMessage extends EventMessage {
+public class LeaveRoadMessage extends EventMessage {
 
 	@Override
 	public void handleMessage() {
-		if (vehicle.isCurrentLegFinished()) {
-			/*
-			 * the leg is completed, try to enter the last link but do not enter
-			 * it (just wait, until you have clearance for enter and then leave
-			 * the road)
-			 */
-
-			vehicle.initiateEndingLegMode();
-			vehicle.moveToFirstLinkInNextLeg();
-			Road road = Road.getRoad(vehicle.getCurrentLinkId());
-			road.enterRequest(vehicle, getMessageArrivalTime());
-		} else if (!vehicle.isCurrentLegFinished()) {
-			// if leg is not finished yet
-			vehicle.moveToNextLinkInLeg();
-
-			Road nextRoad = Road.getRoad(vehicle.getCurrentLinkId());
-			nextRoad.enterRequest(vehicle, getMessageArrivalTime());
-		}
+		Road road = (Road) this.getReceivingUnit();
+		road.leaveRoad(vehicle, getMessageArrivalTime());
 	}
 
-	public EndRoadMessage(Scheduler scheduler, Vehicle vehicle) {
+	public LeaveRoadMessage(Scheduler scheduler, Vehicle vehicle) {
 		super(scheduler, vehicle);
+		priority = JDEQSimConfigGroup.PRIORITY_LEAVE_ROAD_MESSAGE;
 	}
 
 	@Override
 	public void processEvent() {
-		// don't need to output any event
+		Road road = (Road) this.getReceivingUnit();
+		Event event = null;
+
+		event = new LinkLeaveEvent(this.getMessageArrivalTime(), Id.create(vehicle.getOwnerPerson().getId(), org.matsim.vehicles.Vehicle.class), road.getLink().getId());
+
+		eventsManager.processEvent(event);
 	}
 
 }
