@@ -1,5 +1,9 @@
 package conversion
 
+import java.io.File
+
+import org.apache.commons.io.FileUtils
+
 import scala.xml.{Elem, Node, NodeSeq, XML}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.dtd.{DocType, SystemID}
@@ -11,13 +15,16 @@ object MatsimPlanConversion {
 
     val transformedPopulationDoc = matsimPopulationToBeam(populationDoc)
 
-    val vehiclesFile = conversionConfig.vehiclesInput
-    val vehiclesDoc = XML.loadFile(vehiclesFile)
-    val transformedVehiclesDoc = matsimVehiclesToBeam(vehiclesDoc)
-
     val persons = transformedPopulationDoc \\ "person"
 
-    val houseHolds = generateHouseholds(persons, transformedVehiclesDoc \\ "vehicle")
+    val xmlVehiclesOutput = if(conversionConfig.generateVehicles){
+      generateVehiclesFromPerson(persons)
+    } else {
+      val vehiclesFile = conversionConfig.vehiclesInput.get
+      val vehiclesDoc = XML.loadFile(vehiclesFile)
+      matsimVehiclesToBeam(vehiclesDoc)
+    }
+    val houseHolds = generateHouseholds(persons, xmlVehiclesOutput \\ "vehicle", conversionConfig.income)
 
     val populationAttrs = generatePopulationAttributes(persons)
 
@@ -34,6 +41,7 @@ object MatsimPlanConversion {
       SystemID("../dtd/population_v6.dtd"),
       Nil)
 
+    val transitVehiclesOutput = conversionConfig.outputDirectory + "/transitVehicles.xml"
     val populationOutput = conversionConfig.outputDirectory + "/population.xml"
     val vehiclesOutput = conversionConfig.outputDirectory + "/vehicles.xml"
     val householdsOutput = conversionConfig.outputDirectory + "/households.xml"
@@ -41,14 +49,20 @@ object MatsimPlanConversion {
     val populationAttrsOutput = conversionConfig.outputDirectory + "/populationAttributes.xml"
 
 
+    if(conversionConfig.transitVehiclesInput.isDefined){
+      FileUtils.copyFile(
+        new File(conversionConfig.transitVehiclesInput.get),
+        new File(transitVehiclesOutput))
+    }
+
     XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
-    XML.save(vehiclesOutput, transformedVehiclesDoc, "UTF-8", true)
+    XML.save(vehiclesOutput, xmlVehiclesOutput, "UTF-8", true)
     XML.save(householdsOutput, houseHolds, "UTF-8", true)
     XML.save(householdAttrsOutput, householdAtrrs, "UTF-8", true, householdsAttrDoctype)
     XML.save(populationAttrsOutput, populationAttrs, "UTF-8", true, populationAttrDoctype)
   }
 
-  def generatePopulationAttributes(persons: NodeSeq) = {
+  def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map { case (_, index) =>
       <object id={s"${index + 1}"}>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
@@ -82,7 +96,7 @@ object MatsimPlanConversion {
     </objectattributes>
   }
 
-  def generateHouseholds(persons: NodeSeq, vehicles: NodeSeq) = {
+  def generateHouseholds(persons: NodeSeq, vehicles: NodeSeq, income: HouseholdIncome) = {
 
     val mPersons = persons.map(Option(_))
     val mVehicles = vehicles.map(Option(_))
@@ -111,7 +125,7 @@ object MatsimPlanConversion {
           }).getOrElse(NodeSeq.Empty)
           }
         </vehicles>
-        <income currency="usd" period="year">50000</income>
+        <income currency={s"${income.currency}"} period={s"${income.period}"}>{income.value}</income>
       </household>
     }
 
@@ -148,7 +162,42 @@ object MatsimPlanConversion {
     transform(populationDoc)
   }
 
+  def generateVehiclesFromPerson(persons: NodeSeq): Elem = {
+
+    val vehicles = persons.zipWithIndex.map{ case (_, index) =>
+        <vehicle id={s"${index + 1}"} type="1"/>
+    }
+
+    <vehicleDefinitions xmlns="dtd"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="dtd ../dtd/vehicleDefinitions_v1.0.xsd">
+      <vehicleType id="1">
+        <description>Car</description>
+        <capacity>
+          <seats persons="4"/>
+          <standingRoom persons="0"/>
+        </capacity>
+        <length meter="4.5"/>
+        <engineInformation>
+          <fuelType>gasoline</fuelType>
+          <gasConsumption literPerMeter="0.0001069"/> <!-- == 22 MPG U.S. Avg. Light Duty https://www.rita.dot.gov/bts/sites/rita.dot.gov.bts/files/publications/national_transportation_statistics/html/table_04_23.html -->
+        </engineInformation>
+      </vehicleType>
+      {vehicles}
+    </vehicleDefinitions>
+  }
+
   def matsimVehiclesToBeam(vehiclesDoc: Elem): Node = {
+    val requiredFieldsForType = List("description", "capacity", "length", "engineInformation")
+    val vehicleTypeSeq = vehiclesDoc \\ "vehicleType"
+
+    for{
+      vehicleType <- vehicleTypeSeq
+      requiredElem <- requiredFieldsForType if (vehicleType \\ requiredElem).isEmpty
+    } yield{
+      println(s"Input vehicle data is missing $requiredElem xml element in ${vehicleType.label}")
+    }
+
     val vehicleTransformRule = new RewriteRule {
       override def transform(n: Node): Seq[Node] = n match{
         case elem: Elem if elem.label == "vehicleType" =>
@@ -158,19 +207,12 @@ object MatsimPlanConversion {
               e.label == "capacity" || e.label == "length"
             case _ => true
           }
-          //TODO
-          val description = elem.attribute("id").map(_.toString()).getOrElse("CAR")
-          val descriptionXml = <description>{description}</description>
-          val engineInfoXml =
-            <engineInformation>
-              <fuelType>gasoline</fuelType>
-              <gasConsumption literPerMeter="0.0001069"/>
-            </engineInformation>
-          elem.copy(child = (filteredChild ++ descriptionXml ++ engineInfoXml))
+          elem.copy(child = filteredChild)
         case m => m
       }
     }
     val transform = new RuleTransformer(vehicleTransformRule)
     transform(vehiclesDoc)
   }
+
 }
