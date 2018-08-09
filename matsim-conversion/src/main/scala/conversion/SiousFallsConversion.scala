@@ -27,7 +27,7 @@ object SiouxFallsConversion extends App {
 
   //generateTazDefaults(ConversionConfig(config), network)
 
-  MatsimPlanConversion.generateSiouxFallsXml(ConversionConfig(config))
+  MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
 
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
     val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"

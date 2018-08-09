@@ -1,8 +1,13 @@
 package conversion
 
+import scala.util.Try
+
+case class HouseholdIncome(currency: String, period: String, value: Int)
 case class ConversionConfig( outputDirectory: String, localCRS: String,
                              matsimNetworkFile: String, shapeConfig: Option[ShapeConfig] = None,
-                             populationInput: String, vehiclesInput: String)
+                             populationInput: String, income: HouseholdIncome, generateVehicles: Boolean = false,
+                             transitVehiclesInput: Option[String] = None,
+                             vehiclesInput: Option[String] = None)
 
 case class ShapeConfig(shapeFile: String, tazIDFieldName: String)
 
@@ -31,9 +36,23 @@ object ConversionConfig {
       None
 
     val populationInput = matsimConversionConfig.getString("populationInput")
-    val vehiclesInput = matsimConversionConfig.getString("vehiclesInput")
+    val generateVehicles = matsimConversionConfig.getBoolean("generateVehicles")
 
-    ConversionConfig(output, localCRS, matsimNetworkFile, mShapeConfig, populationInput, vehiclesInput)
+    val transitVehiclesPath = Try(c.getString("matsim.modules.transit.vehiclesFile")).toOption
+
+    //    val vehiclesInput = matsimConversionConfig.getString("vehiclesInput")
+    val vehiclesInput = Try(matsimConversionConfig.getString("vehiclesInput")).toOption
+
+    val defaultHouseholdIncomeConfig = matsimConversionConfig.getConfig("defaultHouseholdIncome")
+    val incomeCurrency = defaultHouseholdIncomeConfig.getString("currency")
+    val incomePeriod = defaultHouseholdIncomeConfig.getString("period")
+    val incomeValue = defaultHouseholdIncomeConfig.getInt("value")
+    val income = HouseholdIncome(incomeCurrency, incomePeriod, incomeValue)
+
+
+    ConversionConfig(output, localCRS, matsimNetworkFile,
+      mShapeConfig, populationInput, income, generateVehicles,
+      transitVehiclesPath, vehiclesInput)
   }
 }
 
