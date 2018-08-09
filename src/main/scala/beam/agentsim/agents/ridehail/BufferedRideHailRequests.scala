@@ -10,10 +10,18 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class BufferedRideHailRequests(
-  val scheduler: ActorRef,
-  val triggerId: Long,
-  val tick: Double
+  val scheduler: ActorRef
 ) {
+
+  private var tick: Double = _
+  private var triggerId: Long = _
+
+  def newTimeout(tick: Double, triggerId: Long) = {
+    this.tick = tick
+    this.triggerId = triggerId
+  }
+
+  def getTick(): Double = { tick }
 
   //println(s"creating BufferedRideHailRequests, tick: $tick")
 
@@ -77,6 +85,10 @@ class BufferedRideHailRequests(
       triggerId,
       nextBufferedTriggerMessages
     )
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
+
+    nextBufferedTriggerMessages = Vector()
 
   }
 

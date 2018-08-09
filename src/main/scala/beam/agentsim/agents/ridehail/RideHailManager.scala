@@ -100,17 +100,26 @@ class RideHailManager(
   val rideHailResourceAllocationManager: RideHailResourceAllocationManager =
     allocationManager match {
       case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
-        new DefaultRideHailResourceAllocationManager()
+        new DefaultRideHailResourceAllocationManager(this)
       case RideHailResourceAllocationManager.STANFORD_V1 =>
-        new StanfordRideHailAllocationManagerV1(this, rideHailNetworkApi)
-      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
-        new RideHailAllocationManagerBufferedWithOverwriteRequest(this)
+        new StanfordRideHailAllocationManagerV1(this)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(this, tncIterationStats)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(this)
       case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
         new DummyRideHailDispatchWithBufferingRequests(this)
+      case x if x startsWith ("Test_") =>
+        //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
+        //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
+
+        val classFullName = x.replaceAll("Test_", "")
+        Class
+          .forName(classFullName)
+          .getDeclaredConstructors()(0)
+          .newInstance(this)
+          .asInstanceOf[RideHailResourceAllocationManager]
+
       case _ =>
         throw new IllegalStateException(
           s"unknonwn RideHailResourceAllocationManager: $allocationManager"
@@ -156,7 +165,7 @@ class RideHailManager(
   private val inServiceRideHailVehicles =
     concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
 
-  var bufferedRideHailRequests: BufferedRideHailRequests = _
+//  private var bufferedRideHailRequests: BufferedRideHailRequests = _
 
   /**
     * Customer inquiries awaiting reservation confirmation.
@@ -412,25 +421,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.printState()
 
     case TriggerWithId(BufferedRideHailRequestsTimeout(tick), triggerId) =>
-      DebugLib.emptyFunctionForSettingBreakPoint()
-
-      bufferedRideHailRequests = new BufferedRideHailRequests(scheduler, triggerId, tick)
-
-      rideHailResourceAllocationManager.updateVehicleAllocations(tick)
-      val timerTrigger = BufferedRideHailRequestsTimeout(
-        tick + 10 // TODO: replace with new config variable
-        // TODO:
-      )
-      val timerMessage = ScheduleTrigger(timerTrigger, this.self)
-      Vector(timerMessage)
-
-      val nextMessage = Vector(timerMessage)
-
-      // bufferedRideHailRequests.nextBufferedTriggerMessages = bufferedRideHailRequests.nextBufferedTriggerMessages ++ nextMessage
-
-      bufferedRideHailRequests.addTriggerMessages(nextMessage)
-
-      bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+      rideHailResourceAllocationManager.updateVehicleAllocations(tick, triggerId, this)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
       val produceDebugImages = true
@@ -860,6 +851,8 @@ class RideHailManager(
         println(
           s"completing reservation -   customer: ${response.request.customer.personId} - vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
         )
+
+        val bufferedRideHailRequests = rideHailResourceAllocationManager.bufferedRideHailRequests
 
         if (bufferedRideHailRequests.isReplacementVehicle(
               response.travelProposal.get.rideHailAgentLocation.vehicleId
