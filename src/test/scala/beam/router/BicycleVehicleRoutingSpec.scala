@@ -20,7 +20,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.VehicleUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
@@ -29,8 +28,20 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class BicycleVehicleRoutingSpec extends TestKit(ActorSystem("router-test", BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with WordSpecLike with Matchers
-  with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
+class BicycleVehicleRoutingSpec
+    extends TestKit(
+      ActorSystem(
+        "router-test",
+        BeamConfigUtils
+          .parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf")
+          .resolve()
+      )
+    )
+    with WordSpecLike
+    with Matchers
+    with ImplicitSender
+    with MockitoSugar
+    with BeforeAndAfterAll {
 
   var router: ActorRef = _
   var networkCoordinator: NetworkCoordinator = _
@@ -43,15 +54,31 @@ class BicycleVehicleRoutingSpec extends TestKit(ActorSystem("router-test", BeamC
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    networkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    when(services.dates).thenReturn(
+      DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
+    networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any()))
+      .thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcToll(any())).thenReturn(0.0)
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
+    router = system.actorOf(
+      BeamRouter.props(
+        services,
+        networkCoordinator.transportNetwork,
+        networkCoordinator.network,
+        new EventsManagerImpl(),
+        scenario.getTransitVehicles,
+        fareCalculator,
+        tollCalculator
+      )
+    )
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)
@@ -65,8 +92,18 @@ class BicycleVehicleRoutingSpec extends TestKit(ActorSystem("router-test", BeamC
     val time = RoutingModel.DiscreteTime(3000)
 
     "give updated travel times for a given route" in {
-      val leg = BeamLeg(3000, BeamMode.BIKE, 0, BeamPath(Vector(143, 60, 58, 62, 80, 74, 68, 154), None, SpaceTime
-      (166321.9, 1568.87, 3000), SpaceTime(167138.4, 1117, 3000), 0.0))
+      val leg = BeamLeg(
+        3000,
+        BeamMode.BIKE,
+        0,
+        BeamPath(
+          Vector(143, 60, 58, 62, 80, 74, 68, 154),
+          None,
+          SpaceTime(166321.9, 1568.87, 3000),
+          SpaceTime(167138.4, 1117, 3000),
+          0.0
+        )
+      )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 285)

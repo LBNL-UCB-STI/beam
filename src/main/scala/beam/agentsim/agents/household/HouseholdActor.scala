@@ -16,6 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamServices
 import beam.utils.plansampling.AvailableModeUtils.{isModeAvailableForPerson, _}
@@ -29,7 +30,7 @@ import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -216,7 +217,7 @@ object HouseholdActor {
           .createVehicle(bodyVehicleIdFromPerson, HumanBodyVehicle.MatsimVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-
+      val personId = person.getId
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
           person.getId.toString,

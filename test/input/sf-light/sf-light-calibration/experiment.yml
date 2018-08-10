@@ -33,9 +33,9 @@ defaultParams:
     beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_time: -0.0047
     beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_transfer: -1.4
 
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_intercept: -11.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_time: -0.0047
+    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -11.0
+    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_cost: -1.0
+    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_time: -0.0047
 
     beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -20.0
     beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_cost: -1.0
@@ -67,10 +67,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -5.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: 5.0
 
   - title: car
     levels:

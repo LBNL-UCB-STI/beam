@@ -14,10 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
 }
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.RideHailManager.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.rideHail.RideHailingManager.{
-  RideHailingInquiry,
-  RideHailingInquiryResponse
-}
+
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{
