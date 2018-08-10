@@ -323,8 +323,8 @@ class PersonAgentSpec
       val attributesOfIndividual = AttributesOfIndividual(
         person,
         household,
-        Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
-        Seq(CAR)
+        Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle)
+//        , Seq(CAR)
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
       when(services.matsimServices.getScenario).thenReturn(scenario)
