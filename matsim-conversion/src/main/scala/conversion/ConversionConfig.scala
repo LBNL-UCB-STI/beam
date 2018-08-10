@@ -1,5 +1,9 @@
 package conversion
 
+import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.network.Network
+import org.matsim.core.network.NetworkUtils
+import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import scala.util.Try
 
 case class HouseholdIncome(currency: String, period: String, value: Int)
@@ -58,7 +62,7 @@ object ConversionConfig {
 
 object OSMFilteringConfig {
 
-  def apply(c: com.typesafe.config.Config): OSMFilteringConfig = {
+  def apply(c: com.typesafe.config.Config, network: Network): OSMFilteringConfig = {
     val osmFilteringConfig = c.getConfig("matsim.conversion.osmFiltering")
     val pbfFile = osmFilteringConfig.getString("pbfFile")
     val outputFile = osmFilteringConfig.getString("outputFile")
@@ -66,17 +70,31 @@ object OSMFilteringConfig {
     val spatialConfig = c.getConfig("beam.spatial")
     val boundingBoxBuffer = spatialConfig.getInt("boundingBoxBuffer")
 
-    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(boundingBoxBuffer), outputFile)
+    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(network, boundingBoxBuffer), outputFile)
+
   }
 
-  def getBoundingBoxConfig(boundingBoxBuffer: Int) = {
-    //TODO get bounding box from x/y extents of every node in the network.
-    val top = 0
-    val bottom = 0
-    val left = 0
-    val right = 0
+  def getBoundingBoxConfig(network: Network, boundingBoxBuffer: Int = 0): BoundingBoxConfig= {
+    //bbox = min Longitude , min Latitude , max Longitude , max Latitude
+    val bbox = NetworkUtils.getBoundingBox(network.getNodes.values())
 
-    BoundingBoxConfig(top + boundingBoxBuffer, left + boundingBoxBuffer, bottom + boundingBoxBuffer, right + boundingBoxBuffer)
+    val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26914", "EPSG:4326")
+
+    val left = bbox(0) //min lon - x
+    val bottom = bbox(1) //min lat - y
+    val right = bbox(2) // max lon - x
+    val top = bbox(3) //max lat - y
+
+    val minCoord: Coord = wgs2Utm.transform(new Coord(left, bottom))
+    val maxCoord: Coord = wgs2Utm.transform(new Coord(right, top))
+
+    val tLeft = minCoord.getX
+    val tBottom = minCoord.getY
+    val tRight = maxCoord.getX
+    val tTop = maxCoord.getY
+
+    //TODO add boundingBoxBuffer to bbox
+    BoundingBoxConfig(tTop, tLeft, tBottom, tRight)
   }
 
 }

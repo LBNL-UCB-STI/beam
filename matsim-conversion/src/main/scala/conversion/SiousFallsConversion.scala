@@ -22,12 +22,26 @@ object SiouxFallsConversion extends App {
   val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
   val conversionConfig = ConversionConfig(config)
 
-//  val network = NetworkUtils.createNetwork()
-//  new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
+  val network = NetworkUtils.createNetwork()
+  new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
-  //generateTazDefaults(ConversionConfig(config), network)
 
   MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
+  generateTazDefaults(ConversionConfig(config), network)
+  generateOsmFilteringCommand(OSMFilteringConfig(config, network))
+
+  def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
+    val commandOut =
+      s"""
+         |osmosis --read-pbf file=~${ofc.pbfFile} --bounding-box top=${ofc.boundingBox.top}
+         |left=${ofc.boundingBox.left} bottom=${ofc.boundingBox.bottom}
+         |right=${ofc.boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true
+         |--write-pbf file=${ofc.outputFile}
+      """.stripMargin
+
+    println(commandOut)
+  }
+
 
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
     val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"
@@ -70,11 +84,11 @@ object SiouxFallsConversion extends App {
   }
 
   def getDefaultTaz(network: Network): ShapeUtils.CsvTaz = {
-    val boundingBox = NetworkUtils.getBoundingBox(network.getNodes.values())
-    val minX = boundingBox(0)
-    val maxX = boundingBox(2)
-    val minY = boundingBox(1)
-    val maxY = boundingBox(3)
+    val boundingBox = OSMFilteringConfig.getBoundingBoxConfig(network)
+    val minX = boundingBox.left
+    val maxX = boundingBox.right
+    val minY = boundingBox.bottom
+    val maxY = boundingBox.top
 
     val midX = (maxX + minX) / 2
     val midY = (maxY + minY) / 2
