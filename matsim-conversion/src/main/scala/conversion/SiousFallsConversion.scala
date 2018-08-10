@@ -82,11 +82,11 @@ object SiouxFallsConversion extends App {
   }
 
   def getDefaultTaz(network: Network): ShapeUtils.CsvTaz = {
-    val boundingBox = NetworkUtils.getBoundingBox(network.getNodes.values())
-    val minX = boundingBox(0)
-    val maxX = boundingBox(2)
-    val minY = boundingBox(1)
-    val maxY = boundingBox(3)
+    val boundingBox = OSMFilteringConfig.getBoundingBoxConfig(network)
+    val minX = boundingBox.left
+    val maxX = boundingBox.right
+    val minY = boundingBox.bottom
+    val maxY = boundingBox.top
 
     val midX = (maxX + minX) / 2
     val midY = (maxY + minY) / 2
