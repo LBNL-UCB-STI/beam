@@ -180,7 +180,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
         i.update(timeBinIndex, updatedBin)
       }
     }
-
   }
 
   // TODO: print revenue each iteration out

@@ -37,6 +37,7 @@ import org.matsim.core.utils.misc.Counter
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.households.Income.IncomePeriod.year
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
@@ -316,8 +317,8 @@ object PlansSampler {
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
-  val newHH: Households = sc.getHouseholds
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  val newHH: HouseholdsImpl = new HouseholdsImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
 
@@ -454,6 +455,10 @@ object PlansSampler {
 
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
+
+      // Set hh income
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
+
       counter.incCounter()
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers

@@ -300,6 +300,7 @@ class BeamRouter(
     *
     * @param fromStopIdx from stop
     * @param toStopIdx   to stop
+    *                    g
     * @return
     */
   private def routeTransitPathThroughStreets(fromStopIdx: Int, toStopIdx: Int) = {
