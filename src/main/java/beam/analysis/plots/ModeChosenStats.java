@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.metrics.MetricsSupport;
+import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -9,19 +10,19 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static beam.sim.metrics.Metrics.ShortLevel;
-
-public class ModeChosenStats implements IGraphStats, MetricsSupport {
-    private static final String graphTitle = "Mode Choice Histogram";
-    private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "mode_choice.png";
+import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats implements IGraphStats, MetricsSupport{
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private static final String GRAPH_TITLE = "Mode Choice Histogram";
+    private static final String X_AXIS_TITLE = "Hour";
+    private static final String Y_AXIS_TITLE = "# mode chosen";
+    private static final String MODE_CHOICE_GRAPH_FILE_NAME = "mode_choice.png";
+    public static final String MODE_CHOICE_CSV_FILE_NAME = "modeChoice.csv";
 
     @Override
     public void processStats(Event event) {
@@ -37,9 +38,68 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null)
+        if (modesFrequencyDataset != null) {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            writeModeShareCSV();
+        }
     }
+
+    public void writeModeShareCSV() {
+
+        String SEPERATOR=",";
+
+        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(MODE_CHOICE_CSV_FILE_NAME));
+        BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
+
+        Map<String,Double> modeShareMap = getModeShareMap();
+
+        try{
+            bufferedWriter.append("mode");
+            bufferedWriter.append(SEPERATOR);
+            bufferedWriter.append("share");
+            bufferedWriter.append("\n");
+
+            for (Map.Entry<String, Double> entry : modeShareMap.entrySet()) {
+                bufferedWriter.append(entry.getKey());
+                bufferedWriter.append(SEPERATOR);
+                bufferedWriter.append(Double.toString(entry.getValue()));
+                bufferedWriter.append("\n");
+            }
+            bufferedWriter.flush();
+            bufferedWriter.close();
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
+
+    }
+
+    public Map<String, Double>  getModeShareMap() {
+        List<String> modesChosenList = new ArrayList<>(modesChosen);
+        Map<String, Double> modeShareMap = new HashMap<>();
+
+        Collections.sort(modesChosenList);
+        double[][] dataset = buildModesFrequencyDataset();
+        double totalCounts = 0.0;
+        double[] result = new double[modesChosenList.size()];
+        for (int i = 0; i < modesChosenList.size(); i++) {
+            double modeCounts = 0.0;
+            if (dataset != null) {
+                double[] modeOccurrencePerHour = dataset[i];
+                for (double aModeOccurrencePerHour : modeOccurrencePerHour) {
+                    modeCounts += aModeOccurrencePerHour;
+                }
+            }
+            result[i] = modeCounts;
+            totalCounts += modeCounts;
+        }
+        for (int i = 0; i < result.length; i++) {
+            modeShareMap.put(modesChosenList.get(i), result[i] / totalCounts);
+        }
+     return modeShareMap;
+    }
+
+
 
     @Override
     public void createGraph(IterationEndsEvent event, String graphType) {
@@ -52,9 +112,10 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         modesChosen.clear();
     }
 
-    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        return (int) Arrays.stream(modeOccurrencePerHour).sum();
+    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
+        double [] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+
+        return (int)Arrays.stream(modeOccurrencePerHour).sum();
     }
 
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, int hour) {
@@ -130,12 +191,12 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, GRAPH_TITLE, X_AXIS_TITLE, Y_AXIS_TITLE, MODE_CHOICE_GRAPH_FILE_NAME,true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, MODE_CHOICE_GRAPH_FILE_NAME);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 

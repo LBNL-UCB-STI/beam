@@ -7,16 +7,15 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
   createId,
   powerTrainForHumanBody
 }
-import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamServices
 import beam.utils.plansampling.AvailableModeUtils.{isModeAvailableForPerson, _}
@@ -30,7 +29,7 @@ import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -248,14 +247,13 @@ object HouseholdActor {
           router,
           rideHailManager,
           eventsManager,
-          person.getId,
+          personId,
           household,
           person.getSelectedPlan,
           bodyVehicleIdFromPerson
         ),
-        person.getId.toString
+        personId.toString
       )
-
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
@@ -268,8 +266,10 @@ object HouseholdActor {
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
-      beamServices.personRefs += ((person.getId, personRef))
+      beamServices.personRefs += ((personId, personRef))
+
     }
 
     override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
@@ -444,9 +444,13 @@ object HouseholdActor {
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
 
       for { veh <- _vehicles } yield {
-        //TODO following mode should come from the vehicle
+        //TODO following mode should match exhaustively
+        val mode = vehicles(veh).beamVehicleType match {
+          case BicycleVehicle => BIKE
+          case CarVehicle     => CAR
+        }
         _vehicleToStreetVehicle +=
-          (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
+          (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
       }
     }
 

@@ -11,6 +11,7 @@ case class BeamConfig(
 object BeamConfig {
   case class Beam(
     agentsim: BeamConfig.Beam.Agentsim,
+    calibration: BeamConfig.Beam.Calibration,
     debug: BeamConfig.Beam.Debug,
     inputDirectory: java.lang.String,
     metrics: BeamConfig.Beam.Metrics,
@@ -492,7 +493,20 @@ object BeamConfig {
         )
       }
     }
+    case class Calibration(
+      objectiveFunction: java.lang.String
+    )
 
+    object Calibration {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration = {
+        BeamConfig.Beam.Calibration(
+          objectiveFunction =
+            if (c.hasPathOrNull("objectiveFunction")) c.getString("objectiveFunction")
+            else "ModeChoiceObjectiveFunction"
+        )
+      }
+    }
     case class Debug(
       actor: BeamConfig.Beam.Debug.Actor,
       debugActorTimerIntervalInSec: scala.Int,
@@ -801,6 +815,7 @@ object BeamConfig {
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
         agentsim = BeamConfig.Beam.Agentsim(c.getConfig("agentsim")),
+        calibration = BeamConfig.Beam.Calibration(c.getConfig("calibration")),
         debug = BeamConfig.Beam.Debug(c.getConfig("debug")),
         inputDirectory =
           if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory")

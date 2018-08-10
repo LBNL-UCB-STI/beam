@@ -1,12 +1,16 @@
 package beam.sim
 
+import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.replanning.SwitchModalityStyle
 import javax.inject.Inject
-import org.matsim.api.core.v01.Scenario
-import org.matsim.api.core.v01.population.{Activity, Plan}
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.core.controler.PrepareForSim
+import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters
 import scala.util.Random
 
 class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
@@ -14,6 +18,9 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
   override def run(): Unit = {
     keepOnlyActivities()
     assignInitialModalityStyles()
+
+    // Add bikes
+    bicyclePrepareForSim()
   }
 
   private def keepOnlyActivities(): Unit = {
@@ -35,6 +42,34 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
         person.getPlans.clear()
         cleanedPlans.foreach(person.addPlan)
       })
+  }
+
+  /**
+    * Utility method preparing BEAM to add bicycles as part of mobsim
+    */
+  private def bicyclePrepareForSim(): Unit = {
+    // Add the bicycle as a vehicle type here
+    scenario.getVehicles.addVehicleType(BicycleVehicle.MatsimVehicleType)
+
+    // Add bicycles to household (all for now)
+    JavaConverters
+      .collectionAsScalaIterable(scenario.getHouseholds.getHouseholds.values())
+      .seq
+      .foreach {
+        addBicycleVehicleIdsToHousehold
+      }
+  }
+
+  private def addBicycleVehicleIdsToHousehold(household: Household): Unit = {
+    val householdMembers: Iterable[Id[Person]] =
+      JavaConverters.collectionAsScalaIterable(household.getMemberIds)
+
+    householdMembers.foreach { id: Id[Person] =>
+      val bicycleId: Id[Vehicle] = BicycleVehicle.createId(id)
+      household.getVehicleIds.add(bicycleId)
+
+      scenario.getVehicles.addVehicle(BicycleVehicle.createMatsimVehicle(bicycleId))
+    }
   }
 
   def assignInitialModalityStyles(): Unit = {

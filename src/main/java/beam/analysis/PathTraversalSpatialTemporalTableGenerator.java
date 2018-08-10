@@ -59,8 +59,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final double WALKING_ENERGY_IN_JOULE_PER_METER = 259.5;
 
 
+
     public static final double CONVERSION_FACTOR_KWH_TO_MJ = 3.6;
 
+
+    // Assume biking energy is half of walking energy usage per:
+    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Bicycle
+    public static final double BIKING_ENERGY_IN_JOULE_PER_METER = WALKING_ENERGY_IN_JOULE_PER_METER/2;
 
     // assuming energy density of Diesel as: 35.8 MJ/L and gasoline as 34.2 MJ/L
     // https://en.wikipedia.org/wiki/Energy_density
@@ -83,6 +88,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final String CABLE_CAR = "cable_car";
     public static final String TRAM = "tram";
     public static final String WALK = "walk";
+    public static final String BIKE = "bike";
 
 
     public static final String ELECTRICITY = "electricity";

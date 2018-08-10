@@ -275,11 +275,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     // loop through all activities and check if each is in the bounds
     for (person <- pop) {
       val pplan = person.getPlans.get(0) // First and only plan
-      //      val elements = JavaConverters.collectionAsScalaIterable(pplan.getPlanElements())
       val activities = PopulationUtils.getActivities(pplan, null)
-      //      val plans = JavaConverters.collectionAsScalaIterable(person.getPlans())   //.iterator();
-      //      while (plans.hasNext()){
-      //        val plan = plans.next();
 
       // If any activities outside of bounding box, skip this person
       var allIn = true
@@ -436,11 +432,11 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val defaultVehicleType =
+    val carVehicleType =
       JavaConverters
         .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
         .head
-    newVehicles.addVehicleType(defaultVehicleType)
+    newVehicles.addVehicleType(carVehicleType)
     synthHouseholds foreach (sh => {
       val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
@@ -464,7 +460,7 @@ object PlansSampler {
       (0 to sh.vehicles).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
         val vehicle: Vehicle =
-          VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
+          VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
         newVehicles.addVehicle(vehicle)
         spHH.getVehicleIds.add(vehicleId)
       })
@@ -538,7 +534,9 @@ object PlansSampler {
 }
 
 /**
-  * Inputs
+  * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+  * command-line args]:
+  *
   * [0] Raw plans input filename
   * [1] Input AOI shapefile
   * [2] Network input filename
