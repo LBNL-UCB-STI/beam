@@ -87,6 +87,7 @@ trait BeamHelper extends LazyLogging {
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
         addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
+        addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
         addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
           override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
