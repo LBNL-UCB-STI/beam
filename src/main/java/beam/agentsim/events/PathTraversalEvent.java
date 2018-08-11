@@ -7,6 +7,7 @@ import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * BEAM
@@ -31,6 +32,8 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
     public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "end_leg_fuel_level";
 
+    private final AtomicReference<Map<String, String>> attributes;
+
     private final String vehicleType;
     private final String vehicleId;
     private final String mode;
@@ -46,7 +49,6 @@ public class PathTraversalEvent extends Event {
     private final double startY;
     private final double endX;
     private final double endY;
-    private Map<String, String> attr;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double endLegFuelLevel) {
         this(time, vehicleId, vehicleType.getDescription(), beamLeg.mode().value(), numPass, endLegFuelLevel,
@@ -76,6 +78,7 @@ public class PathTraversalEvent extends Event {
         this.startY = startY;
         this.endX = endX;
         this.endY = endY;
+        this.attributes = new AtomicReference<Map<String, String>>(null);
     }
 
     public static PathTraversalEvent apply(Event event) {
@@ -104,6 +107,7 @@ public class PathTraversalEvent extends Event {
 
     @Override
     public Map<String, String> getAttributes() {
+        Map<String, String> attr = attributes.get();
         if (attr != null) return attr;
 
         attr = super.getAttributes();
@@ -125,6 +129,9 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_END_COORDINATE_X, Double.toString(endX));
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(endY));
         attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
+
+        attributes.set(attr);
+
         return attr;
     }
 
