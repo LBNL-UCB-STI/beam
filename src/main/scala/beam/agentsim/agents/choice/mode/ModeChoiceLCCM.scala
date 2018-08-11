@@ -57,12 +57,12 @@ class ModeChoiceLCCM(
   var classMembershipDistribution: Map[String, Double] = Map()
 
   override def apply(
-      alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+      alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
   private def choose(
-      alternatives: Seq[EmbodiedBeamTrip],
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
       attributesOfIndividual: Option[AttributesOfIndividual],
       tourType: TourType
   ): Option[EmbodiedBeamTrip] = {
@@ -152,14 +152,14 @@ class ModeChoiceLCCM(
                 numTransfers: Int = 0): Double = 0.0
 
   def altsToBestInGroup(
-      alternatives: Seq[EmbodiedBeamTrip],
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
       tourType: TourType
   ): Vector[ModeChoiceData] = {
-    val transitFareDefaults: Seq[BigDecimal] =
+    val transitFareDefaults: IndexedSeq[BigDecimal] =
       TransitFareDefaults.estimateTransitFares(alternatives)
-    val gasolineCostDefaults: Seq[BigDecimal] =
+    val gasolineCostDefaults: IndexedSeq[BigDecimal] =
       DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults: Seq[BigDecimal] =
+    val bridgeTollsDefaults: IndexedSeq[BigDecimal] =
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val modeChoiceAlternatives: Seq[ModeChoiceData] =
       alternatives.zipWithIndex.map { altAndIdx =>
@@ -225,7 +225,7 @@ class ModeChoiceLCCM(
   }
 
   def sampleMode(
-      alternatives: Seq[EmbodiedBeamTrip],
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
       conditionedOnModalityStyle: String,
       tourType: TourType
   ): Option[String] = {

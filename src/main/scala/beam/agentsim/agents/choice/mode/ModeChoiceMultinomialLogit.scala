@@ -34,7 +34,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices,
   var expectedMaximumUtility: Double = 0.0
 
   override def apply(
-      alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+      alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
@@ -96,7 +96,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices,
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
-    val modeCostTimeTransfer = altsToModeCostTimeTransfers(Seq(alternative)).head
+    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative)).head
     utilityOf(
       modeCostTimeTransfer.mode,
       modeCostTimeTransfer.cost.toDouble,
@@ -106,7 +106,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices,
   }
 
   def altsToModeCostTimeTransfers(
-      alternatives: Seq[EmbodiedBeamTrip]
+      alternatives: IndexedSeq[EmbodiedBeamTrip]
   ): Seq[ModeCostTimeTransfer] = {
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
@@ -115,39 +115,39 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices,
     val bridgeTollsDefaults =
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
-    alternatives.zipWithIndex.map { altAndIdx =>
-      val totalCost = altAndIdx._1.tripClassifier match {
+    alternatives.zipWithIndex.map { case (trip, idx) =>
+      val totalCost = trip.tripClassifier match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
-          (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-            altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          (trip.costEstimate + transitFareDefaults(idx)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
+            gasolineCostDefaults(idx) + bridgeTollsDefaults(
+            idx) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL =>
-          (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          (trip.costEstimate + rideHailDefaults(idx)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
+            bridgeTollsDefaults(idx) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL_TRANSIT =>
-          (altAndIdx._1.legs
+          (trip.legs.view
             .filter(_.beamLeg.mode.isTransit)
             .map(_.cost)
             .sum + transitFareDefaults(
-            altAndIdx._2
+            idx
           )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            (altAndIdx._1.legs
+            (trip.legs.view
               .filter(_.isRideHail)
               .map(_.cost)
-              .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+              .sum + rideHailDefaults(idx)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
+            bridgeTollsDefaults(idx) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case CAR =>
-          altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-            altAndIdx._2
+          trip.costEstimate + gasolineCostDefaults(idx) + bridgeTollsDefaults(
+            idx
           ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case _ =>
-          altAndIdx._1.costEstimate
+          trip.costEstimate
       }
-      val numTransfers = altAndIdx._1.tripClassifier match {
+      val numTransfers = trip.tripClassifier match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
-          altAndIdx._1.legs.foreach { leg =>
+          trip.legs.foreach { leg =>
             if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
               vehId = leg.beamVehicleId
               nVeh = nVeh + 1
@@ -159,11 +159,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices,
       }
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
-        altAndIdx._1.tripClassifier,
+        trip.tripClassifier,
         totalCost,
-        altAndIdx._1.totalTravelTimeInSecs,
+        trip.totalTravelTimeInSecs,
         numTransfers,
-        altAndIdx._2
+        idx
       )
     }
   }

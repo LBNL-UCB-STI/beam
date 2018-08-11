@@ -16,13 +16,13 @@ object RideHailDefaults {
     alternatives.map { alt =>
       alt.tripClassifier match {
         case RIDE_HAIL if alt.costEstimate == 0.0 =>
-          val cost = alt.legs
+          val cost = alt.legs.view
             .filter(_.beamLeg.mode == CAR)
             .map(_.beamLeg.travelPath.distanceInM)
             .sum * DEFAULT_COST_PER_MILE / 1607
           BigDecimal(cost)
         case RIDE_HAIL_TRANSIT if alt.costEstimate == 0.0 =>
-          val cost = alt.legs
+          val cost = alt.legs.view
             .filter(_.beamLeg.mode == CAR)
             .map(_.beamLeg.travelPath.distanceInM)
             .sum * DEFAULT_COST_PER_MILE / 1607
