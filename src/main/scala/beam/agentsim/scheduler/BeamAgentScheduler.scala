@@ -18,8 +18,7 @@ import com.google.common.collect.TreeMultimap
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
-
+import scala.concurrent.duration.{Deadline, FiniteDuration}
 import scala.collection.JavaConverters._
 
 object BeamAgentScheduler {
@@ -135,6 +134,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
   private var currentTotalAwaitingResponse = 0L
   private var numberRepeats = 0
 
+  private var startedAt: Deadline = _
+
   // Event stream state and cleanup management
   private var currentIter: Int = -1
   private val eventSubscriberRef =
@@ -196,6 +197,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
       this.startSender = sender()
       this.currentIter = it
       started = true
+      startedAt = Deadline.now
       doSimStep(0.0)
 
     case DoSimStep(newNow: Double) =>
@@ -333,7 +335,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
     } else {
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
-        log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
+        val duration = Deadline.now - startedAt
+        log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds = ${duration.toMinutes} minutes")
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
