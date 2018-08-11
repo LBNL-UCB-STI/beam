@@ -280,7 +280,7 @@ trait ChoosesMode {
           }
         case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
           combinedItinerariesForChoice.filter(trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT)
-        case Some(mode) =>
+        case Some(mode) if !choosesModeData.isWithinTripReplanning =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice

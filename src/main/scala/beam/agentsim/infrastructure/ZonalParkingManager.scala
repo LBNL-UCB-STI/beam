@@ -69,7 +69,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
         val stall = resources.get(stallId).get
         val stallValues = pooledResources(stall.attributes)
 
-        pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall + 1))
+        pooledResources.update(stall.attributes, stallValues.copy(numStalls=stallValues.numStalls + 1))
         resources.remove(stall.id)
 
     case CheckOutResource(_) =>
@@ -82,7 +82,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
           pooledResources.find{case (attr, values) =>
             attr.tazId.equals(taz.tazId) &&
             attr.reservedFor.equals(reservedFor) &&
-            values.stall > 0
+            values.numStalls > 0
           }
       }
 
@@ -93,7 +93,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       mParkingStall.foreach{stall =>
         resources.put(stall.id,stall)
         val stallValues = pooledResources(stall.attributes)
-        pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall - 1))
+        pooledResources.update(stall.attributes, stallValues.copy(numStalls=stallValues.numStalls - 1))
       }
 
       sender() ! DepotParkingInquiryResponse(mParkingStall)
@@ -133,7 +133,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
 
   private def maybeCreateNewStall(attrib: StallAttributes,atLocation: Location, withCost: Double,
                                   stallValues: Option[StallValues], reservedFor: ReservedParkingType = ParkingStall.Any): Option[ParkingStall] = {
-    if (pooledResources(attrib).stall > 0) {
+    if (pooledResources(attrib).numStalls > 0) {
       stallnum = stallnum + 1
       Some(new ParkingStall(Id.create(stallnum, classOf[ParkingStall]),attrib,atLocation, withCost, stallValues))
     } else {
@@ -144,7 +144,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   def respondWithStall(stall: ParkingStall) = {
     resources.put(stall.id,stall)
     val stallValues = pooledResources(stall.attributes)
-    pooledResources.update(stall.attributes, stallValues.copy(stall=stallValues.stall - 1))
+    pooledResources.update(stall.attributes, stallValues.copy(numStalls=stallValues.numStalls - 1))
     sender() ! ParkingInquiryResponse(stall)
   }
 
@@ -163,11 +163,11 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
 
   // TODO make pricing into parameters
   // TODO make Block parking model based off a schedule
-  def calculateCost(attrib: StallAttributes, arrivalTime: Long, parkingDuration: Double) = {
+  def calculateCost(attrib: StallAttributes, feeInCents: Int, arrivalTime: Long, parkingDuration: Double) = {
     attrib.pricingModel match {
       case Free => 0.0
-      case FlatFee => 5.0
-      case Block => parkingDuration / 3600.0 * 5.0
+      case FlatFee => feeInCents.toDouble / 100.0
+      case Block => parkingDuration / 3600.0 * (feeInCents.toDouble / 100.0)
     }
   }
 
@@ -177,11 +177,11 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       Vector(Free, FlatFee, Block).map{ pricingModel =>
         val attrib = StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger, ParkingStall.Any)
         val stallValues = pooledResources(attrib)
-        if (stallValues.stall > 0) {
+        if (stallValues.numStalls > 0) {
           val stallLoc = sampleLocationForStall(taz._1,attrib)
           val walkingDistance = beamServices.geo.distInMeters(stallLoc,inquiry.destinationUtm)
           val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.valueOfTime // 1.4 m/s avg. walk
-          val cost = calculateCost(attrib, inquiry.arrivalTime, inquiry.parkingDuration)
+          val cost = calculateCost(attrib, stallValues.feeInCents, inquiry.arrivalTime, inquiry.parkingDuration)
           Vector(ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues))
         }else{
           Vector[ParkingAlternative]()
@@ -237,11 +237,11 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
         val chargingType = ChargingType.fromString(line.get("chargingType"))
         val numStalls = line.get("numStalls").toInt
         //        val parkingId = line.get("parkingId")
-        val fee = line.get("fee").toDouble
+        val feeInCents = line.get("feeInCents").toInt
         val reservedForString = line.get("reservedFor")
         val reservedFor = getReservedFor(reservedForString)
 
-        res.put(StallAttributes(taz, parkingType, pricingModel, chargingType, reservedFor), StallValues(numStalls, fee))
+        res.put(StallAttributes(taz, parkingType, pricingModel, chargingType, reservedFor), StallValues(numStalls, feeInCents))
 
         line = mapReader.read(header:_*)
       }
@@ -265,7 +265,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     try {
       mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE);
 
-      val header = Array[String]("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "fee")//, "parkingId"
+      val header = Array[String]("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents")//, "parkingId"
       val processors = Array[CellProcessor](
         new NotNull(), // Id (must be unique)
         new NotNull(),
@@ -286,8 +286,8 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
         tazToWrite.put(header(1), attrs.parkingType.toString)
         tazToWrite.put(header(2), attrs.pricingModel.toString)
         tazToWrite.put(header(3), attrs.chargingType.toString)
-        tazToWrite.put(header(4), "" + values.stall)
-        tazToWrite.put(header(5), "" + values.fee)
+        tazToWrite.put(header(4), "" + values.numStalls)
+        tazToWrite.put(header(5), "" + values.feeInCents)
         //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
         mapWriter.write(tazToWrite, header, processors)
       }

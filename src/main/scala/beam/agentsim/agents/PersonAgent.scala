@@ -328,7 +328,7 @@ class PersonAgent(
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick, triggerId)
-      goto(ChoosingMode) using ChoosesModeData(data, isWithinTripReplanning = true)
+      goto(ChoosingMode) using ChoosesModeData(data.copy(currentTourMode = None), isWithinTripReplanning = true)
   }
 
   when(Waiting) {

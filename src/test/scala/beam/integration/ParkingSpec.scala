@@ -145,13 +145,10 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      val defaultModeChoiceCarCount = defaultIterations.map(filterForCarMode)
-      val expensiveModeChoiceCarCount = expensiveIterations.map(filterForCarMode)
+      println(s"Default iterations ${defaultModeChoiceCarCount}")
+      println(s"Expensive iterations ${expensiveModeChoiceCarCount}")
 
-//      println(s"Default iterations ${defaultModeChoiceCarCount}")
-//      println(s"Expensive iterations ${expensiveModeChoiceCarCount}")
-
-      defaultModeChoiceCarCount.takeRight(5).sum  should be > expensiveModeChoiceCarCount.last
+      defaultModeChoiceCarCount.takeRight(5).sum  should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
     "empty parking access should reduce driving" in {
