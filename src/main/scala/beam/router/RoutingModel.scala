@@ -140,7 +140,7 @@ object RoutingModel {
         enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
       val events = new ArrayBuffer[Event]()
-      links.sliding(2).zip(timesAtNodes.iterator).flatMap {
+      links.sliding(2).zip(timesAtNodes.iterator).foreach {
         case (Seq(from, to), timeAtNode) =>
           events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
           events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
