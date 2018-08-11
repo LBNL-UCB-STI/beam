@@ -4,21 +4,14 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHail
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * BEAM
@@ -141,17 +134,18 @@ object RoutingModel {
     travelTimeByEnterTimeAndLinkId: (Long, Int) => Long
   ): Iterator[Event] = {
     if (leg.travelPath.linkIds.size >= 2) {
-      val fullyTraversedLinks = leg.travelPath.linkIds.drop(1).dropRight(1)
+      val links = leg.travelPath.linkIds.view
+      val fullyTraversedLinks = links.drop(1).dropRight(1)
       def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
         enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
-      leg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
+      val events = new ArrayBuffer[Event]()
+      links.sliding(2).zip(timesAtNodes.iterator).flatMap {
         case (Seq(from, to), timeAtNode) =>
-          Vector(
-            new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)),
-            new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
-          )
+          events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
+          events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
       }
+      events.toIterator
     } else {
       Iterator.empty
     }
