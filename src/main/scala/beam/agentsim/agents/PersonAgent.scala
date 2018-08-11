@@ -19,7 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{NONE, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{NONE, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork

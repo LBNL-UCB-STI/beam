@@ -580,9 +580,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   }
   private def travelTimeByLinkCalculator(time: Long, linkId: Int, mode: StreetMode): Long = {
     maybeTravelTime match {
-      case Some(matsimTravelTime) =>
+      case Some(matsimTravelTime) if mode == StreetMode.CAR =>
         matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
-      case None =>
+      case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
         val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest,mode)).round

@@ -3,13 +3,14 @@ package beam.scoring
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
+import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 
 import scala.collection.JavaConverters._
@@ -32,6 +33,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
+          case replanningEvent: ReplanningEvent =>
+            trips.remove(trips.size-1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
           case _ =>

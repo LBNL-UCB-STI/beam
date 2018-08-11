@@ -106,6 +106,7 @@ trait ChoosesMode {
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
+
       // Form and send requests
       choosesModeData.personData.currentTourMode match {
         case None =>
