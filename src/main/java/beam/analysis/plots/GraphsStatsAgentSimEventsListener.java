@@ -40,7 +40,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
-    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
+    private IGraphStats rideHailWaitingStats;
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
@@ -58,6 +58,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+
+        this.rideHailWaitingStats = new RideHailWaitingStats(beamConfig);
     }
 
     // helper methods
