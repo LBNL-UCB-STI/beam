@@ -26,7 +26,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 object RideHailAgent {
-  val idPrefix: String = "rideHailingAgent"
+  val idPrefix: String = "rideHailAgent"
 
   def props(
     services: BeamServices,
@@ -64,7 +64,7 @@ object RideHailAgent {
   }
 
   def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
-    currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
+    currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
   }
 
   def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): Vector[RoutingModel.EmbodiedBeamLeg] = {

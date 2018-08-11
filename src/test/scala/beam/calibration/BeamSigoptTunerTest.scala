@@ -14,12 +14,15 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    if (System.getenv("SIGOPT_DEV_ID") != null) Sigopt.clientToken = System.getenv("SIGOPT_DEV_ID")
-    else throw new APIConnectionError("Correct developer client token must be present in environment as SIGOPT_DEV_ID")
+    Sigopt.clientToken = Option { System.getenv("SIGOPT_DEV_API_TOKEN") }.getOrElse(
+      throw new APIConnectionError(
+        "Correct developer client token must be present in environment as SIGOPT_DEV_API Token"
+      )
+    )
   }
 
-  val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-calibration/experiment.yml"
-  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-calibration/benchmarkTest.csv"
+  val TEST_BEAM_EXPERIMENT_LOC = "test/input/sf-light/sf-light-calibration/experiment.yml"
+  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/sf-light/sf-light-calibration/benchmarkTest.csv"
 
   val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 
@@ -29,24 +32,25 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
       wrapWithTestExperiment { experimentData =>
         val header = experimentData.experimentDef.header
         header.title equals "Example-Experiment"
-        header.beamTemplateConfPath equals "test/input/beamville/beam.conf"
+        header.beamTemplateConfPath equals "test/input/sf-light/sf-light-1k.conf"
       }
     }
 
     "create an experiment in the SigOpt API" taggedAs Periodic in {
-      wrapWithTestExperiment { experimentData => {
-        val expParams = experimentData.experiment.getParameters
-        // First is the rideHailParams
-        val rideHailParams = expParams.iterator.next
-        rideHailParams.getName equals "beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation"
-        rideHailParams.getBounds.getMax equals 0.1
-        rideHailParams.getBounds.getMin equals 0.001
-        // Second is transitCapacityParams
-        val transitCapacityParams = expParams.iterator.next
-        transitCapacityParams.getName equals "beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation"
-        transitCapacityParams.getBounds.getMax equals 0.1
-        transitCapacityParams.getBounds.getMin equals 0.001
-      }
+      wrapWithTestExperiment { experimentData =>
+        {
+          val expParams = experimentData.experiment.getParameters
+          // First is the rideHailParams
+          val rideHailParams = expParams.iterator.next
+          rideHailParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          rideHailParams.getBounds.getMax equals 0.1
+          rideHailParams.getBounds.getMin equals 0.001
+          // Second is transitCapacityParams
+          val transitCapacityParams = expParams.iterator.next
+          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          transitCapacityParams.getBounds.getMax equals 0.1
+          transitCapacityParams.getBounds.getMin equals 0.001
+        }
       }
     }
 
@@ -60,7 +64,12 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
 
   private def wrapWithTestExperiment(experimentDataFunc: SigoptExperimentData => Any): Unit = {
     Try {
-      SigoptExperimentData(ExperimentGenerator.loadExperimentDefs(beamExperimentFile), beamExperimentFile, TEST_BEAM_BENCHMARK_DATA_LOC, development = true)
+      SigoptExperimentData(
+        ExperimentGenerator.loadExperimentDefs(beamExperimentFile),
+        beamExperimentFile,
+        TEST_BEAM_BENCHMARK_DATA_LOC,
+        development = true
+      )
     } match {
       case Success(e) => experimentDataFunc(e)
       case Failure(t) => t.printStackTrace()

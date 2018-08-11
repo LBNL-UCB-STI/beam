@@ -3,10 +3,11 @@
 # Header
 
 header:
-    title: SF-Light-Calibration-25k
+    title: SF-Light-Calibration-1k
     author: MyName
-    beamTemplateConfPath: test/input/sf-light/sf-light-25k.conf
+    beamTemplateConfPath: test/input/sf-light/sf-light-1k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
+    isParallel: false
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -19,34 +20,10 @@ header:
 
 defaultParams:
     ### ---- template model params ---####
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 0.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_time: -0.0047
 
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: 1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_time: -0.0047
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_transfer: -1.4
-
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: 1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_time: -0.0047
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_transfer: -1.4
-
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -11.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_time: -0.0047
-
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -20.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_time: -0.0047
-
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept: 0.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_cost: -1.0
-    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_time: -0.0047
 
     ### ---- beam-template.conf param replacement ---####
-    beam.agentsim.tuning.transitCapacity: 0.05
+    beam.agentsim.tuning.transitCapacity: 0.5
     beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
 
 # Factors
@@ -56,8 +33,8 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: -0.5
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: -0.5
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: 0.1
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: 0.1
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: 0.5
@@ -67,19 +44,19 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -1.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: 1.0
 
   - title: car
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: -1.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 1.0
 
   - title: transitCapacity
     levels:
@@ -88,22 +65,22 @@ factors:
         beam.agentsim.tuning.transitCapacity: 0.1
     - name: High
       params:
-        beam.agentsim.tuning.transitCapacity: 0.2
+        beam.agentsim.tuning.transitCapacity: 0.5
 
   - title: ridehailNumber
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
     - name: High
       params:
-        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.5
 
   - title: walk
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -1.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: 1.0

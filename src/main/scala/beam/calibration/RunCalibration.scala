@@ -29,22 +29,23 @@ object RunCalibration extends App with BeamHelper {
   val argsMap = parseArgs(args)
 
   // Store CLI inputs as private members
-  if (System.getenv("SIGOPT_DEV_ID") != null) Sigopt.clientToken = System.getenv("SIGOPT_CLIENT_ID")
-  else throw new APIConnectionError("Correct developer client token must be present in environment as SIGOPT_CLIENT_ID")
+  Sigopt.clientToken = Option { System.getenv("SIGOPT_DEV_API_TOKEN") }.getOrElse(
+    throw new APIConnectionError(
+      "Correct developer client token must be present in environment as SIGOPT_DEV_API Token"
+    )
+  )
   private val experimentLoc: String = argsMap(EXPERIMENTS_TAG)
   private val benchmarkLoc: String = argsMap(BENCHMARK_EXPERIMENTS_TAG)
   private val numIters: Int = argsMap(NUM_ITERATIONS_TAG).toInt
 
   //  Context object containing experiment definition
-  private implicit val experimentData: SigoptExperimentData = SigoptExperimentData(experimentLoc, benchmarkLoc, development = false)
-
-
+  private implicit val experimentData: SigoptExperimentData =
+    SigoptExperimentData(experimentLoc, benchmarkLoc, development = false)
 
   // RUN METHOD //
   if (experimentData.isParallel) {
-    new PrintWriter("expid.txt") {write(s"${experimentData.experiment.getId}"); close()}
-  }
-  else {
+    new PrintWriter("expid.txt") { write(s"${experimentData.experiment.getId}"); close() }
+  } else {
     //  Must have implicit SigOptExperimentData as context object in scope
     val experimentRunner: ExperimentRunner = ExperimentRunner()
     experimentRunner.runExperiment(numIters)
@@ -52,14 +53,20 @@ object RunCalibration extends App with BeamHelper {
 
   // Aux Methods //
   def parseArgs(args: Array[String]): Map[String, String] = {
-    args.sliding(2, 2).toList.collect {
-      case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (EXPERIMENTS_TAG, filePath)
-      case Array("--benchmark", filePath: String) if filePath.trim.nonEmpty => (BENCHMARK_EXPERIMENTS_TAG, filePath)
-      case Array("--num_iters", numIters: String) if numIters.trim.nonEmpty =>
-        (NUM_ITERATIONS_TAG, numIters)
-      case arg@_ =>
-        throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+    args
+      .sliding(2, 2)
+      .toList
+      .collect {
+        case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
+          (EXPERIMENTS_TAG, filePath)
+        case Array("--benchmark", filePath: String) if filePath.trim.nonEmpty =>
+          (BENCHMARK_EXPERIMENTS_TAG, filePath)
+        case Array("--num_iters", numIters: String) if numIters.trim.nonEmpty =>
+          (NUM_ITERATIONS_TAG, numIters)
+        case arg @ _ =>
+          throw new IllegalArgumentException(arg.mkString(" "))
+      }
+      .toMap
   }
 
 }

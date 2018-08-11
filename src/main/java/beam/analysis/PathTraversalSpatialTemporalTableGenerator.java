@@ -174,14 +174,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         // initialize Fuel
         Double fuel = CONST_NUM_ZERO;
         if (fuelString.contains("NA")) {
-            if (vehicleId.contains("rideHailing")) {
+            if (vehicleId.contains("rideHail")) {
                 fuel = CAR_FUEL_ECONOMY_IN_LITER_PER_METER * lengthInMeters;
                 // fix for ride hailing vehicles
-            } else if (vehicleType.contains("Human")) {
+            } else if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
                 if (lengthInMeters > 0) {
                     DebugLib.emptyFunctionForSettingBreakPoint();
                 }
-
 
                 fuel = WALKING_ENERGY_IN_JOULE_PER_METER * lengthInMeters; // in Joule
             } else {
@@ -191,7 +190,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             fuel = Double.parseDouble(fuelString);
         }
 
-        if (vehicleId.contains("rideHailing")) {
+        if (vehicleId.contains("rideHail")) {
             vehicleType = "TNC";
         }
 
@@ -210,7 +209,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             return GASOLINE;
         }
 
-        if (mode.equalsIgnoreCase(WALK)) {
+        if (mode.equalsIgnoreCase(WALK) || mode.equalsIgnoreCase(BIKE)) {
             return FOOD;
         }
 

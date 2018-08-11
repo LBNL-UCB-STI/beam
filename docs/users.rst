@@ -95,9 +95,9 @@ Model Config
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
   # Ride Hailing Params
-  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
-  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
-  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
   # Scaling and Tuning Params; 1.0 results in no scaling
   beam.agentsim.tuning.transitCapacity = 0.2
   beam.agentsim.tuning.transitPrice = 1.0
@@ -153,13 +153,13 @@ Factors can be designed however you choose, including adding as many factors or 
       levels:
       - name: Low
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
       - name: Base
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
       - name: High
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
 
 Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 

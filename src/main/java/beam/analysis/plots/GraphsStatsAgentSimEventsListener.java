@@ -43,12 +43,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
     private IGraphStats rideHailWaitingStats;
     //private IGraphStats generalStats = new RideHailStats();
-    private IGraphStats rideHailingWaitingSingleStats;
+    private IGraphStats rideHailWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
+        rideHailWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
     }
 
     // Constructor
@@ -89,7 +89,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personVehicleTransitionStats.resetStats();
         rideHailWaitingStats.resetStats();
         //generalStats.resetStats();
-        rideHailingWaitingSingleStats.resetStats();
+        rideHailWaitingSingleStats.resetStats();
         realizedModeStats.resetStats();
     }
 
@@ -100,7 +100,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         }
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
-            rideHailingWaitingSingleStats.processStats(event);
+            rideHailWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
             realizedModeStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
@@ -113,7 +113,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
-            rideHailingWaitingSingleStats.processStats(event);
+            rideHailWaitingSingleStats.processStats(event);
             personVehicleTransitionStats.processStats(event);
         }else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
             personVehicleTransitionStats.processStats(event);
@@ -125,7 +125,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.createGraph(event);
 
         rideHailWaitingStats.createGraph(event);
-        rideHailingWaitingSingleStats.createGraph(event);
+        rideHailWaitingSingleStats.createGraph(event);
 
 
         deadHeadingStats.createGraph(event, "TNC0");

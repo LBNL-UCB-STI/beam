@@ -30,7 +30,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String fileName = "RideHailWaitingSingleStats";
     private double numberOfTimeBins;
     private double lastMaximumTime = 0;
-    private Map<String, Event> rideHailingWaiting = new HashMap<>();
+    private Map<String, Event> rideHailWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
@@ -46,7 +46,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     public void resetStats() {
         lastMaximumTime = 0;
 
-        rideHailingWaiting.clear();
+        rideHailWaiting.clear();
         hoursTimesMap.clear();
     }
 
@@ -60,7 +60,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
-                rideHailingWaiting.put(personId.toString(), event);
+                rideHailWaiting.put(personId.toString(), event);
             }
         } else if (event instanceof PersonEntersVehicleEvent) {
 
@@ -68,14 +68,14 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if (rideHailingWaiting.containsKey(personId.toString())) {
+            if (rideHailWaiting.containsKey(personId.toString())) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(_personId);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailingWaitingTimes(modeChoiceEvent, difference);
 
                 // Remove the personId from the list of ModeChoiceEvent
-                rideHailingWaiting.remove(_personId);
+                rideHailWaiting.remove(_personId);
             }
         }
     }

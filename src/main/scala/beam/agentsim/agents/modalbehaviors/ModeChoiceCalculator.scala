@@ -6,6 +6,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
+  BIKE,
   CAR,
   DRIVE_TRANSIT,
   RIDE_HAIL,
@@ -60,8 +61,9 @@ trait ModeChoiceCalculator extends HasServices {
   // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
   // matching enforced by sealed traits.
   private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
-    case Some(CAR)                                        => DrivingVot
-    case Some(WALK)                                       => WalkingVot
+    case Some(CAR)                                        => DriveVot
+    case Some(WALK)                                       => WalkVot
+    case Some(BIKE)                                       => BikeVot
     case Some(WALK_TRANSIT)                               => WalkToTransitVot
     case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
     case Some(RIDE_HAIL)                                  => RideHailVot
@@ -109,12 +111,13 @@ object ModeChoiceCalculator {
   private case object GeneralizedVot extends VotType
 
   // TODO: Implement usage of mode-specific VotTypes defined below
-  private case object DrivingVot extends VotType
+  private case object DriveVot extends VotType
   private case object OnTransitVot extends VotType
-  private case object WalkingVot extends VotType
+  private case object WalkVot extends VotType
   private case object WalkToTransitVot extends VotType // Separate from walking
   private case object DriveToTransitVot extends VotType
   private case object RideHailVot extends VotType // No separate ride hail to transit VOT
+  private case object BikeVot extends VotType
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
