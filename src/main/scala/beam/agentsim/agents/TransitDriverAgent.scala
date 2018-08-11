@@ -109,7 +109,7 @@ class TransitDriverAgent(
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
-      logDebug(s" $id has been initialized, going to Waiting state")
+      log.debug("{} {} has been initialized, going to Waiting state", getPrefix, id)
       vehicle
         .becomeDriver(self)
         .fold(

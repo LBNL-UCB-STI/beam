@@ -96,8 +96,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
-                  logDebug(
-                    s"Scheduling NotifyLegEndTrigger for Person $personRef")
+                  log.debug("{} Scheduling NotifyLegEndTrigger for Person {}", getPrefix, personRef)
                   scheduler ! ScheduleTrigger(
                     NotifyLegEndTrigger(tick,
                                         currentLeg,
@@ -106,7 +105,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
                   )
                 }
               }
-              logDebug(s"PathTraversal")
+              log.debug("{} PathTraversal", getPrefix)
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
                   tick,

@@ -1,6 +1,7 @@
 package beam.agentsim.scheduler
 
 import java.lang.Double
+import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
@@ -18,6 +19,8 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+
+import scala.collection.JavaConverters._
 
 object BeamAgentScheduler {
 
@@ -90,6 +93,19 @@ object BeamAgentScheduler {
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
   }
+
+  object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
+    def compare(st1: ScheduledTrigger, st2: ScheduledTrigger): Int =
+      java.lang.Double.compare(st1.triggerWithId.trigger.tick, st2.triggerWithId.trigger.tick) match {
+        case 0 =>
+          java.lang.Integer.compare(st2.priority, st1.priority) match {
+            case 0 =>
+              java.lang.Long.compare(st1.triggerWithId.triggerId, st2.triggerWithId.triggerId)
+            case c => c
+          }
+        case c => c
+      }
+  }
 }
 
 class BeamAgentScheduler(val beamConfig: BeamConfig,
@@ -102,8 +118,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
 
   private var started = false
 
-  private val triggerQueue: mutable.PriorityQueue[ScheduledTrigger] =
-    new mutable.PriorityQueue[ScheduledTrigger]()
+  private val triggerQueue= new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
   private val awaitingResponse
     : TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap
     .create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
@@ -165,7 +180,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
       )
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
-      triggerQueue.enqueue(
+      triggerQueue.add(
         ScheduledTrigger(triggerWithId,
                          triggerToSchedule.agent,
                          triggerToSchedule.priority)
@@ -227,7 +242,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
     case Monitor =>
       log.debug(
         s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
-          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
+          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${Option(triggerQueue.peek())}\n\tawaitingResponse.head=$awaitingToString"
       )
       awaitingResponse
         .values()
@@ -290,8 +305,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
             .keySet()
             .first() + 1 < maxWindow) {
-        while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
-          val scheduledTrigger = this.triggerQueue.dequeue
+        while (!triggerQueue.isEmpty && triggerQueue.peek().triggerWithId.trigger.tick <= nowInSeconds) {
+          val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
@@ -322,7 +337,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
-        triggerQueue.dequeueAll.foreach(
+        triggerQueue.asScala.foreach(
           scheduledTrigger =>
             if (!scheduledTrigger.agent.path.toString.contains("rideHailAgent"))
               scheduledTrigger.agent ! Finish

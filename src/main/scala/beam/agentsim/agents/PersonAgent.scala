@@ -242,7 +242,7 @@ class PersonAgent(
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId),
                data: BasePersonData) =>
-      logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
+      log.debug("{} starting at {} @ {}", getPrefix, currentActivity(data).getType, tick)
       goto(PerformingActivity) replying CompletionNotice(
         triggerId,
         Vector(
@@ -256,11 +256,11 @@ class PersonAgent(
                data: BasePersonData) =>
       nextActivity(data).fold(
         msg => {
-          logDebug(s"didn't get nextActivity because $msg")
+          log.debug("{} didn't get nextActivity because {}", getPrefix, msg)
           stop replying CompletionNotice(triggerId)
         },
         nextAct => {
-          logDebug(s"wants to go to ${nextAct.getType} @ $tick")
+          log.debug("{} wants to go to {} @ {}", getPrefix, nextAct.getType, tick)
           holdTickAndTriggerId(tick, triggerId)
           goto(ChoosingMode) using ChoosesModeData(
             personData = data.copy(
@@ -318,7 +318,7 @@ class PersonAgent(
         BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
+      log.debug("{} replanned to leg {}", getPrefix, restOfCurrentTrip.head)
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -341,7 +341,7 @@ class PersonAgent(
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), _),
                data: BasePersonData) =>
-      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
+      log.warning("{} replanning because {}", getPrefix, firstErrorResponse.errorCode)
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(
         new ReplanningEvent(tick, Id.createPersonId(id)))
@@ -352,7 +352,7 @@ class PersonAgent(
                data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailResponse(_, _, Some(error), _), data: BasePersonData) =>
-      logWarn(s"replanning because ${error.errorCode}")
+      log.warning("{} replanning because {}", getPrefix, error.errorCode)
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(
         new ReplanningEvent(tick, Id.createPersonId(id)))
@@ -369,7 +369,7 @@ class PersonAgent(
         TriggerWithId(NotifyLegStartTrigger(_, _, _), triggerId),
         BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _)
         ) if currentLeg.beamVehicleId == currentVehicle.head =>
-      logDebug(s"Already on vehicle: ${currentVehicle.head}")
+      log.debug("{} Already on vehicle: {}",getPrefix, currentVehicle.head)
       goto(Moving) replying CompletionNotice(triggerId)
 
     case Event(
@@ -377,7 +377,7 @@ class PersonAgent(
                       triggerId),
         data @ BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _)
         ) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+      log.debug("{} PersonEntersVehicle: {}", getPrefix, vehicleToEnter)
       eventsManager.processEvent(
         new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
@@ -512,7 +512,7 @@ class PersonAgent(
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our ride hail portion.
-      logWarn(
+      log.warning(
         s"Missed transit pickup during a ride_hail_transit trip, late by ${_currentTick.get - nextLeg.beamLeg.startTime} sec"
       )
       goto(ChoosingMode) using ChoosesModeData(
@@ -647,7 +647,7 @@ class PersonAgent(
             hasDeparted = false
           )
         case Left(msg) =>
-          logDebug(msg)
+          log.debug("{} {}", getPrefix, msg)
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId)
           stop

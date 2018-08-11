@@ -260,7 +260,7 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
         case Some(m) =>
-          logDebug(s"$m: other then expected")
+          log.debug("{} {}: other then expected", getPrefix, m)
       }
       val newPersonData = choosesModeData.copy(
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
