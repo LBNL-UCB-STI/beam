@@ -107,7 +107,7 @@ class OtherPersonAgentSpec
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
-        alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+        alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
