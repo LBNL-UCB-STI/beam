@@ -183,7 +183,7 @@ object RoutingModel {
     * @param transitStops start and end stop if this path is transit (partial) route
     */
   case class BeamPath(
-    linkIds: Vector[Int],
+    linkIds: IndexedSeq[Int],
     transitStops: Option[TransitStopsInfo],
     startPoint: SpaceTime,
     endPoint: SpaceTime,

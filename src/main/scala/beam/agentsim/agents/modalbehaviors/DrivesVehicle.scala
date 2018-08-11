@@ -75,7 +75,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           // If no manager is set, we ignore
-          data.passengerSchedule.schedule.keys
+          data.passengerSchedule.schedule.keys.view
             .drop(data.currentLegPassengerScheduleIndex)
             .headOption match {
             case Some(currentLeg) =>
@@ -138,7 +138,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
       if (!isLastLeg) {
         val nextLeg =
-          data.passengerSchedule.schedule.keys
+          data.passengerSchedule.schedule.keys.view
             .drop(data.currentLegPassengerScheduleIndex + 1)
             .head
         goto(WaitingToDrive) using data
@@ -197,7 +197,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      data.passengerSchedule.schedule.keys
+      data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
@@ -322,21 +322,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+      val head = data.passengerSchedule.schedule
+        .drop(data.currentLegPassengerScheduleIndex).head
       RoutingModel
-        .traverseStreetLeg(
-          data.passengerSchedule.schedule
-            .drop(data.currentLegPassengerScheduleIndex)
-            .head
-            ._1,
+        .traverseStreetLeg(head._1,
           data.currentVehicle.head,
           (_, _) => 0L
         )
         .foreach(eventsManager.processEvent)
-      val endTime = tick + data.passengerSchedule.schedule
-        .drop(data.currentLegPassengerScheduleIndex)
-        .head
-        ._1
-        .duration
+      val endTime = tick + head._1.duration
       goto(Driving) using LiterallyDrivingData(data, endTime)
         .asInstanceOf[T] replying CompletionNotice(
         triggerId,

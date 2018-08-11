@@ -603,7 +603,7 @@ class PersonAgent(
             new TeleportationArrivalEvent(
               tick,
               id,
-              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
+              currentTrip.legs.view.map(l => l.beamLeg.travelPath.distanceInM).sum
             )
           )
           assert(activity.getLinkId != null)

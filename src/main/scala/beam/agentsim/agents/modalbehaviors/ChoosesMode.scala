@@ -6,16 +6,9 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusResponse,
-  ReleaseVehicleReservation
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  RideHailInquiry,
-  RideHailRequest,
-  RideHailResponse
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -34,6 +27,7 @@ import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
 /**
@@ -195,14 +189,16 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(streetVehicles, mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
+                  val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
+                  linkIds += r.getStartLinkId.toString.toInt
+                  r.getLinkIds.asScala.foreach { id => linkIds += id.toString.toInt }
+                  linkIds += r.getStartLinkId.toString.toInt
+
                   val leg = BeamLeg(
                     departTime.atTime,
                     mode,
                     l.getTravelTime.toLong,
-                    BeamPath(
-                      (r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId)
-                        .map(id => id.toString.toInt)
-                        .toVector,
+                    BeamPath(linkIds,
                       None,
                       SpaceTime.zero,
                       SpaceTime.zero,
@@ -280,7 +276,7 @@ trait ChoosesMode {
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       val driveTransitTrip =
-        theRouterResult.itineraries
+        theRouterResult.itineraries.view
           .dropWhile(_.tripClassifier != DRIVE_TRANSIT)
           .headOption
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
@@ -290,10 +286,10 @@ trait ChoosesMode {
               choosesModeData.rideHail2TransitAccessResult
             )) {
           val accessSegment =
-            driveTransitTrip.get.legs
+            driveTransitTrip.get.legs.view
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
-          val egressSegment = driveTransitTrip.get.legs
+          val egressSegment = driveTransitTrip.get.legs.view
             .dropWhile(!_.beamLeg.mode.isMassTransit)
             .dropWhile(_.beamLeg.mode.isMassTransit)
             .map(_.beamLeg)
@@ -363,7 +359,7 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.dummy).error.isEmpty
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: Vector[BeamLeg]): Option[Int] = {
+  def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg]): Option[Int] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,
@@ -573,13 +569,13 @@ trait ChoosesMode {
             .toString,
           availableAlternatives.mkString(":"),
           data.availablePersonalStreetVehicles.nonEmpty,
-          chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum,
+          chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
           _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).right.get),
           chosenTrip
         )
       )
 
-      val personalVehicleUsed = data.availablePersonalStreetVehicles
+      val personalVehicleUsed = data.availablePersonalStreetVehicles.view
         .map(_.id)
         .intersect(chosenTrip.vehiclesInTrip)
         .headOption
