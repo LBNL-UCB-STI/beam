@@ -12,7 +12,7 @@ import beam.sim.BeamServices
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices)
     extends ModeChoiceCalculator {
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
     }

@@ -12,7 +12,7 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices)
     extends ModeChoiceCalculator {
 
   override def apply(
-      alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+      alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
     } else {
