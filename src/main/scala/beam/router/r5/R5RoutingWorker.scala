@@ -98,8 +98,7 @@ class R5RoutingWorker(
       }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
-        .map(e => e.getTime)
-        .max - leg.startTime
+        .maxBy(e => e.getTime).getTime - leg.startTime
 
       sender ! RoutingResponse(
         Vector(
@@ -387,7 +386,7 @@ class R5RoutingWorker(
             R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
           )
         }
-      val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
+      val tripsWithFares = profileResponse.options.asScala.view.flatMap(option => {
         /*
          * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
          * itinerary has a PointToPointConnection object that help relating access,
@@ -398,7 +397,7 @@ class R5RoutingWorker(
          * And after locating through these indexes, constructing BeamLeg for each and
          * finally add these legs back to BeamTrip.
          */
-        option.itinerary.asScala
+        option.itinerary.asScala.view
           .filter { itin =>
             val startTime = beamServices.dates.toBaseMidnightSeconds(
               itin.startTime,
@@ -414,7 +413,7 @@ class R5RoutingWorker(
 
             val access = option.access.get(itinerary.connection.access)
             val toll = if (access.mode == LegMode.CAR) {
-              val osm = access.streetEdges.asScala
+              val osm = access.streetEdges.asScala.view
                 .map(
                   e =>
                     transportNetwork.streetLayer.edgeStore
@@ -469,7 +468,7 @@ class R5RoutingWorker(
                   val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
                   //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
                   val fs =
-                    fares
+                    fares.view
                       .filter(_.patternIndex == segmentPattern.patternIdx)
                       .map(_.fare.price)
                   val fare = if (fs.nonEmpty) fs.min else 0.0
@@ -524,7 +523,7 @@ class R5RoutingWorker(
             }
             TripWithFares(
               BeamTrip(legsWithFares.map(_._1).toVector, mapLegMode(access.mode)),
-              legsWithFares.map(_._2).zipWithIndex.map(_.swap).toMap
+              legsWithFares.view.map(_._2).zipWithIndex.map(_.swap).toMap
             )
           })
       })
