@@ -22,6 +22,8 @@ import beam.agentsim.agents.vehicles.{
   ReserveConfirmInfo
 }
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
@@ -97,7 +99,7 @@ class OtherPersonAgentSpec
     TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val services: BeamServices = {
+  val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
@@ -110,7 +112,7 @@ class OtherPersonAgentSpec
   val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = services
+    override val beamServices: BeamServices = beamServices
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: Modes.BeamMode,
@@ -132,6 +134,12 @@ class OtherPersonAgentSpec
       }
     }),
     "router"
+  )
+
+  val parkingManager = system.actorOf(
+    ZonalParkingManager
+      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+    "ParkingManager"
   )
 
   private val networkCoordinator = new NetworkCoordinator(config)
@@ -286,12 +294,13 @@ class OtherPersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
