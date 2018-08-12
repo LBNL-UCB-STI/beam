@@ -6,6 +6,7 @@ import java.util.zip.GZIPInputStream
 
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.utils.plansampling.WGSConverter
+import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree

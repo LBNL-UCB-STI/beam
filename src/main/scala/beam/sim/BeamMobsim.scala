@@ -67,7 +67,6 @@ import scala.concurrent.duration._
   */
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
-  val tazTreeMap: TAZTreeMap,
   val transportNetwork: TransportNetwork,
   val scenario: Scenario,
   val eventsManager: EventsManager,
@@ -166,7 +165,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter, tazTreeMap, ParkingStockAttributes(100)),
+            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
           "ParkingManager"
         )
         context.watch(parkingManager)

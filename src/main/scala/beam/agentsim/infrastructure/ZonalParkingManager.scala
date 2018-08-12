@@ -28,9 +28,8 @@ import scala.util.Random
 class ZonalParkingManager(
   override val beamServices: BeamServices,
   val beamRouter: ActorRef,
-  tazTreeMap: TAZTreeMap,
   parkingStockAttributes: ParkingStockAttributes
-) extends ParkingManager(tazTreeMap, parkingStockAttributes)
+) extends ParkingManager(parkingStockAttributes)
     with HasServices {
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
     collection.mutable.Map[Id[ParkingStall], ParkingStall]()
@@ -49,7 +48,7 @@ class ZonalParkingManager(
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
   for {
-    taz          <- tazTreeMap.tazQuadTree.values().asScala
+    taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
     parkingType  <- List(Residential, Workplace, Public)
     pricingModel <- List(Free, FlatFee, Block)
     chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
@@ -299,7 +298,7 @@ class ZonalParkingManager(
           "Parking search radius has reached 10,000 km and found no TAZs, possible map projection error?"
         )
       }
-      nearbyTazs = tazTreeMap.tazQuadTree
+      nearbyTazs = beamServices.tazTreeMap.tazQuadTree
         .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
         .asScala
         .toVector
@@ -418,10 +417,9 @@ object ZonalParkingManager {
   def props(
     beamServices: BeamServices,
     beamRouter: ActorRef,
-    tazTreeMap: TAZTreeMap,
     parkingStockAttributes: ParkingStockAttributes
   ): Props = {
-    Props(new ZonalParkingManager(beamServices, beamRouter, tazTreeMap, parkingStockAttributes))
+    Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes))
   }
 
   val maxSearchRadius = 10e6

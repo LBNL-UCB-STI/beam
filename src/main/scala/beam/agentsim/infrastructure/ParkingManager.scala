@@ -11,7 +11,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
 
 abstract class ParkingManager(
-  tazTreeMap: TAZTreeMap,
   parkingStockAttributes: ParkingStockAttributes
 ) extends Actor
     with ResourceManager[ParkingStall] {}

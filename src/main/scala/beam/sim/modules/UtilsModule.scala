@@ -1,6 +1,5 @@
 package beam.sim.modules
 
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule

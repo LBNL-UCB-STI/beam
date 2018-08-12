@@ -94,7 +94,6 @@ class TNCIterationsStatsCollector(
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
-  private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
@@ -122,7 +121,7 @@ class TNCIterationsStatsCollector(
     rideHailIterationHistoryActor ! UpdateRideHailStats(
       TNCIterationStats(
         rideHailStats.mapValues(_.toList),
-        mTazTreeMap.get,
+        beamServices.tazTreeMap,
         timeBinSizeInSec,
         numberOfTimeBins
       )
@@ -474,7 +473,7 @@ class TNCIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    mTazTreeMap.get.getTAZ(coord.getX, coord.getY).tazId.toString
+    beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 

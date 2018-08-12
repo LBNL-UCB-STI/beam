@@ -70,15 +70,9 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           val beamConfig = BeamConfig(typesafeConfig)
 
-          val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-          mTazTreeMap.foreach { tazTreeMap =>
-            bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
-          }
-
           bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager])
-            .toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
 
