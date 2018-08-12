@@ -17,14 +17,17 @@ case class HouseholdMembershipAllocator(
 
   val memberships: Map[Id[Person], Household] = allocateMembership()
 
-  def lookupMemberRank(id: Id[Person]): Option[Int] = memberships(id).lookupMemberRank(id)
+  def lookupMemberRank(id: Id[Person]): Option[Int] =
+    memberships(id).lookupMemberRank(id)
 
   private def allocateMembership(): Map[Id[Person], Household] = {
     JavaConverters
       .mapAsScalaMap(households.getHouseholds)
       .flatMap({
         case (_, hh) =>
-          JavaConverters.asScalaBuffer(hh.getMemberIds).map(personId => personId -> hh)
+          JavaConverters
+            .asScalaBuffer(hh.getMemberIds)
+            .map(personId => personId -> hh)
       })
       .toMap
   }
@@ -33,23 +36,29 @@ case class HouseholdMembershipAllocator(
     : TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
     TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
-  def lookupVehicleForRankedPerson(person: Id[Person]): Option[Id[Vehicle]] = {
-    val household = memberships(person)
+  def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {
+
+    val household = memberships(personId)
     vehicleAllocationsByRank
       .getOrElseUpdate(
         household.getId, {
-          val vehicleRes = mutable.Map[Id[Person], Id[Vehicle]]()
+          val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
+            mutable.Map[Id[Person], Id[Vehicle]]()
 
           val householdVehicles =
-            JavaConverters.collectionAsScalaIterable(household.getVehicleIds).toIndexedSeq
+            JavaConverters
+              .collectionAsScalaIterable(household.getVehicleIds)
+              .toIndexedSeq
           for (i <- householdVehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
             if (i < householdVehicles.size & i < household.rankedMembers.size) {
-              vehicleRes += (household.rankedMembers(i).memberId -> householdVehicles(i))
+              vehicleRes += (household
+                .rankedMembers(i)
+                .memberId -> householdVehicles(i))
             }
           }
           vehicleRes
         }
       )
-      .get(person)
+      .get(personId)
   }
 }

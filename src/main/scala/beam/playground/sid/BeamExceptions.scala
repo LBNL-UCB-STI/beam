@@ -9,6 +9,5 @@ sealed trait BeamSupervisionException extends BeamException
 object BeamExceptions {
   case class BeamAgentRestartException() extends BeamSupervisionException
   case class BeamAgentResumeException() extends BeamSupervisionException
-  case class BeamAgentStopException()  extends BeamSupervisionException
+  case class BeamAgentStopException() extends BeamSupervisionException
 }
-

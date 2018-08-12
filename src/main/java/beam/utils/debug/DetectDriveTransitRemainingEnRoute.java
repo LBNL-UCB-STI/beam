@@ -12,7 +12,7 @@ import java.util.Map;
 // see issue 272
 public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
-    HashSet<String> personIdsOnDriveTransit = new HashSet<>();
+    private HashSet<String> personIdsOnDriveTransit = new HashSet<>();
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
@@ -26,7 +26,7 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
         detectDriveTransitRemainingEnRoute.printAgents();
     }
 
-    public void printAgents() {
+    private void printAgents() {
         for (String personId : personIdsOnDriveTransit) {
             System.out.println(personId);
         }
@@ -38,11 +38,11 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
         Map<String, String> eventAttributes = event.getAttributes();
         if (event.getEventType().equalsIgnoreCase("departure")) {
             if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
-                personIdsOnDriveTransit.add(eventAttributes.get("person").toString());
+                personIdsOnDriveTransit.add(eventAttributes.get("person"));
             }
         } else if (event.getEventType().equalsIgnoreCase("arrival")) {
             if (eventAttributes.get("legMode").equalsIgnoreCase("drive_transit")) {
-                personIdsOnDriveTransit.remove(eventAttributes.get("person").toString());
+                personIdsOnDriveTransit.remove(eventAttributes.get("person"));
             }
         }
     }

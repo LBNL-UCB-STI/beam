@@ -16,10 +16,10 @@ val directionOut: Boolean = true
 val numFrames: Int = 10
 val doTransform = true
 
-val radiusFromOrigin: Vector[Double] = (for (i <- 0 to numFrames - 1) yield (radialLength * i / (numFrames - 1))).toVector
+val radiusFromOrigin: Vector[Double] = (for (i <- 0 until numFrames) yield radialLength * i / (numFrames - 1)).toVector
 val deltaRadian = 2.0 * Pi / numRays
-val vizData = for (rayIndex <- 0 to numRays - 1) yield {
-  for (frameIndex <- 0 to numFrames - 1) yield {
+val vizData = for (rayIndex <- 0 until numRays) yield {
+  for (frameIndex <- 0 until numFrames) yield {
     val len = radiusFromOrigin(frameIndex)
     var x = location.getX + len * cos(deltaRadian * rayIndex)
     var y = location.getY + len * sin(deltaRadian * rayIndex)
@@ -32,5 +32,5 @@ val vizData = for (rayIndex <- 0 to numRays - 1) yield {
     s"""\"shp\": [%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame * frameIndex)
   }
 }
-val res = ((for (x <- vizData) yield (x.mkString(","))).mkString("----"))
+val res = (for (x <- vizData) yield x.mkString(",")).mkString("----")
 //val resultStr = for(strV <- vizData)yield( strV.mkString(",") ).mkString(",").mkString(",")

@@ -28,19 +28,16 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
     private static final String fileName = "RideHailWaitingSingleStats";
-    double numberOfTimeBins = 24;
-    double timeBinSizeInSec = 3600;
-    double endTime = 108000;
+    private double numberOfTimeBins;
     private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailingWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
     RideHailingWaitingSingleStats(BeamConfig beamConfig) {
 
-        endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
-        timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
+        double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
+        double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
     }
@@ -88,9 +85,12 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
         Collections.sort(hours);
-        int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
+        //int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
 
-        double[][] data = new double[1][maxHour + 1];
+        Double _numberOfTimeBins = this.numberOfTimeBins;
+        int maxHour = _numberOfTimeBins.intValue();
+
+        double[][] data = new double[1][maxHour];
         for (Integer key : hoursTimesMap.keySet()) {
 
             if (key >= data[0].length) {
@@ -133,8 +133,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = false;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", false);
 
         GraphUtils.setColour(chart, 1);
         // Writing graph to image file
@@ -143,20 +142,21 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
-            for (int hours = 1; hours <= numberOfTimeBins; hours++) {
-                heading.append(",").append(hours);
-            }
+
+            String heading = "WaitingTime(sec),Hour";
             out.write(heading.toString());
             out.newLine();
-            String line;
+
             for (int i = 0; i < numberOfTimeBins; i++) {
+
                 Double inner = hourModeFrequency.get(i);
-                line = (inner == null) ? ",0" : "," + Math.round(inner * 100.0) / 100.0;
+                String line = (inner == null) ? "0" : "" + Math.round(inner * 100.0) / 100.0;
+                line += "," + (i + 1);
                 out.write(line);
+                out.newLine();
             }
             out.flush();
         } catch (IOException e) {

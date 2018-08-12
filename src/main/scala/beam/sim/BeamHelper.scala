@@ -4,7 +4,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
 import java.util.Properties
 
-import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 //import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 //import beam.analysis.plots.GraphSurgePricing
@@ -110,8 +110,18 @@ trait BeamHelper extends LazyLogging {
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
-    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")) {
-      Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+          .equalsIgnoreCase("ModeChoiceLCCM")) {
+      Files.copy(
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(
+          outputDirectory,
+          Paths
+            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+            .getFileName
+            .toString
+        )
+      )
     }
     Files.copy(Paths.get(configFileName), Paths.get(outputDirectory, "beam.conf"))
   }
@@ -128,7 +138,11 @@ trait BeamHelper extends LazyLogging {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory, beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
     LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
@@ -141,7 +155,10 @@ trait BeamHelper extends LazyLogging {
 
     samplePopulation(scenario, beamConfig, matsimConfig)
 
-    val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      module(config, scenario, networkCoordinator.transportNetwork)
+    )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
@@ -153,16 +170,26 @@ trait BeamHelper extends LazyLogging {
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
-  def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit = {
+  def samplePopulation(
+    scenario: MutableScenario,
+    beamConfig: BeamConfig,
+    matsimConfig: Config
+  ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
       var notSelectedPersonIds = mutable.Set[Id[Person]]()
       var numberOfAgents = 0
 
-      scenario.getVehicles.getVehicles.keySet().forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
-      scenario.getHouseholds.getHouseholds.keySet().forEach(householdId => notSelectedHouseholdIds.add(householdId))
-      scenario.getPopulation.getPersons.keySet().forEach(persondId => notSelectedPersonIds.add(persondId))
+      scenario.getVehicles.getVehicles
+        .keySet()
+        .forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      scenario.getHouseholds.getHouseholds
+        .keySet()
+        .forEach(householdId => notSelectedHouseholdIds.add(householdId))
+      scenario.getPopulation.getPersons
+        .keySet()
+        .forEach(persondId => notSelectedPersonIds.add(persondId))
 
       val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
       while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
@@ -173,9 +200,7 @@ trait BeamHelper extends LazyLogging {
         household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
       }
 
-      notSelectedVehicleIds.foreach(vehicleId =>
-        scenario.getVehicles.removeVehicle(vehicleId)
-      )
+      notSelectedVehicleIds.foreach(vehicleId => scenario.getVehicles.removeVehicle(vehicleId))
 
       notSelectedHouseholdIds.foreach { housholdId =>
         scenario.getHouseholds.getHouseholds.remove(housholdId)

@@ -9,7 +9,6 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class TrajectoryTest extends FlatSpec with Matchers {
 
-
   behavior of "Trajectory"
 
   it should "interpolate coordinates" in {

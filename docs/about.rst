@@ -85,7 +85,7 @@ The following MATSim events are thrown within the AgentSim:
 * PersonArrivalEvent
 * ActivityStartEvent
 
-The following MATSim events are thrown within the PhysSim, note that PhysSim: 
+The following MATSim events are thrown within the PhysSim: 
 
 * ActivityEndEvent - these are dummy activities that bracket every vehicle movement
 * PersonDepartureEvent - should be interpreted as **vehicle** departure
@@ -97,7 +97,9 @@ The following MATSim events are thrown within the PhysSim, note that PhysSim:
 
 Extensions and modules written to observe the above MATSim events can be seamlessly integrated with BEAM in a read-only manner (i.e. for analysis, summary, visualization purposes). However, extensions that are designed to accomplish "within-day" replanning in MATSim will not be directly compatible with BEAM. This is because BEAM already does extensive "within-day" replanning in a manner that is substantially different from QSim.
 
-In addition to the standard MATSim events described above, BEAM throws two additional events that correspond to the act of choosing a Mode (`ModeChoiceEvent`) and of vehicle movements through the network (`PathTraversalEvent`). 
+In addition to the standard MATSim events described above, BEAM throws additional events that correspond to the act of choosing a Mode (`ModeChoiceEvent`) and of vehicle movements through the network (`PathTraversalEvent`). 
+
+All events (both MATSim and BEAM-specific) and their field descriptions are described in further detail in :ref:`event-specifications`.
 
 .. _resource-markets:
 

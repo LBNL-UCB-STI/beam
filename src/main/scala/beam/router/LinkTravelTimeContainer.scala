@@ -10,9 +10,9 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
-
-class LinkTravelTimeContainer(fileName: String,
-                              timeBinSizeInSeconds: Int) extends TravelTime with LazyLogging {
+class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int)
+    extends TravelTime
+    with LazyLogging {
 
   private var linkTravelTimeMap: Map[Id[Link], Map[Int, Double]] = Map()
 
@@ -28,7 +28,7 @@ class LinkTravelTimeContainer(fileName: String,
 
     var line: String = null
 
-    while ( {
+    while ({
       line = bufferedReader.readLine
       line != null
     }) {
@@ -49,11 +49,13 @@ class LinkTravelTimeContainer(fileName: String,
       }
     }
 
-
     logger.debug("LinkTravelTimeMap is initialized")
   }
 
-  def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
+  def getLinkTravelTime(link: Link,
+                        time: Double,
+                        person: Person,
+                        vehicle: Vehicle): Double = {
     linkTravelTimeMap.get(link.getId) match {
       case Some(linkTravelTime) =>
         linkTravelTime.get(getSlot(time)) match {

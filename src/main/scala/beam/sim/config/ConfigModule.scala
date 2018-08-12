@@ -6,7 +6,9 @@ import com.google.inject._
 import com.typesafe.config.{Config => TypesafeConfig}
 import net.codingwell.scalaguice.ScalaModule
 
-class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule with ScalaModule {
+class ConfigModule(val typesafeConfig: TypesafeConfig)
+    extends AbstractModule
+    with ScalaModule {
 
   @Provides @Singleton
   def getTypesafeConfig: TypesafeConfig = {
@@ -14,12 +16,13 @@ class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule wi
   }
 
   @Provides @Singleton
-  def beamConfig(typesafeConfig: TypesafeConfig): BeamConfig = BeamConfig(typesafeConfig)
+  def beamConfig(typesafeConfig: TypesafeConfig): BeamConfig =
+    BeamConfig(typesafeConfig)
 
   implicit class ExtendedBeamConfig(beamConfig: BeamConfig) {
 
     val bbBuffer = 100000
-    val MaxPickupTimeInSeconds = 15 * 60
+    val MaxPickupTimeInSeconds: Int = 15 * 60
   }
 
   override def configure(): Unit = {

@@ -11,10 +11,7 @@ object FormatUtils {
   private val ROUNDING_ERROR = 1e-5
   private val ONE_ROUNDING_ERROR = 1.0 - ROUNDING_ERROR
 
-  class FormatType(
-                              align: String,
-                              fmtStr: String,
-                              roundingError: Double = NO_ROUNDING_ERROR) {
+  class FormatType(align: String, fmtStr: String, roundingError: Double = NO_ROUNDING_ERROR) {
     val fmt = new DecimalFormat(fmtStr)
 
     /**
@@ -44,7 +41,6 @@ object FormatUtils {
       * @param t value of type T to format
       */
     def toString[T](t: T): String = String.format(align, t.toString)
-
 
     /*
      * Applies a rounding error scheme is the
@@ -78,7 +74,5 @@ object FormatUtils {
     * Medium format as 6.004912491 => 6.004913491
     */
   final object LONG extends FormatType("%15s", "#,##0.00000000")
-
-
 
 }

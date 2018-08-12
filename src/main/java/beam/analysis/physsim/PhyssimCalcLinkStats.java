@@ -14,6 +14,7 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.misc.Time;
 
 import java.awt.*;
 import java.io.File;
@@ -23,9 +24,9 @@ import java.util.List;
 
 public class PhyssimCalcLinkStats {
 
-    public static final List<Color> colors = new ArrayList<>();
-    public static int noOfBins = 24;
-    public static int binSize = 3600;
+    private static final List<Color> colors = new ArrayList<>();
+    private static int noOfBins = 24;
+    private static int binSize = 3600;
 
     // Static Initializer
     static {
@@ -47,20 +48,27 @@ public class PhyssimCalcLinkStats {
      * The outer map contains the relativeSpeed a double value as the key that defines a relativeSpeed category.
      * The inner map contains the bin id as the key and the frequency as the value for the particular relativeSpeed category.
      */
-    Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
-    BeamConfig beamConfig;
+    private Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
+    private BeamConfig beamConfig;
     private Network network;
-    private OutputDirectoryHierarchy controlerIO;
+    private OutputDirectoryHierarchy controllerIO;
     private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {
         this.network = network;
-        this.controlerIO = controlerIO;
+        this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
 
-        if (isNotTestMode())
-            this.binSize = this.beamConfig.beam().physsim().linkstatsBinSize();
+        if (isNotTestMode()) {
+            binSize = this.beamConfig.beam().physsim().linkStatsBinSize();
+
+            String endTime = beamConfig.matsim().modules().qsim().endTime();
+            Double _endTime = Time.parseTime(endTime);
+            Double _noOfTimeBins = _endTime / binSize;
+            _noOfTimeBins = Math.floor(_noOfTimeBins);
+            noOfBins = _noOfTimeBins.intValue() + 1;
+        }
 
         linkStats = new BeamCalcLinkStats(network);
     }
@@ -71,9 +79,9 @@ public class PhyssimCalcLinkStats {
         linkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes());
         processData(iteration, travelTimeCalculator);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
-        if (this.controlerIO != null) {
-            if (isNotTestMode() && writeLinkstats(iteration)) {
-                linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
+        if (this.controllerIO != null) {
+            if (isNotTestMode() && writeLinkStats(iteration)) {
+                linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
             createModesFrequencyGraph(dataset, iteration);
         }
@@ -84,8 +92,8 @@ public class PhyssimCalcLinkStats {
     }
 
 
-    private boolean writeLinkstats(int iterationNumber) {
-        return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkstatsWriteInterval());
+    private boolean writeLinkStats(int iterationNumber) {
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkStatsWriteInterval());
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {
@@ -118,12 +126,7 @@ public class PhyssimCalcLinkStats {
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
                 if (hoursDataMap != null) {
-                    Integer frequency = hoursDataMap.get(idx);
-                    if (frequency != null) {
-                        hoursDataMap.put(idx, frequency + 1);
-                    } else {
-                        hoursDataMap.put(idx, 1);
-                    }
+                    hoursDataMap.merge(idx, 1, (a, b) -> a + b);
                 } else {
                     hoursDataMap = new HashMap<>();
                     hoursDataMap.put(idx, 1);
@@ -134,13 +137,13 @@ public class PhyssimCalcLinkStats {
         }
     }
 
-    public double getRelativeSpeedOfSpecificHour(int relativeSpeedCategoryIndex, int hour) {
+    double getRelativeSpeedOfSpecificHour(int relativeSpeedCategoryIndex, int hour) {
         double[][] dataset = buildModesFrequencyDataset();
         double[] hoursData = dataset[relativeSpeedCategoryIndex];
         return hoursData[hour];
     }
 
-    public double getRelativeSpeedCountOfSpecificCategory(int relativeSpeedCategoryIndex) {
+    double getRelativeSpeedCountOfSpecificCategory(int relativeSpeedCategoryIndex) {
         double[][] dataset = buildModesFrequencyDataset();
         double[] hoursData = dataset[relativeSpeedCategoryIndex];
         double count = 0;
@@ -156,7 +159,7 @@ public class PhyssimCalcLinkStats {
         return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
     }
 
-    public List<Double> getSortedListRelativeSpeedCategoryList() {
+    List<Double> getSortedListRelativeSpeedCategoryList() {
         List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
         Collections.sort(relativeSpeedsCategoriesList);
         return relativeSpeedsCategoriesList;
@@ -203,7 +206,7 @@ public class PhyssimCalcLinkStats {
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "relative_speeds.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relative_speeds.png");
 
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 plotTitle, xaxis, yaxis,
@@ -215,8 +218,7 @@ public class PhyssimCalcLinkStats {
         LegendItemCollection legendItems = new LegendItemCollection();
 
 
-        java.util.List<Double> relativeSpeedsCategoriesList = new ArrayList<>();
-        relativeSpeedsCategoriesList.addAll(relativeSpeedFrequenciesPerBin.keySet());
+        List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
         Collections.sort(relativeSpeedsCategoriesList);
 
 
@@ -256,8 +258,7 @@ public class PhyssimCalcLinkStats {
         float g = rand.nextFloat();
         float b = rand.nextFloat();
 
-        Color randomColor = new Color(r, g, b);
-        return randomColor;
+        return new Color(r, g, b);
     }
 
     public void notifyIterationStarts(EventsManager eventsManager) {

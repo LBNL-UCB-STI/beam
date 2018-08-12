@@ -16,7 +16,8 @@ import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
+    extends ScoringFunctionFactory {
 
   private val log = Logger.getLogger(classOf[BeamScoringFunctionFactory])
 
@@ -48,10 +49,12 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       override def handleLeg(leg: Leg): Unit = {}
 
       override def finish(): Unit = {
-        val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+        val attributes =
+          person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
-        val scoreOfThisOutcomeGivenMyClass = trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
+        val scoreOfThisOutcomeGivenMyClass =
+          trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
 
         val scoreOfBeingInClassGivenThisOutcome = if(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equals("ModeChoiceLCCM")){
           // Compute and log all-day score w.r.t. all modality styles

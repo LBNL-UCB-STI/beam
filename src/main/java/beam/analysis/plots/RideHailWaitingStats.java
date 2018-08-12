@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -11,6 +12,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.utils.misc.Time;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -27,13 +29,27 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "RideHailWaitingStats";
-    List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
+    private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private double lastMaximumTime = 0;
-    private double NUMBER_OF_CATEGORIES = 6.0;
+    private static final double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
+
+    private int timeBinSize = 3600;
+    private int numberOfTimeBins = 30;
+
+    public RideHailWaitingStats(BeamConfig beamConfig){
+
+        this.timeBinSize = beamConfig.beam().outputs().stats().binSize();
+
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        Double _endTime = Time.parseTime(endTime);
+        Double _noOfTimeBins = _endTime / timeBinSize;
+        _noOfTimeBins = Math.floor(_noOfTimeBins);
+        this.numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+    }
 
     @Override
     public void resetStats() {
@@ -105,7 +121,7 @@ public class RideHailWaitingStats implements IGraphStats {
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
     }
 
-    private void writeRideHailWaitingIndividualStatCSV(int iteration) throws IOException {
+    private void writeRideHailWaitingIndividualStatCSV(int iteration) {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "rideHailIndividualWaitingTimes.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
@@ -158,9 +174,9 @@ public class RideHailWaitingStats implements IGraphStats {
 
     //    TODO only two significant digits needed this means, 682 enough, no digits there
     private double[] getHoursDataPerTimeRange(Double category, int maxHour, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
-        double[] timeRangeOccurrencePerHour = new double[maxHour + 1];
+        double[] timeRangeOccurrencePerHour = new double[maxHour];
 
-        for (int hour = 0; hour <= maxHour; hour++) {
+        for (int hour = 0; hour < maxHour; hour++) {
             Map<Double, Integer> hourData = hourModeFrequency.get(hour);
             timeRangeOccurrencePerHour[hour] = (hourData == null || hourData.get(category) == null) ? 0 : hourData.get(category);
 
@@ -175,10 +191,11 @@ public class RideHailWaitingStats implements IGraphStats {
         if (hoursList.isEmpty())
             return null;
 
-        int maxHour = hoursList.get(hoursList.size() - 1);
+        //int maxHour = hoursList.get(hoursList.size() - 1);
+        int maxHour = this.numberOfTimeBins;
 
         List<Double> categories = getCategories();
-        double[][] dataset = new double[categories.size()][maxHour + 1];
+        double[][] dataset = new double[categories.size()][maxHour];
 
         for (int i = 0; i < categories.size(); i++) {
             dataset[i] = getHoursDataPerTimeRange(categories.get(i), maxHour, hourModeFrequency);
@@ -196,8 +213,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", true);
         CategoryPlot plot = chart.getCategoryPlot();
 
         // Legends
@@ -211,32 +227,38 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
-            for (int hours = 1; hours <= 24; hours++) {
-                heading.append(",").append(hours);
-            }
-            out.write(heading.toString());
+        BufferedWriter out = null;
+        try {
+            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+            String heading = "WaitingTime,Hour,Count";
+            out.write(heading);
             out.newLine();
 
             List<Double> categories = getCategories();
 
+            for (int j = 0; j < categories.size(); j++){
 
-            for (Double category : categories) {
-
+                Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
-                out.write(_category + "");
-                String line;
-                for (int i = 0; i < 24; i++) {
+
+                String line = "";
+                for (int i = 0; i < this.numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
-                    line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
+                    line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
+
+                    line = _category + "," + (i + 1) + "," + line;
                     out.write(line);
+                    out.newLine();
                 }
-                out.newLine();
             }
             out.flush();
+            out.close();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (out != null) {
+                out.close();
+            }
         }
     }
 

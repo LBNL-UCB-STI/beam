@@ -6,11 +6,10 @@ import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 
 /**
- * BEAM
- */
+  * BEAM
+  */
 class UtilsModule extends AbstractModule with ScalaModule {
-    override def configure(): Unit = {
-        bind[GeoUtils].to[GeoUtilsImpl].asEagerSingleton()
-//        bind[TAZTreeMap].to[]
-    }
+  override def configure(): Unit = {
+    bind[GeoUtils].to[GeoUtilsImpl].asEagerSingleton()
+  }
 }

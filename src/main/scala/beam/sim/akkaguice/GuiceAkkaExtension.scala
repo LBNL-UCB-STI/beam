@@ -1,6 +1,14 @@
 package beam.sim.akkaguice
 
-import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
+import akka.actor.{
+  ActorRef,
+  ActorSystem,
+  ExtendedActorSystem,
+  Extension,
+  ExtensionId,
+  ExtensionIdProvider,
+  Props
+}
 import com.google.inject.Injector
 
 /**
@@ -14,20 +22,25 @@ class GuiceAkkaExtensionImpl extends Extension {
     this.injector = injector
   }
 
-  def props[T](actorName: String) = Props(classOf[ActorProducer[T]], injector, actorName)
+  def props[T](actorName: String) =
+    Props(classOf[ActorProducer[T]], injector, actorName)
 
 }
 
-object GuiceAkkaExtension extends ExtensionId[GuiceAkkaExtensionImpl] with ExtensionIdProvider {
+object GuiceAkkaExtension
+    extends ExtensionId[GuiceAkkaExtensionImpl]
+    with ExtensionIdProvider {
 
   /** Register ourselves with the ExtensionIdProvider */
-  override def lookup() = GuiceAkkaExtension
+  override def lookup(): GuiceAkkaExtension.type = GuiceAkkaExtension
 
   /** Called by Akka in order to create an instance of the extension. */
-  override def createExtension(system: ExtendedActorSystem) = new GuiceAkkaExtensionImpl
+  override def createExtension(system: ExtendedActorSystem) =
+    new GuiceAkkaExtensionImpl
 
   /** Java API: Retrieve the extension for the given system. */
-  override def get(system: ActorSystem): GuiceAkkaExtensionImpl = super.get(system)
+  override def get(system: ActorSystem): GuiceAkkaExtensionImpl =
+    super.get(system)
 
 }
 
@@ -42,8 +55,9 @@ trait NamedActor {
   * Mix in with Guice Modules that contain providers for top-level actor refs.
   */
 trait GuiceAkkaActorRefProvider {
-  def propsFor(system: ActorSystem, name: String): Props = GuiceAkkaExtension(system).props(name)
+  def propsFor(system: ActorSystem, name: String): Props =
+    GuiceAkkaExtension(system).props(name)
 
-  def provideActorRef(system: ActorSystem, name: String): ActorRef = system.actorOf(propsFor(system, name))
+  def provideActorRef(system: ActorSystem, name: String): ActorRef =
+    system.actorOf(propsFor(system, name))
 }
-

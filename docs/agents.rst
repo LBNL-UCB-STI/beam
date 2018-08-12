@@ -13,3 +13,12 @@ Also, only BeamAgents can schedule callbacks with the BeamAgentScheduler. So any
 
 Programming a BeamAgent involves constructing a finite state machine and the corresponding logic that responds to Akka messages from different states and then optionally transitions between states.
 
+Person Agents
+-------------
+
+Ride Hail Agents
+----------------
+
+Transit Driver Agents
+---------------------
+
