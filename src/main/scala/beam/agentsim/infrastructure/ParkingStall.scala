@@ -23,7 +23,7 @@ object ParkingStall {
     val parkingType: ParkingType,
     val pricingModel: PricingModel,
     val chargingType: ChargingType,
-    reservedFor: ReservedParkingType
+    val reservedFor: ReservedParkingType
   )
   case class StallValues(numStalls: Int, feeInCents: Int)
 
