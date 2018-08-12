@@ -106,7 +106,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 145)
+      assert(response.itineraries.head.beamLegs().head.duration == 70)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -241,7 +241,7 @@ class TimeDependentRoutingSpec
           .get
       }
 
-      assert(scala.math.abs(gap) < 50) // isn't exactly 0, probably rounding errors?
+      assert(scala.math.abs(gap) < 75) // isn't exactly 0, probably rounding errors?
     }
 
     "give updated travel times for a given route after travel times were updated" in {
@@ -260,7 +260,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 3000) // Contains two full links (excluding 1 and 4)
+      assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
     }
 
   }
