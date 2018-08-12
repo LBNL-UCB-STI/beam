@@ -325,7 +325,7 @@ class PersonAgentSpec
         household,
         Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
         Seq(CAR),
-       18.0
+        18.0
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
       when(services.matsimServices.getScenario).thenReturn(scenario)

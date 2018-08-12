@@ -10,13 +10,24 @@ import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
 
-abstract class ParkingManager(tazTreeMap:TAZTreeMap, parkingStockAttributes: ParkingStockAttributes) extends Actor with ResourceManager[ParkingStall]{
-}
+abstract class ParkingManager(
+  tazTreeMap: TAZTreeMap,
+  parkingStockAttributes: ParkingStockAttributes
+) extends Actor
+    with ResourceManager[ParkingStall] {}
 
-object ParkingManager{
-  case class ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
-                            activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference,
-                            arrivalTime: Long, parkingDuration: Double, reservedFor: ReservedParkingType = ParkingStall.Any )
+object ParkingManager {
+  case class ParkingInquiry(
+    customerId: Id[PersonAgent],
+    customerLocationUtm: Location,
+    destinationUtm: Location,
+    activityType: String,
+    valueOfTime: Double,
+    chargingPreference: ChargingPreference,
+    arrivalTime: Long,
+    parkingDuration: Double,
+    reservedFor: ReservedParkingType = ParkingStall.Any
+  )
 
   case class DepotParkingInquiry(customerLocationUtm: Location, reservedFor: ReservedParkingType)
   case class DepotParkingInquiryResponse(mStall: Option[ParkingStall])

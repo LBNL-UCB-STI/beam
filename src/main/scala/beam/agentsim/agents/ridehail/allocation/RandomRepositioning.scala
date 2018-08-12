@@ -11,22 +11,19 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val isBufferedRideHailAllocationMode = false
 
   def proposeVehicleAllocation(
-      vehicleAllocationRequest: VehicleAllocationRequest
+    vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
   }
 
   def allocateVehicles(
-      allocationsDuringReservation: Vector[(VehicleAllocationRequest,
-                                            Option[VehicleAllocation])]
+    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
   ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error(
-      "batch processing is not implemented for DefaultRideHailResourceAllocationManager")
+    log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     allocationsDuringReservation
   }
 
-  override def repositionVehicles(
-      tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     val repositioningShare =
       rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare

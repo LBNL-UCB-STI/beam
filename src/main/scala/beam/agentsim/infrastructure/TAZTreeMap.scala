@@ -63,9 +63,9 @@ object TAZTreeMap {
   }
 
   private def initQuadTreeFromShapeFile(
-                                         shapeFilePath: String,
-                                         tazIDFieldName: String
-                                       ): QuadTree[TAZ] = {
+    shapeFilePath: String,
+    tazIDFieldName: String
+  ): QuadTree[TAZ] = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
@@ -83,7 +83,8 @@ object TAZTreeMap {
         case g: Geometry =>
           val taz = new TAZ(
             f.getAttribute(tazIDFieldName).asInstanceOf[String],
-            new Coord(g.getCoordinate.x, g.getCoordinate.y), g.getArea
+            new Coord(g.getCoordinate.x, g.getCoordinate.y),
+            g.getArea
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
@@ -93,8 +94,8 @@ object TAZTreeMap {
   }
 
   private def quadTreeExtentFromShapeFile(
-                                           features: util.Collection[SimpleFeature]
-                                         ): QuadTreeBounds = {
+    features: util.Collection[SimpleFeature]
+  ): QuadTreeBounds = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue
@@ -186,16 +187,23 @@ object TAZTreeMap {
   def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y, g.getArea))
+        Some(
+          CsvTaz(
+            f.getAttribute(tazIDFieldName).toString,
+            g.getCoordinate.x,
+            g.getCoordinate.y,
+            g.getArea
+          )
+        )
       case _ => None
     }
   }
 
   def shapeFileToCsv(
-                      shapeFilePath: String,
-                      tazIDFieldName: String,
-                      writeDestinationPath: String
-                    ): Unit = {
+    shapeFilePath: String,
+    tazIDFieldName: String,
+    writeDestinationPath: String
+  ): Unit = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
@@ -293,4 +301,3 @@ object TAZTreeMap {
     }
   }
 }
-

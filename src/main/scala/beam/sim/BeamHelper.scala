@@ -43,60 +43,72 @@ import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
 
-  def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
-    ListBuffer(new AbstractModule() {
-      override def install(): Unit = {
-        // MATSim defaults
-        install(new NewControlerModule)
-        install(new ScenarioByInstanceModule(scenario))
-        install(new ControlerDefaultsModule)
-        install(new ControlerDefaultCoreListenersModule)
+  def module(
+    typesafeConfig: com.typesafe.config.Config,
+    scenario: Scenario,
+    transportNetwork: TransportNetwork
+  ): com.google.inject.Module =
+    AbstractModule.`override`(
+      ListBuffer(new AbstractModule() {
+        override def install(): Unit = {
+          // MATSim defaults
+          install(new NewControlerModule)
+          install(new ScenarioByInstanceModule(scenario))
+          install(new ControlerDefaultsModule)
+          install(new ControlerDefaultCoreListenersModule)
 
-        // Beam Inject below:
-        install(new ConfigModule(typesafeConfig))
-        install(new BeamAgentModule(BeamConfig(typesafeConfig)))
-        install(new UtilsModule)
-      }
-    }).asJava, new AbstractModule() {
-      private val mapper = new ObjectMapper()
-      mapper.registerModule(DefaultScalaModule)
-
-      override def install(): Unit = {
-        val beamConfig = BeamConfig(typesafeConfig)
-
-        val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-        mTazTreeMap.foreach { tazTreeMap =>
-          bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+          // Beam Inject below:
+          install(new ConfigModule(typesafeConfig))
+          install(new BeamAgentModule(BeamConfig(typesafeConfig)))
+          install(new UtilsModule)
         }
+      }).asJava,
+      new AbstractModule() {
+        private val mapper = new ObjectMapper()
+        mapper.registerModule(DefaultScalaModule)
 
-        bind(classOf[BeamConfig]).toInstance(beamConfig)
-        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+        override def install(): Unit = {
+          val beamConfig = BeamConfig(typesafeConfig)
 
-        addControlerListenerBinding().to(classOf[BeamSim])
+          val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+          mTazTreeMap.foreach { tazTreeMap =>
+            bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+          }
 
-        addControlerListenerBinding().to(classOf[GraphSurgePricing])
-        addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          bind(classOf[BeamConfig]).toInstance(beamConfig)
+          bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+          bind(classOf[RideHailSurgePricingManager])
+            .toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
 
-        bindMobsim().to(classOf[BeamMobsim])
-        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
-        if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
-          bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+          addControlerListenerBinding().to(classOf[BeamSim])
+
+          addControlerListenerBinding().to(classOf[GraphSurgePricing])
+          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+
+          bindMobsim().to(classOf[BeamMobsim])
+          bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+          bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+          if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+            bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+          }
+          addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
+          addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
+          addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
+            .toProvider(classOf[UtilityBasedModeChoice])
+          addAttributeConverterBinding(classOf[MapStringDouble])
+            .toInstance(new AttributeConverter[MapStringDouble] {
+              override def convertToString(o: scala.Any): String =
+                mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
+
+              override def convert(value: String): MapStringDouble =
+                MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
+            })
+          bind(classOf[TransportNetwork]).toInstance(transportNetwork)
         }
-        addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
-        addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
-        addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
-        addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
-        addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
-        addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
-          override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
-
-          override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
-        })
-        bind(classOf[TransportNetwork]).toInstance(transportNetwork)
       }
-    })
+    )
 
   def runBeamWithConfigFile(configFileName: String): Unit = {
     assert(configFileName != null, "Argument is null: configFileName")

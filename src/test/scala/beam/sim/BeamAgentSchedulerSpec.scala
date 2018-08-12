@@ -17,9 +17,7 @@ import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
 class BeamAgentSchedulerSpec
-    extends TestKit(
-      ActorSystem("beam-actor-system",
-                  testConfig("test/input/beamville/beam.conf")))
+    extends TestKit(ActorSystem("beam-actor-system", testConfig("test/input/beamville/beam.conf")))
     with FunSpecLike
     with BeforeAndAfterAll
     with MustMatchers
@@ -31,8 +29,7 @@ class BeamAgentSchedulerSpec
 
     it("should send trigger to a BeamAgent") {
       val scheduler =
-        TestActorRef[BeamAgentScheduler](
-          SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       agent.stateName should be(Uninitialized)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), agent)
@@ -45,8 +42,7 @@ class BeamAgentSchedulerSpec
 
     it("should fail to schedule events with negative tick value") {
       val scheduler =
-        TestActorRef[BeamAgentScheduler](
-          SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
       val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
       watch(agent)
       scheduler ! ScheduleTrigger(InitializeTrigger(-1), agent)
@@ -92,8 +88,7 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(tick: Double) extends Trigger
 
-  class TestBeamAgent(override val id: Id[Person],
-                      override val scheduler: ActorRef)
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef)
       extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 

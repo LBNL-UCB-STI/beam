@@ -647,6 +647,7 @@ object ChoosesMode {
         personData =
           personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
       )
+    override def hasParkingBehaviors: Boolean = true
   }
 
   case class ChoosesModeResponsePlaceholders(

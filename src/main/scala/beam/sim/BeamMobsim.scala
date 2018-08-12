@@ -7,7 +7,17 @@ import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  Identify,
+  Props,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -20,8 +30,11 @@ import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSu
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
-import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, NoNeed}
+import beam.agentsim.infrastructure.ParkingManager.{
+  ParkingInquiry,
+  ParkingInquiryResponse,
+  ParkingStockAttributes
+}
 import beam.agentsim.infrastructure.TAZTreeMap.QuadTreeBounds
 import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -47,8 +60,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-import scala.collection.JavaConverters._
-
 /**
   * AgentSim.
   *
@@ -67,10 +78,14 @@ class BeamMobsim @Inject()(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
+  var memoryLoggingTimerActorRef: ActorRef = _
+  var memoryLoggingTimerCancellable: Cancellable = _
+
+  var rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
   val rideHailHouseholds: mutable.Set[Id[Household]] =
     mutable.Set[Id[Household]]()
+
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   /*
@@ -149,7 +164,11 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        private val parkingManager = context.actorOf(ZonalParkingManager.props(beamServices,  beamServices.beamRouter, tazTreeMap, ParkingStockAttributes(100)), "ParkingManager")
+        private val parkingManager = context.actorOf(
+          ZonalParkingManager
+            .props(beamServices, beamServices.beamRouter, tazTreeMap, ParkingStockAttributes(100)),
+          "ParkingManager"
+        )
         context.watch(parkingManager)
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
@@ -387,7 +406,7 @@ class BeamMobsim @Inject()(
               debugActorWithTimerCancellable.cancel()
               context.stop(debugActorWithTimerActorRef)
             }
-            if(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
+            if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
               memoryLoggingTimerCancellable.cancel()
               context.stop(memoryLoggingTimerActorRef)
             }
@@ -418,13 +437,11 @@ class BeamMobsim @Inject()(
           log.info(s"rideHailManagerTimerScheduled")
         }
 
-      private def cleanupRideHailingAgents(): Unit = {
-        rideHailAgents.foreach(_ ! Finish)
-        rideHailAgents =  new ArrayBuffer()
+        private def cleanupRideHailingAgents(): Unit = {
+          rideHailAgents.foreach(_ ! Finish)
+          rideHailAgents = new ArrayBuffer()
 
-        initParkingVeh.foreach(context.stop(_))
-        initParkingVeh = Nil
-      }
+        }
 
         private def cleanupVehicle(): Unit = {
           // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")

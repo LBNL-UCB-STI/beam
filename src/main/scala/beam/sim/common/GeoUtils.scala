@@ -67,7 +67,13 @@ trait GeoUtils extends HasServices {
     var theEdge = streetLayer.edgeStore.getCursor(edgeId)
     new Coord(theEdge.getGeometry.getCoordinate.x, theEdge.getGeometry.getCoordinate.y)
   }
-  def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
+
+  def snapToR5Edge(
+    streetLayer: StreetLayer,
+    coord: Coord,
+    maxRadius: Double = 1E5,
+    streetMode: StreetMode = StreetMode.WALK
+  ): Coord = {
     val theSplit = getR5Split(streetLayer, coord, maxRadius, streetMode)
     if (theSplit == null) {
       coord

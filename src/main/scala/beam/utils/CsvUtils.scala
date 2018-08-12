@@ -10,22 +10,19 @@ import org.supercsv.prefs.CsvPreference
 
 object CsvUtils {
 
-
-  def readerFromFile(filePath: String): java.io.Reader  = {
-    if(filePath.endsWith(".gz")){
-      new InputStreamReader(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+  def readerFromFile(filePath: String): java.io.Reader = {
+    if (filePath.endsWith(".gz")) {
+      new InputStreamReader(
+        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
+      )
     } else {
       new FileReader(filePath)
     }
   }
 
-
   def getHash(concatParams: Any*): Int = {
     val concatString = concatParams.foldLeft("")((a, b) => a + b)
     concatString.hashCode
   }
-
-
-
 
 }

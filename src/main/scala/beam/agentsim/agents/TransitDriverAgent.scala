@@ -23,10 +23,7 @@ import beam.router.RoutingModel.BeamLeg
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  PersonDepartureEvent,
-  PersonEntersVehicleEvent
-}
+import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
@@ -36,13 +33,13 @@ import org.matsim.vehicles.Vehicle
 object TransitDriverAgent {
 
   def props(
-      scheduler: ActorRef,
-      services: BeamServices,
-      transportNetwork: TransportNetwork,
-      eventsManager: EventsManager,
-      transitDriverId: Id[TransitDriverAgent],
-      vehicle: BeamVehicle,
-      legs: Seq[BeamLeg]
+    scheduler: ActorRef,
+    services: BeamServices,
+    transportNetwork: TransportNetwork,
+    eventsManager: EventsManager,
+    transitDriverId: Id[TransitDriverAgent],
+    vehicle: BeamVehicle,
+    legs: Seq[BeamLeg]
   ): Props = {
     Props(
       new TransitDriverAgent(
@@ -58,12 +55,11 @@ object TransitDriverAgent {
   }
 
   case class TransitDriverData(
-      currentVehicle: VehicleStack = Vector(),
-      passengerSchedule: PassengerSchedule = PassengerSchedule(),
-      currentLegPassengerScheduleIndex: Int = 0
+    currentVehicle: VehicleStack = Vector(),
+    passengerSchedule: PassengerSchedule = PassengerSchedule(),
+    currentLegPassengerScheduleIndex: Int = 0
   ) extends DrivingData {
-    override def withPassengerSchedule(
-        newPassengerSchedule: PassengerSchedule): DrivingData =
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 
     override def withCurrentLegPassengerScheduleIndex(
@@ -73,31 +69,28 @@ object TransitDriverAgent {
     override def hasParkingBehaviors: Boolean = false
   }
 
-  def createAgentIdFromVehicleId(
-      transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create(
-      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(
-        transitVehicle.toString),
+      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString),
       classOf[TransitDriverAgent]
     )
   }
 
   def selectByVehicleId(
-      transitVehicle: Id[Vehicle]
+    transitVehicle: Id[Vehicle]
   )(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection(
-      "/user/router/" + createAgentIdFromVehicleId(transitVehicle))
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 
 class TransitDriverAgent(
-    val scheduler: ActorRef,
-    val beamServices: BeamServices,
-    val transportNetwork: TransportNetwork,
-    val eventsManager: EventsManager,
-    val transitDriverId: Id[TransitDriverAgent],
-    val vehicle: BeamVehicle,
-    val legs: Seq[BeamLeg]
+  val scheduler: ActorRef,
+  val beamServices: BeamServices,
+  val transportNetwork: TransportNetwork,
+  val eventsManager: EventsManager,
+  val transitDriverId: Id[TransitDriverAgent],
+  val vehicle: BeamVehicle,
+  val legs: Seq[BeamLeg]
 ) extends DrivesVehicle[TransitDriverData] {
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
@@ -118,36 +111,29 @@ class TransitDriverAgent(
             stop(
               Failure(
                 s"BeamAgent $id attempted to become driver of vehicle $id " +
-                  s"but driver ${vehicle.driver.get} already assigned."
+                s"but driver ${vehicle.driver.get} already assigned."
               )
           ),
           _ => {
             eventsManager.processEvent(
-              new PersonDepartureEvent(tick,
-                                       Id.createPersonId(id),
-                                       null,
-                                       "be_a_transit_driver")
+              new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver")
             )
             eventsManager
-              .processEvent(
-                new PersonEntersVehicleEvent(tick,
-                                             Id.createPersonId(id),
-                                             vehicle.id))
+              .processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
             val schedule = data.passengerSchedule.addLegs(legs)
             goto(WaitingToDrive) using data
               .copy(currentVehicle = Vector(vehicle.id))
               .withPassengerSchedule(schedule)
               .asInstanceOf[TransitDriverData] replying
-              CompletionNotice(
-                triggerId,
-                Vector(
-                  ScheduleTrigger(
-                    StartLegTrigger(schedule.schedule.firstKey.startTime,
-                                    schedule.schedule.firstKey),
-                    self
-                  )
+            CompletionNotice(
+              triggerId,
+              Vector(
+                ScheduleTrigger(
+                  StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
+                  self
                 )
               )
+            )
           }
         )
   }

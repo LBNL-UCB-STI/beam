@@ -8,10 +8,13 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
@@ -24,8 +27,17 @@ import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
-class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef,
-                 val rideHailManager: ActorRef, val parkingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
+class Population(
+  val scenario: Scenario,
+  val beamServices: BeamServices,
+  val scheduler: ActorRef,
+  val transportNetwork: TransportNetwork,
+  val router: ActorRef,
+  val rideHailManager: ActorRef,
+  val parkingManager: ActorRef,
+  val eventsManager: EventsManager
+) extends Actor
+    with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
@@ -36,7 +48,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  import context.dispatcher
+  var initParkingVeh: Seq[ActorRef] = Nil
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -53,11 +65,14 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
+      initParkingVeh.foreach(context.stop(_))
+      initParkingVeh = Nil
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
           dieIfNoChildren()
       }
+    case InitParkingVehicles =>
   }
 
   def dieIfNoChildren(): Unit = {
@@ -69,6 +84,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
+    import scala.concurrent.ExecutionContext.Implicits.global
     // Have to wait for households to create people so they can send their first trigger to the scheduler
     val houseHoldsInitialized =
       Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
@@ -94,7 +110,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
             .asInstanceOf[Double]
         )
 
-        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+        var houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
           Population.getVehiclesFromHousehold(household, scenario.getVehicles)
 
         houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
@@ -107,6 +123,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
             transportNetwork,
             router,
             rideHailManager,
+            parkingManager,
             eventsManager,
             scenario.getPopulation,
             household.getId,
@@ -121,6 +138,30 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
           veh.manager = Some(householdActor)
         }
 
+        houseHoldVehicles.map {
+          vehicle =>
+            val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
+              parkingManager ! ParkingInquiry(
+                Id.createPersonId("atHome"),
+                homeCoord,
+                homeCoord,
+                "home",
+                0,
+                NoNeed,
+                0,
+                0
+              ) //TODO personSelectedPlan.getType is null
+
+              def receive = {
+                case ParkingInquiryResponse(stall) =>
+                  vehicle._2.useParkingStall(stall)
+                  context.stop(self)
+                //TODO deal with timeouts and errors
+              }
+            }))
+            initParkingVeh :+= initParkingVehicle
+        }
+
         context.watch(householdActor)
         householdActor ? Identify(0)
       })
@@ -131,9 +172,31 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 }
 
 object Population {
-  def props(scenario: Scenario, services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, router: ActorRef,
-            rideHailManager: ActorRef, parkingManager: ActorRef, eventsManager: EventsManager): Props = {
-    Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailManager, parkingManager, eventsManager))
+
+  case object InitParkingVehicles
+
+  def props(
+    scenario: Scenario,
+    services: BeamServices,
+    scheduler: ActorRef,
+    transportNetwork: TransportNetwork,
+    router: ActorRef,
+    rideHailManager: ActorRef,
+    parkingManager: ActorRef,
+    eventsManager: EventsManager
+  ): Props = {
+    Props(
+      new Population(
+        scenario,
+        services,
+        scheduler,
+        transportNetwork,
+        router,
+        rideHailManager,
+        parkingManager,
+        eventsManager
+      )
+    )
   }
 
   def getVehiclesFromHousehold(

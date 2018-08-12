@@ -26,12 +26,12 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
-    val powerTrain: Powertrain,
-    val matSimVehicle: Vehicle,
-    val initialMatsimAttributes: Option[ObjectAttributes],
-    val beamVehicleType: BeamVehicleType,
-    var fuelLevel: Option[Double],
-    val fuelCapacityInJoules: Option[Double]
+  val powerTrain: Powertrain,
+  val matSimVehicle: Vehicle,
+  val initialMatsimAttributes: Option[ObjectAttributes],
+  val beamVehicleType: BeamVehicleType,
+  var fuelLevel: Option[Double],
+  val fuelCapacityInJoules: Option[Double]
 ) extends Resource[BeamVehicle] {
   val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
@@ -69,7 +69,7 @@ class BeamVehicle(
     * @param newDriverRef incoming driver
     */
   def becomeDriver(
-      newDriverRef: ActorRef
+    newDriverRef: ActorRef
   ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
@@ -78,9 +78,11 @@ class BeamVehicle(
       Left(DriverAlreadyAssigned(id, driver.get))
     }
   }
+
   def useParkingStall(newStall: ParkingStall) = {
     stall = Some(newStall)
   }
+
   def unsetParkingStall() = {
     stall = None
   }

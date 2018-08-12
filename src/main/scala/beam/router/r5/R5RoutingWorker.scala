@@ -121,15 +121,21 @@ class R5RoutingWorker(
   }
 
   def updateLegWithCurrentTravelTime(leg: BeamLeg): BeamLeg = {
-    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(leg.travelPath.linkIds,leg.startTime, travelTimeByLinkCalculator, toR5StreetMode(leg.mode), transportNetwork.streetLayer)
+    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
+      leg.travelPath.linkIds,
+      leg.startTime,
+      travelTimeByLinkCalculator,
+      toR5StreetMode(leg.mode),
+      transportNetwork.streetLayer
+    )
     val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
     leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
   }
-  def lengthOfLink(linkId: Int): Double= {
+
+  def lengthOfLink(linkId: Int): Double = {
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
     edge.getLengthM
   }
-
 
   private var maybeTravelTime: Option[TravelTime] = None
   private var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] =
@@ -267,7 +273,14 @@ class R5RoutingWorker(
           }
           val streetSegment = profileResponse.options.get(0).access.get(0)
           val theTravelPath = buildStreetPath(streetSegment, time.atTime, StreetMode.WALK)
-          Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), theTravelPath.duration, travelPath = theTravelPath))
+          Some(
+            BeamLeg(
+              time.atTime,
+              mapLegMode(LegMode.WALK),
+              theTravelPath.duration,
+              travelPath = theTravelPath
+            )
+          )
         } else {
           Some(dummyWalk(time.atTime))
         }
@@ -315,8 +328,11 @@ class R5RoutingWorker(
           }
         if (!profileResponse.options.isEmpty) {
           val streetSegment = profileResponse.options.get(0).access.get(0)
-          val theTravelPath =  buildStreetPath(streetSegment, time.atTime, toR5StreetMode(vehicle.mode))
-          Some(BeamLeg(time.atTime, vehicle.mode, theTravelPath.duration, travelPath = theTravelPath))
+          val theTravelPath =
+            buildStreetPath(streetSegment, time.atTime, toR5StreetMode(vehicle.mode))
+          Some(
+            BeamLeg(time.atTime, vehicle.mode, theTravelPath.duration, travelPath = theTravelPath)
+          )
         } else {
           return Nil // Cannot go to destination with this vehicle, so no options from this vehicle.
         }
@@ -383,6 +399,38 @@ class R5RoutingWorker(
             R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
           )
         }
+      def splitLegForParking(leg: BeamLeg): Vector[BeamLeg] = {
+        val theLinkIds = leg.travelPath.linkIds
+        if (theLinkIds.length <= 1) {
+          Vector(leg)
+        } else if (leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters) {
+          val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
+          val secondLeg = updateLegWithCurrentTravelTime(
+            leg
+              .updateLinks(theLinkIds.tail)
+              .copy(startTime = firstLeg.startTime + firstLeg.duration)
+          )
+          Vector(firstLeg, secondLeg)
+        } else {
+          val indexFromEnd = theLinkIds.reverse
+            .map(lengthOfLink(_))
+            .scanLeft(0.0)(_ + _)
+            .indexWhere(
+              _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+            )
+          val indexFromBeg = theLinkIds.length - indexFromEnd
+          val firstLeg = updateLegWithCurrentTravelTime(
+            leg.updateLinks(theLinkIds.take(indexFromBeg))
+          )
+          val secondLeg = updateLegWithCurrentTravelTime(
+            leg
+              .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
+              .copy(startTime = firstLeg.startTime + firstLeg.duration)
+          )
+          Vector(firstLeg, secondLeg)
+        }
+      }
+
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
          * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -404,7 +452,7 @@ class R5RoutingWorker(
             startTime >= time.fromTime && startTime <= time.fromTime + 1800
           }
           .map(itinerary => {
-            val legsWithFares = maybeWalkToVehicle
+            var legsWithFares = maybeWalkToVehicle
               .map(x => ArrayBuffer((x, 0.0)))
               .getOrElse(ArrayBuffer[(BeamLeg, Double)]())
 
@@ -426,18 +474,22 @@ class R5RoutingWorker(
               transportNetwork.transitLayer.routes.size() == 0
             )
             val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-            //        legFares += legs.size -> toll
-            legsWithFares += (
-              (
-                BeamLeg(
-                  tripStartTime,
-                  mapLegMode(access.mode),
-                  access.duration,
-                  travelPath = buildStreetPath(access, tripStartTime)
-                ),
-                toll
-              )
+
+            val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
+            val theLeg = BeamLeg(
+              tripStartTime,
+              mapLegMode(access.mode),
+              theTravelPath.duration,
+              travelPath = theTravelPath
             )
+            val splitLegs = if (access.mode != LegMode.WALK && routingRequest.mustParkAtEnd) {
+              splitLegForParking(theLeg)
+            } else {
+              Vector(theLeg)
+            }
+            // assign toll to first part of the split
+            legsWithFares :+= (splitLegs.head, toll)
+            splitLegs.tail.foreach(leg => legsWithFares :+= (leg, 0.0))
 
             //add a Dummy walk BeamLeg to the end of that trip
             if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -485,7 +537,11 @@ class R5RoutingWorker(
                           arrivalTime,
                           mapLegMode(transitSegment.middle.mode),
                           transitSegment.middle.duration,
-                          travelPath = buildStreetPath(transitSegment.middle, arrivalTime)
+                          travelPath = buildStreetPath(
+                            transitSegment.middle,
+                            arrivalTime,
+                            toR5StreetMode(transitSegment.middle.mode)
+                          )
                         ),
                         0.0
                       )
@@ -504,7 +560,7 @@ class R5RoutingWorker(
                       arrivalTime,
                       mapLegMode(egress.mode),
                       egress.duration,
-                      buildStreetPath(egress, arrivalTime)
+                      buildStreetPath(egress, arrivalTime, toR5StreetMode(egress.mode))
                     ),
                     0.0
                   )
@@ -594,7 +650,11 @@ class R5RoutingWorker(
     }
   }
 
-  private def buildStreetPath(segment: StreetSegment, tripStartTime: Long, mode: StreetMode): BeamPath = {
+  private def buildStreetPath(
+    segment: StreetSegment,
+    tripStartTime: Long,
+    mode: StreetMode
+  ): BeamPath = {
     var activeLinkIds = Vector[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       if (!network.getLinks.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
@@ -602,10 +662,15 @@ class R5RoutingWorker(
       }
       activeLinkIds = activeLinkIds :+ edge.edgeId.intValue()
     }
-    val linksTimesDistances = RoutingModel.linksToTimeAndDistance(activeLinkIds,tripStartTime,
-      travelTimeByLinkCalculator, mode, transportNetwork.streetLayer)
-    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0L)(_+_) // note we exclude the first link to keep with MATSim convention
-    val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_+_) // note we exclude the first link to keep with MATSim convention
+    val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
+      activeLinkIds,
+      tripStartTime,
+      travelTimeByLinkCalculator,
+      mode,
+      transportNetwork.streetLayer
+    )
+    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0L)(_ + _) // note we exclude the first link to keep with MATSim convention
+    val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _) // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
       None,
@@ -620,6 +685,26 @@ class R5RoutingWorker(
         tripStartTime + segment.duration
       ),
       segment.distance.toDouble / 1000
+    )
+  }
+  private def buildStreetPath(
+    linksTimesDistances: LinksTimesDistances,
+    tripStartTime: Long
+  ): BeamPath = {
+    val startLoc =
+      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.head)
+    val endLoc =
+      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
+    BeamPath(
+      linksTimesDistances.linkIds,
+      None,
+      SpaceTime(startLoc.getX, startLoc.getY, tripStartTime),
+      SpaceTime(
+        endLoc.getX,
+        endLoc.getY,
+        tripStartTime + linksTimesDistances.travelTimes.tail.foldLeft(0L)(_ + _)
+      ),
+      linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
   }
 
@@ -734,16 +819,21 @@ class R5RoutingWorker(
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
-    case None => new EdgeStore.DefaultTravelTimeCalculator
-  }
   private def travelTimeByLinkCalculator(time: Long, linkId: Int, mode: StreetMode): Long = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
+        matsimTravelTime
+          .getLinkTravelTime(
+            network.getLinks.get(Id.createLinkId(linkId)),
+            time.toDouble,
+            null,
+            null
+          )
+          .toLong
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
-        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest,mode)).round
+        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
         tt
     }
   }
