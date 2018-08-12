@@ -406,8 +406,8 @@ class BeamMobsim @Inject()(
               context.stop(debugActorWithTimerActorRef)
             }
             if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
-              memoryLoggingTimerCancellable.cancel()
-              context.stop(memoryLoggingTimerActorRef)
+//              memoryLoggingTimerCancellable.cancel()
+//              context.stop(memoryLoggingTimerActorRef)
             }
           case Terminated(_) =>
             if (context.children.isEmpty) {
