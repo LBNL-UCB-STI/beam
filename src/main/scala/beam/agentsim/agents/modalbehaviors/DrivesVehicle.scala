@@ -148,7 +148,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           //Throwing parkEvent after last PathTraversal
           val vehId = data.currentVehicle.head
-          beamServices.vehicles(data.currentVehicle.head).stall.foreach { stall =>
+          val stall = beamServices.vehicles(data.currentVehicle.head).stall
+          stall.foreach { stall =>
             val nextLeg =
               data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
             val distance =

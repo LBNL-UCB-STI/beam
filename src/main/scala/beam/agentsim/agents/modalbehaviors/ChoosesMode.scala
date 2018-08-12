@@ -108,7 +108,8 @@ trait ChoosesMode {
           departTime,
           Modes.filterForTransit(transitModes),
           vehicles,
-          streetVehiclesIntermodalUse
+          streetVehiclesIntermodalUse,
+          mustParkAtEnd = true
         )
       }
 

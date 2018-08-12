@@ -36,7 +36,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, NONE, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, NONE, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -465,7 +465,7 @@ class PersonAgent(
       )
 
       val (stateToGo, currentTick) =
-        if (beamServices.vehicles(nextLeg.beamVehicleId).beamVehicleType.idString.equals("car")) {
+        if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
           (ReleasingParkingSpot, _currentTick.get)
         } else {
           val (currentTick, _) = releaseTickAndTriggerId()

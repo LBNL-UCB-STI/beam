@@ -26,9 +26,6 @@ import tscfg.model.DURATION
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-//import scala.collection.JavaConverters._
-//import scala.concurrent.duration._
-
 /**
   * BEAM
   */
@@ -43,8 +40,6 @@ trait ChoosesParking extends {
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
-
-      //personData.currentVehicle.head
 
       val firstLeg = personData.restOfCurrentTrip.head
       val lastLeg =
@@ -145,8 +140,7 @@ trait ChoosesParking extends {
           beamServices.geo.utm2Wgs(stall.location),
           DiscreteTime(currentPoint.time.toInt),
           Vector(),
-          Vector(carStreetVeh, bodyStreetVeh),
-          mustParkAtEnd = true
+          Vector(carStreetVeh, bodyStreetVeh)
         )
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
