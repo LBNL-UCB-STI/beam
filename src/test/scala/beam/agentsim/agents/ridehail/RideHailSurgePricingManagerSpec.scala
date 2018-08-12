@@ -27,8 +27,8 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val config: Config = testConfig(testConfigFileName)
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
-
   val beamConfig: BeamConfig = BeamConfig(config)
+  val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
 
   val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
@@ -37,6 +37,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
+    when(theServices.tazTreeMap).thenReturn(tazTreeMap)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     theServices
