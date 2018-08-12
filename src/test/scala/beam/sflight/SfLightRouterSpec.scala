@@ -221,7 +221,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                   }
               }
 
-              if(response.itineraries.exists(_.tripClassifier == CAR)) {
+              if (response.itineraries.exists(_.tripClassifier == CAR)) {
                 val carTrip = response.itineraries
                   .find(_.tripClassifier == CAR)
                   .get
@@ -244,7 +244,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                         mode should be(WALK)
                     }
                 }
-              }else{
+              } else {
                 numFailedCarRoutes = numFailedCarRoutes + 1
               }
             })
