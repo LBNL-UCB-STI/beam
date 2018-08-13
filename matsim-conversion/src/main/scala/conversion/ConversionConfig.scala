@@ -1,5 +1,6 @@
 package conversion
 
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
@@ -45,31 +46,34 @@ object OSMFilteringConfig {
 
     val spatialConfig = c.getConfig("beam.spatial")
     val boundingBoxBuffer = spatialConfig.getInt("boundingBoxBuffer")
+    val localCRS = spatialConfig.getString("localCRS")
 
-    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(network, boundingBoxBuffer), outputFile)
+    OSMFilteringConfig(pbfFile, getBoundingBoxConfig(network, localCRS, boundingBoxBuffer), outputFile)
 
   }
 
-  def getBoundingBoxConfig(network: Network, boundingBoxBuffer: Int = 0): BoundingBoxConfig= {
+  def getBoundingBoxConfig(network: Network, localCrs: String, boundingBoxBuffer: Int = 0): BoundingBoxConfig= {
     //bbox = min Longitude , min Latitude , max Longitude , max Latitude
     val bbox = NetworkUtils.getBoundingBox(network.getNodes.values())
-
-    val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26914", "EPSG:4326")
 
     val left = bbox(0) //min lon - x
     val bottom = bbox(1) //min lat - y
     val right = bbox(2) // max lon - x
     val top = bbox(3) //max lat - y
 
+    //From local csr to UTM
+    val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation(localCrs, "EPSG:4326")
     val minCoord: Coord = wgs2Utm.transform(new Coord(left, bottom))
     val maxCoord: Coord = wgs2Utm.transform(new Coord(right, top))
 
-    val tLeft = minCoord.getX
-    val tBottom = minCoord.getY
-    val tRight = maxCoord.getX
-    val tTop = maxCoord.getY
+    val env = new Envelope(minCoord.getX, maxCoord.getX, minCoord.getY, maxCoord.getY)
+    env.expandBy(boundingBoxBuffer)
 
-    //TODO add boundingBoxBuffer to bbox
+    val tLeft = env.getMinX
+    val tBottom = env.getMinY
+    val tRight = env.getMaxX
+    val tTop = env.getMaxY
+
     BoundingBoxConfig(tTop, tLeft, tBottom, tRight)
   }
 
