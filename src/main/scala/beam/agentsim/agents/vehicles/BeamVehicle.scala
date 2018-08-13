@@ -5,6 +5,7 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.infrastructure.ParkingStall
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -25,12 +26,12 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
-    val powerTrain: Powertrain,
-    val matSimVehicle: Vehicle,
-    val initialMatsimAttributes: Option[ObjectAttributes],
-    val beamVehicleType: BeamVehicleType,
-    var fuelLevel: Option[Double],
-    val fuelCapacityInJoules: Option[Double]
+  val powerTrain: Powertrain,
+  val matSimVehicle: Vehicle,
+  val initialMatsimAttributes: Option[ObjectAttributes],
+  val beamVehicleType: BeamVehicleType,
+  var fuelLevel: Option[Double],
+  val fuelCapacityInJoules: Option[Double]
 ) extends Resource[BeamVehicle] {
   val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
@@ -46,6 +47,8 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+
+  var stall: Option[ParkingStall] = None
 
   def getType: VehicleType = matSimVehicle.getType
 
@@ -66,7 +69,7 @@ class BeamVehicle(
     * @param newDriverRef incoming driver
     */
   def becomeDriver(
-      newDriverRef: ActorRef
+    newDriverRef: ActorRef
   ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
@@ -74,6 +77,14 @@ class BeamVehicle(
     } else {
       Left(DriverAlreadyAssigned(id, driver.get))
     }
+  }
+
+  def useParkingStall(newStall: ParkingStall) = {
+    stall = Some(newStall)
+  }
+
+  def unsetParkingStall() = {
+    stall = None
   }
 
   def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>

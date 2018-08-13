@@ -1,7 +1,9 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LeavingParkingEvent;
 import beam.agentsim.events.LoggerLevels;
-    import beam.sim.BeamServices;
+import beam.agentsim.events.ParkEvent;
+import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -62,6 +64,8 @@ class BeamEventsLogger {
         allLoggableEvents.add(beam.agentsim.events.PathTraversalEvent.class);
         allLoggableEvents.add(beam.agentsim.events.ModeChoiceEvent.class);
         allLoggableEvents.add(beam.agentsim.events.ReplanningEvent.class);
+        allLoggableEvents.add(ParkEvent.class);
+        allLoggableEvents.add(LeavingParkingEvent.class);
     }
 
     private void registryMATSimLoggableEvents() {

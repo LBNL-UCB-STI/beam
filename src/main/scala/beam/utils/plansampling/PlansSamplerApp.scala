@@ -106,7 +106,7 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
       Id.create(hhIdStr, classOf[Household]),
       row(carNumIdx).toInt,
       row(hhNumIdx).toInt,
-      row(hhIncomeIdx).toInt,
+      row(hhIncomeIdx).toDouble,
       row(hhTractIdx).toInt,
       wgsConverter.wgs2Utm.transform(
         new Coord(row(homeCoordXIdx).toDouble, row(homeCoordYIdx).toDouble)

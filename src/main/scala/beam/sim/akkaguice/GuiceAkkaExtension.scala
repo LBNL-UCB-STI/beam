@@ -27,9 +27,7 @@ class GuiceAkkaExtensionImpl extends Extension {
 
 }
 
-object GuiceAkkaExtension
-    extends ExtensionId[GuiceAkkaExtensionImpl]
-    with ExtensionIdProvider {
+object GuiceAkkaExtension extends ExtensionId[GuiceAkkaExtensionImpl] with ExtensionIdProvider {
 
   /** Register ourselves with the ExtensionIdProvider */
   override def lookup(): GuiceAkkaExtension.type = GuiceAkkaExtension
@@ -55,6 +53,7 @@ trait NamedActor {
   * Mix in with Guice Modules that contain providers for top-level actor refs.
   */
 trait GuiceAkkaActorRefProvider {
+
   def propsFor(system: ActorSystem, name: String): Props =
     GuiceAkkaExtension(system).props(name)
 

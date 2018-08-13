@@ -3,27 +3,21 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
+import beam.sim.{BeamServices, HasServices}
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import com.google.inject.Inject
 import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-object RideHailSurgePricingManager {
+object RideHailSurgePricingManager {}
 
-  val defaultTazTreeMap: TAZTreeMap = {
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](-1, -1, 1, 1)
-    val taz = new TAZ("0", new Coord(0.0, 0.0))
-    tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
-    new TAZTreeMap(tazQuadTree)
-  }
-}
-
-class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TAZTreeMap]) {
+class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServices)
+    extends HasServices {
 
   var iteration = 0
 
@@ -38,14 +32,14 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
+  val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   val timeBinSize
-    : Int = beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+    : Int = beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
   val numberOfCategories
     : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
-    .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
+    .floor(Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1
   val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
   val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
@@ -70,11 +64,9 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   // TODO: initialize all bins (price levels and iteration revenues)!
 
-  private val tazTreeMap = mTazTreeMap.getOrElse(RideHailSurgePricingManager.defaultTazTreeMap)
-
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
-    tazTreeMap.tazQuadTree.values.asScala.map { v =>
+    beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) {
         (arrayBuffer, _) =>
           arrayBuffer.append(defaultBinContent)
@@ -83,7 +75,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
       (v.tazId.toString, array)
     }.toMap
 
-  val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
+  val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -153,7 +145,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
+    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
     surgePriceBins
       .get(taz.tazId.toString)
@@ -169,7 +161,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val taz = beamServices.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>
@@ -219,6 +211,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   def getIterationNumber: Int = {
     iteration
   }
+
 }
 
 // TODO put in companion object

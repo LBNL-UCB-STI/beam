@@ -6,11 +6,8 @@ PersonAgent -> Household: MobilityStatusInquiry
 Household -> PersonAgent: MobilityStatusReponse
 PersonAgent -> Router: RoutingRequest
 PersonAgent -> RideHailManager: RideHailInquiry
-PersonAgent -> Scheduler: ScheduleFinalizeModeChoiceTrigger
 Router -> PersonAgent: RoutingResponse
 RideHailManager -> PersonAgent: RideHailingInquiryResponse
-Scheduler -> PersonAgent: FinalizeModeChoiceTrigger
-PersonAgent -> PersonAgent: MakeChoice
 PersonAgent --> RideHailManager: ReserveRide|ReleaseVehicleReservation
 RideHailManager --> PersonAgent: ReservationResponse(Success|Fail)
 PersonAgent --> Drivers: ReservationRequests if Chosen
