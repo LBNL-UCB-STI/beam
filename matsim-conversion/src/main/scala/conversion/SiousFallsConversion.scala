@@ -50,7 +50,7 @@ object SiouxFallsConversion extends App {
       val shapeConfig = conversionConfig.shapeConfig.get
       ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath, conversionConfig.localCRS)
     }else {
-      val defaultTaz = getDefaultTaz(network)
+      val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
       generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)
     }
   }
@@ -83,8 +83,8 @@ object SiouxFallsConversion extends App {
     }
   }
 
-  def getDefaultTaz(network: Network): ShapeUtils.CsvTaz = {
-    val boundingBox = OSMFilteringConfig.getBoundingBoxConfig(network)
+  def getDefaultTaz(network: Network, localCRS: String): ShapeUtils.CsvTaz = {
+    val boundingBox = OSMFilteringConfig.getBoundingBoxConfig(network, localCRS)
     val minX = boundingBox.left
     val maxX = boundingBox.right
     val minY = boundingBox.bottom
