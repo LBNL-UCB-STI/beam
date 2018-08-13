@@ -4,7 +4,7 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils
 
-import scala.xml.{Elem, Node, NodeSeq, XML}
+import scala.xml._
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.dtd.{DocType, SystemID}
 
@@ -151,7 +151,14 @@ object MatsimPlanConversion {
           case elem: Elem if elem.label == "act" =>
             val attrs = elem.attributes
             val uAttrs = attrs.remove("facility")
-            elem.copy(label = "activity", attributes = uAttrs)
+
+            val capitalizedAttrs = mapMetaData(uAttrs){
+              case g @ GenAttr(_, key, Text(v), _) if "type".equals(key) =>
+                g.copy(value = Text(v.capitalize))
+              case o => o
+            }
+
+            elem.copy(label = "activity", attributes = capitalizedAttrs)
           case elem: Elem if elem.label == "leg" => NodeSeq.Empty
           case o => o
         }
@@ -214,5 +221,32 @@ object MatsimPlanConversion {
     val transform = new RuleTransformer(vehicleTransformRule)
     transform(vehiclesDoc)
   }
+
+
+  case class GenAttr(pre: Option[String],
+                     key: String,
+                     value: Seq[Node],
+                     next: MetaData) {
+    def toMetaData = Attribute(pre, key, value, next)
+  }
+
+  def decomposeMetaData(m: MetaData): Option[GenAttr] = m match {
+    case Null => None
+    case PrefixedAttribute(pre, key, value, next) =>
+      Some(GenAttr(Some(pre), key, value, next))
+    case UnprefixedAttribute(key, value, next) =>
+      Some(GenAttr(None, key, value, next))
+  }
+
+  def unchainMetaData(m: MetaData): Iterable[GenAttr] =
+    m flatMap (decomposeMetaData)
+
+  def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
+    case Nil => Null
+    case head :: tail => head.copy(next = chainMetaData(tail)).toMetaData
+  }
+
+  def mapMetaData(m: MetaData)(f: GenAttr => GenAttr): MetaData =
+    chainMetaData(unchainMetaData(m).map(f))
 
 }
