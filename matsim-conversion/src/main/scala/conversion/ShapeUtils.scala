@@ -5,7 +5,6 @@ import java.util
 
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
@@ -61,46 +60,30 @@ object ShapeUtils {
         .filter(_.isDefined)
         .map(_.get)
         .toArray
-      println(s"Total TAZ ${tazs.length}")
+//      println(s"Total TAZ ${tazs.length}")
 
       val groupedTazs = groupTaz(tazs)
-      println(s"Total grouped TAZ ${groupedTazs.size}")
+//      println(s"Total grouped TAZ ${groupedTazs.size}")
 
       val (repeatedTaz, nonRepeatedMap) = groupedTazs.partition(i => i._2.length > 1)
-      println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
-      println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
+//      println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
+//      println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
 
       val clearedTaz = clearRepeatedTaz(repeatedTaz)
-      println(s"Total repeated cleared TAZ ${clearedTaz.length}")
+//      println(s"Total repeated cleared TAZ ${clearedTaz.length}")
 
       val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
-      println(s"Total non repeated TAZ ${nonRepeated.length}")
+//      println(s"Total non repeated TAZ ${nonRepeated.length}")
 
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
-      println(s"Total all TAZ ${allNonRepeatedTaz.length}")
-
-      val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326", localCRS)
-//      val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("epsg:32631", "EPSG:4326")
-
+//      println(s"Total all TAZ ${allNonRepeatedTaz.length}")
 
       for (t <- allNonRepeatedTaz) {
         val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
 
-//        println(s"Coord: x ${t.coordX}, y ${t.coordY}")
-
-        val utmTransFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
-
-//        println(s"utmTransFormedCoord Coord: x ${utmTransFormedCoord.getX}, y ${utmTransFormedCoord.getY}")
-
-//        val wgsTransformedcoord = utm2Wgs.transform(new Coord(t.coordX, t.coordY))
-//        println(s"wgsTransformedcoord Coord: x ${wgsTransformedcoord.getX}, y ${wgsTransformedcoord.getY}")
-//
-//        val backWgsTransformedcoord = utm2Wgs.transform(new Coord(utmTransFormedCoord.getX, utmTransFormedCoord.getY))
-//        println(s"backWgsTransformedcoord Coord: x ${backWgsTransformedcoord.getX}, y ${backWgsTransformedcoord.getY}")
-
-        tazToWrite.put(header(1), utmTransFormedCoord.getX.toString)
-        tazToWrite.put(header(2), utmTransFormedCoord.getY.toString)
+        tazToWrite.put(header(1), t.coordX.toString)
+        tazToWrite.put(header(2), t.coordY.toString)
 
         mapWriter.write(tazToWrite, header, processors)
       }
