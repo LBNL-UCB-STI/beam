@@ -229,7 +229,7 @@ class ParkingSpec
 
     }
 
-    "limited parking access should increase walking distances" in {
+    "limited parking access should increase walking distances" ignore {
       def filterPathTraversalForWalk(e: Event): Boolean = {
         PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
         "walk".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
