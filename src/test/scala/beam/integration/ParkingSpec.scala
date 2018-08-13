@@ -90,14 +90,14 @@ class ParkingSpec
     }.size
   }
 
-  "Parking system " must {
-    "guarantee at least some parking used " in {
+   "Parking system " must {
+    "guarantee at least some parking used " ignore  {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" ignore {
 
       val parkingEvents = defaultEvents.head.filter(
         e =>
@@ -148,7 +148,7 @@ class ParkingSpec
       isSameArrivalAndDeparture shouldBe true
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" ignore {
       val parkingEvents = defaultEvents.head.filter(
         e =>
           ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
@@ -192,7 +192,7 @@ class ParkingSpec
       }
     }
 
-    "expensive parking should reduce driving" in {
+    "expensive parking should reduce driving" ignore {
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
