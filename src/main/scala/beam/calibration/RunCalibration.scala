@@ -29,7 +29,7 @@ object RunCalibration extends App with BeamHelper {
   val argsMap = parseArgs(args)
 
   // Store CLI inputs as private members
-  Sigopt.clientToken = Option { System.getenv("SIGOPT_DEV_API_TOKEN") }.getOrElse(
+  Sigopt.clientToken = Option { System.getenv("SIGOPT_API_TOKEN") }.getOrElse(
     throw new APIConnectionError(
       "Correct developer client token must be present in environment as SIGOPT_DEV_API Token"
     )
