@@ -108,8 +108,7 @@ trait ChoosesMode {
           departTime,
           Modes.filterForTransit(transitModes),
           vehicles,
-          streetVehiclesIntermodalUse,
-          mustParkAtEnd = true
+          streetVehiclesIntermodalUse
         )
       }
 
@@ -648,7 +647,7 @@ object ChoosesMode {
         personData =
           personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
       )
-    override def hasParkingBehaviors: Boolean = true
+    override def hasParkingBehaviors: Boolean = false
   }
 
   case class ChoosesModeResponsePlaceholders(

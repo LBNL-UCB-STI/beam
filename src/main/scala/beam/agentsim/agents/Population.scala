@@ -87,26 +87,7 @@ class Population(
     }
   }
 
-  def getVehiclesFromHousehold(
-    household: Household,
-    matsimVehicles: Vehicles
-  ): Map[Id[BeamVehicle], BeamVehicle] = {
-    val houseHoldVehicles: Iterable[Id[Vehicle]] =
-      JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
 
-    // Add bikes
-    if (beamServices.beamConfig.beam.agentsim.agents.vehicles.bicycles.useBikes) {
-      val bikeFactory = new BicycleFactory(scenario)
-      bikeFactory.bicyclePrepareForSim()
-    }
-    houseHoldVehicles
-      .map({ id =>
-        makeHouseholdVehicle(matsimVehicles, id) match {
-          case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
-        }
-      })
-      .toMap
-  }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
@@ -136,7 +117,7 @@ class Population(
         )
 
         var houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-          Population.getVehiclesFromHousehold(household, scenario.getVehicles)
+          Population.getVehiclesFromHousehold(household, beamServices)
 
         houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
 
@@ -199,6 +180,25 @@ class Population(
 object Population {
 
   case object InitParkingVehicles
+
+  def getVehiclesFromHousehold(
+                                household: Household, beamServices: BeamServices): Map[Id[BeamVehicle], BeamVehicle] = {
+    val houseHoldVehicles: Iterable[Id[Vehicle]] =
+      JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
+
+    // Add bikes
+    if (beamServices.beamConfig.beam.agentsim.agents.vehicles.bicycles.useBikes) {
+      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario)
+      bikeFactory.bicyclePrepareForSim()
+    }
+    houseHoldVehicles
+      .map({ id =>
+        makeHouseholdVehicle(beamServices.matsimServices.getScenario.getVehicles, id) match {
+          case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
+        }
+      })
+      .toMap
+  }
 
   def props(
     scenario: Scenario,
