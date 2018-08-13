@@ -30,9 +30,15 @@ import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSu
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.infrastructure.ParkingManager.{
+  ParkingInquiry,
+  ParkingInquiryResponse,
+  ParkingStockAttributes
+}
 import beam.agentsim.infrastructure.TAZTreeMap.QuadTreeBounds
-import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
@@ -71,10 +77,14 @@ class BeamMobsim @Inject()(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
+  var memoryLoggingTimerActorRef: ActorRef = _
+  var memoryLoggingTimerCancellable: Cancellable = _
+
+  var rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
   val rideHailHouseholds: mutable.Set[Id[Household]] =
     mutable.Set[Id[Household]]()
+
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   /*
@@ -153,6 +163,13 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
+        private val parkingManager = context.actorOf(
+          ZonalParkingManager
+            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+          "ParkingManager"
+        )
+        context.watch(parkingManager)
+
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef =
             context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
@@ -171,6 +188,7 @@ class BeamMobsim @Inject()(
             transportNetwork,
             beamServices.beamRouter,
             rideHailManager,
+            parkingManager,
             eventsManager
           ),
           "population"
@@ -368,12 +386,13 @@ class BeamMobsim @Inject()(
 
           case CompletionNotice(_, _) =>
             log.info("Scheduler is finished.")
+            cleanupRideHailingAgents()
             endSegment("agentsim-execution", "agentsim")
             log.info("Ending Agentsim")
             log.info("Processing Agentsim Events (Start)")
             startSegment("agentsim-events", "agentsim")
 
-            cleanupRideHailAgents()
+            cleanupRideHailingAgents()
             cleanupVehicle()
             population ! Finish
             val future = rideHailManager.ask(NotifyIterationEnds())
@@ -381,9 +400,14 @@ class BeamMobsim @Inject()(
             context.stop(rideHailManager)
             context.stop(scheduler)
             context.stop(errorListener)
+            context.stop(parkingManager)
             if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
               debugActorWithTimerCancellable.cancel()
               context.stop(debugActorWithTimerActorRef)
+            }
+            if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
+//              memoryLoggingTimerCancellable.cancel()
+//              context.stop(memoryLoggingTimerActorRef)
             }
           case Terminated(_) =>
             if (context.children.isEmpty) {
@@ -412,9 +436,10 @@ class BeamMobsim @Inject()(
           log.info(s"rideHailManagerTimerScheduled")
         }
 
-        private def cleanupRideHailAgents(): Unit = {
+        private def cleanupRideHailingAgents(): Unit = {
           rideHailAgents.foreach(_ ! Finish)
-          rideHailAgents.clear()
+          rideHailAgents = new ArrayBuffer()
+
         }
 
         private def cleanupVehicle(): Unit = {

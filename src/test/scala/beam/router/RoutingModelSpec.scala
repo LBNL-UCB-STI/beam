@@ -130,4 +130,19 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     )
   }
 
+  it should "produce travel and distance estimates from links that match router" in {
+    def travelTime(enterTime: Long, linkId: Int) = 1000
+    val leg = EmbodiedBeamLeg(
+      BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      Id.createVehicleId(13),
+      true,
+      None,
+      BigDecimal.valueOf(0),
+      true
+    )
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should be(
+      'empty
+    )
+  }
+
 }

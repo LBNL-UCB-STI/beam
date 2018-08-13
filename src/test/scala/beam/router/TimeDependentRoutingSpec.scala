@@ -241,7 +241,7 @@ class TimeDependentRoutingSpec
           .get
       }
 
-      assert(scala.math.abs(gap) < 71) // isn't exactly 0, probably rounding errors?
+      assert(scala.math.abs(gap) < 75) // isn't exactly 0, probably rounding errors?
     }
 
     "give updated travel times for a given route after travel times were updated" in {

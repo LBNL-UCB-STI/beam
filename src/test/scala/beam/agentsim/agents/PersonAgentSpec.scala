@@ -24,6 +24,8 @@ import beam.agentsim.agents.vehicles.{
   ReserveConfirmInfo
 }
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
   ScheduleTrigger,
@@ -93,7 +95,7 @@ class PersonAgentSpec
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val randomSeed: Int = 4771
 
-  val services: BeamServices = {
+  val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -108,7 +110,7 @@ class PersonAgentSpec
   val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = services
+    override val beamServices: BeamServices = beamServices
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
@@ -130,6 +132,12 @@ class PersonAgentSpec
       }
     }),
     "router"
+  )
+
+  val parkingManager = system.actorOf(
+    ZonalParkingManager
+      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+    "ParkingManager"
   )
 
   case class TestTrigger(tick: Double) extends Trigger
@@ -157,7 +165,7 @@ class PersonAgentSpec
       val personAgentRef = TestFSMRef(
         new PersonAgent(
           scheduler,
-          services,
+          beamServices,
           modeChoiceCalculator,
           networkCoordinator.transportNetwork,
           self,
@@ -165,7 +173,8 @@ class PersonAgentSpec
           eventsManager,
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
-          Id.create("dummyBody", classOf[Vehicle])
+          Id.create("dummyBody", classOf[Vehicle]),
+          parkingManager
         )
       )
 
@@ -204,19 +213,20 @@ class PersonAgentSpec
       scenario.setPopulation(population)
       scenario.setLocked()
       ScenarioUtils.loadScenario(scenario)
-      when(services.matsimServices.getScenario).thenReturn(scenario)
+      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
@@ -331,7 +341,7 @@ class PersonAgentSpec
         BigDecimal(18.0)
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
-      when(services.matsimServices.getScenario).thenReturn(scenario)
+      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
@@ -339,12 +349,13 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
@@ -529,12 +540,13 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,

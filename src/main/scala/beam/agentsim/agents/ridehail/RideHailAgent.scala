@@ -59,8 +59,9 @@ object RideHailAgent {
 
     override def withCurrentLegPassengerScheduleIndex(
       currentLegPassengerScheduleIndex: Int
-    ): DrivingData =
-      copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+
+    override def hasParkingBehaviors: Boolean = false
   }
 
   def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {

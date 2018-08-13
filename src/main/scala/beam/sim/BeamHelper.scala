@@ -6,6 +6,8 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+//import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
+//import beam.analysis.plots.GraphSurgePricing
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
@@ -68,15 +70,9 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           val beamConfig = BeamConfig(typesafeConfig)
 
-          val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-          mTazTreeMap.foreach { tazTreeMap =>
-            bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
-          }
-
           bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager])
-            .toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
 
@@ -92,6 +88,7 @@ trait BeamHelper extends LazyLogging {
           addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
           addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])

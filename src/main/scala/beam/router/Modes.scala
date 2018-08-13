@@ -1,7 +1,19 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{FERRY, RAIL, RIDE_HAIL, SUBWAY, TRAM}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  DRIVE_TRANSIT,
+  FERRY,
+  NONE,
+  RAIL,
+  RIDE_HAIL,
+  SUBWAY,
+  TRAM,
+  WALK
+}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
+import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
 
@@ -31,6 +43,8 @@ object Modes {
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
+
+    case object NONE extends BeamMode(value = "none", None, "")
 
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
@@ -107,6 +121,14 @@ object Modes {
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY, TRAM)
     val availableModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
+
+    def fromString(stringMode: String): BeamMode = {
+      if (stringMode.equals("")) {
+        NONE
+      } else {
+        BeamMode.withValue(stringMode)
+      }
+    }
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
@@ -144,6 +166,18 @@ object Modes {
       case _ =>
         false
     }
+  }
+
+  def toR5StreetMode(mode: BeamMode): StreetMode = mode match {
+    case BIKE => StreetMode.BICYCLE
+    case WALK => StreetMode.WALK
+    case CAR  => StreetMode.CAR
+  }
+
+  def toR5StreetMode(mode: LegMode): StreetMode = mode match {
+    case LegMode.BICYCLE | LegMode.BICYCLE_RENT => StreetMode.BICYCLE
+    case LegMode.WALK                           => StreetMode.WALK
+    case LegMode.CAR                            => StreetMode.CAR
   }
 
   def mapLegMode(mode: LegMode): BeamMode = mode match {
