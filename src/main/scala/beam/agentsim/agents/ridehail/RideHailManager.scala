@@ -165,8 +165,6 @@ class RideHailManager(
   private val inServiceRideHailVehicles =
     concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
 
-//  private var bufferedRideHailRequests: BufferedRideHailRequests = _
-
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
@@ -613,13 +611,6 @@ class RideHailManager(
       request
     )
 
-    // code for dummy ride hail - continue here.
-    //if (){
-    // remember when query comes back!
-    // TODO: we only have query going to dispatch, not actual, why????
-    //  request.customer.personRef.get ! RideHailResponse.dummy
-    // }
-
     val rideHailLocationOpt =
       rideHailResourceAllocationManager
         .proposeVehicleAllocation(vehicleAllocationRequest) match {
@@ -893,7 +884,12 @@ class RideHailManager(
     //TODO: Possibly get multiple taxis in this block
     val result = distances2RideHailAgents
       .filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
-      .sortBy(_._2)
+      .sorted(
+        (
+          vehicleRadius1: (RideHailAgentLocation, Double),
+          vehicleRadius2: (RideHailAgentLocation, Double)
+        ) => java.lang.Double.compare(vehicleRadius1._2, vehicleRadius2._2)
+      )
       .map(_._1)
     result
   }

@@ -85,7 +85,7 @@ class BeamPlan extends Plan {
     indexBeamPlan()
     actsLegs.foreach {
       case l: Leg =>
-        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
+        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.fromString(l.getMode)))
       case _ =>
     }
   }

@@ -25,8 +25,7 @@ class RideHailPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.rideHailPrice",
-                         ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 

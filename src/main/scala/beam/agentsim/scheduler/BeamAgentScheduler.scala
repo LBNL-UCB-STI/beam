@@ -78,7 +78,7 @@ object BeamAgentScheduler {
   def SchedulerProps(
     beamConfig: BeamConfig,
     stopTick: Double = 3600.0 * 24.0,
-    maxWindow: Double = 300.0
+    maxWindow: Double = 1.0
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
   }
@@ -210,7 +210,9 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
         s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
           .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
       )
-      awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+      awaitingResponse
+        .values()
+        .forEach(x => log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
       var numReps = 0L

@@ -455,7 +455,8 @@ object BeamRouter {
     departureTime: BeamTime,
     transitModes: Vector[BeamMode],
     streetVehicles: Vector[StreetVehicle],
-    streetVehiclesUseIntermodalUse: IntermodalUse = Access
+    streetVehiclesUseIntermodalUse: IntermodalUse = Access,
+    mustParkAtEnd: Boolean = false
   ) {
     // We make requestId be independent of request type, all that matters is details of the customer
     lazy val requestId: Int = this.hashCode()

@@ -7,11 +7,7 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-class ModeChoiceSpec
-    extends WordSpecLike
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon {
+class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
 //  "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
 //    "prefer mode choice car type than other modes" in {
