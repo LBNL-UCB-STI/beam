@@ -1,4 +1,4 @@
-package conversion
+package beam.utils.matsim_conversion
 
 import java.io.{File, FileWriter}
 import java.nio.file.Paths
@@ -15,20 +15,24 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 
-object SiouxFallsConversion extends App {
+object MatsimConversionTool extends App {
 
-  val beamConfigFilePath = "test/input/beamville/beam.conf"
+  if(null != args && args.size > 0){
+    val beamConfigFilePath = args(0)//"test/input/beamville/beam.conf"
 
-  val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
-  val conversionConfig = ConversionConfig(config)
+    val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
+    val conversionConfig = ConversionConfig(config)
 
-  val network = NetworkUtils.createNetwork()
-  new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
+    val network = NetworkUtils.createNetwork()
+    new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
 
-  MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
-  generateTazDefaults(ConversionConfig(config), network)
-  generateOsmFilteringCommand(OSMFilteringConfig(config, network))
+    MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
+    generateTazDefaults(ConversionConfig(config), network)
+    generateOsmFilteringCommand(OSMFilteringConfig(config, network))
+  } else {
+    println("Please specify config/file/path parameter")
+  }
 
   def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
     val commandOut =
@@ -36,6 +40,7 @@ object SiouxFallsConversion extends App {
          osmosis --read-pbf file=${ofc.pbfFile} --bounding-box top=${ofc.boundingBox.top} left=${ofc.boundingBox.left} bottom=${ofc.boundingBox.bottom} right=${ofc.boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${ofc.outputFile}
       """.stripMargin
 
+    println(s"Run following format to clip open street data file to network boundaries if required")
     println(commandOut)
   }
 

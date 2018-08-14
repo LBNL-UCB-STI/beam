@@ -1,12 +1,12 @@
-package conversion
+package beam.utils.matsim_conversion
 
 import java.io.File
 
 import org.apache.commons.io.FileUtils
 
 import scala.xml._
-import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.dtd.{DocType, SystemID}
+import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
   def generateSiouxFallsXml(conversionConfig: ConversionConfig): Unit = {

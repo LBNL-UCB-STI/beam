@@ -1,10 +1,11 @@
-package conversion
+package beam.utils.matsim_conversion
 
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+
 import scala.util.Try
 
 case class HouseholdIncome(currency: String, period: String, value: Int)
