@@ -325,9 +325,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val head = data.passengerSchedule.schedule
         .drop(data.currentLegPassengerScheduleIndex).head
       RoutingModel
-        .traverseStreetLeg(head._1,
-          data.currentVehicle.head,
-          (_, _) => 0L
+        .traverseStreetLeg_opt(head._1,
+          data.currentVehicle.head
         )
         .foreach(eventsManager.processEvent)
       val endTime = tick + head._1.duration

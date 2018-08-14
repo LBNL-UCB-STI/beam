@@ -512,14 +512,17 @@ trait ChoosesMode {
       // Write start and end links of chosen route into Activities.
       // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
       // Our aim should be that every transition from a link to another link be accounted for.
-      val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
-      if (links.nonEmpty) {
+      val headOpt = chosenTrip.legs.headOption
+        .flatMap(_.beamLeg.travelPath.linkIds.headOption)
+      val lastOpt = chosenTrip.legs.lastOption
+        .flatMap(_.beamLeg.travelPath.linkIds.lastOption)
+      if (headOpt.isDefined && lastOpt.isDefined) {
         _experiencedBeamPlan
           .activities(data.personData.currentActivityIndex)
-          .setLinkId(Id.createLinkId(links.head))
+          .setLinkId(Id.createLinkId(headOpt.get))
         _experiencedBeamPlan
           .activities(data.personData.currentActivityIndex + 1)
-          .setLinkId(Id.createLinkId(links.last))
+          .setLinkId(Id.createLinkId(lastOpt.get))
       } else {
         val origin = beamServices.geo.utm2Wgs(
           _experiencedBeamPlan
