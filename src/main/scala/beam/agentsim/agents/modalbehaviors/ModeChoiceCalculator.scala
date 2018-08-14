@@ -44,7 +44,10 @@ trait ModeChoiceCalculator extends HasServices {
   lazy val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
       DefaultVot -> MathUtils.roundDouble(
-        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+        try{
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+        }
+        catch {case e: NullPointerException => 18.0},
         -3
       )
     )
