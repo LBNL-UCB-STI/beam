@@ -50,7 +50,7 @@ class ParkingSpec
       .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
       .withValue(
         "beam.agentsim.taz.parking",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv")
+        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-$parkingScenario.csv")
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.modeChoiceClass",

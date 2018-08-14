@@ -36,7 +36,7 @@ class ZonalParkingManager(
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
   var stallnum = 0
 
-  val pathResourceCSV = beamServices.beamConfig.beam.agentsim.taz.parking
+  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
 
   val defaultStallAtrrs = StallAttributes(
     Id.create("NA", classOf[TAZ]),
@@ -80,7 +80,7 @@ class ZonalParkingManager(
     // Irrelevant for parking
 
     case CheckInResource(stallId: Id[ParkingStall], availableIn: Option[SpaceTime]) =>
-      val stall = resources.get(stallId).get
+      val stall = resources(stallId)
       val stallValues = pooledResources(stall.attributes)
 
       pooledResources.update(
@@ -197,7 +197,7 @@ class ZonalParkingManager(
     }
   }
 
-  def respondWithStall(stall: ParkingStall) = {
+  def respondWithStall(stall: ParkingStall): Unit = {
     resources.put(stall.id, stall)
     val stallValues = pooledResources(stall.attributes)
     pooledResources.update(
@@ -208,7 +208,7 @@ class ZonalParkingManager(
   }
 
   // TODO make these distributions more custom to the TAZ and stall type
-  def sampleLocationForStall(taz: TAZ, attrib: StallAttributes) = {
+  def sampleLocationForStall(taz: TAZ, attrib: StallAttributes): Location = {
     val rand = new Random()
     val radius = math.sqrt(taz.area) / 2
     val lambda = 1
@@ -227,7 +227,7 @@ class ZonalParkingManager(
     feeInCents: Int,
     arrivalTime: Long,
     parkingDuration: Double
-  ) = {
+  ): Double = {
     attrib.pricingModel match {
       case Free    => 0.0
       case FlatFee => feeInCents.toDouble / 100.0
@@ -237,8 +237,8 @@ class ZonalParkingManager(
 
   def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
     val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destinationUtm, searchRadius)
-    val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.map { taz =>
-      Vector(Free, FlatFee, Block).map { pricingModel =>
+    val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
+      Vector(Free, FlatFee, Block).flatMap { pricingModel =>
         val attrib =
           StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger, ParkingStall.Any)
         val stallValues = pooledResources(attrib)
@@ -258,8 +258,8 @@ class ZonalParkingManager(
         } else {
           Vector[ParkingAlternative]()
         }
-      }.flatten
-    }.flatten
+      }
+    }
     val chosenStall = allOptions.sortBy(_.rankingWeight).headOption match {
       case Some(alternative) =>
         maybeCreateNewStall(
@@ -323,7 +323,7 @@ class ZonalParkingManager(
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
 
-        val taz = Id.create((line.get("taz")).toUpperCase, classOf[TAZ])
+        val taz = Id.create(line.get("taz").toUpperCase, classOf[TAZ])
         val parkingType = ParkingType.fromString(line.get("parkingType"))
         val pricingModel = PricingModel.fromString(line.get("pricingModel"))
         val chargingType = ChargingType.fromString(line.get("chargingType"))
@@ -359,10 +359,10 @@ class ZonalParkingManager(
     pooledResources: mutable.Map[ParkingStall.StallAttributes, StallValues],
     writeDestinationPath: String
   ): Unit = {
-    var mapWriter: ICsvMapWriter = null;
+    var mapWriter: ICsvMapWriter = null
     try {
       mapWriter =
-        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE);
+        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
 
       val header = Array[String](
         "taz",
@@ -382,7 +382,7 @@ class ZonalParkingManager(
       ) //new UniqueHashCode()
       mapWriter.writeHeader(header: _*)
 
-      val range = (1 to pooledResources.size)
+      val range = 1 to pooledResources.size
       val resourcesWithId = (pooledResources zip range).toSeq
         .sortBy(_._2)
 
