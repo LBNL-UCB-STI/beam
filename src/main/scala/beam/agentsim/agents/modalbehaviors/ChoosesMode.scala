@@ -696,3 +696,4 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
 }
+
