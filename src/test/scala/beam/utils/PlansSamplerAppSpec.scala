@@ -18,7 +18,7 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
     "10",
     "output/test/plansampler/",
     "epsg:4326",
-    "epsg:32610"
+    "epsg:26910"
   )
 
   "PlanSamplerApp class" should {
@@ -44,6 +44,6 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
         "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
       )
     }
-    "ensure agents only use available modes" in {}
+
   }
 }
