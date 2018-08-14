@@ -187,7 +187,7 @@ class BeamSim @Inject()(
     )
 
     outputFilesToDelete.foreach(deleteOutputFile)
-
+    createGraphsFromEvents.notifyShutdown(event)
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: ${fileName}")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
