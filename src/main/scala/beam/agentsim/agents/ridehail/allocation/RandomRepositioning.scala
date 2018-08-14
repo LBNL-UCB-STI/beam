@@ -14,6 +14,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     None
   }
 
+  // just testing jenkins integration
+
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     val repositioningShare =
