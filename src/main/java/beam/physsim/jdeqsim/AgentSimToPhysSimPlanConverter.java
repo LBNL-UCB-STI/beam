@@ -253,8 +253,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // hack: removing non-road links from route
         // TODO: debug problem properly, so that no that no events for physsim contain non-road links
         List<Id<Link>> removeLinks = new ArrayList<>();
+        Map<Id<Link>, ? extends Link> networkLinks = agentSimScenario.getNetwork().getLinks();
         for (Id<Link> linkId : linkIds) {
-            if (!agentSimScenario.getNetwork().getLinks().containsKey(linkId)) {
+            if (!networkLinks.containsKey(linkId)) {
                 throw new RuntimeException("Link not found: " + linkId);
             }
         }
