@@ -74,18 +74,20 @@ object ConversionConfig {
     val right = bbox(2) // max lon - x
     val top = bbox(3) //max lat - y
 
+    val env = new Envelope(left, right, bottom, top)
+    env.expandBy(boundingBoxBuffer)
+
     //From local csr to UTM
     val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation(localCrs, "EPSG:4326")
-    val minCoord: Coord = wgs2Utm.transform(new Coord(left, bottom))
-    val maxCoord: Coord = wgs2Utm.transform(new Coord(right, top))
+    val minCoord: Coord = wgs2Utm.transform(new Coord(env.getMinX, env.getMinY))
+    val maxCoord: Coord = wgs2Utm.transform(new Coord(env.getMaxX, env.getMaxY))
 
-    val env = new Envelope(minCoord.getX, maxCoord.getX, minCoord.getY, maxCoord.getY)
-//    env.expandBy(boundingBoxBuffer)
 
-    val tLeft = env.getMinX
-    val tBottom = env.getMinY
-    val tRight = env.getMaxX
-    val tTop = env.getMaxY
+
+    val tLeft = minCoord.getX
+    val tBottom = minCoord.getY
+    val tRight = maxCoord.getX
+    val tTop = maxCoord.getY
 
     BoundingBoxConfig(tTop, tLeft, tBottom, tRight)
   }
