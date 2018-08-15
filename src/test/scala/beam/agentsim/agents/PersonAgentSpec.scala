@@ -72,7 +72,7 @@ class PersonAgentSpec
     with MockitoSugar
     with ImplicitSender {
 
-  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
 
   val dummyAgentId = Id.createPersonId("dummyAgent")
