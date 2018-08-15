@@ -45,7 +45,7 @@ trait ModeChoiceCalculator extends HasServices {
       DefaultVot ->
         (try {
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-        } catch { case e: NullPointerException => 18.0 })
+        } catch { case _: NullPointerException => 18.0 })
 
     )
 
@@ -139,28 +139,28 @@ object ModeChoiceCalculator {
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        (_) =>
+        _ =>
           new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        (_) =>
+        _ =>
           new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        (_) =>
+        _ =>
           new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        (_) =>
+        _ =>
           new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        (_) =>
+        _ =>
           new ModeChoiceMultinomialLogit(beamServices, logit)
       case "ModeChoiceMultinomialLogitTest" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        (_) =>
+        _ =>
           new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
