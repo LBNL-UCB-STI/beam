@@ -3,6 +3,7 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.{BeamTime, DiscreteTime}
+import org.apache.commons.lang.builder.HashCodeBuilder
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -14,9 +15,18 @@ case class RideHailRequest(
   departAt: BeamTime,
   destination: Location
 ) {
-  // We make requestId be independent of request type, all that matters is details of the customer
-  lazy val requestId: Int =
-    this.copy(requestType = RideHailInquiry).hashCode()
+  /**
+   * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
+   * @return hashCode(customer, pickUpLocation, departAt, destination)
+   */
+  lazy val requestId: Int = {
+    new HashCodeBuilder()
+      .append(customer)
+      .append(pickUpLocation)
+      .append(departAt)
+      .append(destination)
+      .toHashCode
+  }
 }
 
 object RideHailRequest {
