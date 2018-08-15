@@ -48,6 +48,10 @@ object DrivesVehicle {
 
   case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
 
+  case class StopDrivingIfNoPassengerOnBoard(tick: Double, requestId: Int)
+
+  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Double)
+
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
@@ -197,6 +201,27 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         currentVehicleUnderControl.id,
         tick
       )
+
+    case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      data.passengerSchedule.schedule.keys
+        .drop(data.currentLegPassengerScheduleIndex)
+        .headOption match {
+        case Some(currentLeg) =>
+          if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
+            log.info(s"stopping vehicle: ${id}")
+
+            goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+              true,
+              requestId,
+              tick
+            )
+
+          } else {
+            stay() replying StopDrivingIfNoPassengerOnBoardReply(false, requestId, tick)
+          }
+        case None =>
+          stay()
+      }
 
   }
 

@@ -356,6 +356,7 @@ class PersonAgent(
     /*
      * Learn as passenger that leg is starting
      */
+
     case Event(
         TriggerWithId(NotifyLegStartTrigger(_, _, _), triggerId),
         BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _)
