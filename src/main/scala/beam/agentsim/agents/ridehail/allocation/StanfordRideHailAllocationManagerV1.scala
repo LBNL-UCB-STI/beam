@@ -1,14 +1,10 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailNetworkAPI}
+import beam.agentsim.agents.ridehail.RideHailManager
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ArrayBuffer
-import scala.util.control.Breaks._
 
 /*
 TODO: check all network api, if they can use them properly
