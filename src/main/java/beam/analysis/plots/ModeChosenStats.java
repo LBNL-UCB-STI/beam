@@ -11,7 +11,12 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.events.ShutdownEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,6 +32,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static Set<String> iterationTypeSet = new HashSet();
     private static Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
+
 
 
     @Override
@@ -176,6 +183,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
         if (dataset != null)
             createRootModeChoosenGraph(dataset, fileName);
+        writeToRootCSV();
     }
 
 
@@ -245,6 +253,46 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    // csv for root modeChoice.png
+    private void writeToRootCSV() {
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
+
+        try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+
+            Set<String> modes = modesChosen;
+
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
+            out.write("iterations," + heading);
+            out.newLine();
+
+            int max = modeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
+
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
+                StringBuilder builder = new StringBuilder(iteration +"");
+                if (modeCount != null) {
+                    for (String mode : modes) {
+                        if (modeCount.get(mode) != null) {
+                            builder.append(",").append(modeCount.get(mode));
+                        } else {
+                            builder.append(",0");
+                        }
+                    }
+                } else {
+                    for (String ignored : modes) {
+                        builder.append(",0");
+                    }
+                }
+                out.write(builder.toString());
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            log.error("CSV generation failed.", e);
+        }
     }
 
 }

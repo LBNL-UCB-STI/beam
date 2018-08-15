@@ -34,7 +34,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static List<String> personIdList = new ArrayList<>();
 
-    private static Map<Integer,Map<String,Integer>> realizedModeChoiceInIteration = new HashMap<>();
+    private static Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
     private static Set<String> iterationTypeSet = new HashSet();
 
@@ -257,6 +257,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
         if (dataset != null)
             createRootRealizedModeChoosenGraph(dataset, fileName);
+        writeToRootCSV();
     }
 
 
@@ -366,6 +367,44 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             log.error("CSV generation failed.", e);
         }
     }
+
+    // csv for root graph
+    public void writeToRootCSV() {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
+        try {
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+            Set<String> modes = getModesChosen();
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
+            out.write("iterations," + heading);
+            out.newLine();
+
+            int max = realizedModeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
+
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Integer> modeCountIteration = realizedModeChoiceInIteration.get(iteration);
+                StringBuilder stringBuilder = new StringBuilder(iteration + "");
+                if (modeCountIteration != null) {
+                    for (String mode : modes) {
+                        if (modeCountIteration.get(mode) != null) {
+                            stringBuilder.append(",").append(modeCountIteration.get(mode));
+                        } else {
+                            stringBuilder.append(",0");
+                        }
+                    }
+                } else {
+                    for (String ignored : modes) {
+                        stringBuilder.append(",0");
+                    }
+                }
+                out.write(stringBuilder.toString());
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            log.error("error in generating CSV", e);
+        }
+    }
+
 
     class ModePerson {
         private String mode;
