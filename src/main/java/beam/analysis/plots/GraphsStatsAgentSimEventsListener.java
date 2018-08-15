@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.IOException;
@@ -134,5 +135,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
         realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
+    }
+
+    public void notifyShutdown(ShutdownEvent event) throws Exception{
+        if(modeChoseStats instanceof  ModeChosenStats){
+            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
+            modeStats.notifyShutdown(event);
+        }
+
+        if(realizedModeStats instanceof RealizedModeStats){
+            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
+            realizedStats.notifyShutdown(event);
+        }
     }
 }
