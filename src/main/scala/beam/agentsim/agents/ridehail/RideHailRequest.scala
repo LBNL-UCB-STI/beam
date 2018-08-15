@@ -21,7 +21,7 @@ case class RideHailRequest(
 
 object RideHailRequest {
 
-  val dummy = RideHailRequest(
+  val DUMMY = RideHailRequest(
     RideHailInquiry,
     VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
     new Coord(Double.NaN, Double.NaN),

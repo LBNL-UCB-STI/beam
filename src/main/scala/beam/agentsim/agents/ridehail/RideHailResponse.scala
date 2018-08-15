@@ -12,9 +12,9 @@ case class RideHailResponse(
 )
 
 object RideHailResponse {
-  val dummy = RideHailResponse(RideHailRequest.dummy, None, None)
+  val DUMMY = RideHailResponse(RideHailRequest.DUMMY, None, None)
 
   def dummyWithError(error: ReservationError) =
-    RideHailResponse(RideHailRequest.dummy, None, Some(error))
+    RideHailResponse(RideHailRequest.DUMMY, None, Some(error))
 }
 

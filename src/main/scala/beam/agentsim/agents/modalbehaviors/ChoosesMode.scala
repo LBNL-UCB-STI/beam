@@ -353,7 +353,7 @@ trait ChoosesMode {
   ): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs
       .exists(_.beamLeg.mode.isMassTransit) &&
-    rideHail2TransitResult.getOrElse(RideHailResponse.dummy).error.isEmpty
+    rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
   def makeRideHailRequestFromBeamLeg(legs: Vector[BeamLeg]): Option[Int] = {
