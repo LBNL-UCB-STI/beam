@@ -16,7 +16,7 @@ class RepositioningLowWaitingTimes(
   tncIterationStats: Option[TNCIterationStats]
 ) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  def proposeVehicleAllocation(
+  override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
