@@ -38,7 +38,7 @@ class RepositioningLowWaitingTimes(
     }
 
     if (result.size < idleVehicles.values.size) {
-      log.debug(
+      logger.debug(
         s"filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by ${idleVehicles.values.size - result.size}"
       )
     }
@@ -242,7 +242,7 @@ class RepositioningLowWaitingTimes(
         }
 
         if (whichTAZToRepositionTo.nonEmpty) {
-          log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+          logger.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
         val result = if (firstRepositioningOfDay) {
