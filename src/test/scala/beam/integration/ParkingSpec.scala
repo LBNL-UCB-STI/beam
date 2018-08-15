@@ -78,16 +78,16 @@ class ParkingSpec
     queueEvents
   }
 
-  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
-  lazy val defaultEvents = runAndCollectForIterations("default", 10)
-  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
-  lazy val emptyEvents = runAndCollectForIterations("empty", 10)
+  lazy val limitedEvents: Seq[Queue[Event]] = runAndCollectForIterations("limited", 10)
+  lazy val defaultEvents: Seq[Queue[Event]] = runAndCollectForIterations("default", 10)
+  lazy val expensiveEvents: Seq[Queue[Event]] = runAndCollectForIterations("expensive", 10)
+  lazy val emptyEvents: Seq[Queue[Event]] = runAndCollectForIterations("empty", 10)
 
   lazy val filterForCarMode: Seq[Event] => Int = { events =>
-    events.filter { e =>
+    events.count { e =>
       val mMode = Option(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
-    }.size
+    }
   }
 
    "Parking system " must {
@@ -196,8 +196,8 @@ class ParkingSpec
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Expensive iterations ${expensiveModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Expensive iterations $expensiveModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -208,8 +208,8 @@ class ParkingSpec
       val emptyModeChoiceCarCount = emptyEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Empty iterations ${emptyModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Empty iterations $emptyModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -220,8 +220,8 @@ class ParkingSpec
       val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Limited iterations ${limitedModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Limited iterations $limitedModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)

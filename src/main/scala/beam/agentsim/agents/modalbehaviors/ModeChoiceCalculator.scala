@@ -1,5 +1,8 @@
 package beam.agentsim.agents.modalbehaviors
 
+import scala.collection.mutable
+import scala.util.Random
+
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
@@ -15,12 +18,8 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.router.RoutingModel.EmbodiedBeamTrip
-import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.MathUtils
-
-import scala.collection.mutable
-import scala.util.Random
 
 /**
   * BEAM
@@ -43,13 +42,11 @@ trait ModeChoiceCalculator extends HasServices {
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
-      DefaultVot -> MathUtils.roundDouble(
-        try{
+      DefaultVot ->
+        (try {
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-        }
-        catch {case e: NullPointerException => 18.0},
-        -3
-      )
+        } catch { case e: NullPointerException => 18.0 })
+
     )
 
   /**
@@ -72,19 +69,22 @@ trait ModeChoiceCalculator extends HasServices {
     case Some(RIDE_HAIL)                                  => RideHailVot
     case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
     case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
-    case None                                             => GeneralizedVot
+    case Some(_)                                          => GeneralizedVot
+    case None                                             => DefaultVot
   }
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
   private def getVot(beamMode: Option[BeamMode]): BigDecimal =
-    _valuesOfTime.getOrElse(
-      matchMode2Vot(beamMode),
-      _valuesOfTime.getOrElse(GeneralizedVot, _valuesOfTime(DefaultVot))
-    )
+    _valuesOfTime.getOrElse(matchMode2Vot(beamMode), _valuesOfTime(DefaultVot))
 
-  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): _valuesOfTime.type = {
-    _valuesOfTime += matchMode2Vot(beamMode) -> value
+  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[_valuesOfTime.type] = {
+    val votType = matchMode2Vot(beamMode)
+    if (!votType.equals(DefaultVot))
+      Some(_valuesOfTime += votType -> value)
+    else {
+      None
+    }
   }
 
   def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
