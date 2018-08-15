@@ -240,7 +240,7 @@ object HouseholdActor {
 
       val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
 
-      modeChoiceCalculator.setVot(valueOfTime)
+      modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> valueOfTime)
 
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(

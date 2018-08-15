@@ -144,7 +144,7 @@ class Population(
           veh.manager = Some(householdActor)
         }
 
-        houseHoldVehicles.map {
+        houseHoldVehicles.foreach {
           vehicle =>
             val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
               parkingManager ! ParkingInquiry(
@@ -152,7 +152,7 @@ class Population(
                 homeCoord,
                 homeCoord,
                 "home",
-                0,
+                0.0,
                 NoNeed,
                 0,
                 0

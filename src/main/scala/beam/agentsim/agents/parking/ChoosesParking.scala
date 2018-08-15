@@ -51,7 +51,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).right.get.getType,
-        17.0,
+        beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(id.toString,"valueOfTime").asInstanceOf[Double],
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble

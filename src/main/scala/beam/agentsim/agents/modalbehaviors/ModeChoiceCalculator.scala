@@ -19,7 +19,6 @@ import beam.router.Modes.BeamMode.{
 }
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.MathUtils
 
 /**
   * BEAM
@@ -40,13 +39,12 @@ trait ModeChoiceCalculator extends HasServices {
     */
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
-  lazy val _valuesOfTime: mutable.Map[VotType, BigDecimal] =
+  lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
       DefaultVot ->
-        (try {
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-        } catch { case _: NullPointerException => 18.0 })
-
+      (try {
+        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+      } catch { case _: NullPointerException => 18.0 })
     )
 
   /**
@@ -76,12 +74,12 @@ trait ModeChoiceCalculator extends HasServices {
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
   private def getVot(beamMode: Option[BeamMode]): BigDecimal =
-    _valuesOfTime.getOrElse(matchMode2Vot(beamMode), _valuesOfTime(DefaultVot))
+    valuesOfTime.getOrElse(matchMode2Vot(beamMode), valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot)))
 
-  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[_valuesOfTime.type] = {
+  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
     val votType = matchMode2Vot(beamMode)
     if (!votType.equals(DefaultVot))
-      Some(_valuesOfTime += votType -> value)
+      Some(valuesOfTime += votType -> value)
     else {
       None
     }
@@ -110,17 +108,17 @@ trait ModeChoiceCalculator extends HasServices {
 object ModeChoiceCalculator {
 
   sealed trait VotType
-  private case object DefaultVot extends VotType
-  private case object GeneralizedVot extends VotType
+  case object DefaultVot extends VotType
+  case object GeneralizedVot extends VotType
 
   // TODO: Implement usage of mode-specific VotTypes defined below
-  private case object DriveVot extends VotType
-  private case object OnTransitVot extends VotType
-  private case object WalkVot extends VotType
-  private case object WalkToTransitVot extends VotType // Separate from walking
-  private case object DriveToTransitVot extends VotType
-  private case object RideHailVot extends VotType // No separate ride hail to transit VOT
-  private case object BikeVot extends VotType
+  case object DriveVot extends VotType
+  case object OnTransitVot extends VotType
+  case object WalkVot extends VotType
+  case object WalkToTransitVot extends VotType // Separate from walking
+  case object DriveToTransitVot extends VotType
+  case object RideHailVot extends VotType // No separate ride hail to transit VOT
+  case object BikeVot extends VotType
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
@@ -139,29 +137,23 @@ object ModeChoiceCalculator {
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        _ =>
-          new ModeChoiceTransitIfAvailable(beamServices)
+        _ => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        _ =>
-          new ModeChoiceDriveIfAvailable(beamServices)
+        _ => new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        _ =>
-          new ModeChoiceRideHailIfAvailable(beamServices)
+        _ => new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        _ =>
-          new ModeChoiceUniformRandom(beamServices)
+        _ => new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit)
+        _ => new ModeChoiceMultinomialLogit(beamServices, logit)
       case "ModeChoiceMultinomialLogitTest" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit)
+        _ => new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
 

@@ -189,6 +189,7 @@ class PersonAgentSpec
       val population = PopulationUtils.createPopulation(matsimConfig)
 
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      scenario.getPopulation.getPersonAttributes.putAttribute(person.getId.toString,"valueOfTime",15.0)
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800) // 8:00:00 AM
@@ -210,7 +211,7 @@ class PersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamServices,
-          (_) => modeChoiceCalculator,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
