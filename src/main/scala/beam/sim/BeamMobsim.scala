@@ -23,6 +23,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
   NotifyIterationEnds,
   RideHailAllocationManagerTimeout
 }
@@ -363,7 +364,7 @@ class BeamMobsim @Inject()(
 
         log.info(s"Transit schedule has been initialized")
 
-        scheduleRideHailManagerTimerMessage()
+        scheduleRideHailManagerTimerMessages()
 
         def prepareMemoryLoggingTimerActor(
           timeoutInSeconds: Int,
@@ -429,10 +430,12 @@ class BeamMobsim @Inject()(
             scheduler ! StartSchedule(beamServices.iterationNumber)
         }
 
-        private def scheduleRideHailManagerTimerMessage(): Unit = {
+        private def scheduleRideHailManagerTimerMessages(): Unit = {
           val timerTrigger = RideHailAllocationManagerTimeout(0.0)
           val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
           scheduler ! timerMessage
+
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0.0), rideHailManager)
           log.info(s"rideHailManagerTimerScheduled")
         }
 
