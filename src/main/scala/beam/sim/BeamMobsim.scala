@@ -141,7 +141,7 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
-            30.0
+            300.0
           ),
           "scheduler"
         )
