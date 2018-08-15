@@ -65,44 +65,4 @@ class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager)
     }
   }
 
-  // TODO: allow specifying route not only dest coord
-  // need capacity and number of vehicles on road to implement it
-
-  /*
-  API available to implement allocation manager
-   */
-  /*
-  def apiExamples(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
-
-    // network operations
-    val linkId = 5
-    rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailNetworkApi.getLinks
-    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
-    rideHailNetworkApi.getFreeFlowTravelTime(linkId)
-    val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
-    val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)
-    val coord = rideHailNetworkApi.getLinkCoord(linkId)
-    val fromCoord = rideHailNetworkApi.getFromNodeCoordinate(linkId)
-    val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
-
-    // RHM
-    val rideHailAgentLocation = rideHailManager
-      .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.pickUpLocation,
-        rideHailManager.radiusInMeters
-      )
-      .get
-    rideHailManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailManager.getClosestIdleVehiclesWithinRadius(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-    rideHailManager.getIdleVehicles
-
-  }
- */
-
 }
