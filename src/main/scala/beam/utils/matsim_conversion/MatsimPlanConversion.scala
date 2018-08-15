@@ -41,20 +41,21 @@ object MatsimPlanConversion {
       SystemID("../dtd/population_v6.dtd"),
       Nil)
 
-    val transitVehiclesOutput = conversionConfig.outputDirectory + "/transitVehicles.xml"
-    val populationOutput = conversionConfig.outputDirectory + "/population.xml"
-    val vehiclesOutput = conversionConfig.outputDirectory + "/vehicles.xml"
-    val householdsOutput = conversionConfig.outputDirectory + "/households.xml"
-    val householdAttrsOutput = conversionConfig.outputDirectory + "/householdAttributes.xml"
-    val populationAttrsOutput = conversionConfig.outputDirectory + "/populationAttributes.xml"
+    val transitVehiclesOutput = conversionConfig.scenarioDirectory + "/transitVehicles.xml"
+    val populationOutput = conversionConfig.scenarioDirectory + "/population.xml"
+    val vehiclesOutput = conversionConfig.scenarioDirectory + "/vehicles.xml"
+    val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml"
+    val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
+    val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
 
-    if(conversionConfig.transitVehiclesInput.isDefined){
-      FileUtils.copyFile(
-        new File(conversionConfig.transitVehiclesInput.get),
-        new File(transitVehiclesOutput))
-    }
+//    if(conversionConfig.transitVehiclesInput.isDefined){
+//      FileUtils.copyFile(
+//        new File(conversionConfig.transitVehiclesInput.get),
+//        new File(transitVehiclesOutput))
+//    }
 
+    XML.save(transitVehiclesOutput, transitVehiclesDoc, "UTF-8", true)
     XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
     XML.save(vehiclesOutput, xmlVehiclesOutput, "UTF-8", true)
     XML.save(householdsOutput, houseHolds, "UTF-8", true)
@@ -211,7 +212,7 @@ object MatsimPlanConversion {
           val child = elem.child
           val filteredChild = child.filter{
             case e: Elem =>
-              e.label == "capacity" || e.label == "length"
+              requiredFieldsForType.contains(e.label)
             case _ => true
           }
           elem.copy(child = filteredChild)
@@ -248,5 +249,98 @@ object MatsimPlanConversion {
 
   def mapMetaData(m: MetaData)(f: GenAttr => GenAttr): MetaData =
     chainMetaData(unchainMetaData(m).map(f))
+
+
+  /*
+  * #################################################################################################################
+  * Transit vehicles XML data
+  * */
+
+  val transitVehiclesDoc: Elem =
+    <vehicleDefinitions
+    xmlns="http://www.matsim.org/files/dtd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.matsim.org/files/dtd http://www.matsim.org/files/dtd/vehicleDefinitions_v1.0.xsd">
+      <vehicleType id="BUS-DEFAULT">
+        <capacity>
+          <seats persons="50"/>
+          <standingRoom persons="50"/>
+        </capacity>
+        <length meter="12.0"/>
+        <engineInformation>
+          <fuelType>diesel</fuelType>
+          <gasConsumption literPerMeter="0.0007215"/> <!-- == 3.26 MPG U.S. Avg. Transit Bus Fuel Economy https://www.afdc.energy.gov/data/ -->
+        </engineInformation>
+        <accessTime secondsPerPerson="4"/>
+        <egressTime secondsPerPerson="4"/>
+      </vehicleType>
+      <vehicleType id="SUBWAY-DEFAULT">
+        <capacity>
+          <seats persons="50"/>
+          <standingRoom persons="50"/>
+        </capacity>
+        <length meter="12.0"/>
+        <engineInformation>
+          <fuelType>diesel</fuelType>
+          <gasConsumption literPerMeter="0.0034163"/> <!--
+				== 0.69 MPG which is equivalent consumption of a BART car, derived from:
+				https://www.bart.gov/sites/default/files/docs/2015%20Fact%20Sheet.pdf
+				https://www.bart.gov/sites/default/files/docs/2015%20Green%20Fact%20Sheet%20-%20electronic_0.pdf
+				The estimate is based on BART assumption of 21 MPG car that each passenger would otherwise take and claim of saving 280K gal per day)
+				(14 miles/passenger trip) * (421K trips per day) / (21 MPG * 421K trips per day - 280K gallons saved per day)
+				-->
+        </engineInformation>
+        <accessTime secondsPerPerson="1"/>
+        <egressTime secondsPerPerson="1"/>
+      </vehicleType>
+      <vehicleType id="TRAM-DEFAULT">
+        <capacity>
+          <seats persons="50"/>
+          <standingRoom persons="50"/>
+        </capacity>
+        <length meter="7.5"/>
+        <width meter="1.0"/>
+        <engineInformation>
+          <fuelType>diesel</fuelType>
+          <gasConsumption literPerMeter="0.0007215"/> <!-- == 3.26 MPG U.S. Avg. Transit Bus Fuel Economy https://www.afdc.energy.gov/data/ -->
+        </engineInformation>
+        <accessTime secondsPerPerson="1.0"/>
+        <egressTime secondsPerPerson="1.0"/>
+        <doorOperation mode="serial"/>
+        <passengerCarEquivalents pce="1.0"/>
+      </vehicleType>
+      <vehicleType id="RAIL-DEFAULT">
+        <capacity>
+          <seats persons="50"/>
+          <standingRoom persons="50"/>
+        </capacity>
+        <length meter="7.5"/>
+        <width meter="1.0"/>
+        <engineInformation>
+          <fuelType>diesel</fuelType>
+          <gasConsumption literPerMeter="0.0007215"/> <!-- == 3.26 MPG U.S. Avg. Transit Bus Fuel Economy https://www.afdc.energy.gov/data/ -->
+        </engineInformation>
+        <accessTime secondsPerPerson="1.0"/>
+        <egressTime secondsPerPerson="1.0"/>
+        <doorOperation mode="serial"/>
+        <passengerCarEquivalents pce="1.0"/>
+      </vehicleType>
+      <vehicleType id="CABLE_CAR-DEFAULT">
+        <capacity>
+          <seats persons="50"/>
+          <standingRoom persons="50"/>
+        </capacity>
+        <length meter="7.5"/>
+        <width meter="1.0"/>
+        <engineInformation>
+          <fuelType>diesel</fuelType>
+          <gasConsumption literPerMeter="0.0007215"/> <!-- == 3.26 MPG U.S. Avg. Transit Bus Fuel Economy https://www.afdc.energy.gov/data/ -->
+        </engineInformation>
+        <accessTime secondsPerPerson="1.0"/>
+        <egressTime secondsPerPerson="1.0"/>
+        <doorOperation mode="serial"/>
+        <passengerCarEquivalents pce="1.0"/>
+      </vehicleType>
+    </vehicleDefinitions>
 
 }

@@ -24,20 +24,24 @@ object MatsimConversionTool extends App {
     val conversionConfig = ConversionConfig(config)
 
     val network = NetworkUtils.createNetwork()
+    println(s"Network file ${conversionConfig.matsimNetworkFile}")
     new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
 
     MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
-    generateTazDefaults(ConversionConfig(config), network)
-    generateOsmFilteringCommand(OSMFilteringConfig(config, network))
+    generateTazDefaults(conversionConfig, network)
+    generateOsmFilteringCommand(conversionConfig, network)
   } else {
     println("Please specify config/file/path parameter")
   }
 
-  def generateOsmFilteringCommand(ofc: OSMFilteringConfig) = {
+  def generateOsmFilteringCommand(cf: ConversionConfig, network: Network) = {
+    val boundingBox = ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
+    val outputFile = s"${cf.scenarioDirectory}/r5/scenario.osm.pbf"
     val commandOut =
       s"""
-         osmosis --read-pbf file=${ofc.pbfFile} --bounding-box top=${ofc.boundingBox.top} left=${ofc.boundingBox.left} bottom=${ofc.boundingBox.bottom} right=${ofc.boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${ofc.outputFile}
+         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${
+        boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
       """.stripMargin
 
     println(s"Run following format to clip open street data file to network boundaries if required")
@@ -46,7 +50,7 @@ object MatsimConversionTool extends App {
 
 
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
-    val outputFilePath = conversionConfig.outputDirectory + "/taz-centers.csv"
+    val outputFilePath = s"${conversionConfig.scenarioDirectory}/taz-centers.csv"
 
     if(conversionConfig.shapeConfig.isDefined){
       val shapeConfig = conversionConfig.shapeConfig.get
@@ -86,7 +90,7 @@ object MatsimConversionTool extends App {
   }
 
   def getDefaultTaz(network: Network, localCRS: String): ShapeUtils.CsvTaz = {
-    val boundingBox = OSMFilteringConfig.getBoundingBoxConfig(network, localCRS)
+    val boundingBox = ConversionConfig.getBoundingBoxConfig(network, localCRS)
     val minX = boundingBox.left
     val maxX = boundingBox.right
     val minY = boundingBox.bottom
