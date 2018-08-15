@@ -122,7 +122,7 @@ class RideHailManager(
 
       case _ =>
         throw new IllegalStateException(
-          s"unknonwn RideHailResourceAllocationManager: $allocationManager"
+          s"Unknown RideHailResourceAllocationManager: $allocationManager"
         )
     }
 
