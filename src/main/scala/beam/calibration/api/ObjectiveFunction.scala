@@ -5,7 +5,7 @@ import scala.io.Source
 
 import org.matsim.core.utils.io.IOUtils
 
-import beam.analysis.plots.ModeChosenStats
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
 import beam.utils.FileUtils._
 
 trait RunEvaluator[A] {
@@ -31,9 +31,10 @@ abstract class FileBasedObjectiveFunction(
 
   override def evaluateFromRun(runDataDir: String): Double = {
     val benchmarkData: Map[String, Double] = getStatsFromFile(benchmarkFileDataLoc)
+    val statsFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
     val runData = getStatsFromFile(
       Paths
-        .get(runDataDir, ModeChosenStats.MODE_CHOICE_CSV_FILE_NAME)
+        .get(runDataDir, statsFile)
         .toAbsolutePath
         .toString
     )
