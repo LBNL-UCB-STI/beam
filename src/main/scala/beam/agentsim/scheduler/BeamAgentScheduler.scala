@@ -68,8 +68,7 @@ object BeamAgentScheduler {
         case 0 =>
           java.lang.Integer.compare(priority, that.priority) match {
             case 0 =>
-              java.lang.Long
-                .compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
+              java.lang.Long.compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
             case c => c
           }
         case c => c
@@ -112,8 +111,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
   // Event stream state and cleanup management
   private var currentIter: Int = -1
-  private val eventSubscriberRef =
-    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
+  private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask =
     if (beamConfig.beam.debug.debugEnabled)
@@ -182,8 +180,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
         scheduleTrigger
       }
       val completionTickOpt = triggerIdToTick.get(triggerId)
-      if (completionTickOpt.isEmpty || !triggerIdToTick
-            .contains(triggerId) || !awaitingResponse
+      if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse
             .containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
@@ -236,8 +233,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           .forEach({ x =>
             // the check makes sure that slow RideHailManager (repositioning) does not cause kill the rideHailManager actor
             // however the numReps>50 ensures that we eventually
-            if (x.agent.path.name
-                  .contains("RideHailingManager") && x.triggerWithId.trigger
+            if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger
                   .isInstanceOf[RideHailAllocationManagerTimeout]) {
               if (numReps == 10) {
                 log.error("RideHailingManager is slow")
@@ -254,8 +250,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           })
 
         if (numAgentsClearedOut > 0) {
-          val reason =
-            s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
+          val reason = s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
           log.error(reason)
         }
       }
@@ -287,8 +282,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
               "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
-                10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime
-                  .freeMemory()) / Math
+                10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) / Math
                   .pow(1000, 3)
               ) / 10.0 + "(GB)"
             )

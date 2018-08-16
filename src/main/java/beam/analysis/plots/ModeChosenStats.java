@@ -2,27 +2,39 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.metrics.MetricsSupport;
-import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats implements IGraphStats, MetricsSupport{
+import static beam.sim.metrics.Metrics.ShortLevel;
+
+public class ModeChosenStats implements IGraphStats, MetricsSupport {
+    private static final String graphTitle = "Mode Choice Histogram";
+    private static final String xAxisTitle = "Hour";
+    private static final String yAxisTitle = "# mode chosen";
+    private static final String fileName = "mode_choice.png";
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private static final String GRAPH_TITLE = "Mode Choice Histogram";
-    private static final String X_AXIS_TITLE = "Hour";
-    private static final String Y_AXIS_TITLE = "# mode chosen";
-    private static final String MODE_CHOICE_GRAPH_FILE_NAME = "mode_choice.png";
-    public static final String MODE_CHOICE_CSV_FILE_NAME = "modeChoice.csv";
+    private static Set<String> iterationTypeSet = new HashSet();
+    private static Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
+
+
 
     @Override
     public void processStats(Event event) {
@@ -37,69 +49,11 @@ import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats i
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
+        updateModeChoiceInIteration(event.getIteration());
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null) {
+        if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
-            writeModeShareCSV();
-        }
     }
-
-    public void writeModeShareCSV() {
-
-        String SEPERATOR=",";
-
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(MODE_CHOICE_CSV_FILE_NAME));
-        BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
-
-        Map<String,Double> modeShareMap = getModeShareMap();
-
-        try{
-            bufferedWriter.append("mode");
-            bufferedWriter.append(SEPERATOR);
-            bufferedWriter.append("share");
-            bufferedWriter.append("\n");
-
-            for (Map.Entry<String, Double> entry : modeShareMap.entrySet()) {
-                bufferedWriter.append(entry.getKey());
-                bufferedWriter.append(SEPERATOR);
-                bufferedWriter.append(Double.toString(entry.getValue()));
-                bufferedWriter.append("\n");
-            }
-            bufferedWriter.flush();
-            bufferedWriter.close();
-        }catch (IOException e){
-            e.printStackTrace();
-        }
-
-
-    }
-
-    public Map<String, Double>  getModeShareMap() {
-        List<String> modesChosenList = new ArrayList<>(modesChosen);
-        Map<String, Double> modeShareMap = new HashMap<>();
-
-        Collections.sort(modesChosenList);
-        double[][] dataset = buildModesFrequencyDataset();
-        double totalCounts = 0.0;
-        double[] result = new double[modesChosenList.size()];
-        for (int i = 0; i < modesChosenList.size(); i++) {
-            double modeCounts = 0.0;
-            if (dataset != null) {
-                double[] modeOccurrencePerHour = dataset[i];
-                for (double aModeOccurrencePerHour : modeOccurrencePerHour) {
-                    modeCounts += aModeOccurrencePerHour;
-                }
-            }
-            result[i] = modeCounts;
-            totalCounts += modeCounts;
-        }
-        for (int i = 0; i < result.length; i++) {
-            modeShareMap.put(modesChosenList.get(i), result[i] / totalCounts);
-        }
-     return modeShareMap;
-    }
-
-
 
     @Override
     public void createGraph(IterationEndsEvent event, String graphType) {
@@ -112,10 +66,9 @@ import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats i
         modesChosen.clear();
     }
 
-    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
-        double [] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
-
-        return (int)Arrays.stream(modeOccurrencePerHour).sum();
+    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour) {
+        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
+        return (int) Arrays.stream(modeOccurrencePerHour).sum();
     }
 
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, int hour) {
@@ -149,6 +102,29 @@ import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats i
         }
         hourData.put(mode, frequency);
         hourModeFrequency.put(hour, hourData);
+    }
+
+    //    accumulating data for each iteration
+    public void updateModeChoiceInIteration(Integer iteration) {
+        Set<Integer> hours = hourModeFrequency.keySet();
+        Map<String, Integer> totalModeChoice = new HashMap<>();
+        for (Integer hour : hours) {
+            Map<String, Integer> iterationHourData = hourModeFrequency.get(hour);
+            Set<String> iterationModes = iterationHourData.keySet();
+            for (String iterationMode : iterationModes) {
+                Integer freq = iterationHourData.get(iterationMode);
+                Integer iterationFrequency = totalModeChoice.get(iterationMode);
+                if (iterationFrequency == null) {
+                    totalModeChoice.put(iterationMode, freq);
+                } else {
+                    totalModeChoice.put(iterationMode, freq + iterationFrequency);
+                }
+
+            }
+        }
+        iterationTypeSet.add("it." + iteration);
+        modeChoiceInIteration.put(iteration, totalModeChoice);
+
     }
 
     private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour) {
@@ -191,13 +167,132 @@ import static beam.sim.metrics.Metrics.ShortLevel;public class ModeChosenStats i
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, GRAPH_TITLE, X_AXIS_TITLE, Y_AXIS_TITLE, MODE_CHOICE_GRAPH_FILE_NAME,true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, MODE_CHOICE_GRAPH_FILE_NAME);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+//    event hits at the end of the running scenario
+    public void notifyShutdown(ShutdownEvent event) throws Exception {
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
+        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
+        if (dataset != null)
+            createRootModeChoosenGraph(dataset, fileName);
+        writeToRootCSV();
+    }
+
+
+//    dataset for root graph
+    private CategoryDataset buildModeChoiceDatasetForGraph() {
+        CategoryDataset categoryDataset = null;
+        double[][] dataset = buildTotalModeChoiceDataset();
+
+        if (dataset != null) {
+            categoryDataset = createCategoryDataset("it.", dataset);
+        }
+        return categoryDataset;
+    }
+
+    public CategoryDataset createCategoryDataset(String columnKeyPrefix, double[][] data) {
+
+        DefaultCategoryDataset result = new DefaultCategoryDataset();
+        for (int r = 0; r < data.length; r++) {
+            String rowKey = String.valueOf(r + 1);
+            for (int c = 0; c < data[r].length; c++) {
+                String columnKey = columnKeyPrefix + c;
+                result.addValue(data[r][c], rowKey, columnKey);
+            }
+        }
+        return result;
+    }
+
+    private double[][] buildTotalModeChoiceDataset() {
+
+        List<Integer> iterationList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(modeChoiceInIteration.keySet());
+        List<String> modeChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
+        if (iterationList.size() == 0)
+            return null;
+        Integer maxIteration = iterationList.get(iterationList.size() - 1);
+        double[][] dataset = new double[modesChosen.size()][];
+        for (int i = 0; i < modeChosenList.size(); i++) {
+            String mode = modeChosenList.get(i);
+            dataset[i] = getDataPerOccurrenceAgainstModeChoice(mode, maxIteration);
+        }
+        return dataset;
+    }
+
+
+    private double[] getDataPerOccurrenceAgainstModeChoice(String mode, int maxIteration) {
+        double[] occurrenceAgainstModeChoice = new double[maxIteration + 1];
+        int index = 0;
+        for (int iteration = 0; iteration <= maxIteration; iteration++) {
+            Map<String, Integer> iterationData = modeChoiceInIteration.get(iteration);
+            if (iterationData != null) {
+                occurrenceAgainstModeChoice[index] = iterationData.get(mode) == null ? 0 : iterationData.get(mode);
+            } else {
+                occurrenceAgainstModeChoice[index] = 0;
+            }
+            index = index + 1;
+        }
+        return occurrenceAgainstModeChoice;
+    }
+
+
+//    generating graph in root directory
+    private void createRootModeChoosenGraph(CategoryDataset dataset, String fileName) throws IOException {
+        boolean legend = true;
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        List<String> modesChosenList = new ArrayList<>();
+        modesChosenList.addAll(modesChosen);
+        Collections.sort(modesChosenList);
+        GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    // csv for root modeChoice.png
+    private void writeToRootCSV() {
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
+
+        try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+
+            Set<String> modes = modesChosen;
+
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
+            out.write("iterations," + heading);
+            out.newLine();
+
+            int max = modeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
+
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
+                StringBuilder builder = new StringBuilder(iteration +"");
+                if (modeCount != null) {
+                    for (String mode : modes) {
+                        if (modeCount.get(mode) != null) {
+                            builder.append(",").append(modeCount.get(mode));
+                        } else {
+                            builder.append(",0");
+                        }
+                    }
+                } else {
+                    for (String ignored : modes) {
+                        builder.append(",0");
+                    }
+                }
+                out.write(builder.toString());
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            log.error("CSV generation failed.", e);
+        }
     }
 
 }

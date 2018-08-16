@@ -14,21 +14,12 @@ import scala.collection.concurrent.TrieMap
 class RepositioningLowWaitingTimes(
   val rideHailManager: RideHailManager,
   tncIterationStats: Option[TNCIterationStats]
-) extends RideHailResourceAllocationManager {
-
-  val isBufferedRideHailAllocationMode = false
+) extends RideHailResourceAllocationManager(rideHailManager) {
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
-  }
-
-  def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
-    allocationsDuringReservation
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(

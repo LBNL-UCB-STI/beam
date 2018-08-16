@@ -6,21 +6,12 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager {
-
-  val isBufferedRideHailAllocationMode = false
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
-  }
-
-  def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
-    allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {

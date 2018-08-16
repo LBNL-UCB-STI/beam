@@ -4,13 +4,13 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.router.Modes;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.IOException;
@@ -29,7 +29,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public static final String RIDE = "ride";
     public static final String TNC = "tnc";
     public static final String WALK = "walk";
-    public static final String RIDE_HAILING = "ride_hail";
+    public static final String RIDE_HAILING = "ride_hailing";
     public static final String TNC_DEAD_HEADING_DISTANCE = "tnc_deadheading_distance";
     public static final int GRAPH_HEIGHT = 600;
     public static final int GRAPH_WIDTH = 800;
@@ -43,12 +43,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
     private IGraphStats rideHailWaitingStats;
     //private IGraphStats generalStats = new RideHailStats();
-    private IGraphStats rideHailWaitingSingleStats;
+    private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        rideHailWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
+        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
     }
 
     // Constructor
@@ -89,7 +89,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personVehicleTransitionStats.resetStats();
         rideHailWaitingStats.resetStats();
         //generalStats.resetStats();
-        rideHailWaitingSingleStats.resetStats();
+        rideHailingWaitingSingleStats.resetStats();
         realizedModeStats.resetStats();
     }
 
@@ -100,7 +100,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         }
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
-            rideHailWaitingSingleStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
             modeChoseStats.processStats(event);
             realizedModeStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
@@ -113,7 +113,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)) {
             rideHailWaitingStats.processStats(event);
-            rideHailWaitingSingleStats.processStats(event);
+            rideHailingWaitingSingleStats.processStats(event);
             personVehicleTransitionStats.processStats(event);
         }else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
             personVehicleTransitionStats.processStats(event);
@@ -125,7 +125,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.createGraph(event);
 
         rideHailWaitingStats.createGraph(event);
-        rideHailWaitingSingleStats.createGraph(event);
+        rideHailingWaitingSingleStats.createGraph(event);
 
 
         deadHeadingStats.createGraph(event, "TNC0");
@@ -135,5 +135,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
         realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
+    }
+
+    public void notifyShutdown(ShutdownEvent event) throws Exception{
+        if(modeChoseStats instanceof  ModeChosenStats){
+            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
+            modeStats.notifyShutdown(event);
+        }
+
+        if(realizedModeStats instanceof RealizedModeStats){
+            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
+            realizedStats.notifyShutdown(event);
+        }
     }
 }
