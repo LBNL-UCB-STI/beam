@@ -1,23 +1,3 @@
-/* *********************************************************************** *
- * project: org.matsim.*
- * JavaDEQSim.java
- *                                                                         *
- * *********************************************************************** *
- *                                                                         *
- * copyright       : (C) 2007 by the members listed in the COPYING,        *
- *                   LICENSE and WARRANTY file.                            *
- * email           : info at matsim dot org                                *
- *                                                                         *
- * *********************************************************************** *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *   See also COPYING, LICENSE and WARRANTY file                           *
- *                                                                         *
- * *********************************************************************** */
-
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
@@ -29,18 +9,15 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.PlansConfigGroup;
 import org.matsim.core.mobsim.framework.Mobsim;
+import org.matsim.core.mobsim.jdeqsim.*;
 import org.matsim.core.mobsim.jdeqsim.util.Timer;
 
 import javax.inject.Inject;
 
 import java.util.HashMap;
+import java.util.Map;
 
 
-/**
- * The starting point of the whole micro-simulation.
- * @see <a href="http://www.matsim.org/docs/jdeqsim">http://www.matsim.org/docs/jdeqsim</a>
- * @author rashid_waraich
- */
 public class JDEQSimulation implements Mobsim {
 
 	private final static Logger log = Logger.getLogger(JDEQSimulation.class);
@@ -49,42 +26,46 @@ public class JDEQSimulation implements Mobsim {
 	protected Scenario scenario;
 	private final EventsManager events;
 	////////CHANGES/////////
-	public static HashMap<String ,Boolean> isCACCVehicle;
+	public static Map<String ,Boolean> isCACCVehicle;
 
+	Double caccShare = null;
 
 
 	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final HashMap<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction) {
-		Road.setConfig(config);
-		Message.setEventsManager(events);
-		Road.setTravelTimeFunction(travelTimeFunction);
-		this.isCACCVehicle = isCACCVehicle;
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Map<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction, Double caccShare) {
+
 		this.config = config;
 		this.scenario = scenario;
 		this.events = events;
+		this.isCACCVehicle = isCACCVehicle;
+
 		this.activityDurationInterpretation = this.scenario.getConfig().plans().getActivityDurationInterpretation();
+		Message.setEventsManager(events);
+		Road.setConfig(config);
+		Road.setTravelTimeFunction(travelTimeFunction);
+		this.caccShare = caccShare;
 	}
 
 	@Override
 	public void run() {
-		Road road;
+		org.matsim.core.mobsim.jdeqsim.Road road;
 		events.initProcessing();
 		Timer t = new Timer();
 		t.startTimer();
 
 		Scheduler scheduler = new Scheduler(new MessageQueue(), config.getSimulationEndTime());
-		Road.setAllRoads(new HashMap<Id<Link>, Road>());
 
+		HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
 		// initialize network
 
 		for (Link link : this.scenario.getNetwork().getLinks().values()) {
-			road = new Road(scheduler, link);
-			Road.getAllRoads().put(link.getId(), road);
+			road = new Road(scheduler, link, this.caccShare);
+			allRoads.put(link.getId(), road);
 		}
 
-
+		Road.setAllRoads(allRoads);
 
 		// TODO: remember which vehicles are cacc or provide from main program
 		// use same for doing analysis on how many vehicles are on network which are caccs
