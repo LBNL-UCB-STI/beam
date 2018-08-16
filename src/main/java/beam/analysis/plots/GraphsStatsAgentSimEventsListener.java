@@ -49,6 +49,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
         rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
+        rideHailWaitingStats = new RideHailWaitingStats(beamConfig);
     }
 
     // Constructor
