@@ -1,5 +1,15 @@
 package beam.integration
 
+import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.events.handler.BasicEventHandler
+
+import com.typesafe.config.ConfigValueFactory
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
 import beam.agentsim.events.{
   LeavingParkingEventAttrs,
   ModeChoiceEvent,
@@ -7,14 +17,6 @@ import beam.agentsim.events.{
   PathTraversalEvent
 }
 import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec
     extends WordSpecLike
@@ -78,20 +80,20 @@ class ParkingSpec
     queueEvents
   }
 
-  lazy val limitedEvents: Seq[Queue[Event]] = runAndCollectForIterations("limited", 10)
-  lazy val defaultEvents: Seq[Queue[Event]] = runAndCollectForIterations("default", 10)
-  lazy val expensiveEvents: Seq[Queue[Event]] = runAndCollectForIterations("expensive", 10)
-  lazy val emptyEvents: Seq[Queue[Event]] = runAndCollectForIterations("empty", 10)
+  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
+  lazy val defaultEvents = runAndCollectForIterations("default", 10)
+  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
+  lazy val emptyEvents = runAndCollectForIterations("empty", 10)
 
-  lazy val filterForCarMode: Seq[Event] => Int = { events =>
+  val filterForCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
       val mMode = Option(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
     }
   }
 
-   "Parking system " must {
-    "guarantee at least some parking used " in  {
+  "Parking system " must {
+    "guarantee at least some parking used " in {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
@@ -135,8 +137,7 @@ class ParkingSpec
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k =>
-                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).forall { k => evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
               }
               val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
                 .get("time")

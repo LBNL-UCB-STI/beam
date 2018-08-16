@@ -11,10 +11,9 @@ import io.circe.generic.semiauto._
 import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
 
-import beam.analysis.plots.ModeChosenStats
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
 import beam.calibration.api.FileBasedObjectiveFunction
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
-
 import beam.utils.FileUtils.using
 
 class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
@@ -25,12 +24,14 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
 
 
   override def evaluateFromRun(runDataFileDir: String): Double = {
+
     val benchmarkData = if (benchmarkDataFileLoc.contains("http://")) {
       getStatsFromMTC(new URI(runDataFileDir))
     } else {
       getStatsFromFile(benchmarkDataFileLoc)
     }
-    val runData = getStatsFromFile(Paths.get(runDataFileDir, ModeChosenStats.MODE_CHOICE_CSV_FILE_NAME).toAbsolutePath.toString)
+    val statsFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
+    val runData = getStatsFromFile(Paths.get(runDataFileDir, statsFile).toAbsolutePath.toString)
     compareStats(benchmarkData, runData)
   }
 

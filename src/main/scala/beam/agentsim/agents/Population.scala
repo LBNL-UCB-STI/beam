@@ -152,7 +152,7 @@ class Population(
                 homeCoord,
                 homeCoord,
                 "home",
-                0.0,
+                0,
                 NoNeed,
                 0,
                 0
