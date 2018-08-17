@@ -89,11 +89,11 @@ class TNCIterationsStatsCollector(
   rideHailIterationHistoryActor: ActorRef,
   transportNetwork: TransportNetwork
 ) extends BasicEventHandler {
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
+  private val log =
+    LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
-  private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
@@ -106,10 +106,12 @@ class TNCIterationsStatsCollector(
   private val rideHailEventsTuples =
     mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
-  private val vehicleIdlingBins = mutable.Map[String, mutable.Map[Int, String]]()
+  private val vehicleIdlingBins =
+    mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicles = mutable.Map[String, Int]()
 
-  var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] = Map()
+  var rideHailStats: Map[String, ArrayBuffer[Option[RideHailStatsEntry]]] =
+    Map()
 
   eventsManager.addHandler(this)
 
@@ -119,7 +121,7 @@ class TNCIterationsStatsCollector(
     rideHailIterationHistoryActor ! UpdateRideHailStats(
       TNCIterationStats(
         rideHailStats.mapValues(_.toList),
-        mTazTreeMap.get,
+        beamServices.tazTreeMap,
         timeBinSizeInSec,
         numberOfTimeBins
       )
@@ -224,7 +226,8 @@ class TNCIterationsStatsCollector(
         val tazBins = rideHailStats.get(tazId) match {
           case Some(bins) => bins
           case None =>
-            val bins = mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+            val bins = mutable.ArrayBuffer
+              .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
             rideHailStats += (tazId -> bins)
             bins
         }
@@ -254,9 +257,13 @@ class TNCIterationsStatsCollector(
   private def collectIdlingVehicles(vehicleId: String, currentEvent: PathTraversalEvent) = {
 
     val startX =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble
     val startY =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
 
@@ -264,8 +271,12 @@ class TNCIterationsStatsCollector(
     val endTazId = getEndTazId(currentEvent)
 
     val startTime =
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-    val endTime = currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)
+        .toLong
+    val endTime = currentEvent.getAttributes
+      .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+      .toLong
 
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
@@ -287,7 +298,9 @@ class TNCIterationsStatsCollector(
 
       case Some(lastEvent) =>
         val endTazId = getEndTazId(lastEvent)
-        val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+        val endTime = lastEvent.getAttributes
+          .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+          .toLong
         val endingBin = getTimeBin(endTime)
         ((endingBin + 1) until startBin).map((_, endTazId)).toMap
 
@@ -319,9 +332,13 @@ class TNCIterationsStatsCollector(
 
       val lastEvent = rhEvent._2
       val endTazId = getEndTazId(lastEvent)
-      val endTime = lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
+      val endTime = lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)
+        .toLong
       val endingBin = getTimeBin(endTime)
-      idlingBins ++= ((endingBin + 1) until numberOfTimeBins).map((_, endTazId)).toMap
+      idlingBins ++= ((endingBin + 1) until numberOfTimeBins)
+        .map((_, endTazId))
+        .toMap
     })
 
     addMissingTaz()
@@ -336,8 +353,10 @@ class TNCIterationsStatsCollector(
 
         if (noOfIdlingVehicles > 0) {
           bins(binIndex) = bin._1 match {
-            case Some(entry) => Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
-            case None        => Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
+            case Some(entry) =>
+              Some(entry.copy(sumOfIdlingVehicles = noOfIdlingVehicles))
+            case None =>
+              Some(RideHailStatsEntry(sumOfIdlingVehicles = noOfIdlingVehicles))
           }
         }
       }
@@ -348,9 +367,13 @@ class TNCIterationsStatsCollector(
 
   private def addMissingTaz(): Unit = {
     val remainingTaz =
-      vehicleIdlingBins.flatMap(_._2.values).filter(!rideHailStats.contains(_)).toSet
+      vehicleIdlingBins
+        .flatMap(_._2.values)
+        .filter(!rideHailStats.contains(_))
+        .toSet
     rideHailStats ++= remainingTaz.map(
-      _ -> mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+      _ -> mutable.ArrayBuffer
+        .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
     )
   }
 
@@ -399,21 +422,33 @@ class TNCIterationsStatsCollector(
 
   private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
     val lastCoord = (
-      lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble,
-      lastEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble
+      lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)
+        .toDouble,
+      lastEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y)
+        .toDouble
     )
     val currentCoord = (
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble,
-      currentEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble,
+      currentEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
     )
     lastCoord == currentCoord
   }
 
   private def getStartTazId(pathTraversalEvent: PathTraversalEvent): String = {
     val startX =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_X)
+        .toDouble
     val startY =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_START_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
 
@@ -423,9 +458,13 @@ class TNCIterationsStatsCollector(
 
   private def getEndTazId(pathTraversalEvent: PathTraversalEvent): String = {
     val x =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)
+        .toDouble
     val y =
-      pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y).toDouble
+      pathTraversalEvent.getAttributes
+        .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_Y)
+        .toDouble
 
     val coord = beamServices.geo.wgs2Utm(new Coord(x, y))
 
@@ -434,7 +473,7 @@ class TNCIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    mTazTreeMap.get.getTAZ(coord.getX, coord.getY).tazId.toString
+    beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 
@@ -450,7 +489,8 @@ class TNCIterationsStatsCollector(
     val tazBins = rideHailStats.get(tazId) match {
       case Some(bins) => bins
       case None =>
-        val bins = mutable.ArrayBuffer.fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
+        val bins = mutable.ArrayBuffer
+          .fill[Option[RideHailStatsEntry]](numberOfTimeBins)(None)
         rideHailStats += (tazId -> bins)
         bins
     }

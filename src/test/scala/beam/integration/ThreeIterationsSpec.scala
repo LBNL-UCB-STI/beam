@@ -26,17 +26,21 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val scenario =
+      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     scenario.setNetwork(networkCoordinator.network)
     val iterationCounter = mock[IterationEndsListener]
-    val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, new AbstractModule() {
-      override def install(): Unit = {
-        install(module(config, scenario, networkCoordinator.transportNetwork))
-        addControlerListenerBinding().toInstance(iterationCounter)
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      new AbstractModule() {
+        override def install(): Unit = {
+          install(module(config, scenario, networkCoordinator.transportNetwork))
+          addControlerListenerBinding().toInstance(iterationCounter)
+        }
       }
-    })
+    )
     val controler = injector.getInstance(classOf[BeamServices]).controler
     controler.run()
     verify(iterationCounter, times(3)).notifyIterationEnds(any())

@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
-    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats();
+    private IGraphStats rideHailWaitingStats;
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats();
@@ -58,6 +59,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+
+        this.rideHailWaitingStats = new RideHailWaitingStats(beamConfig);
     }
 
     // helper methods
@@ -132,5 +135,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
         realizedModeStats.createGraph(event);
         //generalStats.createGraph(event);
+    }
+
+    public void notifyShutdown(ShutdownEvent event) throws Exception{
+        if(modeChoseStats instanceof  ModeChosenStats){
+            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
+            modeStats.notifyShutdown(event);
+        }
+
+        if(realizedModeStats instanceof RealizedModeStats){
+            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
+            realizedStats.notifyShutdown(event);
+        }
     }
 }

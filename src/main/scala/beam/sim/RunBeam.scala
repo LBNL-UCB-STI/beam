@@ -4,12 +4,11 @@ object RunBeam extends BeamHelper {
 
   def matchConfigFile(args: Array[String]): String = args.toList match {
     case "--config" :: config :: _ => config
-    case _ => throw new IllegalArgumentException("Missing required argument: config")
+    case _                         => throw new IllegalArgumentException("Missing required argument: config")
   }
 
   def main(args: Array[String]): Unit = {
-    print(
-     """
+    print("""
     |  ________
     |  ___  __ )__________ _______ ___
     |  __  __  |  _ \  __ `/_  __ `__ \

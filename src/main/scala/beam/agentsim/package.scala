@@ -16,21 +16,44 @@ import scala.language.implicitConversions
   */
 package object agentsim {
 
-  implicit def personId2PersonAgentId(id: Id[Person]): Id[PersonAgent] = Id.create(id, classOf[PersonAgent])
+  implicit def personId2PersonAgentId(id: Id[Person]): Id[PersonAgent] =
+    Id.create(id, classOf[PersonAgent])
 
   implicit def personAgentId2PersonId(id: Id[PersonAgent]): Id[Person] = Id.createPersonId(id)
 
-  implicit def vehicleId2BeamVehicleId(id: Id[Vehicle]): Id[BeamVehicle] = Id.create(id, classOf[BeamVehicle])
+  implicit def vehicleId2BeamVehicleId(id: Id[Vehicle]): Id[BeamVehicle] =
+    Id.create(id, classOf[BeamVehicle])
 
   implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
 
-  implicit def beamVehicleMaptoMatsimVehicleMap(beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]): Map[Id[Vehicle], Vehicle] = {
+  implicit def beamVehicleMaptoMatsimVehicleMap(
+    beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
+  ): Map[Id[Vehicle], Vehicle] = {
     beamVehicleMap.map({ case (vid, veh) => (Id.createVehicleId(vid), veh.matSimVehicle) })
   }
 
   //TODO: Make this work for modes other than car
-  implicit def matsimVehicleMap2BeamVehicleMap(matsimVehicleMap: java.util.Map[Id[Vehicle], Vehicle]): Map[Id[BeamVehicle], BeamVehicle] = {
-    JavaConverters.mapAsScalaMap(matsimVehicleMap).map({ case (vid, veh) => (Id.create(vid, classOf[BeamVehicle]), new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(veh.getType.getEngineInformation.getGasConsumption), veh, None, BeamVehicleType.Car,None,None))}).toMap
+  implicit def matsimVehicleMap2BeamVehicleMap(
+    matsimVehicleMap: java.util.Map[Id[Vehicle], Vehicle]
+  ): Map[Id[BeamVehicle], BeamVehicle] = {
+    JavaConverters
+      .mapAsScalaMap(matsimVehicleMap)
+      .map({
+        case (vid, veh) =>
+          (
+            Id.create(vid, classOf[BeamVehicle]),
+            new BeamVehicle(
+              Powertrain
+                .PowertrainFromMilesPerGallon(veh.getType.getEngineInformation.getGasConsumption),
+              veh,
+              None,
+              BeamVehicleType.CarVehicle,
+              None,
+              None
+            )
+          )
+      })
+      .toMap
   }
 
   implicit def personId2RideHailAgentId(id: Id[Person]): Id[RideHailAgent] = {

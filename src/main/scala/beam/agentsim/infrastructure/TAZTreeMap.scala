@@ -5,7 +5,8 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.utils.scripts.HasXY.wgs2Utm
+import beam.utils.plansampling.WGSConverter
+import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -83,7 +84,8 @@ object TAZTreeMap {
         case g: Geometry =>
           val taz = new TAZ(
             f.getAttribute(tazIDFieldName).asInstanceOf[String],
-            new Coord(g.getCoordinate.x, g.getCoordinate.y)
+            new Coord(g.getCoordinate.x, g.getCoordinate.y),
+            g.getArea
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
@@ -142,7 +144,7 @@ object TAZTreeMap {
     )
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY))
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
@@ -171,7 +173,8 @@ object TAZTreeMap {
         val id = line.get("taz")
         val coordX = line.get("coord-x")
         val coordY = line.get("coord-y")
-        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble))
+        val area = line.get("area")
+        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble, area.toDouble))
         line = mapReader.read(header: _*)
       }
 
@@ -185,7 +188,14 @@ object TAZTreeMap {
   def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y))
+        Some(
+          CsvTaz(
+            f.getAttribute(tazIDFieldName).toString,
+            g.getCoordinate.x,
+            g.getCoordinate.y,
+            g.getArea
+          )
+        )
       case _ => None
     }
   }
@@ -207,7 +217,7 @@ object TAZTreeMap {
         new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
-      val header = Array[String]("taz", "coord-x", "coord-y")
+      val header = Array[String]("taz", "coord-x", "coord-y", "area")
       mapWriter.writeHeader(header: _*)
 
       val tazs = features.asScala
@@ -237,15 +247,9 @@ object TAZTreeMap {
         val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
 
-        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
-
-        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
-        tazToWrite.put(header(1), tcoord.getX.toString)
-        tazToWrite.put(header(2), tcoord.getY.toString)
-
-//        tazToWrite.put(header(1), transFormedCoord.getX.toString)
-//        tazToWrite.put(header(2), transFormedCoord.getY.toString)
-
+        tazToWrite.put(header(1), t.coordX.toString)
+        tazToWrite.put(header(2), t.coordY.toString)
+        tazToWrite.put(header(3), t.area.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
@@ -257,10 +261,11 @@ object TAZTreeMap {
 
   def getProcessors: Array[CellProcessor] = {
     Array[CellProcessor](
-      new UniqueHashCode(), // Id (must be unique)
+      new NotNull(), // Id (must be unique)
       new NotNull(), // Coord X
-      new NotNull()
-    ) // Coord Y
+      new NotNull(), // Coord Y
+      new NotNull() // Area
+    )
   }
 
   private def groupTaz(csvSeq: Array[CsvTaz]): Map[String, Array[CsvTaz]] = {
@@ -288,12 +293,11 @@ object TAZTreeMap {
 
   case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
-  case class CsvTaz(id: String, coordX: Double, coordY: Double)
+  case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
 
-  case class TAZ(tazId: Id[TAZ], coord: Coord) {
-    def this(tazIdString: String, coord: Coord) {
-      this(Id.create(tazIdString, classOf[TAZ]), coord)
+  class TAZ(val tazId: Id[TAZ], val coord: Coord, val area: Double) {
+    def this(tazIdString: String, coord: Coord, area: Double) {
+      this(Id.create(tazIdString, classOf[TAZ]), coord, area)
     }
   }
-
 }

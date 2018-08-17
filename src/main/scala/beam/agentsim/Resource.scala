@@ -45,9 +45,9 @@ object Resource {
   * @author dserdiuk, saf
   * @since 7/17/2017
   */
-
 trait Resource[R] extends Identifiable[R] {
-  protected implicit val timeout: Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected implicit val timeout: Timeout =
+    akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   var manager: Option[ActorRef] = None
 

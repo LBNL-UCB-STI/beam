@@ -176,7 +176,7 @@ object ModeChoiceMultinomialLogit {
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
-        "ride_hailing",
+        "ride_hail",
         "intercept",
         "intercept",
         mnlConfig.params.ride_hailing_intercept

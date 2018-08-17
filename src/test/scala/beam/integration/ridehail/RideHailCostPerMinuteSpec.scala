@@ -1,23 +1,25 @@
-package beam.integration
+package beam.integration.ridehail
 
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
   *
   */
-
-class RideHailPriceSpec
+class RideHailCostPerMinuteSpec
     extends WordSpecLike
     with Matchers
     with BeamHelper
+    with BeforeAndAfterAll
     with IntegrationSpecCommon {
-  "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
-    "create less entries for mode choice rideHail as value increases" ignore {
-      val inputRideHailPrice = Seq(0.1, 1.0)
-      val modeChoice = inputRideHailPrice.map(
+
+  "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing defaultCostPerMinute value" must {
+    "create less entries for mode choice rideHail as value increases" in {
+      val inputCostPerMinute = Seq(0.0, 100.0)
+      val modeChoice = inputCostPerMinute.map(
         tc =>
           new StartWithCustomConfig(
             baseConfig
@@ -25,10 +27,12 @@ class RideHailPriceSpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
-              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
+              .withValue(
+                "beam.agentsim.agents.rideHail.defaultCostPerMinute",
+                ConfigValueFactory.fromAnyRef(tc)
+              )
           ).groupedCount
       )
-
       val tc = modeChoice
         .map(_.get("ride_hailing"))
         .filter(_.isDefined)
@@ -38,7 +42,6 @@ class RideHailPriceSpec
       //      val z2 = tc.dropRight(1)
       //      val zip = z2 zip z1
 
-      //      println("Transit")
       //      println(tc)
       //      println(z1)
       //      println(z2)

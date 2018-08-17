@@ -47,11 +47,12 @@ case class ExperimentRunSandbox(
       "beam.outputs.baseOutputDirectory"           -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
       "beam.inputDirectory"                        -> experimentDef.getTemplateConfigParentDirAsString
-    ) ++ modeChoiceConfigIfDefined ++ experimentRun.params).foldLeft(beamTplConf) {
-      case (prevConfig, (paramName, paramValue)) =>
-        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-        prevConfig.withValue(paramName, configValue)
-    }
+    ) ++ modeChoiceConfigIfDefined ++ experimentRun.params)
+      .foldLeft(beamTplConf) {
+        case (prevConfig, (paramName, paramValue)) =>
+          val configValue = ConfigValueFactory.fromAnyRef(paramValue)
+          prevConfig.withValue(paramName, configValue)
+      }
     runConfig
   }
 

@@ -10,7 +10,8 @@ import beam.sim.BeamServices
   */
 class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  override def clone(): ModeChoiceCalculator = new ModeChoiceTransitIfAvailable(beamServices)
+  override def clone(): ModeChoiceCalculator =
+    new ModeChoiceTransitIfAvailable(beamServices)
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsTransitAlt = alternatives.zipWithIndex.collect {

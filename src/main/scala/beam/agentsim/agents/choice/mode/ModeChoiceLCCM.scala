@@ -66,23 +66,24 @@ class ModeChoiceLCCM(
         AlternativeAttributes(alt.mode.value, theParams)
       }
 
-      val attribIndivData: AlternativeAttributes = attributesOfIndividual match {
-        case Some(theAttributes) =>
-          val theParams = Map(
-            "income"        -> theAttributes.householdAttributes.householdIncome,
-            "householdSize" -> theAttributes.householdAttributes.householdSize.toDouble,
-            "male" -> (if (theAttributes.isMale) {
-                         1.0
-                       } else {
-                         0.0
-                       }),
-            "numCars"  -> theAttributes.householdAttributes.numCars.toDouble,
-            "numBikes" -> theAttributes.householdAttributes.numBikes.toDouble
-          )
-          AlternativeAttributes("dummy", theParams)
-        case None =>
-          AlternativeAttributes("dummy", Map())
-      }
+      val attribIndivData: AlternativeAttributes =
+        attributesOfIndividual match {
+          case Some(theAttributes) =>
+            val theParams = Map(
+              "income"        -> theAttributes.householdAttributes.householdIncome,
+              "householdSize" -> theAttributes.householdAttributes.householdSize.toDouble,
+              "male" -> (if (theAttributes.isMale) {
+                           1.0
+                         } else {
+                           0.0
+                         }),
+              "numCars"  -> theAttributes.householdAttributes.numCars.toDouble,
+              "numBikes" -> theAttributes.householdAttributes.numBikes.toDouble
+            )
+            AlternativeAttributes("dummy", theParams)
+          case None =>
+            AlternativeAttributes("dummy", Map())
+        }
 
       val classMembershipInputData =
         lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
@@ -114,7 +115,8 @@ class ModeChoiceLCCM(
 
           chosenModeOpt match {
             case Some(chosenMode) =>
-              val chosenAlt = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+              val chosenAlt =
+                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
               if (chosenAlt.isEmpty) {
                 None
               } else {
@@ -139,45 +141,53 @@ class ModeChoiceLCCM(
       DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
     val bridgeTollsDefaults: Seq[BigDecimal] =
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
-    val modeChoiceAlternatives: Seq[ModeChoiceData] = alternatives.zipWithIndex.map { altAndIdx =>
-      val totalCost = altAndIdx._1.tripClassifier match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
-          (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(
-            altAndIdx._2
-          ) + bridgeTollsDefaults(altAndIdx._2)
-        case RIDE_HAIL =>
-          altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(
-            altAndIdx._2
-          ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
-        case CAR =>
-          altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-            altAndIdx._2
-          ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
-        case _ =>
-          altAndIdx._1.costEstimate
+    val modeChoiceAlternatives: Seq[ModeChoiceData] =
+      alternatives.zipWithIndex.map { altAndIdx =>
+        val totalCost = altAndIdx._1.tripClassifier match {
+          case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
+            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(
+              altAndIdx._2
+            ) + bridgeTollsDefaults(altAndIdx._2)
+          case RIDE_HAIL =>
+            altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(
+              altAndIdx._2
+            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          case CAR =>
+            altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
+              altAndIdx._2
+            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          case _ =>
+            altAndIdx._1.costEstimate
+        }
+        //TODO verify wait time is correct, look at transit and ride_hail in particular
+        val walkTime = altAndIdx._1.legs
+          .filter(_.beamLeg.mode == WALK)
+          .map(_.beamLeg.duration)
+          .sum
+        val bikeTime = altAndIdx._1.legs
+          .filter(_.beamLeg.mode == BIKE)
+          .map(_.beamLeg.duration)
+          .sum
+        val vehicleTime = altAndIdx._1.legs
+          .filter(_.beamLeg.mode != WALK)
+          .filter(_.beamLeg.mode != BIKE)
+          .map(_.beamLeg.duration)
+          .sum
+        val waitTime = altAndIdx._1.totalTravelTimeInSecs - walkTime - vehicleTime
+        ModeChoiceData(
+          altAndIdx._1.tripClassifier,
+          tourType,
+          vehicleTime,
+          walkTime,
+          waitTime,
+          bikeTime,
+          totalCost.toDouble,
+          altAndIdx._2
+        )
       }
-      //TODO verify wait time is correct, look at transit and ride_hail in particular
-      val walkTime = altAndIdx._1.legs.filter(_.beamLeg.mode == WALK).map(_.beamLeg.duration).sum
-      val bikeTime = altAndIdx._1.legs.filter(_.beamLeg.mode == BIKE).map(_.beamLeg.duration).sum
-      val vehicleTime = altAndIdx._1.legs
-        .filter(_.beamLeg.mode != WALK)
-        .filter(_.beamLeg.mode != BIKE)
-        .map(_.beamLeg.duration)
-        .sum
-      val waitTime = altAndIdx._1.totalTravelTimeInSecs - walkTime - vehicleTime
-      ModeChoiceData(
-        altAndIdx._1.tripClassifier,
-        tourType,
-        vehicleTime,
-        walkTime,
-        waitTime,
-        bikeTime,
-        totalCost.toDouble,
-        altAndIdx._2
-      )
-    }
 
-    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] = modeChoiceAlternatives.groupBy(_.mode)
+    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] =
+      modeChoiceAlternatives.groupBy(_.mode)
     val bestInGroup = groupedByMode.map {
       case (_, alts) =>
         // Which dominates at $18/hr for total time

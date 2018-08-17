@@ -123,8 +123,10 @@ class MultinomialCustomConfigSpec
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
       val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
 
-      val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
-      val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
+      val routeConfig1 =
+        (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
+      val routeConfig2 =
+        (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
         .withValue(
@@ -189,8 +191,10 @@ class MultinomialCustomConfigSpec
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
       val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
 
-      val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
-      val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
+      val routeConfig1 =
+        (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
+      val routeConfig2 =
+        (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
         .withValue(
@@ -217,8 +221,10 @@ class MultinomialCustomConfigSpec
       val bikeConfigPositive = new StartWithCustomConfig(config1)
       val bikeConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = bikeConfigPositive.groupedCount.get("bike").getOrElse(0);
-      val countNegative = bikeConfigNegative.groupedCount.get("bike").getOrElse(0);
+      val countPositive =
+        bikeConfigPositive.groupedCount.get("bike").getOrElse(0);
+      val countNegative =
+        bikeConfigNegative.groupedCount.get("bike").getOrElse(0);
 
 //      println("Bike __________>")
 //      println("Positive: " + countPositive)
@@ -255,8 +261,10 @@ class MultinomialCustomConfigSpec
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
       val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
 
-      val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
-      val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
+      val routeConfig1 =
+        (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
+      val routeConfig2 =
+        (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
         .withValue(
@@ -283,8 +291,10 @@ class MultinomialCustomConfigSpec
       val rideConfigPositive = new StartWithCustomConfig(config1)
       val rideConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = rideConfigPositive.groupedCount.get("ride_hailing").getOrElse(0);
-      val countNegative = rideConfigNegative.groupedCount.get("ride_hailing").getOrElse(0);
+      val countPositive =
+        rideConfigPositive.groupedCount.get("ride_hailing").getOrElse(0);
+      val countNegative =
+        rideConfigNegative.groupedCount.get("ride_hailing").getOrElse(0);
 
 //      println("Ride Hailing __________>")
 //      println("Positive: " + countPositive)
@@ -321,8 +331,10 @@ class MultinomialCustomConfigSpec
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
       val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
 
-      val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
-      val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
+      val routeConfig1 =
+        (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
+      val routeConfig2 =
+        (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
         .withValue(
@@ -349,8 +361,10 @@ class MultinomialCustomConfigSpec
       val transitConfigPositive = new StartWithCustomConfig(config1)
       val transitConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = transitConfigPositive.groupedCount.get("drive_transit").getOrElse(0);
-      val countNegative = transitConfigNegative.groupedCount.get("drive_transit").getOrElse(0);
+      val countPositive =
+        transitConfigPositive.groupedCount.get("drive_transit").getOrElse(0);
+      val countNegative =
+        transitConfigNegative.groupedCount.get("drive_transit").getOrElse(0);
 
 //      println("Transit __________>")
 //      println("Positive: " + countPositive)
@@ -387,8 +401,10 @@ class MultinomialCustomConfigSpec
       val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
       val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
 
-      val routeConfig1 = (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
-      val routeConfig2 = (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
+      val routeConfig1 =
+        (MultinomialCustomConfigSpec.fullXml(transformed1).toString())
+      val routeConfig2 =
+        (MultinomialCustomConfigSpec.fullXml(transformed2).toString())
 
       val config1: Config = baseConfig
         .withValue(
@@ -415,8 +431,10 @@ class MultinomialCustomConfigSpec
       val walkConfigPositive = new StartWithCustomConfig(config1)
       val walkConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = walkConfigPositive.groupedCount.get("walk").getOrElse(0);
-      val countNegative = walkConfigNegative.groupedCount.get("walk").getOrElse(0);
+      val countPositive =
+        walkConfigPositive.groupedCount.get("walk").getOrElse(0);
+      val countNegative =
+        walkConfigNegative.groupedCount.get("walk").getOrElse(0);
 
 //      println("WAlk __________>")
 //      println("Positive: " + countPositive)

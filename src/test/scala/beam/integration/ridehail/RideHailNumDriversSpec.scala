@@ -1,5 +1,6 @@
-package beam.integration
+package beam.integration.ridehail
 
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
@@ -8,7 +9,6 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-
 class RideHailNumDriversSpec
     extends WordSpecLike
     with Matchers
