@@ -28,7 +28,7 @@ object ConversionConfig {
   def apply(c: com.typesafe.config.Config): ConversionConfig = {
     val matsimConversionConfig = c.getConfig("matsim.conversion")
     val scenarioDir = matsimConversionConfig.getString("scenarioDirectory")
-    val matsimNetworkFile = c.getString("matsim.modules.network.inputNetworkFile")
+    val matsimNetworkFile = s"${scenarioDir}/conversion-input/${matsimConversionConfig.getString("matsimNetworkFile")}"
 
     val spatialConfig = c.getConfig("beam.spatial")
 
