@@ -30,8 +30,8 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
 
   override def utilityOf(
     mode: Modes.BeamMode,
-    cost: Double,
-    time: Double,
+    cost: BigDecimal,
+    time: BigDecimal,
     numTransfers: Int
   ): Double = 0.0
 }

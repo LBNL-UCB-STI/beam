@@ -75,21 +75,16 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   var matsimServices: MatsimServices = _
 
-  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+  val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  def getTazTreeMap(file: String): TAZTreeMap = {
-    Try(TAZTreeMap.fromCsv(file)).getOrElse {
-      BeamServices.defaultTazTreeMap
-    }
-  }
 
   def clearAll(): Unit = {
     personRefs.clear
     vehicles.clear()
   }
 
-  def startNewIteration: Unit = {
-    clearAll
+  def startNewIteration(): Unit = {
+    clearAll()
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
   }
@@ -103,5 +98,12 @@ object BeamServices {
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
+  }
+
+
+  def getTazTreeMap(file: String): TAZTreeMap = {
+    Try(TAZTreeMap.fromCsv(file)).getOrElse {
+      BeamServices.defaultTazTreeMap
+    }
   }
 }

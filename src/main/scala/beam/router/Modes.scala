@@ -88,7 +88,7 @@ object Modes {
     case object WALK extends BeamMode(value = "walk", Some(Left(LegMode.WALK)), TransportMode.walk)
 
     case object BIKE
-        extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.walk)
+        extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.bike)
 
     // Transit-specific
     case object LEG_SWITCH extends BeamMode(value = "leg_switch", None, TransportMode.other) // This is kind-of like a transit walk, but not really... best to make leg_switch its own type

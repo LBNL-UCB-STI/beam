@@ -153,7 +153,7 @@ class TNCIterationsStatsCollector(
     Calculating sumOfRides
 
     collectRides
-    1. This method will collect all the ModeChoice events where the mode is 'rideHailing'
+    1. This method will collect all the ModeChoice events where the mode is 'rideHail'
     2. Afterwards when a PathTraversal event occurs for the same vehicle with num_passengers = 1 we will find the tazId
       using coord from the PathTraversal event
    */
@@ -161,7 +161,7 @@ class TNCIterationsStatsCollector(
     val attr = event.getAttributes
     val mode = attr.get(ModeChoiceEvent.ATTRIBUTE_MODE)
 
-    if (mode.equals("ride_hailing")) {
+    if (mode.equals("ride_hail")) {
 
       val personId = attr.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       rideHailModeChoiceEvents.put(personId, event)

@@ -6,16 +6,9 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusResponse,
-  ReleaseVehicleReservation
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  RideHailInquiry,
-  RideHailRequest,
-  RideHailResponse
-}
+import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -32,7 +25,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
@@ -361,7 +353,7 @@ trait ChoosesMode {
   ): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs
       .exists(_.beamLeg.mode.isMassTransit) &&
-    rideHail2TransitResult.getOrElse(RideHailResponse.dummy).error.isEmpty
+    rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
   def makeRideHailRequestFromBeamLeg(legs: Vector[BeamLeg]): Option[Int] = {
