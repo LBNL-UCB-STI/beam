@@ -47,7 +47,7 @@ abstract class FileBasedObjectiveFunction(
 
   def compareStats(benchmarkData: Map[String, Double], runData: Map[String, Double]): Double
 
-  def getStatsFromFile(fileLoc: String): Map[String, Double] = {
+  def getStatsFromFile(fileLoc: String, benchmark:Boolean=false): Map[String, Double] = {
     using(Source.fromFile(fileLoc)) { source =>
       source.getLines().drop(1).map { _.split(",") }.map(arr => arr(0) -> arr(1).toDouble).toMap
     }

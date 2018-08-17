@@ -10,7 +10,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.util.{Failure, Success, Try}
 
-class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -21,8 +21,8 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
     )
   }
 
-  val TEST_BEAM_EXPERIMENT_LOC = "test/input/sf-light/sf-light-calibration/experiment.yml"
-  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/sf-light/sf-light-calibration/benchmarkTest.csv"
+  val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-calibration/experiment.yml"
+  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-calibration/benchmark.csv"
 
   val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 
@@ -32,7 +32,7 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
       wrapWithTestExperiment { experimentData =>
         val header = experimentData.experimentDef.header
         header.title equals "Example-Experiment"
-        header.beamTemplateConfPath equals "test/input/sf-light/sf-light-1k.conf"
+        header.beamTemplateConfPath equals "test/input/sf-light/sf-light-0.5k.conf"
       }
     }
 
@@ -54,10 +54,10 @@ class BeamSigoptTunerTest extends WordSpecLike with Matchers with BeforeAndAfter
       }
     }
 
-    "create an experiment and run for 3 iterations" taggedAs Periodic in {
+    "create an experiment and run for 2 iterations" taggedAs Periodic in {
       wrapWithTestExperiment { implicit experimentData =>
         val runner = ExperimentRunner()
-        runner.runExperiment(3)
+        runner.runExperiment(2)
       }
     }
   }

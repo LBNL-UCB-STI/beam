@@ -5,7 +5,7 @@
 header:
     title: Example-Calibration
     author: MyName
-    beamTemplateConfPath: test/input/beamville/beam.conf
+    beamTemplateConfPath: test/input/beamville/beam-calibration.conf
     modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
     params:
       ### ---- run template env variables ---####
@@ -47,6 +47,7 @@ defaultParams:
     ### ---- beam-template.conf param replacement ---####
     beam.agentsim.tuning.transitCapacity: 0.05
     beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+    beam.matsim.modules.controler.lastIteration: 0
 
 # Factors
 

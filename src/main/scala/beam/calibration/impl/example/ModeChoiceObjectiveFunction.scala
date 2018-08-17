@@ -31,7 +31,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
       getStatsFromFile(benchmarkDataFileLoc)
     }
     val statsFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
-    val runData = getStatsFromFile(Paths.get(runDataFileDir, statsFile).toAbsolutePath.toString)
+    val runData = getStatsFromFile(Paths.get(statsFile).toAbsolutePath.toString, isBenchmark = false)
     compareStats(benchmarkData, runData)
   }
 
@@ -43,22 +43,23 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     * @return the '''negative''' RMSPE value (since we '''maximize''' the objective).
     */
   override def compareStats(benchmarkData: Map[String, Double], runData: Map[String, Double]): Double = {
-    val res = -Math.sqrt(
-      runData
+    val res = -Math.sqrt(runData
         .map({
           case (k, y_hat) =>
             val y = benchmarkData(k)
             Math.pow((y - y_hat) / y, 2)
-        })
-        .sum / runData.size
-    )
+        }).sum / runData.size)
     res
   }
 
-  override def getStatsFromFile(fileLoc: String): Map[String, Double] = {
-    using(Source.fromFile(fileLoc)) { source =>
-      source.getLines().drop(1).map { _.split(",") }.map(arr => arr(0) -> arr(1).toDouble).toMap
-    }
+  override def getStatsFromFile(fileLoc: String,
+    isBenchmark:Boolean=true): Map[String, Double] = {
+    val lines = Source.fromFile(fileLoc).getLines().toArray
+    val header = lines.head.split(",").tail
+    val firstIter = lines(1).split(",").tail.map(_.toDouble)
+    val total = firstIter.sum
+    val pcts = firstIter.map(x=>x/total)
+    header.zip(pcts).toMap
   }
 
   def getStatsFromMTC(mtcBenchmarkEndPoint: URI): Map[String, Double] = {

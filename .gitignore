@@ -37,3 +37,4 @@ gc_*.log
 /test/input/beamville/example-experiment/experiments/
 /test/input/beamville/example-calibration/experiments/
 /test/input/sf-light/sf-light-calibration/experiments/
+/test/input/sf-light/sf-light-calibration-test/experiments/
