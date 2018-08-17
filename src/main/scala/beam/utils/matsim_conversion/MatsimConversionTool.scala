@@ -54,7 +54,7 @@ object MatsimConversionTool extends App {
 
     if(conversionConfig.shapeConfig.isDefined){
       val shapeConfig = conversionConfig.shapeConfig.get
-      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath, conversionConfig.localCRS)
+      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath)
     }else {
       val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
       generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)
@@ -99,7 +99,7 @@ object MatsimConversionTool extends App {
     val midX = (maxX + minX) / 2
     val midY = (maxY + minY) / 2
 
-    ShapeUtils.CsvTaz("1", midX, midY)
+    ShapeUtils.CsvTaz("1", midX, midY, 1)
   }
 
   def parseFileSubstitutingInputDirectory(fileName: String): com.typesafe.config.Config = {
