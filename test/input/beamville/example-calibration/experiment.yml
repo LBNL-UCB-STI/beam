@@ -7,7 +7,6 @@ header:
     author: MyName
     beamTemplateConfPath: test/input/beamville/beam.conf
     modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
-    isParallel: true
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 2g

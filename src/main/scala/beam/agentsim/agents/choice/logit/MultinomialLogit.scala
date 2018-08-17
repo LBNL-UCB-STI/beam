@@ -19,7 +19,8 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
 
   def sampleAlternative(
     alternatives: Vector[AlternativeAttributes],
-  )(implicit rng: Random): Option[String] = {
+    random: Random
+  ): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
@@ -30,7 +31,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
     } else {
       val sumExpV = expV.sum
       val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
-      val randDraw = rng.nextDouble()
+      val randDraw = random.nextDouble()
       val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
       if (idxAboveDraw.isEmpty) {
         None

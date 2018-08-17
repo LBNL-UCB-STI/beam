@@ -20,6 +20,8 @@ import beam.router.Modes.BeamMode.{
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
+import scala.util.Random
+
 /**
   * BEAM
   */

@@ -30,7 +30,7 @@ class RideHailPriceSpec
       )
 
       val tc = modeChoice
-        .map(_.get("ride_hailing"))
+        .map(_.get("ride_hail"))
         .filter(_.isDefined)
         .map(_.get)
 
