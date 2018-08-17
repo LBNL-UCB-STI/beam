@@ -51,7 +51,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).right.get.getType,
-        17.0,
+        beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(id.toString,"valueOfTime").asInstanceOf[Double],
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble
@@ -63,7 +63,6 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
       val (tick, _) = releaseTickAndTriggerId()
-      val currVeh = data.currentVehicle.head
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
 
@@ -81,8 +80,8 @@ trait ChoosesParking extends {
         ) //nextLeg.travelPath.endPoint.loc
         val cost = stall.cost
         val energyCharge: Double = 0.0 //TODO
-        val valueOfTime: Double = getValueOfTime
-        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
+        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0)  // TODO: CJRS... let's discuss how to fix this - SAF
+        val score = calculateScore(distance, cost, energyCharge, timeCost)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
       goto(WaitingToDrive) using data
@@ -133,8 +132,8 @@ trait ChoosesParking extends {
         val finalPoint = nextLeg.travelPath.endPoint
 
         // get route from customer to stall, add body for backup in case car route fails
-        val carStreetVeh = StreetVehicle(data.currentVehicle.head, currentPoint, CAR, true)
-        val bodyStreetVeh = StreetVehicle(data.currentVehicle.last, currentPoint, WALK, true)
+        val carStreetVeh = StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
+        val bodyStreetVeh = StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
@@ -154,7 +153,7 @@ trait ChoosesParking extends {
               data.currentVehicle.last,
               SpaceTime(stall.location, currentPoint.time),
               WALK,
-              true
+              asDriver = true
             )
           )
         )
@@ -178,7 +177,7 @@ trait ChoosesParking extends {
 
       // If no car leg returned, then the person walks to the parking spot and we force an early exit
       // from the vehicle below.
-      val leg1 = if (responses._1.itineraries.filter(_.tripClassifier == CAR).isEmpty) {
+      val leg1 = if (!responses._1.itineraries.exists(_.tripClassifier == CAR)) {
         logDebug(s"no CAR leg returned by router, walking car there instead")
         responses._1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
       } else {
@@ -197,7 +196,6 @@ trait ChoosesParking extends {
       }).toVector
       val newCurrentTripLegs = data.currentTrip.get.legs
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
-      val newCurrentTrip = data.currentTrip.get.copy(newCurrentTripLegs)
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
       //        val newPersonData = data.restOfCurrentTrip.copy()
@@ -240,6 +238,6 @@ trait ChoosesParking extends {
     walkingDistance: Double,
     cost: Double,
     energyCharge: Double,
-    valueOfTime: Double
+    valueOfTime: BigDecimal
   ): Double = -cost - energyCharge
 }

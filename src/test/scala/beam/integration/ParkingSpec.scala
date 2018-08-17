@@ -1,5 +1,15 @@
 package beam.integration
 
+import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.events.handler.BasicEventHandler
+
+import com.typesafe.config.ConfigValueFactory
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
 import beam.agentsim.events.{
   LeavingParkingEventAttrs,
   ModeChoiceEvent,
@@ -7,14 +17,6 @@ import beam.agentsim.events.{
   PathTraversalEvent
 }
 import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec
     extends WordSpecLike
@@ -50,7 +52,7 @@ class ParkingSpec
       .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
       .withValue(
         "beam.agentsim.taz.parking",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv")
+        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-$parkingScenario.csv")
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
@@ -83,11 +85,11 @@ class ParkingSpec
   lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
   lazy val emptyEvents = runAndCollectForIterations("empty", 10)
 
-  lazy val filterForCarMode: Seq[Event] => Int = { events =>
-    events.filter { e =>
+  val filterForCarMode: Seq[Event] => Int = { events =>
+    events.count { e =>
       val mMode = Option(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
-    }.size
+    }
   }
 
   "Parking system " must {
@@ -135,8 +137,7 @@ class ParkingSpec
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k =>
-                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).forall { k => evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
               }
               val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
                 .get("time")
@@ -196,8 +197,8 @@ class ParkingSpec
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Expensive iterations ${expensiveModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Expensive iterations $expensiveModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -208,8 +209,8 @@ class ParkingSpec
       val emptyModeChoiceCarCount = emptyEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Empty iterations ${emptyModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Empty iterations $emptyModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -220,8 +221,8 @@ class ParkingSpec
       val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations ${defaultModeChoiceCarCount}")
-      println(s"Limited iterations ${limitedModeChoiceCarCount}")
+      println(s"Default iterations $defaultModeChoiceCarCount")
+      println(s"Limited iterations $limitedModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)

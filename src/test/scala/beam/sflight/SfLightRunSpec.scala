@@ -45,7 +45,7 @@ class SfLightRunSpec
 
   "SF Light" must {
     "run without error and at least one person chooses car mode" in {
-      val config = testConfig("test/input/sf-light/sf-light.conf")
+      val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()

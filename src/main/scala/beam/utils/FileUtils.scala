@@ -4,6 +4,7 @@ import java.io.{BufferedInputStream, ByteArrayInputStream, File, FileInputStream
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
+import java.util.stream
 import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
@@ -12,7 +13,6 @@ import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
-
 import scala.language.reflectiveCalls
 import scala.util.Try
 
@@ -83,6 +83,10 @@ object FileUtils extends LazyLogging {
     } finally {
       resource.close()
     }
+
+  def safeLines(fileLoc:String): stream.Stream[String] ={
+    using(CsvUtils.readerFromFile(fileLoc))(_.lines)
+  }
 
   def downloadFile(source: String): Unit = {
     downloadFile(source, Paths.get(getTempDirectoryPath, getName(source)).toString)

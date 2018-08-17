@@ -42,7 +42,7 @@ case class ExperimentRunSandbox(
     // set critical properties
     // beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile
     // beam.outputs.baseOutputDirectory
-    val runConfig = (Map(
+    val runConfig: Config = (Map(
       "beam.agentsim.simulationName"               -> "output",
       "beam.outputs.baseOutputDirectory"           -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",

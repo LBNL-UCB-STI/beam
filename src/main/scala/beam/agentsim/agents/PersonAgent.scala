@@ -186,7 +186,9 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  def getValueOfTime = 17.0 //TODO
+  def scaleTimeByValueOfTime(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal =
+    modeChoiceCalculator.scaleTimeByVot(time, beamMode)
+
   startWith(Uninitialized, BasePersonData())
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {

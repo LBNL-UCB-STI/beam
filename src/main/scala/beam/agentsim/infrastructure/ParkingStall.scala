@@ -19,11 +19,11 @@ class ParkingStall(
 
 object ParkingStall {
   case class StallAttributes(
-    val tazId: Id[TAZ],
-    val parkingType: ParkingType,
-    val pricingModel: PricingModel,
-    val chargingType: ChargingType,
-    val reservedFor: ReservedParkingType
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    pricingModel: PricingModel,
+    chargingType: ChargingType,
+    reservedFor: ReservedParkingType
   )
   case class StallValues(numStalls: Int, feeInCents: Int)
 
