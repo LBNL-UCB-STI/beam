@@ -483,7 +483,9 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
+
 def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")
+
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")

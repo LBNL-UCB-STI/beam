@@ -100,7 +100,9 @@ class ModeChoiceLCCM(
        */
       val chosenClassOpt = lccm
         .classMembershipModels(tourType)
+
         .sampleAlternative(classMembershipInputData,new Random())
+
       chosenClassOpt match {
         case None =>
           throw new IllegalArgumentException(
@@ -109,7 +111,7 @@ class ModeChoiceLCCM(
         case Some(chosenClass) =>
           val chosenModeOpt = lccm
             .modeChoiceModels(tourType)(chosenClass)
-            .sampleAlternative(modeChoiceInputData, new Random())
+            .sampleAlternative(modeChoiceInputData)
           expectedMaximumUtility = lccm
             .modeChoiceModels(tourType)(chosenClass)
             .getExpectedMaximumUtility(modeChoiceInputData)
@@ -221,7 +223,7 @@ class ModeChoiceLCCM(
     }
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .sampleAlternative(modeChoiceInputData, new Random())
+      .sampleAlternative(modeChoiceInputData)
   }
 
   def utilityAcrossModalityStyles(

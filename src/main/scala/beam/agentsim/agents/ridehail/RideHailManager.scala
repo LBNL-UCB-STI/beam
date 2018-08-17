@@ -122,7 +122,7 @@ class RideHailManager(
 
       case _ =>
         throw new IllegalStateException(
-          s"unknonwn RideHailResourceAllocationManager: $allocationManager"
+          s"Unknown RideHailResourceAllocationManager: $allocationManager"
         )
     }
 
@@ -839,8 +839,9 @@ class RideHailManager(
         log.debug("Completing reservation for {}", requestId)
         unlockVehicle(response.travelProposal.get.rideHailAgentLocation.vehicleId)
 
-        println(
-          s"completing reservation -   customer: ${response.request.customer.personId} - vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
+        log.debug(
+          s"completing reservation - customer: ${response.request.customer.personId} " +
+          s"- vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
         )
 
         val bufferedRideHailRequests = rideHailResourceAllocationManager.bufferedRideHailRequests
@@ -932,7 +933,7 @@ class RideHailManager(
   def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
-        println(
+        log.debug(
           s"trying to stop vehicle: ${travelProposal.rideHailAgentLocation.vehicleId}, tick: $tick"
         )
         travelProposal.rideHailAgentLocation.rideHailAgent ! StopDrivingIfNoPassengerOnBoard(
@@ -1054,35 +1055,6 @@ object RideHailManager {
 
   case class NotifyIterationEnds()
 
-  sealed trait RideHailRequestType
-
-  case object RideHailInquiry extends RideHailRequestType
-
-  case object ReserveRide extends RideHailRequestType
-
-  case class RideHailRequest(
-    requestType: RideHailRequestType,
-    customer: VehiclePersonId,
-    pickUpLocation: Location,
-    departAt: BeamTime,
-    destination: Location
-  ) {
-    // We make requestId be independent of request type, all that matters is details of the customer
-    lazy val requestId: Int =
-      this.copy(requestType = RideHailInquiry).hashCode()
-  }
-
-  object RideHailRequest {
-
-    val dummy = RideHailRequest(
-      RideHailInquiry,
-      VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
-      new Coord(Double.NaN, Double.NaN),
-      DiscreteTime(Int.MaxValue),
-      new Coord(Double.NaN, Double.NaN)
-    )
-  }
-
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
     timeToCustomer: Long,
@@ -1091,20 +1063,6 @@ object RideHailManager {
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
   )
-
-  case class RideHailResponse(
-    request: RideHailRequest,
-    travelProposal: Option[TravelProposal],
-    error: Option[ReservationError] = None,
-    triggersToSchedule: Vector[ScheduleTrigger] = Vector()
-  )
-
-  object RideHailResponse {
-    val dummy = RideHailResponse(RideHailRequest.dummy, None, None)
-
-    def dummyWithError(error: ReservationError) =
-      RideHailResponse(RideHailRequest.dummy, None, Some(error))
-  }
 
   private case class RoutingResponses(
     request: RideHailRequest,
