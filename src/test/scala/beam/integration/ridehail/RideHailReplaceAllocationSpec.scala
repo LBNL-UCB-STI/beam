@@ -33,6 +33,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
         "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
         ConfigValueFactory.fromAnyRef(0.1)
       )
+      .withValue("beam.debug.skipOverBadActors",ConfigValueFactory.fromAnyRef(true))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
