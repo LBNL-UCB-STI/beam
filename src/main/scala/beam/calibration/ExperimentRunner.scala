@@ -80,7 +80,6 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 //    val bestAssignments: BestAssignments =
 //      experimentData.experiment.bestAssignments().fetch().call()
 
-
   }
 
   def createConfigBasedOnSuggestion(

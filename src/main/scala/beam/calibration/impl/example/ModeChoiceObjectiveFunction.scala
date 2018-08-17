@@ -21,8 +21,6 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 
-
-
   override def evaluateFromRun(runDataFileDir: String): Double = {
 
     val benchmarkData = if (benchmarkDataFileLoc.contains("http://")) {
@@ -30,8 +28,10 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     } else {
       getStatsFromFile(benchmarkDataFileLoc)
     }
-    val statsFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
-    val runData = getStatsFromFile(Paths.get(statsFile).toAbsolutePath.toString, isBenchmark = false)
+    val statsFile =
+      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
+    val runData =
+      getStatsFromFile(Paths.get(statsFile).toAbsolutePath.toString, isBenchmark = false)
     compareStats(benchmarkData, runData)
   }
 
@@ -42,23 +42,31 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     * @param runData       output values of mode shares given current suggestion.
     * @return the '''negative''' RMSPE value (since we '''maximize''' the objective).
     */
-  override def compareStats(benchmarkData: Map[String, Double], runData: Map[String, Double]): Double = {
-    val res = -Math.sqrt(runData
+  override def compareStats(
+    benchmarkData: Map[String, Double],
+    runData: Map[String, Double]
+  ): Double = {
+    val res = -Math.sqrt(
+      runData
         .map({
           case (k, y_hat) =>
             val y = benchmarkData(k)
             Math.pow((y - y_hat) / y, 2)
-        }).sum / runData.size)
+        })
+        .sum / runData.size
+    )
     res
   }
 
-  override def getStatsFromFile(fileLoc: String,
-    isBenchmark:Boolean=true): Map[String, Double] = {
+  override def getStatsFromFile(
+    fileLoc: String,
+    isBenchmark: Boolean = true
+  ): Map[String, Double] = {
     val lines = Source.fromFile(fileLoc).getLines().toArray
     val header = lines.head.split(",").tail
     val lastIter = lines.reverse.head.split(",").tail.map(_.toDouble)
     val total = lastIter.sum
-    val pcts = lastIter.map(x=>x/total)
+    val pcts = lastIter.map(x => x / total)
     header.zip(pcts).toMap
   }
 
@@ -68,7 +76,8 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
       parsedData         <- parseMTCRequest(mtcContent)
       modeChoiceStatList <- jsonToModechoiceStats(parsedData)
     } yield {
-      modeChoiceStatList.map { stat => stat.mode -> stat.share
+      modeChoiceStatList.map { stat =>
+        stat.mode -> stat.share
       }.toMap
     }).get
   }

@@ -87,8 +87,6 @@ class Population(
     }
   }
 
-
-
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
     // Have to wait for households to create people so they can send their first trigger to the scheduler
@@ -182,7 +180,9 @@ object Population {
   case object InitParkingVehicles
 
   def getVehiclesFromHousehold(
-                                household: Household, beamServices: BeamServices): Map[Id[BeamVehicle], BeamVehicle] = {
+    household: Household,
+    beamServices: BeamServices
+  ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles: Iterable[Id[Vehicle]] =
       JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
 

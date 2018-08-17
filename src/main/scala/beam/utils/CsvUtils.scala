@@ -30,9 +30,6 @@ class CsvUtils(pathName: String, headerLines: Int, srcFilter: Option[Fields => B
     else
       Array[String](pathName)
   }
-
-
-
 //  /**
 //    * Load and convert the content of a file (in resources directory) into a list of fields. The fields
 //    * are defined as a sequence of type T.

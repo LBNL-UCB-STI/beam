@@ -5,7 +5,6 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-
 /*
 TODO: check all network api, if they can use them properly
 
