@@ -933,7 +933,7 @@ class RideHailManager(
   def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
-        println(
+        log.debug(
           s"trying to stop vehicle: ${travelProposal.rideHailAgentLocation.vehicleId}, tick: $tick"
         )
         travelProposal.rideHailAgentLocation.rideHailAgent ! StopDrivingIfNoPassengerOnBoard(
