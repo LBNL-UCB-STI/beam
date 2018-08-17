@@ -81,10 +81,14 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       // try to cancel first ride of day
       val firstRequestOfDay = bufferedRideHailRequestsQueue.head
 
-      println(
-        s" trying to rassign vehicle to customer:${firstRequestOfDay.request.customer}, tick: $tick"
+      logger.debug(
+        s"trying to reassign vehicle to customer:${firstRequestOfDay.request.customer}, tick: $tick"
       )
       rideHailManager.attemptToCancelCurrentRideRequest(tick, firstRequestOfDay.request.requestId) // CONTINUE HERE
+      logger.debug(
+        s"attempt finished, tick: $tick"
+      )
+
 
       // TODO: ask vehicle, if customer already picked up (can't rely on tick, as RHM tick might be in same window as driver pickup).
       //  -> make method custom
