@@ -52,7 +52,7 @@ public class PhyssimCalcLinkStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy controllerIO;
-    private BeamCalcLinkStats linkStats;
+    public BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {

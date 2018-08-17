@@ -26,6 +26,8 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
+import org.matsim.core.mobsim.jdeqsim.Message;
+import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
@@ -147,6 +149,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
         }
+
+        Road.setAllRoads(null);
+        Message.setEventsManager(null);
+        jdeqSimScenario.setNetwork(null);
+        jdeqSimScenario.setPopulation(null);
+        linkStatsGraph.linkStats.reset();
 
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }

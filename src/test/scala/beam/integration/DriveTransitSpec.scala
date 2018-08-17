@@ -63,7 +63,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
         new AbstractModule() {
           override def install(): Unit = {
             install(
-              module(config, scenario, networkCoordinator.transportNetwork))
+              module(config, scenario, networkCoordinator))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
