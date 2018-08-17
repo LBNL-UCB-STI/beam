@@ -353,7 +353,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '2g'}",
+  "max_ram": "${maxRAM ?: '64g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -476,7 +476,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "128g")
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")

@@ -17,4 +17,3 @@ object RideHailResponse {
   def dummyWithError(error: ReservationError) =
     RideHailResponse(RideHailRequest.DUMMY, None, Some(error))
 }
-

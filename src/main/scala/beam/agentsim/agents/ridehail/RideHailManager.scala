@@ -839,7 +839,8 @@ class RideHailManager(
         log.debug("Completing reservation for {}", requestId)
         unlockVehicle(response.travelProposal.get.rideHailAgentLocation.vehicleId)
 
-        log.debug(s"completing reservation - customer: ${response.request.customer.personId} " +
+        log.debug(
+          s"completing reservation - customer: ${response.request.customer.personId} " +
           s"- vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
         )
 

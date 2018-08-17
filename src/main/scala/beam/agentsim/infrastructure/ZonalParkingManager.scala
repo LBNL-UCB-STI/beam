@@ -424,4 +424,3 @@ object ZonalParkingManager {
 
   val maxSearchRadius = 10e6
 }
-
