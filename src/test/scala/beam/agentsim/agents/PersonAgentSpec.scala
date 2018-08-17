@@ -11,7 +11,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.RideHailManager.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.ridehail.RideHailRequest
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
@@ -54,6 +54,8 @@ import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.util.Random
 
+import beam.agentsim.agents.ridehail.RideHailResponse
+
 /**
   * Created by sfeygin on 2/7/17.
   */
@@ -73,7 +75,7 @@ class PersonAgentSpec
     with MockitoSugar
     with ImplicitSender {
 
-  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
 
   val dummyAgentId = Id.createPersonId("dummyAgent")

@@ -1,14 +1,10 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailNetworkAPI}
+import beam.agentsim.agents.ridehail.RideHailManager
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ArrayBuffer
-import scala.util.control.Breaks._
 
 /*
 TODO: check all network api, if they can use them properly
@@ -64,45 +60,5 @@ class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager)
       Vector()
     }
   }
-
-  // TODO: allow specifying route not only dest coord
-  // need capacity and number of vehicles on road to implement it
-
-  /*
-  API available to implement allocation manager
-   */
-  /*
-  def apiExamples(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation] = {
-
-    // network operations
-    val linkId = 5
-    rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-    val links = rideHailNetworkApi.getLinks
-    rideHailNetworkApi.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
-    rideHailNetworkApi.getFreeFlowTravelTime(linkId)
-    val fromLinkIds = rideHailNetworkApi.getFromLinkIds(linkId)
-    val toLinkIds = rideHailNetworkApi.getToLinkIds(linkId)
-    val coord = rideHailNetworkApi.getLinkCoord(linkId)
-    val fromCoord = rideHailNetworkApi.getFromNodeCoordinate(linkId)
-    val toCoord = rideHailNetworkApi.getToNodeCoordinate(linkId)
-
-    // RHM
-    val rideHailAgentLocation = rideHailManager
-      .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.pickUpLocation,
-        rideHailManager.radiusInMeters
-      )
-      .get
-    rideHailManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailManager.getClosestIdleVehiclesWithinRadius(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-    rideHailManager.getIdleVehicles
-
-  }
- */
 
 }
