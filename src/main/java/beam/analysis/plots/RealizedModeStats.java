@@ -149,7 +149,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
                         }
                     }
+                    hourModeFrequency.put(hour, hourData);
                 }
+
             }
         }
     }
