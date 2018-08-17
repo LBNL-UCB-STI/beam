@@ -56,9 +56,9 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     isBenchmark:Boolean=true): Map[String, Double] = {
     val lines = Source.fromFile(fileLoc).getLines().toArray
     val header = lines.head.split(",").tail
-    val firstIter = lines(1).split(",").tail.map(_.toDouble)
-    val total = firstIter.sum
-    val pcts = firstIter.map(x=>x/total)
+    val lastIter = lines.reverse.head.split(",").tail.map(_.toDouble)
+    val total = lastIter.sum
+    val pcts = lastIter.map(x=>x/total)
     header.zip(pcts).toMap
   }
 
