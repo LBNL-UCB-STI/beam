@@ -54,8 +54,6 @@ import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.util.Random
 
-import beam.agentsim.agents.ridehail.RideHailResponse
-
 /**
   * Created by sfeygin on 2/7/17.
   */
