@@ -12,17 +12,13 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     public double CACC;
     private static TravelTimeFunction travelTimeFunction;
 
-    public Double caccShare = null;
 
     public Road(Scheduler scheduler, Link link) {
 
         super(scheduler, link);
     }
 
-    public Road(Scheduler scheduler, Link link, Double caccShare){
-        this(scheduler, link);
-        this.caccShare = caccShare;
-    }
+
 
     public static void setTravelTimeFunction(TravelTimeFunction travelTimeFunction) {
         Road.travelTimeFunction = travelTimeFunction;
@@ -33,20 +29,17 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     //TODO: improve code structure, Adding tests and refactoring, test events
     //
 
-
     public double getShareCACC() {
 
-        if(caccShare == null){
-            double numCACC = 0;
-            for (org.matsim.core.mobsim.jdeqsim.Vehicle vehicle : carsOnTheRoad) {
-                if (isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
-                    numCACC++;
-                }
+        double numCACC = 0;
+        for (org.matsim.core.mobsim.jdeqsim.Vehicle vehicle : carsOnTheRoad) {
+            if (isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
+                numCACC++;
             }
-            return (numCACC / carsOnTheRoad.size());
-        }else{
-            return caccShare;
         }
+
+        if (carsOnTheRoad.size() == 0) return 0;
+        return (numCACC / carsOnTheRoad.size());
     }
 
     @Override
@@ -55,7 +48,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         double caccShare = getShareCACC();
 
 //        System.out.println("Speed: " + ((this.link.getLength()) / this.getLink().getFreespeed(simTime)));
-        System.out.println("Cacc Share -> " + caccShare);
+//        System.out.println("Cacc Share -> " + caccShare);
 
         this.noOfCarsPromisedToEnterRoad--;
         this.carsOnTheRoad.add(vehicle);

@@ -34,7 +34,7 @@ public class JDEQSimulation implements Mobsim {
 	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Map<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction, Double caccShare) {
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Map<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction) {
 
 		this.config = config;
 		this.scenario = scenario;
@@ -55,13 +55,14 @@ public class JDEQSimulation implements Mobsim {
 		Timer t = new Timer();
 		t.startTimer();
 
-		Scheduler scheduler = new Scheduler(new MessageQueue(), config.getSimulationEndTime());
+//		System.out.println("config.getSimulationEndTime() ->  " + config.getSimulationEndTime());
+		Scheduler scheduler = new Scheduler(new MessageQueue(), 2*config.getSimulationEndTime());
 
 		HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
 		// initialize network
 
 		for (Link link : this.scenario.getNetwork().getLinks().values()) {
-			road = new Road(scheduler, link, this.caccShare);
+			road = new Road(scheduler, link);
 			allRoads.put(link.getId(), road);
 		}
 

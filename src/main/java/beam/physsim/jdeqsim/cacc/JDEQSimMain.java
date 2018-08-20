@@ -1,11 +1,9 @@
 package beam.physsim.jdeqsim.cacc;
 
-import beam.physsim.jdeqsim.cacc.handler.CaccEventHandler;
-import beam.physsim.jdeqsim.cacc.handler.NormalEventHandler;
-import beam.physsim.jdeqsim.cacc.sim.Vehicle;
-import beam.playground.jdeqsim.CountEnterLinkEvents;
+import beam.physsim.jdeqsim.cacc.handler.EventCollector;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -13,7 +11,6 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.algorithms.EventWriterXML;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.scenario.ScenarioUtils;
 
@@ -35,22 +32,23 @@ public class JDEQSimMain {
         Config config = ConfigUtils.loadConfig(basePath + "/config.xml");
         Scenario scenario = ScenarioUtils.loadScenario(config);
 
-        NormalEventHandler normalEventHandler = new NormalEventHandler();
-        runSimulation(scenario, normalEventHandler);
+        EventCollector eventCollector = new EventCollector();
+        runSimulation(scenario, eventCollector);
 
-        CaccEventHandler caccEventHandler = new CaccEventHandler();
-        runSimulationWithCacc(scenario, caccEventHandler, null);
+        scenario = ScenarioUtils.loadScenario(config);
+        EventCollector caccEventHandler = new EventCollector();
+        runSimulationWithCacc(scenario, caccEventHandler, 0);
         //eventsWriter.closeFile();
 
-        compareEvents(normalEventHandler, caccEventHandler);
+        compareEvents(eventCollector, caccEventHandler);
     }
 
-    private static void compareEvents(NormalEventHandler normalEventHandler, CaccEventHandler caccEventHandler) {
+    private static void compareEvents(EventCollector eventCollector, EventCollector caccEventHandler) {
 
-        List<Event> normalEvents = normalEventHandler.getEvents();
+        List<Event> normalEvents = eventCollector.getEvents();
         List<Event> caccEvents = caccEventHandler.getEvents();
 
-        /*normalEventHandler.logEvents();
+        /*eventCollector.logEvents();
         caccEventHandler.logEvents();*/
 
         System.out.println("Normal Events Counts -> " + normalEvents.size());
@@ -75,10 +73,10 @@ public class JDEQSimMain {
         return list.stream().filter(o -> (o.getTime() - time == 0)).findFirst().isPresent();
     }
 
-    public static void runSimulation(Scenario scenario, NormalEventHandler normalEventHandler) {
+    public static void runSimulation(Scenario scenario, EventCollector eventCollector) {
 
         EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
-        eventsManager.addHandler(normalEventHandler);
+        eventsManager.addHandler(eventCollector);
         eventsManager.initProcessing();
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
@@ -87,7 +85,7 @@ public class JDEQSimMain {
         jdeqSimulation.run();
     }
 
-    public static void runSimulationWithCacc(Scenario scenario, CaccEventHandler caccEventHanlder, Double caccShare){
+    public static void runSimulationWithCacc(Scenario scenario, EventCollector caccEventHanlder, double caccShare){
 
         EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
         eventsManager.addHandler(caccEventHanlder);
@@ -97,21 +95,44 @@ public class JDEQSimMain {
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
 
-        Map caccVehicles = getRandomCaccVehicles(scenario);
+        // If caccVehicles is empty let say 10 of 100 are caccvehicles
+        Map caccVehicles = getRandomCaccVehicles(scenario, caccShare);
 
-        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccVehicles, new CACCTravelTimeFunctionA(), caccShare);
+        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccVehicles, new CACCTravelTimeFunctionA());
         jdeqSimulationWithCacc.run();
         //eventsManager.finishProcessing();
     }
 
-    public static Map<String, Boolean> getRandomCaccVehicles(Scenario scenario){
+    /*
+        We can set 10% cacc share out of the total vehicles
+    */
+    public static Map<String, Boolean> getRandomCaccVehicles(Scenario scenario, double percentageOfCaccShare){
 
         Map<String ,Boolean> isCACCVehicle = new HashMap<>();
         boolean isCACC;
         Random rand = new Random(System.currentTimeMillis());
+
+        int numCaccVehicle = 0;
+        int numOfVehicles = scenario.getPopulation().getPersons().values().size();
+
+        double percentAchieved = 0;
+
         for (Person person : scenario.getPopulation().getPersons().values()) {
-            isCACC = rand.nextBoolean();
-            isCACCVehicle.put(person.getId().toString(), isCACC);
+
+            percentAchieved = (numCaccVehicle * 100.0d) / numOfVehicles;
+
+            if(percentageOfCaccShare == 0 || (percentAchieved >= percentageOfCaccShare)) {
+
+                isCACCVehicle.put(person.getId().toString(), false);
+            }else{
+                isCACC = rand.nextBoolean();
+                isCACCVehicle.put(person.getId().toString(), isCACC);
+
+                if(isCACC == true) {
+
+                    numCaccVehicle++;
+                }
+            }
         }
 
         return isCACCVehicle;

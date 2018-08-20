@@ -4,13 +4,6 @@ import org.matsim.api.core.v01.network.Link;
 
 public class CACCTravelTimeFunctionA implements TravelTimeFunction {
 
-//    Double caccShare = null;
-//
-//    CACCTravelTimeFunctionA(){ }
-//
-//    CACCTravelTimeFunctionA(double caccShare){
-//        this.caccShare = caccShare;
-//    }
 
     @Override
     public double calcTravelTime(Link link, Double shareOfCACC){

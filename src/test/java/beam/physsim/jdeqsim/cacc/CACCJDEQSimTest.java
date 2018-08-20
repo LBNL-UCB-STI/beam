@@ -1,27 +1,18 @@
 package beam.physsim.jdeqsim.cacc;
 
-import beam.physsim.jdeqsim.cacc.handler.CaccEventHandler;
-import beam.physsim.jdeqsim.cacc.handler.NormalEventHandler;
-import beam.playground.jdeqsim.CountEnterLinkEvents;
-import beam.physsim.jdeqsim.cacc.SpeedCalc;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.algorithms.EventWriterXML;
-import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.scenario.ScenarioUtils;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Random;
 
 import static junit.framework.TestCase.assertTrue;
@@ -57,7 +48,7 @@ public class CACCJDEQSimTest {
         }
 
         // TODO: pass vehicle to isCACC mapping to JDEQSim //Done\\
-        JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle, new CACCTravelTimeFunctionA(), 0d);
+        JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle, new CACCTravelTimeFunctionA());
         jdeqSimulation.run();
         //eventsManager.finishProcessing();
 
