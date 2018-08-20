@@ -39,7 +39,7 @@ public class RealizedModeCRCGraphTest {
     }
 
     @Test
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCCRUnitHour() {
+    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
@@ -61,7 +61,7 @@ public class RealizedModeCRCGraphTest {
     }
 
     @Test
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCCRUnitHour() {
+    public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
@@ -83,7 +83,7 @@ public class RealizedModeCRCGraphTest {
     }
 
     @Test // when replanning and upper mode choice are in same hour
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUForDifferentHoursTypeA() {
+    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeA() {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
@@ -104,25 +104,23 @@ public class RealizedModeCRCGraphTest {
     }
 
     @Test // when replanning and lower mode choice are in same hour
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUForDifferentHoursTypeB() {
+    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeB() {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
         int expectedRideHailResult = 2;
         int expectedOtherResult = 4;
 
-        Map<Integer, Map<String,Integer>> data3 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode( );
+        Map<Integer, Map<String, Integer>> data3 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode();
         int actaulCarResult = data3.get(11).get(GraphTestRealizedUtil.CAR);
         int actaulRideHailResult = data3.get(11).get(GraphTestRealizedUtil.RIDE_HAIL);
         int actaulOtherResult = data3.get(12).get(GraphTestRealizedUtil.OTHERS);
         int actaulWalkResult = data3.get(12).get(GraphTestRealizedUtil.WALK);
 
-        assertEquals(expectedWalkResult,actaulWalkResult );
-        assertEquals(expectedCarResult,actaulCarResult );
-        assertEquals(expectedRideHailResult,actaulRideHailResult );
-        assertEquals(expectedOtherResult,actaulOtherResult);
+        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedRideHailResult, actaulRideHailResult);
+        assertEquals(expectedOtherResult, actaulOtherResult);
 
     }
-
-
 }
