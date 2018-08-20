@@ -8,7 +8,7 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
-import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -208,7 +208,12 @@ class RideHailManager(
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
-    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule) =>
+    case NotifyVehicleResourceIdle(
+        vehicleId: Id[Vehicle],
+        whenWhere,
+        passengerSchedule,
+        fuelLevel
+        ) =>
       updateLocationOfAgent(vehicleId, whenWhere, isAvailable = isAvailable(vehicleId))
 
       //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
@@ -225,7 +230,7 @@ class RideHailManager(
           }
           modifyPassengerScheduleManager
             .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
-          driver ! GetBeamVehicleFuelLevel
+          vehicleFuelLevel.put(vehicleId, fuelLevel)
         })
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
