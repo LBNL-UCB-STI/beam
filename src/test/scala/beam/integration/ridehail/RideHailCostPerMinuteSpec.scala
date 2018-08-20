@@ -1,5 +1,6 @@
-package beam.integration
+package beam.integration.ridehail
 
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -33,7 +34,7 @@ class RideHailCostPerMinuteSpec
           ).groupedCount
       )
       val tc = modeChoice
-        .map(_.get("ride_hailing"))
+        .map(_.get("ride_hail"))
         .filter(_.isDefined)
         .map(_.get)
 

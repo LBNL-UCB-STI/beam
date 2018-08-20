@@ -4,13 +4,14 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
   createId,
   powerTrainForHumanBody
 }
-import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -24,6 +25,7 @@ import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.population.PersonUtils
 import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
@@ -49,6 +51,7 @@ object HouseholdActor {
     transportNetwork: TransportNetwork,
     router: ActorRef,
     rideHailManager: ActorRef,
+    parkingManager: ActorRef,
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
     householdId: Id[Household],
@@ -64,6 +67,7 @@ object HouseholdActor {
         transportNetwork,
         router,
         rideHailManager,
+        parkingManager,
         eventsManager,
         population,
         householdId,
@@ -106,7 +110,7 @@ object HouseholdActor {
     modalityStyle: Option[String],
     isMale: Boolean,
     availableModes: Seq[BeamMode],
-    valueOfTime: Double
+    valueOfTime: BigDecimal
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -116,7 +120,8 @@ object HouseholdActor {
     def apply(
       person: Person,
       household: Household,
-      vehicles: Map[Id[BeamVehicle], BeamVehicle]
+      vehicles: Map[Id[BeamVehicle], BeamVehicle],
+      valueOfTime: BigDecimal
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -128,7 +133,7 @@ object HouseholdActor {
         modalityStyle,
         new Random().nextBoolean(),
         BeamMode.availableModes,
-        14.5 // Average Income
+        valueOfTime
       )
     }
 
@@ -137,7 +142,7 @@ object HouseholdActor {
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
       availableModes: Seq[BeamMode],
-      valueOfTime: Double
+      valueOfTime: BigDecimal
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -148,7 +153,7 @@ object HouseholdActor {
         HouseholdAttributes(household, vehicles),
         household.getId,
         modalityStyle,
-        new Random().nextBoolean(),
+        person.getCustomAttributes.get("sex").asInstanceOf[Boolean],
         availableModes,
         valueOfTime
       )
@@ -194,6 +199,7 @@ object HouseholdActor {
     transportNetwork: TransportNetwork,
     router: ActorRef,
     rideHailManager: ActorRef,
+    parkingManager: ActorRef,
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
     id: Id[households.Household],
@@ -214,7 +220,7 @@ object HouseholdActor {
           .createVehicle(bodyVehicleIdFromPerson, HumanBodyVehicle.MatsimVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-
+      val personId = person.getId
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
           person.getId.toString,
@@ -232,23 +238,27 @@ object HouseholdActor {
 
       person.getCustomAttributes.put("beam-attributes", attributes)
 
+      val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+
+      modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> valueOfTime)
+
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(
           schedulerRef,
           beamServices,
-          modeChoiceCalculatorFactory(attributes),
+          modeChoiceCalculator,
           transportNetwork,
           router,
           rideHailManager,
+          parkingManager,
           eventsManager,
-          person.getId,
+          personId,
           household,
           person.getSelectedPlan,
           bodyVehicleIdFromPerson
         ),
-        person.getId.toString
+        personId.toString
       )
-
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
@@ -261,8 +271,10 @@ object HouseholdActor {
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
-      beamServices.personRefs += ((person.getId, personRef))
+      beamServices.personRefs += ((personId, personRef))
+
     }
 
     override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
@@ -437,9 +449,13 @@ object HouseholdActor {
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
 
       for { veh <- _vehicles } yield {
-        //TODO following mode should come from the vehicle
+        //TODO following mode should match exhaustively
+        val mode = vehicles(veh).beamVehicleType match {
+          case BicycleVehicle => BIKE
+          case CarVehicle     => CAR
+        }
         _vehicleToStreetVehicle +=
-          (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
+          (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
       }
     }
 

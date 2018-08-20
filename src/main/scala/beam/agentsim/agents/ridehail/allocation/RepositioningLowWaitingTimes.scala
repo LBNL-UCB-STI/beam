@@ -12,36 +12,24 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.concurrent.TrieMap
 
 class RepositioningLowWaitingTimes(
-    val rideHailManager: RideHailManager,
-    tncIterationStats: Option[TNCIterationStats]
-) extends RideHailResourceAllocationManager {
+  val rideHailManager: RideHailManager,
+  tncIterationStats: Option[TNCIterationStats]
+) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val isBufferedRideHailAllocationMode = false
-
-  def proposeVehicleAllocation(
-      vehicleAllocationRequest: VehicleAllocationRequest
+  override def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
     None
   }
 
-  def allocateVehicles(
-      allocationsDuringReservation: Vector[(VehicleAllocationRequest,
-                                            Option[VehicleAllocation])]
-  ): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error(
-      "batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
-    allocationsDuringReservation
-  }
-
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-      idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
-      maxNumberOfVehiclesToReposition: Int
+    idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
+    maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(
       rideHailAgentLocation =>
         rideHailManager.modifyPassengerScheduleManager
-          .isVehicleNeitherRepositioningNorProcessingReservation(
-            rideHailAgentLocation.vehicleId)
+          .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
     )
     val result = if (idle.size < maxNumberOfVehiclesToReposition) {
       idle ++ repositioning.take(maxNumberOfVehiclesToReposition - idle.size)
@@ -50,7 +38,7 @@ class RepositioningLowWaitingTimes(
     }
 
     if (result.size < idleVehicles.values.size) {
-      log.debug(
+      logger.debug(
         s"filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by ${idleVehicles.values.size - result.size}"
       )
     }
@@ -63,8 +51,7 @@ class RepositioningLowWaitingTimes(
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  override def repositionVehicles(
-      tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
     tncIterationStats match {
       case Some(tncIterStats) =>
@@ -183,9 +170,8 @@ class RepositioningLowWaitingTimes(
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
-              if (!firstRepositionCoordsOfDay.isDefined || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                    .distInMeters(firstRepositionCoordsOfDay.get._1,
-                                  tazEntry._1) < 10000)) {
+              if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
+                    .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(
@@ -222,7 +208,7 @@ class RepositioningLowWaitingTimes(
               spatialPlot.addString(StringToPlot("A", firstRepositionCoordOfDay.get, Color.BLACK, 50))
             }*/
 
-            if (!firstRepositionCoordsOfDay.isDefined) {
+            if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
                 rideHailManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
@@ -233,10 +219,7 @@ class RepositioningLowWaitingTimes(
             }
 
             spatialPlot.addString(
-              StringToPlot("A",
-                           firstRepositionCoordsOfDay.get._1,
-                           Color.BLACK,
-                           50)
+              StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50)
             )
             //spatialPlot.addString(StringToPlot("B", firstRepositionCoordsOfDay.get._2, Color.BLACK, 50))
 
@@ -259,8 +242,7 @@ class RepositioningLowWaitingTimes(
         }
 
         if (whichTAZToRepositionTo.nonEmpty) {
-          log.debug(
-            s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+          logger.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
         val result = if (firstRepositioningOfDay) {
