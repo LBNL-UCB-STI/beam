@@ -16,7 +16,7 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-        classpath 'cz.alenkacz:gradle-scalafmt:1.6.0'
+        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
     }
 }
 
