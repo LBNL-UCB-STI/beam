@@ -137,7 +137,8 @@ class ParkingSpec
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k => evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).forall { k =>
+                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
               }
               val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
                 .get("time")

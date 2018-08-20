@@ -15,7 +15,10 @@ object BeamVehicleUtils {
     new BeamVehicle(
       BicycleVehicle.powerTrainForBicycle,
       BicycleVehicle.createMatsimVehicle(id),
-      None, BicycleVehicle, None, None
+      None,
+      BicycleVehicle,
+      None,
+      None
     )
   }
 
@@ -26,20 +29,24 @@ object BeamVehicleUtils {
 
     val vehicleAttribute = Option(matsimVehicles.getVehicleAttributes)
 
-    val powerTrain = Powertrain.PowertrainFromMilesPerGallon(information
-      .map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon))
+    val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
+      information
+        .map(_.getGasConsumption)
+        .getOrElse(Powertrain.AverageMilesPerGallon)
+    )
     new BeamVehicle(powerTrain, matsimVehicle, vehicleAttribute, CarVehicle, None, None)
   }
 
   //TODO: Identify the vehicles by type in xml
-  def makeHouseholdVehicle(matsimVehicles: Vehicles, id: Id[Vehicle]): Either[IllegalArgumentException, BeamVehicle] = {
+  def makeHouseholdVehicle(
+    matsimVehicles: Vehicles,
+    id: Id[Vehicle]
+  ): Either[IllegalArgumentException, BeamVehicle] = {
     if (BicycleVehicle.isVehicleType(id)) {
       Right(makeBicycle(id))
-    }
-    else {
+    } else {
       Right(makeCar(matsimVehicles, id))
     }
   }
-
 
 }

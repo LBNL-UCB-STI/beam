@@ -76,7 +76,10 @@ trait ModeChoiceCalculator extends HasServices {
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
   private def getVot(beamMode: Option[BeamMode]): BigDecimal =
-    valuesOfTime.getOrElse(matchMode2Vot(beamMode), valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot)))
+    valuesOfTime.getOrElse(
+      matchMode2Vot(beamMode),
+      valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
+    )
 
   def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
     val votType = matchMode2Vot(beamMode)
@@ -139,23 +142,29 @@ object ModeChoiceCalculator {
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        _ => new ModeChoiceTransitIfAvailable(beamServices)
+        _ =>
+          new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        _ => new ModeChoiceDriveIfAvailable(beamServices)
+        _ =>
+          new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        _ => new ModeChoiceRideHailIfAvailable(beamServices)
+        _ =>
+          new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        _ => new ModeChoiceUniformRandom(beamServices)
+        _ =>
+          new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        _ => new ModeChoiceMultinomialLogit(beamServices, logit)
+        _ =>
+          new ModeChoiceMultinomialLogit(beamServices, logit)
       case "ModeChoiceMultinomialLogitTest" =>
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        _ => new ModeChoiceMultinomialLogit(beamServices, logit)
+        _ =>
+          new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
 

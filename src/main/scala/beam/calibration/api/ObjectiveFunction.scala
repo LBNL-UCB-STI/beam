@@ -20,7 +20,7 @@ object EvaluationUtil {
 }
 
 trait ObjectiveFunction {
-  def evaluateFromRun(runDataDir:String): Double
+  def evaluateFromRun(runDataDir: String): Double
 }
 
 abstract class FileBasedObjectiveFunction(
@@ -28,10 +28,10 @@ abstract class FileBasedObjectiveFunction(
   outputFileLoc: Option[String] = None
 ) extends ObjectiveFunction {
 
-
   override def evaluateFromRun(runDataDir: String): Double = {
     val benchmarkData: Map[String, Double] = getStatsFromFile(benchmarkFileDataLoc)
-    val statsFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
+    val statsFile =
+      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
     val runData = getStatsFromFile(
       Paths
         .get(runDataDir, statsFile)
@@ -47,7 +47,7 @@ abstract class FileBasedObjectiveFunction(
 
   def compareStats(benchmarkData: Map[String, Double], runData: Map[String, Double]): Double
 
-  def getStatsFromFile(fileLoc: String, benchmark:Boolean=false): Map[String, Double] = {
+  def getStatsFromFile(fileLoc: String, benchmark: Boolean = false): Map[String, Double] = {
     using(Source.fromFile(fileLoc)) { source =>
       source.getLines().drop(1).map { _.split(",") }.map(arr => arr(0) -> arr(1).toDouble).toMap
     }

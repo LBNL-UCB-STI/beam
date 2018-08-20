@@ -77,7 +77,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-
   def clearAll(): Unit = {
     personRefs.clear
     vehicles.clear()
@@ -99,7 +98,6 @@ object BeamServices {
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }
-
 
   def getTazTreeMap(file: String): TAZTreeMap = {
     Try(TAZTreeMap.fromCsv(file)).getOrElse {

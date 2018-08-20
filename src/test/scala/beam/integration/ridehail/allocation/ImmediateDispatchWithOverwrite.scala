@@ -89,7 +89,6 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         s"attempt finished, tick: $tick"
       )
 
-
       // TODO: ask vehicle, if customer already picked up (can't rely on tick, as RHM tick might be in same window as driver pickup).
       //  -> make method custom
       //
