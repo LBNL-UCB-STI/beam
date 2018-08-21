@@ -36,7 +36,7 @@ object ConversionConfig {
     val matsimConversionConfig = c.getConfig("matsim.conversion")
     val simName = c.getString("beam.agentsim.simulationName")
     val scenarioDir = matsimConversionConfig.getString("scenarioDirectory")
-    val matsimNetworkFile = matsimConversionConfig.getString("matsimNetworkFile")
+    val matsimNetworkFile = s"${scenarioDir}/conversion-input/${matsimConversionConfig.getString("matsimNetworkFile")}"
 
     val spatialConfig = c.getConfig("beam.spatial")
 

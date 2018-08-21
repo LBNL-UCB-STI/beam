@@ -34,3 +34,9 @@ native/
 beam-gui/build
 /test/input/sf-light/counts/preprocessing/2015_all/
 gc_*.log
+test/input/siouxfalls/*.xml 
+test/input/siouxfalls/r5/*.zip
+test/input/siouxfalls/r5/*.dat 
+test/input/siouxfalls/r5/*osm*
+test/input/siouxfalls/*.conf 
+test/input/siouxfalls/*.csv 
