@@ -839,9 +839,9 @@ class RideHailManager(
         log.debug("Completing reservation for {}", requestId)
         unlockVehicle(response.travelProposal.get.rideHailAgentLocation.vehicleId)
 
-        println(
-          s"completing reservation -   customer: ${response.request.customer.personId} - vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
-        )
+//        println(
+//          s"completing reservation -   customer: ${response.request.customer.personId} - vehicle: ${response.travelProposal.get.rideHailAgentLocation.vehicleId}"
+//        )
 
         val bufferedRideHailRequests = rideHailResourceAllocationManager.bufferedRideHailRequests
 

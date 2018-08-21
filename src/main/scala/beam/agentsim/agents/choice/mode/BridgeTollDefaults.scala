@@ -1,8 +1,11 @@
 package beam.agentsim.agents.choice.mode
 
+import java.nio.file.{Files, Paths}
+
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import beam.utils.FileUtils
 
 import scala.io.Source
 
@@ -39,12 +42,17 @@ object BridgeTollDefaults {
   }
 
   private def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
-    Source
-      .fromFile(tollPricesFile)
-      .getLines()
-      .map(_.split(","))
-      .filterNot(_(0).equalsIgnoreCase("linkId"))
-      .map(t => t(0).toInt -> t(1).toDouble)
-      .toMap
+    if(Files.exists(Paths.get(tollPricesFile))){
+      Source
+        .fromFile(tollPricesFile)
+        .getLines()
+        .map(_.split(","))
+        .filterNot(_(0).equalsIgnoreCase("linkId"))
+        .map(t => t(0).toInt -> t(1).toDouble)
+        .toMap
+
+    }else{
+      Map()
+    }
   }
 }

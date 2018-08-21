@@ -21,7 +21,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
   private val log = Logger.getLogger(classOf[BeamScoringFunctionFactory])
 
-  val lccm = new LatentClassChoiceModel(beamServices)
+  lazy val lccm = new LatentClassChoiceModel(beamServices)
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {

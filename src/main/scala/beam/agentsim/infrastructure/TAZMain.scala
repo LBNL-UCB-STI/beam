@@ -56,7 +56,7 @@ object TAZMain extends App {
 
     println("Process Started")
     TAZTreeMap.shapeFileToCsv(pathFileShape, tazIdName, destination)
-    println("Process Terminate...")
+    println("Process Terminated...")
   } else {
     println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
   }

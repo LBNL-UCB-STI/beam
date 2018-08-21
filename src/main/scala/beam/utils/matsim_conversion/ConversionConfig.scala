@@ -9,13 +9,19 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import scala.util.Try
 
 case class HouseholdIncome(currency: String, period: String, value: Int)
-case class ConversionConfig(scenarioDirectory: String, populationInput: String,
-                             income: HouseholdIncome, localCRS: String,
-                             matsimNetworkFile: String, osmFile: String, boundingBoxBuffer: Int,
-                             generateVehicles: Boolean = false,
-                             shapeConfig: Option[ShapeConfig] = None,
+case class ConversionConfig(
+  scenarioDirectory: String,
+  populationInput: String,
+  income: HouseholdIncome,
+  localCRS: String,
+  matsimNetworkFile: String,
+  osmFile: String,
+  boundingBoxBuffer: Int,
+  generateVehicles: Boolean = false,
+  shapeConfig: Option[ShapeConfig] = None,
 //                             transitVehiclesInput: Option[String] = None,
-                             vehiclesInput: Option[String] = None)
+  vehiclesInput: Option[String] = None
+)
 
 case class ShapeConfig(shapeFile: String, tazIDFieldName: String)
 
@@ -36,7 +42,7 @@ object ConversionConfig {
     val localCRS = spatialConfig.getString("localCRS")
     val boundingBoxBuffer = spatialConfig.getInt("boundingBoxBuffer")
 
-    val mShapeConfig = if(matsimConversionConfig.hasPathOrNull("shapeConfig")){
+    val mShapeConfig = if (matsimConversionConfig.hasPathOrNull("shapeConfig")) {
       val shapeConfig = matsimConversionConfig.getConfig("shapeConfig")
       val shapeFile = s"${scenarioDir}/conversion-input/${shapeConfig.getString("shapeFile")}"
       val tazIdField = shapeConfig.getString("tazIdFieldName")
@@ -44,7 +50,8 @@ object ConversionConfig {
     } else
       None
 
-    val populationInput = s"${scenarioDir}/conversion-input/${matsimConversionConfig.getString("populationFile")}"
+    val populationInput =
+      s"${scenarioDir}/conversion-input/${matsimConversionConfig.getString("populationFile")}"
     val generateVehicles = matsimConversionConfig.getBoolean("generateVehicles")
     val osmFile = s"${scenarioDir}/conversion-input/${matsimConversionConfig.getString("osmFile")}"
 
@@ -59,13 +66,25 @@ object ConversionConfig {
     val incomeValue = defaultHouseholdIncomeConfig.getInt("value")
     val income = HouseholdIncome(incomeCurrency, incomePeriod, incomeValue)
 
-
-    ConversionConfig(scenarioDir, populationInput, income, localCRS, matsimNetworkFile,
-      osmFile, boundingBoxBuffer, generateVehicles, mShapeConfig, /*transitVehiclesPath,*/
-      vehiclesInput)
+    ConversionConfig(
+      scenarioDir,
+      populationInput,
+      income,
+      localCRS,
+      matsimNetworkFile,
+      osmFile,
+      boundingBoxBuffer,
+      generateVehicles,
+      mShapeConfig, /*transitVehiclesPath,*/
+      vehiclesInput
+    )
   }
 
-  def getBoundingBoxConfig(network: Network, localCrs: String, boundingBoxBuffer: Int = 0): BoundingBoxConfig= {
+  def getBoundingBoxConfig(
+    network: Network,
+    localCrs: String,
+    boundingBoxBuffer: Int = 0
+  ): BoundingBoxConfig = {
     //bbox = min Longitude , min Latitude , max Longitude , max Latitude
     val bbox = NetworkUtils.getBoundingBox(network.getNodes.values())
 
@@ -81,8 +100,6 @@ object ConversionConfig {
     val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation(localCrs, "EPSG:4326")
     val minCoord: Coord = wgs2Utm.transform(new Coord(env.getMinX, env.getMinY))
     val maxCoord: Coord = wgs2Utm.transform(new Coord(env.getMaxX, env.getMaxY))
-
-
 
     val tLeft = minCoord.getX
     val tBottom = minCoord.getY
