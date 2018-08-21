@@ -2,7 +2,7 @@ package beam.agentsim.agents.household
 
 import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
-import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -324,7 +324,7 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere, _) =>
+      case NotifyVehicleResourceIdle(vehId: Id[Vehicle], whenWhere, passengerSchedule, fuelLevel) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
