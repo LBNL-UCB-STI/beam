@@ -8,6 +8,8 @@ import beam.agentsim.Resource.{
   NotifyResourceInUse,
   RegisterResource
 }
+
+import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
@@ -42,6 +44,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
+
 import scala.concurrent.duration._
 
 /**
@@ -647,7 +650,7 @@ class PersonAgent(
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyResourceIdle(_, _, _), _) =>
+    case Event(NotifyVehicleResourceIdle, _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
