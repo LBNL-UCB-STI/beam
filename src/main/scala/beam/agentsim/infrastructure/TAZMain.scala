@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure
 
+import beam.utils.matsim_conversion.ShapeUtils
+
 object TAZMain extends App {
 
   /*
@@ -55,8 +57,8 @@ object TAZMain extends App {
     val destination = args(2)
 
     println("Process Started")
-    TAZTreeMap.shapeFileToCsv(pathFileShape, tazIdName, destination)
-    println("Process Terminated...")
+    ShapeUtils.shapeFileToCsv(pathFileShape, tazIdName, destination)
+    println("Process Terminate...")
   } else {
     println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
   }
