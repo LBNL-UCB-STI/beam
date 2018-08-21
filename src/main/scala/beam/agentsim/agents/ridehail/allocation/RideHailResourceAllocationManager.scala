@@ -11,7 +11,8 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
+    extends LazyLogging {
 
   val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
     rideHailManager.scheduler
@@ -61,16 +62,21 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     logger.trace("default implementation updateVehicleAllocations executed")
   }
 
+  /*
+
+   */
   def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
     logger.trace("default implementation handleRideCancellationReply executed")
   }
 
+  /*
+  This method is called periodically and allows the overwriting resource allocation module to specify which
+  ridehail vehicle should be repositioned/redistributed to which location to better meet anticipated demand.
+   */
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     logger.trace("default implementation repositionVehicles executed")
     Vector()
   }
-
-  def setBufferedRideHailRequests(bufferedRideHailRequests: BufferedRideHailRequests): Unit = {}
 
 }
 
