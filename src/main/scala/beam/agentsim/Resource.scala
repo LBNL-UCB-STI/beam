@@ -30,11 +30,10 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  case class NotifyResourceIdle(
-    resourceId: Id[_],
-    whenWhere: SpaceTime,
-    passengerSchedule: PassengerSchedule
-  )
+  trait NotifyResourceIdle {
+    def resourceId: Id[_]
+    def whenWhere: SpaceTime
+  }
 
   case class AssignManager(managerRef: ActorRef)
 

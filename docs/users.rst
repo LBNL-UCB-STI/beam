@@ -176,3 +176,93 @@ The ExperimentGenerator will create a sub-folder next to experiment.yml named `r
 
 Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
 
+Converting a MATSim Scenario to Run with BEAM
+---------------------------------------------
+
+The following MATSim input data are required to complete the conversion process:
+
+* Matsim network file: (e.g. network.xml)
+* Matsim plans (or population) file: (e.g. population.xml)
+* A download of OpenStreetMap data for a region that includes your region of interest. Should be in pbf format. For North American downloads: http://download.geofabrik.de/north-america.html
+
+The following inputs are optional and only recommended if your MATSim scenario has a constrained vehicle stock (i.e. not every person owns a vehicle):
+
+* Matsim vehicle definition (e.g. vehicles.xml) 
+* Travel Analysis Zone shapefile for the region, (e.g. as can be downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_taz.html)
+
+Conversion Instructions
+^^^^^^^^^^^^^^^^^^^^^^^
+Note that we use the MATSim Sioux Falls scenario as an example. The data for this scenario are already in the BEAM repository under "test/input/siouxfalls". We recommend that you follow the steps in this guide with that data to produce a working BEAM Sioux Falls scenario and then attempt to do the process with your own data.
+
+1. Create a folder for your scenario in project directory under test/input (e.g: test/input/siouxfalls)
+
+2. Create a sub-directory to your scenario directory and name it "conversion-input" (exact name required) 
+   
+3. Create a another sub-directory and name it "r5". 
+
+4. Copy the MATSim input data to the conversion-input directory.
+
+5. Copy the BEAM config file from test/input/beamville/beam.conf into the scenario directory and rename to your scenario (e.g. test/input/siouxfalls/siouxfalls.conf)
+
+6. Copy the "dummy.zip" GTFS archive from test/input/beamville/R/dummy.zip into the r5 sub-directory (e.g. test/input/siouxfalls/r5/dummy.zip). This step is optional but will avoid meddlesome warnings from the R5 library.
+
+7. Make the following edits to siouxfalls.conf (or your scenario name, replace Sioux Falls names below with appropriate names from your case):
+
+* Do a global search/replace and search for "beamville" and replace with your scenario name (e.g. "siouxfalls").
+   
+* matsim.conversion.scenarioDirectory = "test/input/siouxfalls"
+
+* matsim.conversion.populationFile = "Siouxfalls_population.xml" (just the file name, assumed to be under conversion-input)
+
+* matsim.conversion.matsimNetworkFile = "Siouxfalls_network_PT.xml"  (just the file name, assumed to be under conversion-input)
+
+* matsim.conversion.generateVehicles = true (If true -- common -- the conversion will use the population data to generate default vehicles, one per agent)
+
+* matsim.conversion.vehiclesFile = "Siouxfalls_vehicles.xml" (optional, if generateVehicles is false, specify the matsim vehicles file name, assumed to be under conversion-input)
+
+* matsim.conversion.defaultHouseholdIncome (an integer to be used for default household incomes of all agents)
+
+* matsim.conversion.osmFile = "south-dakota-latest.osm.pbf" (the Open Street Map source data file that should be clipped to the scenario network, assumed to be under conversion-input)
+
+* matsim.conversion.shapeConfig.shapeFile (file name shape file package, e.g: for shape file name tz46_d00, there should be following files: tz46_d00.shp, tz46_d00.dbf, tz46_d00.shx)
+
+* matsim.conversion.shapeConfig.tazIdFieldName (e.g. "TZ46_D00_I", the field name of the TAZ ID in the shape file)
+
+* beam.spatial.localCRS = "epsg:26914" (the local EPSG CRS used for distance calculations, should be in units of meters and should be the CRS used in the network, population and shape files)
+
+* beam.routing.r5.mNetBuilder.toCRS = "epsg:26914" (same as above)
+
+* beam.spatial.boundingBoxBuffer = 10000 (meters to pad bounding box around the MATSim network when clipping the OSM network)
+
+8. Run the conversion tool
+
+* Main class to execute: beam.utils.matsim_conversion.MatsimConversionTool
+* Program arguments, path to beam config file from above, siouxfalls.conf: path/to/beam.conf
+* Environment variables: PWD=/path/to/beam/folder
+
+The tool should produce the following outputs:
+
+* householdAttributes.xml
+* households.xml
+* population.xml
+* populationAttributes.xml
+* taz-centers.csv
+* transitVehicles.xml
+* vehicles.xml
+
+9. Run OSMOSIS 
+
+The console output should contain a command for the osmosis tool, a command line utility that allows you manipulate OSM data. If you don't have osmosis installed, download and install from: https://wiki.openstreetmap.org/wiki/Osmosis
+
+Copy the osmosis command generated by conversion tool and run from the command line from within the BEAM project directory:
+
+   osmosis --read-pbf file=/path/to/osm/file/south-dakota-latest.osm.pbf --bounding-box top=43.61080226522504 left=-96.78138443934351 bottom=43.51447260628691 right=-96.6915507011093 completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=/path/to/dest-osm.pbf
+
+10. Run BEAM
+
+* Main class to execute: beam.sim.RunBeam
+* VM Options: -Xmx2g (or more if a large scenario)
+* Program arguments, path to beam config file from above, (e.g. --config "test/input/siouxfalls/siouxfalls.conf")
+* Environment variables: PWD=/path/to/beam/folder
+
+

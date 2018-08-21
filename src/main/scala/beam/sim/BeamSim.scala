@@ -183,7 +183,7 @@ class BeamSim @Inject()(
     val outputFilesToDelete = Array(
       "traveldistancestats.txt",
       "traveldistancestats.png",
-      "tmp" ,
+      "tmp",
       "modestats.txt",
       "modestats.png"
     )
