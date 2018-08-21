@@ -42,7 +42,7 @@ object BridgeTollDefaults {
   }
 
   private def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
-    if(Files.exists(Paths.get(tollPricesFile))){
+    if (Files.exists(Paths.get(tollPricesFile))) {
       Source
         .fromFile(tollPricesFile)
         .getLines()
@@ -51,7 +51,7 @@ object BridgeTollDefaults {
         .map(t => t(0).toInt -> t(1).toDouble)
         .toMap
 
-    }else{
+    } else {
       Map()
     }
   }
