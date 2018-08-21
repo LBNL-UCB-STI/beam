@@ -412,12 +412,15 @@ class R5RoutingWorker(
           )
           Vector(firstLeg, secondLeg)
         } else {
-          val indexFromEnd = theLinkIds.reverse
-            .map(lengthOfLink(_))
-            .scanLeft(0.0)(_ + _)
-            .indexWhere(
-              _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-            )
+          val indexFromEnd = Math.min(
+            theLinkIds.reverse
+              .map(lengthOfLink(_))
+              .scanLeft(0.0)(_ + _)
+              .indexWhere(
+                _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+              ),
+            theLinkIds.length - 1
+          )
           val indexFromBeg = theLinkIds.length - indexFromEnd
           val firstLeg = updateLegWithCurrentTravelTime(
             leg.updateLinks(theLinkIds.take(indexFromBeg))

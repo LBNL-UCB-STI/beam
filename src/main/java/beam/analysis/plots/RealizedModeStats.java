@@ -74,7 +74,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         hourPerson.clear();
     }
 
+    public Map<Integer, Map<String,Integer>> getHoursDataCountOccurrenceAgainstMode() {
+        return hourModeFrequency;
+    }
 
+    // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
@@ -145,7 +149,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
                         }
                     }
+                    hourModeFrequency.put(hour, hourData);
                 }
+
             }
         }
     }

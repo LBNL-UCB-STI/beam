@@ -95,9 +95,9 @@ Model Config
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
   # Ride Hailing Params
-  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
-  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
-  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
   # Scaling and Tuning Params; 1.0 results in no scaling
   beam.agentsim.tuning.transitCapacity = 0.2
   beam.agentsim.tuning.transitPrice = 1.0
@@ -153,19 +153,19 @@ Factors can be designed however you choose, including adding as many factors or 
       levels:
       - name: Low
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
       - name: Base
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
       - name: High
         params:
-          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
+          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
 
 Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 
-In our second example (see directory `test/input/beamville/example-calibration/`), we have added a template file `modeChoiceParameters.xml.tpl` that allows us to change the values of parameters in BEAM input file `modeChoiceParameters.xml`. In the `experiment.yml` file, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hailing_intercept`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_intercept }}`. This placeholder will be replaced during template processing. The same is true for all properties in the defaultParams and under the facts. Placeholders for template files must NOT contain the dot symbol due to special behaviour of Jinja. However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overridden within this experiment run.
+In our second example (see directory `test/input/beamville/example-calibration/`), we have added a template file `modeChoiceParameters.xml.tpl` that allows us to change the values of parameters in BEAM input file `modeChoiceParameters.xml`. In the `experiment.yml` file, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hail_intercept`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hail_intercept }}`. This placeholder will be replaced during template processing. The same is true for all properties in the defaultParams and under the facts. Placeholders for template files must NOT contain the dot symbol due to special behaviour of Jinja. However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overridden within this experiment run.
 
-Also note that `mnl_ride_hailing_intercept` appears both in the level specification and in the baseScenario. When using a template file (versus a BEAM Config file), each level can only override properties from Default Params section of `experiment.yml`.
+Also note that `mnl_ride_hail_intercept` appears both in the level specification and in the baseScenario. When using a template file (versus a BEAM Config file), each level can only override properties from Default Params section of `experiment.yml`.
 
 Experiment generation can be run using following command::
 

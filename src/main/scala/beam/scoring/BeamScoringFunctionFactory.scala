@@ -27,14 +27,14 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     new ScoringFunction {
 
       private var finalScore = 0.0
-      private var trips = mutable.ListBuffer[EmbodiedBeamTrip]()
+      private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
 
       override def handleEvent(event: Event): Unit = {
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
-          case replanningEvent: ReplanningEvent =>
+          case _: ReplanningEvent =>
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -79,20 +79,22 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
             // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
 
-            val logsum = math.log(
-              person
-                .getPlans()
-                .asScala
-                .map(
-                  plan =>
-                    plan.getAttributes
-                      .getAttribute("scores")
-                      .asInstanceOf[MapStringDouble]
-                      .data(attributes.modalityStyle.get)
-                )
-                .map(score => math.exp(score))
-                .sum
-            )
+            val logsum = Option(
+              math.log(
+                person
+                  .getPlans()
+                  .asScala
+                  .map(
+                    plan =>
+                      plan.getAttributes
+                        .getAttribute("scores")
+                        .asInstanceOf[MapStringDouble]
+                        .data(attributes.modalityStyle.get)
+                  )
+                  .map(score => math.exp(score))
+                  .sum
+              )
+            ).filterNot(x => x < -100D).getOrElse(-100D)
 
             // Score of being in class given this outcome
             lccm

@@ -1,22 +1,18 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager}
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  RideHailRequest
-}
+import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.RideHailManager.BufferedRideHailRequestsTimeout
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import org.slf4j.{Logger, LoggerFactory}
 
-abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) {
-
-  lazy val log: Logger = LoggerFactory.getLogger(getClass)
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
+    extends LazyLogging {
 
   val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
     rideHailManager.scheduler
@@ -51,15 +47,15 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
-    log.trace("default implementation updateVehicleAllocations executed")
+    logger.trace("default implementation updateVehicleAllocations executed")
   }
 
   def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
-    log.trace("default implementation handleRideCancellationReply executed")
+    logger.trace("default implementation handleRideCancellationReply executed")
   }
 
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    log.trace("default implementation repositionVehicles executed")
+    logger.trace("default implementation repositionVehicles executed")
     Vector()
   }
 
