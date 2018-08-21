@@ -98,7 +98,8 @@ class R5RoutingWorker(
       }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
-        .maxBy(e => e.getTime).getTime - leg.startTime
+        .maxBy(e => e.getTime)
+        .getTime - leg.startTime
 
       sender ! RoutingResponse(
         Vector(

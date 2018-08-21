@@ -12,10 +12,7 @@ import org.scalatest._
 
 import scala.language.postfixOps
 
-class SfLightRouterSpec
-    extends AbstractSfLightSpec
-    with Inside
-    with LoneElement {
+class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement {
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
@@ -126,9 +123,7 @@ class SfLightRouterSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       //      assertMakesSense(carOption)
       val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK,
-                                                                          CAR,
-                                                                          WALK)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
@@ -204,15 +199,13 @@ class SfLightRouterSpec
                   ),
                   StreetVehicle(
                     Id.createVehicleId("rideHailVehicle-person=116378-2"),
-                    new SpaceTime(new Coord(origin.getX, origin.getY),
-                                  time.atTime),
+                    new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
                     Modes.BeamMode.CAR,
                     asDriver = false
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    new SpaceTime(new Coord(origin.getX, origin.getY),
-                                  time.atTime),
+                    new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
                     Modes.BeamMode.WALK,
                     asDriver = true
                   )
@@ -229,8 +222,7 @@ class SfLightRouterSpec
                 .toBeamTrip
               inside(walkTrip) {
                 case BeamTrip(legs, _) =>
-                  legs.map(_.mode) should contain theSameElementsInOrderAs List(
-                    WALK)
+                  legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
                   inside(legs.loneElement) {
                     case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _)) =>
                       mode should be(WALK)

@@ -11,8 +11,8 @@ object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
 
   def estimateDrivingCost(
-      alternatives: IndexedSeq[EmbodiedBeamTrip],
-      beamServices: BeamServices
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    beamServices: BeamServices
   ): IndexedSeq[BigDecimal] = {
 
     val drivingCostConfig =
@@ -22,9 +22,15 @@ object DrivingCostDefaults {
       alt.tripClassifier match {
         case CAR if alt.costEstimate == 0.0 =>
           val legs = alt.legs
-          val neededLeg= legs.collectFirst {
-            case leg if leg.beamLeg.mode == CAR => leg
-          }.getOrElse(throw new RuntimeException("Could not find EmbodiedBeamLeg when leg.beamLeg.mode == CAR"))
+          val neededLeg = legs
+            .collectFirst {
+              case leg if leg.beamLeg.mode == CAR => leg
+            }
+            .getOrElse(
+              throw new RuntimeException(
+                "Could not find EmbodiedBeamLeg when leg.beamLeg.mode == CAR"
+              )
+            )
 
           val vehicle = beamServices.vehicles(neededLeg.beamVehicleId)
           val litersPerMeter =

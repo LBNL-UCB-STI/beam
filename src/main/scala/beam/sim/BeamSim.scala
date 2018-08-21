@@ -7,10 +7,7 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.{
-  RideHailIterationHistoryActor,
-  TNCIterationsStatsCollector
-}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -26,16 +23,8 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{
-  IterationEndsEvent,
-  ShutdownEvent,
-  StartupEvent
-}
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
+import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
 import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.mutable
@@ -44,11 +33,11 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-    private val actorSystem: ActorSystem,
-    private val transportNetwork: TransportNetwork,
-    private val beamServices: BeamServices,
-    private val eventsManager: EventsManager,
-    private val scenario: Scenario,
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
 ) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
@@ -60,8 +49,7 @@ class BeamSim @Inject()(
 
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var modalityStyleStats: ModalityStyleStats = _
-  private var expectedDisutilityHeatMapDataCollector
-    : ExpectedMaxUtilityHeatMap = _
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
   private var rideHailIterationHistoryActor: ActorRef = _
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
@@ -82,8 +70,7 @@ class BeamSim @Inject()(
         if (!alreadyScaled.contains(theCap)) {
           theCap.setSeats(
             math
-              .round(
-                theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity)
+              .round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity)
               .toInt
           )
           theCap.setStandingRoom(
@@ -97,10 +84,8 @@ class BeamSim @Inject()(
         }
     }
 
-    val fareCalculator = new FareCalculator(
-      beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(
-      beamServices.beamConfig.beam.routing.r5.directory)
+    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,
@@ -145,9 +130,7 @@ class BeamSim @Inject()(
     )
 
     rideHailIterationHistoryActor = actorSystem.actorOf(
-      RideHailIterationHistoryActor.props(eventsManager,
-                                          beamServices,
-                                          transportNetwork),
+      RideHailIterationHistoryActor.props(eventsManager, beamServices, transportNetwork),
       rideHailIterationHistoryActorName
     )
     tncIterationsStatsCollector = new TNCIterationsStatsCollector(
@@ -163,9 +146,7 @@ class BeamSim @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (beamServices.beamConfig.beam.debug.debugEnabled)
-      logger.info(
-        DebugLib.gcAndGetMemoryLogMessage(
-          "notifyIterationEnds.start (after GC): "))
+      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
       modalityStyleStats.processData(scenario.getPopulation, event)
@@ -185,13 +166,10 @@ class BeamSim @Inject()(
     }
 
     // executing code blocks parallel
-    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)),
-                 Duration.Inf)
+    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
-      logger.info(
-        DebugLib.gcAndGetMemoryLogMessage(
-          "notifyIterationEnds.end (after GC): "))
+      logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
     //    Tracer.currentContext.finish()
     logger.info("Ending Iteration")
@@ -212,8 +190,7 @@ class BeamSim @Inject()(
 
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: ${fileName}")
-      Files.deleteIfExists(
-        Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
+      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
   }
 }

@@ -102,9 +102,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "car",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "100.0"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100.0"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100.0"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100.0")
           )
@@ -115,9 +113,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "car",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "-100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
           )
@@ -174,9 +170,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "bike",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
           )
@@ -187,9 +181,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "bike",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "-100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
           )
@@ -248,9 +240,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "ride_hailing",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
           )
@@ -261,9 +251,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "ride_hailing",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "-100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
           )
@@ -322,9 +310,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "drive_transit",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
           )
@@ -335,9 +321,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "drive_transit",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "-100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
           )
@@ -396,9 +380,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "walk",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
           )
@@ -409,9 +391,7 @@ class MultinomialCustomConfigSpec
         new MultinomialCustomConfigSpec.CustomAlternative(
           "walk",
           Seq(
-            MultinomialCustomConfigSpec.Utility("intercept",
-                                                "INTERCEPT",
-                                                "-100"),
+            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
             MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
             MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
           )

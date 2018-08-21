@@ -6,9 +6,16 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.{
+  MobilityStatusResponse,
+  ReleaseVehicleReservation
+}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
-import beam.agentsim.agents.ridehail.RideHailManager.{RideHailInquiry, RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  RideHailInquiry,
+  RideHailRequest,
+  RideHailResponse
+}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -191,19 +198,16 @@ trait ChoosesMode {
                 case Some(vehicle) =>
                   val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
                   linkIds += r.getStartLinkId.toString.toInt
-                  r.getLinkIds.asScala.foreach { id => linkIds += id.toString.toInt }
+                  r.getLinkIds.asScala.foreach { id =>
+                    linkIds += id.toString.toInt
+                  }
                   linkIds += r.getStartLinkId.toString.toInt
 
                   val leg = BeamLeg(
                     departTime.atTime,
                     mode,
                     l.getTravelTime.toLong,
-                    BeamPath(linkIds,
-                      None,
-                      SpaceTime.zero,
-                      SpaceTime.zero,
-                      r.getDistance
-                    )
+                    BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
                 case _ =>

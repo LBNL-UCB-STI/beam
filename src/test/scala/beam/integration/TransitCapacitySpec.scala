@@ -25,8 +25,7 @@ class TransitCapacitySpec
                 "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
                 ConfigValueFactory.fromAnyRef("ModeChoiceTransitIfAvailable")
               )
-              .withValue("beam.agentsim.tuning.transitCapacity",
-                         ConfigValueFactory.fromAnyRef(tc))
+              .withValue("beam.agentsim.tuning.transitCapacity", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount
       )
 

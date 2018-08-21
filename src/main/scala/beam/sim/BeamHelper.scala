@@ -106,7 +106,11 @@ trait BeamHelper extends LazyLogging {
             })
           bind(classOf[TransportNetwork]).toInstance(networkCoordinator.transportNetwork)
           bind(classOf[TravelTimeCalculator]).toInstance(
-            new FakeTravelTimeCalculator(networkCoordinator.network, new TravelTimeCalculatorConfigGroup()))
+            new FakeTravelTimeCalculator(
+              networkCoordinator.network,
+              new TravelTimeCalculatorConfigGroup()
+            )
+          )
         }
       }
     )

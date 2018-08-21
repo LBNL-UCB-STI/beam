@@ -11,8 +11,7 @@ import beam.router.RoutingModel.EmbodiedBeamTrip
 object RideHailDefaults {
   val DEFAULT_COST_PER_MILE = 2.00
 
-  def estimateRideHailCost(
-      alternatives: Seq[EmbodiedBeamTrip]): Seq[BigDecimal] = {
+  def estimateRideHailCost(alternatives: Seq[EmbodiedBeamTrip]): Seq[BigDecimal] = {
     alternatives.map { alt =>
       alt.tripClassifier match {
         case RIDE_HAIL if alt.costEstimate == 0.0 =>

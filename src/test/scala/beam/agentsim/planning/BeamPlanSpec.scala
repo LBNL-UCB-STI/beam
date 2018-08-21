@@ -19,29 +19,17 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
   "A BeamPlan" must {
 
     val matsimPlan: Plan = PopulationUtils.createPlan(null)
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Home",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Work",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Work", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Shop",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Shop", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Home",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Eat",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Eat", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
-    PopulationUtils.createAndAddActivityFromCoord(matsimPlan,
-                                                  "Home",
-                                                  new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
 
     val strat = ModeChoiceStrategy(CAR)
 
@@ -58,40 +46,34 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
       val beamPlan = BeamPlan(matsimPlan)
       val act = beamPlan.activities.head
       beamPlan.putStrategy(act, strat)
-      beamPlan.getStrategy(act, classOf[ModeChoiceStrategy]) should be(
-        Some(strat))
+      beamPlan.getStrategy(act, classOf[ModeChoiceStrategy]) should be(Some(strat))
     }
     "should attach a strategy to a leg" in {
       val beamPlan = BeamPlan(matsimPlan)
       val leg = beamPlan.legs.head
       beamPlan.putStrategy(leg, strat)
-      beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(
-        Some(strat))
+      beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(Some(strat))
     }
     "should attach a strategy to a trip" in {
       val beamPlan = BeamPlan(matsimPlan)
       val trip = beamPlan.trips.head
       beamPlan.putStrategy(trip, strat)
-      beamPlan.getStrategy(trip, classOf[ModeChoiceStrategy]) should be(
-        Some(strat))
+      beamPlan.getStrategy(trip, classOf[ModeChoiceStrategy]) should be(Some(strat))
     }
     "should attach a strategy to a tour" in {
       val beamPlan = BeamPlan(matsimPlan)
       val tour = beamPlan.tours.head
       beamPlan.putStrategy(tour, strat)
-      beamPlan.getStrategy(tour, classOf[ModeChoiceStrategy]) should be(
-        Some(strat))
+      beamPlan.getStrategy(tour, classOf[ModeChoiceStrategy]) should be(Some(strat))
     }
     "should attach a strategy to a trip and the trip's activity and leg" in {
       val beamPlan = BeamPlan(matsimPlan)
       val trip = beamPlan.trips.head
       beamPlan.putStrategy(trip, strat)
-      beamPlan.getStrategy(trip.activity, classOf[ModeChoiceStrategy]) should be(
-        Some(strat))
+      beamPlan.getStrategy(trip.activity, classOf[ModeChoiceStrategy]) should be(Some(strat))
       trip.leg match {
         case Some(leg) =>
-          beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(
-            Some(strat))
+          beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(Some(strat))
         case None =>
       }
     }
@@ -100,14 +82,11 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
       val tour = beamPlan.tours.head
       beamPlan.putStrategy(tour, strat)
       tour.trips.foreach { trip =>
-        beamPlan.getStrategy(trip, classOf[ModeChoiceStrategy]) should be(
-          Some(strat))
-        beamPlan.getStrategy(trip.activity, classOf[ModeChoiceStrategy]) should be(
-          Some(strat))
+        beamPlan.getStrategy(trip, classOf[ModeChoiceStrategy]) should be(Some(strat))
+        beamPlan.getStrategy(trip.activity, classOf[ModeChoiceStrategy]) should be(Some(strat))
         trip.leg match {
           case Some(leg) =>
-            beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(
-              Some(strat))
+            beamPlan.getStrategy(leg, classOf[ModeChoiceStrategy]) should be(Some(strat))
           case None =>
         }
       }

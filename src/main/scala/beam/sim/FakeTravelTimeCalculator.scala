@@ -11,11 +11,20 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
 
 class FakeTravelTimeCalculator(network: Network, ttconfigGroup: TravelTimeCalculatorConfigGroup)
-  extends TravelTimeCalculator(network, ttconfigGroup) {
-  override def getLinkToLinkTravelTime(fromLinkId: Id[Link], toLinkId: Id[Link], time: Double): Double = 0.0
+    extends TravelTimeCalculator(network, ttconfigGroup) {
+  override def getLinkToLinkTravelTime(
+    fromLinkId: Id[Link],
+    toLinkId: Id[Link],
+    time: Double
+  ): Double = 0.0
 
   override def getLinkTravelTimes: TravelTime = new TravelTime {
-    override def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = 0.0
+    override def getLinkTravelTime(
+      link: Link,
+      time: Double,
+      person: Person,
+      vehicle: Vehicle
+    ): Double = 0.0
   }
 
   override def getLinkToLinkTravelTimes: LinkToLinkTravelTime = new LinkToLinkTravelTime {

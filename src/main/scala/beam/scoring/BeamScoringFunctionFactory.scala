@@ -1,7 +1,11 @@
 package beam.scoring
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel, MultinomialLogit}
+import beam.agentsim.agents.choice.logit.{
+  AlternativeAttributes,
+  LatentClassChoiceModel,
+  MultinomialLogit
+}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.RoutingModel.EmbodiedBeamTrip
@@ -15,8 +19,11 @@ import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class MyScoringFunction(beamServices: BeamServices, person: Person, classMembershipModels: Map[TourType, MultinomialLogit])
-  extends ScoringFunction {
+class MyScoringFunction(
+  beamServices: BeamServices,
+  person: Person,
+  classMembershipModels: Map[TourType, MultinomialLogit]
+) extends ScoringFunction {
   private var finalScore = 0.0
   private var trips = mutable.ListBuffer[EmbodiedBeamTrip]()
 
@@ -55,7 +62,9 @@ class MyScoringFunction(beamServices: BeamServices, person: Person, classMembers
       .mapValues(
         modeChoiceCalculatorForStyle =>
           trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
-      ).toArray.toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+      )
+      .toArray
+      .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
 
     person.getSelectedPlan.getAttributes
       .putAttribute("scores", MapStringDouble(vectorOfUtilities))
@@ -80,16 +89,16 @@ class MyScoringFunction(beamServices: BeamServices, person: Person, classMembers
         AlternativeAttributes(
           attributes.modalityStyle.get,
           Map(
-            "income" -> attributes.householdAttributes.householdIncome,
+            "income"        -> attributes.householdAttributes.householdIncome,
             "householdSize" -> attributes.householdAttributes.householdSize.toDouble,
             "male" -> (if (attributes.isMale) {
-              1.0
-            } else {
-              0.0
-            }),
-            "numCars" -> attributes.householdAttributes.numCars.toDouble,
+                         1.0
+                       } else {
+                         0.0
+                       }),
+            "numCars"  -> attributes.householdAttributes.numCars.toDouble,
             "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-            "surplus" -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+            "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
           )
         )
       )
@@ -104,7 +113,7 @@ class MyScoringFunction(beamServices: BeamServices, person: Person, classMembers
 }
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
-  extends ScoringFunctionFactory {
+    extends ScoringFunctionFactory {
 
   private val log = Logger.getLogger(classOf[BeamScoringFunctionFactory])
 

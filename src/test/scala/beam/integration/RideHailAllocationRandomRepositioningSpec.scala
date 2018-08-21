@@ -14,15 +14,11 @@ import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-class RideHailAllocationRandomRepositioningSpec
-    extends FlatSpec
-    with BeamHelper
-    with MockitoSugar {
+class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for 1 iteration without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
-      .withValue("beam.outputs.events.fileOutputFormats",
-                 ConfigValueFactory.fromAnyRef("xml,csv"))
+      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef("RANDOM_REPOSITIONING")

@@ -25,13 +25,16 @@ object BridgeTollDefaults {
       alt.tripClassifier match {
         case CAR =>
           BigDecimal(
-            alt.legs.view.map(_.beamLeg).map { beamLeg =>
-              if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-                beamLeg.travelPath.linkIds.view.filter(tollPrices.contains).map(tollPrices).sum
-              } else {
-                0
+            alt.legs.view
+              .map(_.beamLeg)
+              .map { beamLeg =>
+                if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
+                  beamLeg.travelPath.linkIds.view.filter(tollPrices.contains).map(tollPrices).sum
+                } else {
+                  0
+                }
               }
-            }.sum
+              .sum
           )
         case _ =>
           BigDecimal(0)
