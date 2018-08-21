@@ -13,7 +13,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
 }
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{
   BeamVehicle,
@@ -22,6 +22,8 @@ import beam.agentsim.agents.vehicles.{
   ReserveConfirmInfo
 }
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
@@ -89,11 +91,15 @@ class OtherPersonAgentSpec
   })
 
   val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
-  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+
+  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
+    TrieMap[Id[Vehicle], BeamVehicle]()
+
+  val personRefs: TrieMap[Id[Person], ActorRef] =
+    TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val services: BeamServices = {
+  val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
@@ -106,12 +112,12 @@ class OtherPersonAgentSpec
   val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = services
+    override val beamServices: BeamServices = beamServices
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
-      mode: Modes.BeamMode,
-      cost: Double,
-      time: Double,
+      mode: BeamMode,
+      cost: BigDecimal,
+      time: BigDecimal,
       numTransfers: Int
     ): Double = 0.0
   }
@@ -130,6 +136,12 @@ class OtherPersonAgentSpec
     "router"
   )
 
+  val parkingManager = system.actorOf(
+    ZonalParkingManager
+      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+    "ParkingManager"
+  )
+
   private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
@@ -141,7 +153,7 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -149,7 +161,7 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -235,8 +247,10 @@ class OtherPersonAgentSpec
       )
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val population =
+        PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person =
+        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity =
         PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
@@ -250,7 +264,8 @@ class OtherPersonAgentSpec
       )
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
+      val workActivity =
+        PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
@@ -262,25 +277,30 @@ class OtherPersonAgentSpec
 
       bus.becomeDriver(
         Await.result(
-          system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
+          system
+            .actorSelection("/user/router/TransitDriverAgent-my_bus")
+            .resolveOne(),
           timeout.duration
         )
       )
       tram.becomeDriver(
         Await.result(
-          system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
+          system
+            .actorSelection("/user/router/TransitDriverAgent-my_tram")
+            .resolveOne(),
           timeout.duration
         )
       )
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,

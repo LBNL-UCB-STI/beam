@@ -1,12 +1,13 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-
-import argparse
 import builtins
-import csv
+
 import logging
+import argparse
+import csv
 import os
+
 from doppelganger import (
     inputs,
     Accuracy,
@@ -66,7 +67,7 @@ def parse_args():
                         default='00106')
     parser.add_argument('--census_api_key', type=str,
                         help='key used to download marginal data from the census'
-                        'http://api.census.gov/data/key_signup.html',
+                             'http://api.census.gov/data/key_signup.html',
                         default='')
     parser.add_argument('--output_dir', type=lambda x: is_valid_file(parser, x),
                         help='path for output csv', default='.')
@@ -82,7 +83,7 @@ def parse_args():
 def download_and_load_pums_data(
         output_dir, state_id, puma_id, configuration,
         db_host, db_database, db_schema, db_user, db_password
-        ):
+):
     '''Do the pums files already exist --
             if no - read from db, write csv; load the csv
             if yes - load csv file
@@ -114,10 +115,10 @@ def download_and_load_pums_data(
                      household_path, person_path)
 
         households_data, persons_data = fetch_pums_data(
-                state_id=state_id, puma_id=puma_id, configuration=configuration,
-                db_host=db_host, db_database=db_database, db_schema=db_schema,
-                db_user=db_user, db_password=db_password,
-            )
+            state_id=state_id, puma_id=puma_id, configuration=configuration,
+            db_host=db_host, db_database=db_database, db_schema=db_schema,
+            db_user=db_user, db_password=db_password,
+        )
         # Write data to files, so mustn't be downloaded again
         households_data.data.to_csv(household_path)
         persons_data.data.to_csv(person_path)
@@ -157,8 +158,8 @@ def create_bayes_net(state_id, puma_id, output_dir, households_data, persons_dat
     )
 
     person_model_filename = os.path.join(
-                output_dir, FILE_PATTERN.format(state_id, puma_id, 'person_model.json')
-            )
+        output_dir, FILE_PATTERN.format(state_id, puma_id, 'person_model.json')
+    )
     person_model.write(person_model_filename)
 
     # Write the households bayes net to disk
@@ -175,8 +176,8 @@ def create_bayes_net(state_id, puma_id, output_dir, households_data, persons_dat
     )
 
     household_model_filename = os.path.join(
-                output_dir, FILE_PATTERN.format(state_id, puma_id, 'household_model.json')
-            )
+        output_dir, FILE_PATTERN.format(state_id, puma_id, 'household_model.json')
+    )
     household_model.write(household_model_filename)
     return household_model, person_model
 
@@ -205,8 +206,8 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
     '''
 
     marginal_path = os.path.join(
-                output_dir, FILE_PATTERN.format(state_id, puma_id, 'marginals.csv')
-            )
+        output_dir, FILE_PATTERN.format(state_id, puma_id, 'marginals.csv')
+    )
 
     try:  # Already have marginals file
         marginals = Marginals.from_csv(marginal_path)
@@ -228,10 +229,10 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
 
     try:
         allocator = HouseholdAllocator.from_cleaned_data(
-                marginals=marginals,
-                households_data=households_data,
-                persons_data=persons_data
-            )
+            marginals=marginals,
+            households_data=households_data,
+            persons_data=persons_data
+        )
     except Exception as e:
         logging.exception('Error Allocating state: %s, puma: %s\n%s', state_id, puma_id, e)
         exit()
@@ -253,14 +254,14 @@ def generate_synthetic_people_and_households(state_id, puma_id, output_dir, allo
         household_model: same as person_model but for households
     '''
     population = Population.generate(
-                household_allocator=allocator,
-                person_model=person_model,
-                household_model=household_model
-            )
+        household_allocator=allocator,
+        person_model=person_model,
+        household_model=household_model
+    )
     population.write(
-                os.path.join(output_dir, FILE_PATTERN.format(state_id, puma_id, 'people.csv')),
-                os.path.join(output_dir, FILE_PATTERN.format(state_id, puma_id, 'households.csv'))
-            )
+        os.path.join(output_dir, FILE_PATTERN.format(state_id, puma_id, 'people.csv')),
+        os.path.join(output_dir, FILE_PATTERN.format(state_id, puma_id, 'households.csv'))
+    )
     return population
 
 
@@ -295,34 +296,34 @@ def main():
     configuration = Configuration.from_file(config_file)
 
     households_data, persons_data = download_and_load_pums_data(
-                output_dir, state_id, puma_id,
-                configuration, db_host, db_database, db_schema, db_user, db_password
-            )
+        output_dir, state_id, puma_id,
+        configuration, db_host, db_database, db_schema, db_user, db_password
+    )
 
     household_model, person_model = create_bayes_net(
-                state_id, puma_id, output_dir,
-                households_data, persons_data, configuration,
-                person_segmenter, household_segmenter
-            )
+        state_id, puma_id, output_dir,
+        households_data, persons_data, configuration,
+        person_segmenter, household_segmenter
+    )
 
     marginals, allocator = download_tract_data(
-                state_id, puma_id, output_dir, census_api_key, puma_tract_mappings,
-                households_data, persons_data
-            )
+        state_id, puma_id, output_dir, census_api_key, puma_tract_mappings,
+        households_data, persons_data
+    )
 
     population = generate_synthetic_people_and_households(
-                state_id, puma_id, output_dir, allocator,
-                person_model, household_model
-            )
+        state_id, puma_id, output_dir, allocator,
+        person_model, household_model
+    )
 
     accuracy = Accuracy.from_doppelganger(
-                cleaned_data_persons=persons_data,
-                cleaned_data_households=households_data,
-                marginal_data=marginals,
-                population=population
-            )
+        cleaned_data_persons=persons_data,
+        cleaned_data_households=households_data,
+        marginal_data=marginals,
+        population=population
+    )
     logging.info('Absolute Percent Error for state {}, and puma {}: {}'.format(state_id, puma_id,
-                 accuracy.absolute_pct_error().mean()))
+                                                                               accuracy.absolute_pct_error().mean()))
 
 
 if __name__ == '__main__':

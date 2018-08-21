@@ -51,7 +51,9 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(
-        event => event.reason.toString.substring(0, Math.min(event.reason.toString.length - 1, 65))
+        event =>
+          event.reason.toString
+            .substring(0, Math.min(event.reason.toString.length - 1, 65))
       )
       .mapValues(
         eventsPerReason =>

@@ -1,11 +1,12 @@
 package beam.agentsim.agents.choice.mode
 
-import java.util.Random
+import scala.util.Random
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   CAR,
@@ -21,6 +22,8 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scalaz.syntax._
+
 /**
   * BEAM
   */
@@ -29,6 +32,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
+  def timeAndCost(mct: ModeCostTimeTransfer): BigDecimal = {
+    mct.scaledTime + mct.cost
+  }
+
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
@@ -36,24 +43,16 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
 
-      val groupedByMode: Map[BeamMode, Seq[ModeCostTimeTransfer]] =
-        modeCostTimeTransfers.groupBy(_.mode)
-
-      val bestInGroup = groupedByMode.map {
-        case (_, modeCostTimeSegment) =>
-          // Which dominates at $18/hr
-          modeCostTimeSegment
-            .map { mct =>
-              (mct.time / 3600 * 18 + mct.cost.toDouble, mct)
-            }
-            .minBy(_._1)
-            ._2
+      val bestInGroup =
+      modeCostTimeTransfers groupBy (_.mode) map {
+        case (_, group) => group minBy timeAndCost
       }
 
       val inputData = bestInGroup.map { mct =>
-        val theParams = Map("cost" -> mct.cost.toDouble, "time" -> mct.time)
-        val transferParam = if (mct.mode.isTransit) {
-          Map("transfer" -> mct.numTransfers.toDouble)
+        val theParams: Map[String, BigDecimal] =
+          Map("cost" -> mct.cost, "time" -> mct.scaledTime)
+        val transferParam: Map[String, BigDecimal] = if (mct.mode.isTransit) {
+          Map("transfer" -> mct.numTransfers)
         } else {
           Map()
         }
@@ -79,9 +78,18 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
+  def utilityOf(
+    mode: BeamMode,
+    cost: BigDecimal,
+    time: BigDecimal,
+    numTransfers: Int = 0
+  ): Double = {
     val variables =
-      Map("transfer" -> numTransfers.toDouble, "cost" -> cost.toDouble, "time" -> time)
+      Map(
+        "transfer" -> BigDecimal(numTransfers),
+        "cost"     -> cost,
+        "time"     -> scaleTimeByVot(time, Option(mode))
+      )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
 
@@ -89,8 +97,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val modeCostTimeTransfer = altsToModeCostTimeTransfers(Seq(alternative)).head
     utilityOf(
       modeCostTimeTransfer.mode,
-      modeCostTimeTransfer.cost.toDouble,
-      modeCostTimeTransfer.time,
+      modeCostTimeTransfer.cost,
+      modeCostTimeTransfer.scaledTime,
       modeCostTimeTransfer.numTransfers
     )
   }
@@ -150,7 +158,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       ModeCostTimeTransfer(
         altAndIdx._1.tripClassifier,
         totalCost,
-        altAndIdx._1.totalTravelTimeInSecs,
+        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs, Option(altAndIdx._1.tripClassifier)),
         numTransfers,
         altAndIdx._2
       )
@@ -164,7 +172,7 @@ object ModeChoiceMultinomialLogit {
   case class ModeCostTimeTransfer(
     mode: BeamMode,
     cost: BigDecimal,
-    time: Double,
+    scaledTime: BigDecimal,
     numTransfers: Int,
     index: Int = -1
   )
@@ -176,10 +184,10 @@ object ModeChoiceMultinomialLogit {
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
-        "ride_hailing",
+        "ride_hail",
         "intercept",
         "intercept",
-        mnlConfig.params.ride_hailing_intercept
+        mnlConfig.params.ride_hail_intercept
       ),
       new MnlData("bike", "intercept", "intercept", mnlConfig.params.bike_intercept),
       new MnlData(
