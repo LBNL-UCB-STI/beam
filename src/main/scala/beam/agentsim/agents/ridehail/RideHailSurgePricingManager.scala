@@ -172,7 +172,6 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
         i.update(timeBinIndex, updatedBin)
       }
     }
-
   }
 
   // TODO: print revenue each iteration out

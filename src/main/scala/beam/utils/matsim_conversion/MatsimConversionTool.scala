@@ -17,8 +17,8 @@ import scala.collection.JavaConverters._
 
 object MatsimConversionTool extends App {
 
-  if(null != args && args.size > 0){
-    val beamConfigFilePath = args(0)//"test/input/beamville/beam.conf"
+  if (null != args && args.size > 0) {
+    val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
 
     val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
     val conversionConfig = ConversionConfig(config)
@@ -26,7 +26,6 @@ object MatsimConversionTool extends App {
     val network = NetworkUtils.createNetwork()
     println(s"Network file ${conversionConfig.matsimNetworkFile}")
     new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
-
 
     MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
     generateTazDefaults(conversionConfig, network)
@@ -36,32 +35,38 @@ object MatsimConversionTool extends App {
   }
 
   def generateOsmFilteringCommand(cf: ConversionConfig, network: Network) = {
-    val boundingBox = ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
-    val outputFile = s"${cf.scenarioDirectory}/r5/scenario.osm.pbf"
+    val boundingBox =
+      ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
+    val outputFile = s"${cf.scenarioDirectory}/r5/${cf.scenarioName}.osm.pbf"
     val commandOut =
       s"""
-         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${
-        boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
+         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
       """.stripMargin
 
     println(s"Run following format to clip open street data file to network boundaries if required")
     println(commandOut)
   }
 
-
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
     val outputFilePath = s"${conversionConfig.scenarioDirectory}/taz-centers.csv"
 
-    if(conversionConfig.shapeConfig.isDefined){
+    if (conversionConfig.shapeConfig.isDefined) {
       val shapeConfig = conversionConfig.shapeConfig.get
-      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath)
-    }else {
+      ShapeUtils.shapeFileToCsv(
+        shapeConfig.shapeFile,
+        shapeConfig.tazIDFieldName,
+        outputFilePath)
+    } else {
       val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
       generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)
     }
   }
 
-  def generateSingleDefaultTaz(default: ShapeUtils.CsvTaz, outputFilePath: String, localCRS: String) = {
+  def generateSingleDefaultTaz(
+    default: ShapeUtils.CsvTaz,
+    outputFilePath: String,
+    localCRS: String
+  ) = {
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter =
@@ -108,8 +113,11 @@ object MatsimConversionTool extends App {
   }
 
   def parseFileSubstitutingInputDirectory(file: File): com.typesafe.config.Config = {
-    ConfigFactory.parseFile(file)
-      .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava))
+    ConfigFactory
+      .parseFile(file)
+      .withFallback(
+        ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava)
+      )
       .resolve
   }
 

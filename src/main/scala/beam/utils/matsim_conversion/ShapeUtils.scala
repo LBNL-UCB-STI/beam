@@ -14,7 +14,6 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 
-
 object ShapeUtils {
 
   case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
@@ -37,7 +36,6 @@ object ShapeUtils {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
-
 
     var mapWriter: ICsvMapWriter = null
     try {

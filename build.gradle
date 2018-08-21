@@ -133,11 +133,13 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
 
-    compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.9.0'
+    compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
+    compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+
     compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
-    compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
+    compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.10.0'
 
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
@@ -147,12 +149,15 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
 
+    compile "com.sigopt:sigopt-java:4.9.0"
+
+
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
-    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.18.3'
-    testCompile group: "org.mockito", name: "mockito-core", version: "2.18.3"
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
+    testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
 
     /////////////////////////////////
@@ -242,7 +247,7 @@ scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
-compileScala.dependsOn(scalafmtAll)
+//compileScala.dependsOn(scalafmtAll)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -264,8 +269,10 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
-
-/* Task to run tests periodically on continue integration server */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Task to run tests periodically on continue integration server.
+// ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
@@ -353,7 +360,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '2g'}",
+  "max_ram": "${maxRAM ?: '64g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -476,7 +483,9 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
+
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")
+
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
@@ -510,6 +519,8 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
 //  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+// Run R5 GUI server
+//  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {

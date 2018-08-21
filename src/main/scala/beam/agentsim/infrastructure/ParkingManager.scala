@@ -34,5 +34,5 @@ object ParkingManager {
   case class ParkingInquiryResponse(stall: ParkingStall)
 
   // Use this to pass data from CSV or config file into the manager
-  case class ParkingStockAttributes(val numSpacesPerTAZ: Int)
+  case class ParkingStockAttributes(numSpacesPerTAZ: Int)
 }

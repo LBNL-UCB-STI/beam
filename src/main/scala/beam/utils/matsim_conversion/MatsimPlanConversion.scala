@@ -9,6 +9,7 @@ import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
+
   def generateSiouxFallsXml(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
     val populationDoc = XML.loadFile(populationFile)
@@ -17,29 +18,29 @@ object MatsimPlanConversion {
 
     val persons = transformedPopulationDoc \\ "person"
 
-    val xmlVehiclesOutput = if(conversionConfig.generateVehicles){
+    val xmlVehiclesOutput = if (conversionConfig.generateVehicles) {
       generateVehiclesFromPerson(persons)
     } else {
       val vehiclesFile = conversionConfig.vehiclesInput.get
       val vehiclesDoc = XML.loadFile(vehiclesFile)
       matsimVehiclesToBeam(vehiclesDoc)
     }
-    val houseHolds = generateHouseholds(persons, xmlVehiclesOutput \\ "vehicle", conversionConfig.income)
+    val houseHolds =
+      generateHouseholds(persons, xmlVehiclesOutput \\ "vehicle", conversionConfig.income)
 
     val populationAttrs = generatePopulationAttributes(persons)
 
     val householdAtrrs = generateHouseholdAttributes(persons)
 
-    val householdsAttrDoctype = DocType("objectattributes",
+    val householdsAttrDoctype = DocType(
+      "objectattributes",
       SystemID("http://www.matsim.org/files/dtd/objectattributes_v1.dtd"),
-      Nil)
-    val populationAttrDoctype = DocType("objectattributes",
-      SystemID("../dtd/objectattributes_v1.dtd"),
-      Nil)
+      Nil
+    )
+    val populationAttrDoctype =
+      DocType("objectattributes", SystemID("../dtd/objectattributes_v1.dtd"), Nil)
 
-    val populationDoctype = DocType("population",
-      SystemID("../dtd/population_v6.dtd"),
-      Nil)
+    val populationDoctype = DocType("population", SystemID("../dtd/population_v6.dtd"), Nil)
 
     val transitVehiclesOutput = conversionConfig.scenarioDirectory + "/transitVehicles.xml"
     val populationOutput = conversionConfig.scenarioDirectory + "/population.xml"
@@ -47,7 +48,6 @@ object MatsimPlanConversion {
     val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml"
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
-
 
 //    if(conversionConfig.transitVehiclesInput.isDefined){
 //      FileUtils.copyFile(
@@ -64,8 +64,9 @@ object MatsimPlanConversion {
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
-    val popAttrs = persons.zipWithIndex map { case (_, index) =>
-      <object id={s"${index + 1}"}>
+    val popAttrs = persons.zipWithIndex map {
+      case (_, index) =>
+        <object id={s"${index + 1}"}>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
     }
@@ -76,21 +77,25 @@ object MatsimPlanConversion {
   }
 
   def generateHouseholdAttributes(persons: NodeSeq): Elem = {
-    val popAttrs = persons.zipWithIndex map { case (person, index) =>
-      val homeActivities = (person \\ "activity").filter (_.attributes.exists(
-        a => "type".equalsIgnoreCase(a.key.toString) && "home".equalsIgnoreCase(a.value.toString))
-      )
-      for {
-        node <- homeActivities.headOption
-        xValue <- node.attribute("x").map(_.toString)
-        yValue <- node.attribute("y").map(_.toString)
-      } yield {
-        <object id={s"${index + 1}"}>
+    val popAttrs = persons.zipWithIndex map {
+      case (person, index) =>
+        val homeActivities = (person \\ "activity").filter(
+          _.attributes.exists(
+            a =>
+              "type".equalsIgnoreCase(a.key.toString) && "home".equalsIgnoreCase(a.value.toString)
+          )
+        )
+        for {
+          node   <- homeActivities.headOption
+          xValue <- node.attribute("x").map(_.toString)
+          yValue <- node.attribute("y").map(_.toString)
+        } yield {
+          <object id={s"${index + 1}"}>
           <attribute name="homecoordx" class="java.lang.Double">{xValue}</attribute>
           <attribute name="homecoordy" class="java.lang.Double">{yValue}</attribute>
           <attribute name="housingtype" class="java.lang.String">House</attribute>
         </object>
-      }
+        }
     }
     <objectattributes>
       {popAttrs.map(_.getOrElse(NodeSeq.Empty))}
@@ -104,8 +109,9 @@ object MatsimPlanConversion {
 
     val mPersonsWithVehicles = mPersons.zipAll(mVehicles, None, None)
 
-    val houseHoldChildren = mPersonsWithVehicles.zipWithIndex map { case ((mPerson, mVeh), index) =>
-      <household id={s"${index + 1}"}>
+    val houseHoldChildren = mPersonsWithVehicles.zipWithIndex map {
+      case ((mPerson, mVeh), index) =>
+        <household id={s"${index + 1}"}>
         <members>
           {
           (for{
@@ -153,7 +159,7 @@ object MatsimPlanConversion {
             val attrs = elem.attributes
             val uAttrs = attrs.remove("facility")
 
-            val capitalizedAttrs = mapMetaData(uAttrs){
+            val capitalizedAttrs = mapMetaData(uAttrs) {
               case g @ GenAttr(_, key, Text(v), _) if "type".equals(key) =>
                 g.copy(value = Text(v.capitalize))
               case o => o
@@ -161,7 +167,7 @@ object MatsimPlanConversion {
 
             elem.copy(label = "activity", attributes = capitalizedAttrs)
           case elem: Elem if elem.label == "leg" => NodeSeq.Empty
-          case o => o
+          case o                                 => o
         }
       }
     }
@@ -172,7 +178,8 @@ object MatsimPlanConversion {
 
   def generateVehiclesFromPerson(persons: NodeSeq): Elem = {
 
-    val vehicles = persons.zipWithIndex.map{ case (_, index) =>
+    val vehicles = persons.zipWithIndex.map {
+      case (_, index) =>
         <vehicle id={s"${index + 1}"} type="1"/>
     }
 
@@ -199,18 +206,18 @@ object MatsimPlanConversion {
     val requiredFieldsForType = List("description", "capacity", "length", "engineInformation")
     val vehicleTypeSeq = vehiclesDoc \\ "vehicleType"
 
-    for{
-      vehicleType <- vehicleTypeSeq
+    for {
+      vehicleType  <- vehicleTypeSeq
       requiredElem <- requiredFieldsForType if (vehicleType \\ requiredElem).isEmpty
-    } yield{
+    } yield {
       println(s"Input vehicle data is missing $requiredElem xml element in ${vehicleType.label}")
     }
 
     val vehicleTransformRule = new RewriteRule {
-      override def transform(n: Node): Seq[Node] = n match{
+      override def transform(n: Node): Seq[Node] = n match {
         case elem: Elem if elem.label == "vehicleType" =>
           val child = elem.child
-          val filteredChild = child.filter{
+          val filteredChild = child.filter {
             case e: Elem =>
               requiredFieldsForType.contains(e.label)
             case _ => true
@@ -223,11 +230,7 @@ object MatsimPlanConversion {
     transform(vehiclesDoc)
   }
 
-
-  case class GenAttr(pre: Option[String],
-                     key: String,
-                     value: Seq[Node],
-                     next: MetaData) {
+  case class GenAttr(pre: Option[String], key: String, value: Seq[Node], next: MetaData) {
     def toMetaData = Attribute(pre, key, value, next)
   }
 
@@ -243,18 +246,17 @@ object MatsimPlanConversion {
     m flatMap (decomposeMetaData)
 
   def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
-    case Nil => Null
+    case Nil          => Null
     case head :: tail => head.copy(next = chainMetaData(tail)).toMetaData
   }
 
   def mapMetaData(m: MetaData)(f: GenAttr => GenAttr): MetaData =
     chainMetaData(unchainMetaData(m).map(f))
 
-
   /*
-  * #################################################################################################################
-  * Transit vehicles XML data
-  * */
+   * #################################################################################################################
+   * Transit vehicles XML data
+   * */
 
   val transitVehiclesDoc: Elem =
     <vehicleDefinitions

@@ -59,8 +59,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final double WALKING_ENERGY_IN_JOULE_PER_METER = 259.5;
 
 
+
     public static final double CONVERSION_FACTOR_KWH_TO_MJ = 3.6;
 
+
+    // Assume biking energy is half of walking energy usage per:
+    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Bicycle
+    public static final double BIKING_ENERGY_IN_JOULE_PER_METER = WALKING_ENERGY_IN_JOULE_PER_METER/2;
 
     // assuming energy density of Diesel as: 35.8 MJ/L and gasoline as 34.2 MJ/L
     // https://en.wikipedia.org/wiki/Energy_density
@@ -83,6 +88,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final String CABLE_CAR = "cable_car";
     public static final String TRAM = "tram";
     public static final String WALK = "walk";
+    public static final String BIKE = "bike";
 
 
     public static final String ELECTRICITY = "electricity";
@@ -168,14 +174,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         // initialize Fuel
         Double fuel = CONST_NUM_ZERO;
         if (fuelString.contains("NA")) {
-            if (vehicleId.contains("rideHailing")) {
+            if (vehicleId.contains("rideHail")) {
                 fuel = CAR_FUEL_ECONOMY_IN_LITER_PER_METER * lengthInMeters;
                 // fix for ride hailing vehicles
-            } else if (vehicleType.contains("Human")) {
+            } else if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
                 if (lengthInMeters > 0) {
                     DebugLib.emptyFunctionForSettingBreakPoint();
                 }
-
 
                 fuel = WALKING_ENERGY_IN_JOULE_PER_METER * lengthInMeters; // in Joule
             } else {
@@ -185,7 +190,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             fuel = Double.parseDouble(fuelString);
         }
 
-        if (vehicleId.contains("rideHailing")) {
+        if (vehicleId.contains("rideHail")) {
             vehicleType = "TNC";
         }
 
@@ -204,7 +209,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             return GASOLINE;
         }
 
-        if (mode.equalsIgnoreCase(WALK)) {
+        if (mode.equalsIgnoreCase(WALK) || mode.equalsIgnoreCase(BIKE)) {
             return FOOD;
         }
 
