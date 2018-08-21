@@ -10,6 +10,7 @@ import scala.util.Try
 
 case class HouseholdIncome(currency: String, period: String, value: Int)
 case class ConversionConfig(
+  scenarioName: String,
   scenarioDirectory: String,
   populationInput: String,
   income: HouseholdIncome,
@@ -33,8 +34,9 @@ object ConversionConfig {
 
   def apply(c: com.typesafe.config.Config): ConversionConfig = {
     val matsimConversionConfig = c.getConfig("matsim.conversion")
+    val simName = c.getString("beam.agentsim.simulationName")
     val scenarioDir = matsimConversionConfig.getString("scenarioDirectory")
-    val matsimNetworkFile = c.getString("matsim.modules.network.inputNetworkFile")
+    val matsimNetworkFile = matsimConversionConfig.getString("matsimNetworkFile")
 
     val spatialConfig = c.getConfig("beam.spatial")
 
@@ -67,6 +69,7 @@ object ConversionConfig {
     val income = HouseholdIncome(incomeCurrency, incomePeriod, incomeValue)
 
     ConversionConfig(
+      simName,
       scenarioDir,
       populationInput,
       income,

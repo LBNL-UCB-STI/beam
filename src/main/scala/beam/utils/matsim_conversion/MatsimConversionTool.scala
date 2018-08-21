@@ -37,7 +37,7 @@ object MatsimConversionTool extends App {
   def generateOsmFilteringCommand(cf: ConversionConfig, network: Network) = {
     val boundingBox =
       ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
-    val outputFile = s"${cf.scenarioDirectory}/r5/scenario.osm.pbf"
+    val outputFile = s"${cf.scenarioDirectory}/r5/${cf.scenarioName}.osm.pbf"
     val commandOut =
       s"""
          osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
