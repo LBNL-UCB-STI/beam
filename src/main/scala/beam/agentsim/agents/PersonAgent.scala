@@ -8,6 +8,7 @@ import beam.agentsim.Resource.{
   NotifyResourceInUse,
   RegisterResource
 }
+
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
