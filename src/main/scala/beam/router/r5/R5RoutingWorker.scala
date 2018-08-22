@@ -99,8 +99,7 @@ class R5RoutingWorker(
       }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
-        .map(e => e.getTime)
-        .max - leg.startTime
+        .maxBy(e => e.getTime).getTime - leg.startTime
 
       sender ! RoutingResponse(
         Vector(
@@ -445,7 +444,7 @@ class R5RoutingWorker(
          * And after locating through these indexes, constructing BeamLeg for each and
          * finally add these legs back to BeamTrip.
          */
-        option.itinerary.asScala
+        option.itinerary.asScala.view
           .filter { itin =>
             val startTime = beamServices.dates.toBaseMidnightSeconds(
               itin.startTime,
@@ -520,7 +519,7 @@ class R5RoutingWorker(
                   val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
                   //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
                   val fs =
-                    fares
+                    fares.view
                       .filter(_.patternIndex == segmentPattern.patternIdx)
                       .map(_.fare.price)
                   val fare = if (fs.nonEmpty) fs.min else 0.0
@@ -625,7 +624,6 @@ class R5RoutingWorker(
           }
         EmbodiedBeamTrip(embodiedLegs)
       })
-
     }
 
     val embodiedTrips =
