@@ -1,13 +1,14 @@
 package beam.router.r5;
 
 import com.conveyal.osmlib.Way;
-//import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,7 +22,8 @@ import java.util.Set;
  */
 
 public class OsmToMATSim {
-//    private final static Logger log = Logger.getLogger(OsmToMATSim.class);
+
+    private final static Logger log = LoggerFactory.getLogger(OsmToMATSim.class);
 
     private final static String TAG_LANES = "lanes";
     private final static String TAG_HIGHWAY = "highway";
@@ -52,7 +54,7 @@ public class OsmToMATSim {
         this.transform = transformation;
         if (useBEAMHighwayDefaults) {
 
-//            log.info("Falling back to default values.");
+            log.info("Falling back to default values.");
             this.setBEAMHighwayDefaults(1, "motorway", 2, 120.0 / 3.6, 1.0, 2000, true);
             this.setBEAMHighwayDefaults(1, "motorway_link", 1, 80.0 / 3.6, 1.0, 1500, true);
             this.setBEAMHighwayDefaults(2, "trunk", 1, 80.0 / 3.6, 1.0, 2000);
@@ -157,7 +159,7 @@ public class OsmToMATSim {
             } else if ("no".equals(onewayTag)) {
                 oneway = false; // may be used to overwrite defaults
             } else {
-//                log.warn("Could not interpret oneway tag:" + onewayTag + ". Ignoring it.");
+                log.warn("Could not interpret oneway tag:" + onewayTag + ". Ignoring it.");
             }
         }
 
@@ -176,7 +178,7 @@ public class OsmToMATSim {
             } catch (NumberFormatException e) {
                 if (!this.unknownMaxspeedTags.contains(maxspeedTag)) {
                     this.unknownMaxspeedTags.add(maxspeedTag);
-//                    log.warn("Could not parse maxspeed tag:" + e.getMessage() + ". Ignoring it.");
+                    log.warn("Could not parse maxspeed tag:" + e.getMessage() + ". Ignoring it.");
                 }
             }
         }
@@ -199,7 +201,7 @@ public class OsmToMATSim {
             } catch (Exception e) {
                 if (!this.unknownLanesTags.contains(lanesTag)) {
                     this.unknownLanesTags.add(lanesTag);
-//                    log.warn("Could not parse lanes tag:" + e.getMessage() + ". Ignoring it.");
+                    log.warn("Could not parse lanes tag:" + e.getMessage() + ". Ignoring it.");
                 }
             }
         }
