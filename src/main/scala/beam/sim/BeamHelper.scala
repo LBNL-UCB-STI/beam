@@ -6,7 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.LazyLogging
 //import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 //import beam.analysis.plots.GraphSurgePricing
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -41,7 +41,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
-trait BeamHelper extends StrictLogging {
+trait BeamHelper extends LazyLogging {
 
   def module(
     typesafeConfig: com.typesafe.config.Config,

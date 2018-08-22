@@ -6,7 +6,6 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
-import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -15,7 +14,7 @@ import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar with StrictLogging {
+class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   // TODO: include events handling as with : RideHailPassengersEventsSpec
   it should "be able to run for 1 iteration without exceptions" in {
