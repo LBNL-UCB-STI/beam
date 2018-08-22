@@ -8,6 +8,8 @@ import beam.agentsim.Resource.{
   NotifyResourceInUse,
   RegisterResource
 }
+
+import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
@@ -21,11 +23,7 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  ReserveRide,
-  RideHailRequest,
-  RideHailResponse
-}
+import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{
@@ -204,7 +202,9 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  def getValueOfTime = 17.0 //TODO
+  def scaleTimeByValueOfTime(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal =
+    modeChoiceCalculator.scaleTimeByVot(time, beamMode)
+
   startWith(Uninitialized, BasePersonData())
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
@@ -650,7 +650,7 @@ class PersonAgent(
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyResourceIdle(_, _, _), _) =>
+    case Event(NotifyVehicleResourceIdle, _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

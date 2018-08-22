@@ -3,6 +3,7 @@ package beam.agentsim.agents.modalbehaviors
 import akka.actor.FSM.Failure
 import akka.actor.Stash
 import beam.agentsim.Resource.NotifyResourceIdle
+import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -75,20 +76,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .drop(data.currentLegPassengerScheduleIndex)
             .headOption match {
             case Some(currentLeg) =>
-              if (isLastLeg)
-                beamServices
-                  .vehicles(currentVehicleUnderControl)
-                  .manager
-                  .foreach(
-                    _ ! NotifyResourceIdle(
-                      currentVehicleUnderControl,
-                      beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
-                      data.passengerSchedule
-                    )
-                  )
               beamServices
                 .vehicles(currentVehicleUnderControl)
                 .useFuel(currentLeg.travelPath.distanceInM)
+
+              if (isLastLeg) {
+                val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+                theVehicle.manager.foreach(
+                  _ ! NotifyVehicleResourceIdle(
+                    currentVehicleUnderControl,
+                    beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
+                    data.passengerSchedule,
+                    theVehicle.fuelLevel.getOrElse(Double.NaN)
+                  )
+                )
+              }
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
@@ -202,22 +204,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         tick
       )
 
-    case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
       data.passengerSchedule.schedule.keys
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info(s"stopping vehicle: ${id}")
+            log.info(s"stopping vehicle: $id")
 
             goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
-              true,
+              success = true,
               requestId,
               tick
             )
 
           } else {
-            stay() replying StopDrivingIfNoPassengerOnBoardReply(false, requestId, tick)
+            stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
           }
         case None =>
           stay()
@@ -255,17 +257,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   transportNetwork
                 )
 
-              if (isLastLeg)
-                beamServices
-                  .vehicles(currentVehicleUnderControl)
-                  .manager
-                  .foreach(
-                    _ ! NotifyResourceIdle(
-                      currentVehicleUnderControl,
-                      beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
-                      data.passengerSchedule
-                    )
+              if (isLastLeg) {
+                val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+                theVehicle.manager.foreach(
+                  _ ! NotifyVehicleResourceIdle(
+                    currentVehicleUnderControl,
+                    beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
+                    data.passengerSchedule,
+                    theVehicle.fuelLevel.getOrElse(Double.NaN)
                   )
+                )
+              }
 
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(

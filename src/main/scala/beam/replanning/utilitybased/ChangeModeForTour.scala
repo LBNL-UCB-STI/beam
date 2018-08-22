@@ -247,7 +247,7 @@ class ChangeModeForTour(
       attr => availableModeParser(attr.toString)
     )
     val householdVehicles =
-      Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)
+      Population.getVehiclesFromHousehold(household, beamServices)
     val valueOfTime =
       personAttributes.getAttribute(person.getId.toString, "valueOfTime").asInstanceOf[Double]
     val attributesOfIndividual =

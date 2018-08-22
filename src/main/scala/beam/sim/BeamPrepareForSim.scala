@@ -1,12 +1,16 @@
 package beam.sim
 
+import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.replanning.SwitchModalityStyle
 import javax.inject.Inject
-import org.matsim.api.core.v01.Scenario
-import org.matsim.api.core.v01.population.{Activity, Plan}
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.core.controler.PrepareForSim
+import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters
 import scala.util.Random
 
 class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
@@ -14,6 +18,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
   override def run(): Unit = {
     keepOnlyActivities()
     assignInitialModalityStyles()
+
   }
 
   private def keepOnlyActivities(): Unit = {
