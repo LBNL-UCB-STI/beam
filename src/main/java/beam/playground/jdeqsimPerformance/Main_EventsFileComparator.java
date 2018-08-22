@@ -1,10 +1,12 @@
 package beam.playground.jdeqsimPerformance;
 
-import org.apache.log4j.Logger;
 import org.matsim.utils.eventsfilecomparison.EventsFileComparator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main_EventsFileComparator {
-    private static final Logger log = Logger.getLogger(Main_EventsFileComparator.class);
+
+    private static final Logger log = LoggerFactory.getLogger(Main_EventsFileComparator.class);
 
     public static void main(String[] args) {
         if (args.length != 2) {

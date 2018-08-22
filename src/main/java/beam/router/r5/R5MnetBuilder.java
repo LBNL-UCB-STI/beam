@@ -6,7 +6,7 @@ import com.conveyal.osmlib.Way;
 import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.vividsolutions.jts.geom.Coordinate;
-import org.apache.log4j.Logger;
+//import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
@@ -27,7 +27,7 @@ import java.util.Set;
  * Created by Andrew A. Campbell on 6/7/17.
  */
 public class R5MnetBuilder {
-    private static final Logger log = Logger.getLogger(R5MnetBuilder.class);
+//    private static final Logger log = Logger.getLogger(R5MnetBuilder.class);
 
     private final TransportNetwork r5Network;
     private Network mNetowrk = null;  // MATSim mNetowrk
@@ -54,7 +54,7 @@ public class R5MnetBuilder {
         this.fromCRS = beamConfig.beam().routing().r5().mNetBuilder().fromCRS();
         this.toCRS = beamConfig.beam().routing().r5().mNetBuilder().toCRS();
         this.transform = new GeotoolsTransformation(this.fromCRS, this.toCRS);
-        log.debug("Found R5 Transport Network file, loading....");
+//        log.debug("Found R5 Transport Network file, loading....");
         this.r5Network = r5Net;
         this.mNetowrk = NetworkUtils.createNetwork();
     }
@@ -66,8 +66,8 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
         while (cursor.advance()) {
-            log.debug(cursor.getEdgeIndex());
-            log.debug(cursor);
+//            log.debug(cursor.getEdgeIndex());
+//            log.debug(cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();
@@ -106,7 +106,7 @@ public class R5MnetBuilder {
             if (way != null) {
                 Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
                 mNetowrk.addLink(link);
-                log.debug("Created regular link: " + link);
+//                log.debug("Created regular link: " + link);
                 this.lastProcessedOSMId = osmID;
                 this.lastProcessedNodes = deezNodes;
             } else {
@@ -118,7 +118,7 @@ public class R5MnetBuilder {
                 link.setNumberOfLanes(1);
                 link.setAllowedModes(flagStrings);
                 mNetowrk.addLink(link);
-                log.debug("Created special link: " + link);
+//                log.debug("Created special link: " + link);
             }
         }
     }
@@ -174,7 +174,7 @@ public class R5MnetBuilder {
         try {
             return out;
         } catch (NullPointerException exec) {
-            log.error("No matching flag");
+//            log.error("No matching flag");
             exec.printStackTrace();
         }
         return out;

@@ -4,14 +4,9 @@ import java.util.Random
 
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{
-  SubtourRecord,
-  VehicleRecord,
-  VehicleRecordFactory
-}
+import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
@@ -32,8 +27,6 @@ case class ChainBasedTourVehicleAllocator(
 ) {
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
-
-  private val log = Logger.getLogger(classOf[ChainBasedTourVehicleAllocator])
 
   val stageActivitytypes = new CompositeStageActivityTypes()
 

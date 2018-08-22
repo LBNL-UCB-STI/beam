@@ -6,6 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+import com.typesafe.scalalogging.StrictLogging
 //import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 //import beam.analysis.plots.GraphSurgePricing
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -24,7 +25,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
-import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -41,7 +41,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
-trait BeamHelper extends LazyLogging {
+trait BeamHelper extends StrictLogging {
 
   def module(
     typesafeConfig: com.typesafe.config.Config,

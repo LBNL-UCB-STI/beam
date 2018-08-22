@@ -3,9 +3,8 @@ package beam.integration
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import org.scalatest.{Matchers, WordSpecLike}
-
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Elem, Node}
 
@@ -94,7 +93,7 @@ class MultinomialCustomConfigSpec
     with Matchers
     with BeamHelper
     with IntegrationSpecCommon
-    with LazyLogging {
+    with StrictLogging {
 
   "Running beam with Multinomial ModeChoice custom config" must {
     "Prefer mode choice car type in positive values than negative values " ignore {

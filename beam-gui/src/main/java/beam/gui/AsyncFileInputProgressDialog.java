@@ -1,6 +1,8 @@
 package beam.gui;
 
-import org.apache.log4j.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import javax.swing.GroupLayout.Alignment;
@@ -17,7 +19,7 @@ import java.nio.channels.FileChannel;
  */
 /*package*/ class AsyncFileInputProgressDialog extends JDialog {
 
-	private final static Logger log = Logger.getLogger(AsyncFileInputProgressDialog.class);
+	private static final Logger log = LoggerFactory.getLogger(AsyncFileInputProgressDialog.class);
 	
 	private static final long serialVersionUID = 1L;
 	
