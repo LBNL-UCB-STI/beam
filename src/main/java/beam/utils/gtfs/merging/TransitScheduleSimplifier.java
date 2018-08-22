@@ -365,8 +365,6 @@ public class TransitScheduleSimplifier {
 
         final String UNDERLINE = "_____";
 
-//        Logger log = Logger.getLogger(TransitScheduleSimplifier.class);
-
         log.info("starting simplify method for given transit schedule...");
         log.info("transit routes within a transit line that overlap at least at one stop facility will be merged...");
 
