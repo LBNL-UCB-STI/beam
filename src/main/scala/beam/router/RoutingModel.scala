@@ -106,7 +106,7 @@ object RoutingModel {
   case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long, travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
-    def updateLinks(newLinks: Vector[Int]): BeamLeg =
+    def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
       this.copy(travelPath = this.travelPath.copy(newLinks))
 
     def updateStartTime(newStartTime: Long): BeamLeg =
@@ -187,7 +187,7 @@ object RoutingModel {
   }
 
   def linksToTimeAndDistance(
-    linkIds: Vector[Int],
+    linkIds: IndexedSeq[Int],
     startTime: Long,
     travelTimeByEnterTimeAndLinkId: (Long, Int, StreetMode) => Long,
     mode: StreetMode,
@@ -195,7 +195,7 @@ object RoutingModel {
   ): LinksTimesDistances = {
     def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
       enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
-    val traversalTimes = linkIds
+    val traversalTimes = linkIds.view
       .scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)
       .sliding(2)
       .map(pair => pair.last - pair.head)
@@ -206,9 +206,9 @@ object RoutingModel {
   }
 
   case class LinksTimesDistances(
-    linkIds: Vector[Int],
+    linkIds: IndexedSeq[Int],
     travelTimes: Vector[Long],
-    distances: Vector[Double]
+    distances: IndexedSeq[Double]
   )
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
