@@ -119,7 +119,7 @@ public class R5MnetBuilder {
                 link.setNumberOfLanes(1);
                 link.setAllowedModes(flagStrings);
                 mNetowrk.addLink(link);
-//                log.debug("Created special link: " + link);
+                log.debug("Created special link: " + link);
             }
         }
     }
