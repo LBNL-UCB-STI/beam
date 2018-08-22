@@ -22,7 +22,6 @@
 package beam.utils.gtfs.merging;
 
 import com.google.common.collect.Sets;
-//import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
@@ -31,6 +30,8 @@ import org.matsim.api.core.v01.network.NetworkFactory;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -41,7 +42,7 @@ import java.util.Set;
  * @author sfeygin (modifying)
  */
 public class NetworkMerger {
-//    private static Logger log = Logger.getLogger(NetworkMerger.class);
+    private static Logger log = LoggerFactory.getLogger(NetworkMerger.class);
 
     public static Network mergeNetworks(final Network networkA, final Network networkB) {
         final Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
@@ -49,7 +50,7 @@ public class NetworkMerger {
         final Network mergedNetwork = scenario.getNetwork();
         final NetworkFactory factory = mergedNetwork.getFactory();
 
-//        log.info("Merging networks...");
+        log.info("Merging networks...");
         // Nodes
         for (Node node : networkA.getNodes().values()) {
             Node newNode = factory.createNode(Id.create(node.getId().toString(), Node.class), node.getCoord());
@@ -99,17 +100,17 @@ public class NetworkMerger {
             }
         }
 
-//        log.info(" Merging Stats:");
-//        log.info("  Number of links network A: " + networkA.getLinks().size());
-//        log.info("  Number of nodes network A: " + networkA.getNodes().size());
-//        log.info("  Number of links network B: " + networkB.getLinks().size());
-//        log.info("  Number of nodes network B: " + networkB.getNodes().size());
-//        log.info("  Sum of links: " + (networkA.getLinks().size() + networkB.getLinks().size()));
-//        log.info("  Sum of nodes: " + (networkA.getNodes().size() + networkB.getNodes().size()));
-//        log.info("  Number of links merged: " + mergedNetwork.getLinks().size());
-//        log.info("  Number of nodes merged: " + mergedNetwork.getNodes().size());
-//
-//        log.info("Merging networks... done.");
+        log.info(" Merging Stats:");
+        log.info("  Number of links network A: " + networkA.getLinks().size());
+        log.info("  Number of nodes network A: " + networkA.getNodes().size());
+        log.info("  Number of links network B: " + networkB.getLinks().size());
+        log.info("  Number of nodes network B: " + networkB.getNodes().size());
+        log.info("  Sum of links: " + (networkA.getLinks().size() + networkB.getLinks().size()));
+        log.info("  Sum of nodes: " + (networkA.getNodes().size() + networkB.getNodes().size()));
+        log.info("  Number of links merged: " + mergedNetwork.getLinks().size());
+        log.info("  Number of nodes merged: " + mergedNetwork.getNodes().size());
+
+        log.info("Merging networks... done.");
         return mergedNetwork;
     }
 
