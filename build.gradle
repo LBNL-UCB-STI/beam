@@ -144,7 +144,6 @@ dependencies {
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
-//    compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
