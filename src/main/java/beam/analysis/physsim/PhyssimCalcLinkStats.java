@@ -52,7 +52,7 @@ public class PhyssimCalcLinkStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy controllerIO;
-    public BeamCalcLinkStats linkStats;
+    private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {
@@ -268,5 +268,9 @@ public class PhyssimCalcLinkStats {
         eventsManager.addHandler(volumes);
 
         this.relativeSpeedFrequenciesPerBin.clear();
+    }
+
+    public void clean(){
+        this.linkStats.reset();
     }
 }

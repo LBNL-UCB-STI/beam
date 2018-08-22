@@ -153,7 +153,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Message.setEventsManager(null);
         jdeqSimScenario.setNetwork(null);
         jdeqSimScenario.setPopulation(null);
-        linkStatsGraph.linkStats.reset();
+        linkStatsGraph.clean();
 
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
