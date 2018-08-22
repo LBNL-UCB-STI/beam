@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -78,7 +79,7 @@ public class PathTraversalEvent extends Event {
         this.startY = startY;
         this.endX = endX;
         this.endY = endY;
-        this.attributes = new AtomicReference<Map<String, String>>(null);
+        this.attributes = new AtomicReference<Map<String, String>>(Collections.EMPTY_MAP);
     }
 
     public static PathTraversalEvent apply(Event event) {
@@ -108,7 +109,7 @@ public class PathTraversalEvent extends Event {
     @Override
     public Map<String, String> getAttributes() {
         Map<String, String> attr = attributes.get();
-        if (attr != null) return attr;
+        if (attr != Collections.EMPTY_MAP) return attr;
 
         attr = super.getAttributes();
 
