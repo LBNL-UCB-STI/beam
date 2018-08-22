@@ -64,8 +64,9 @@ object TransitDriverAgent {
 
     override def withCurrentLegPassengerScheduleIndex(
       currentLegPassengerScheduleIndex: Int
-    ): DrivingData =
-      copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+
+    override def hasParkingBehaviors: Boolean = false
   }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
@@ -102,7 +103,7 @@ class TransitDriverAgent(
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
-      log.debug("{} {} has been initialized, going to Waiting state", getPrefix, id)
+      logDebug(s" $id has been initialized, going to Waiting state")
       vehicle
         .becomeDriver(self)
         .fold(

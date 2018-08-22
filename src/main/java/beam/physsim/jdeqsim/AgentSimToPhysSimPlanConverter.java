@@ -61,7 +61,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private BeamConfig beamConfig;
-    private HashMap<String, String> previousActivity = new HashMap<>();
     private Random rand = MatsimRandom.getRandom();
 
     private boolean agentSimPhysSimInterfaceDebuggerEnabled;
@@ -192,13 +191,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
-        if (event instanceof ActivityStartEvent) {
-            ActivityStartEvent activityStartEvent = ((ActivityStartEvent) event);
-            previousActivity.put(activityStartEvent.getPersonId().toString(), activityStartEvent.getActType());
-        } else if (event instanceof ActivityEndEvent) {
-            ActivityEndEvent activityEndEvent = ((ActivityEndEvent) event);
-            previousActivity.put(activityEndEvent.getPersonId().toString(), activityEndEvent.getActType());
-        } else if (event instanceof PathTraversalEvent) {
+        if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);

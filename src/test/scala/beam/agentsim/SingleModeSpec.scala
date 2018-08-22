@@ -137,7 +137,7 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(beamConfig, None)
+        new RideHailSurgePricingManager(services)
       )
       mobsim.run()
       events.foreach {
@@ -172,7 +172,7 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(beamConfig, None)
+        new RideHailSurgePricingManager(services)
       )
       mobsim.run()
       events.foreach {
@@ -224,7 +224,7 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(beamConfig, None)
+        new RideHailSurgePricingManager(services)
       )
       mobsim.run()
       events.collect {

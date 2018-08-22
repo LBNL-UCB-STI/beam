@@ -94,7 +94,6 @@ class TNCIterationsStatsCollector(
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
-  private val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
 
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
@@ -122,7 +121,7 @@ class TNCIterationsStatsCollector(
     rideHailIterationHistoryActor ! UpdateRideHailStats(
       TNCIterationStats(
         rideHailStats.mapValues(_.toList),
-        mTazTreeMap.get,
+        beamServices.tazTreeMap,
         timeBinSizeInSec,
         numberOfTimeBins
       )
@@ -154,7 +153,7 @@ class TNCIterationsStatsCollector(
     Calculating sumOfRides
 
     collectRides
-    1. This method will collect all the ModeChoice events where the mode is 'rideHailing'
+    1. This method will collect all the ModeChoice events where the mode is 'rideHail'
     2. Afterwards when a PathTraversal event occurs for the same vehicle with num_passengers = 1 we will find the tazId
       using coord from the PathTraversal event
    */
@@ -162,7 +161,7 @@ class TNCIterationsStatsCollector(
     val attr = event.getAttributes
     val mode = attr.get(ModeChoiceEvent.ATTRIBUTE_MODE)
 
-    if (mode.equals("ride_hailing")) {
+    if (mode.equals("ride_hail")) {
 
       val personId = attr.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       rideHailModeChoiceEvents.put(personId, event)
@@ -474,7 +473,7 @@ class TNCIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    mTazTreeMap.get.getTAZ(coord.getX, coord.getY).tazId.toString
+    beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 

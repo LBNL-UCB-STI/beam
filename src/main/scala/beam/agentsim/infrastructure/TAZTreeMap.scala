@@ -5,15 +5,12 @@ import java.util
 import java.util.zip.GZIPInputStream
 
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.utils.plansampling.WGSConverter
+import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
-import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
-import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
 
@@ -83,7 +80,8 @@ object TAZTreeMap {
         case g: Geometry =>
           val taz = new TAZ(
             f.getAttribute(tazIDFieldName).asInstanceOf[String],
-            new Coord(g.getCoordinate.x, g.getCoordinate.y)
+            new Coord(g.getCoordinate.x, g.getCoordinate.y),
+            g.getArea
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
@@ -142,7 +140,7 @@ object TAZTreeMap {
     )
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY))
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
@@ -171,7 +169,8 @@ object TAZTreeMap {
         val id = line.get("taz")
         val coordX = line.get("coord-x")
         val coordY = line.get("coord-y")
-        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble))
+        val area = line.get("area")
+        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble, area.toDouble))
         line = mapReader.read(header: _*)
       }
 
@@ -182,113 +181,9 @@ object TAZTreeMap {
     res
   }
 
-  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
-    f.getDefaultGeometry match {
-      case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y))
-      case _ => None
+  class TAZ(val tazId: Id[TAZ], val coord: Coord, val area: Double) {
+    def this(tazIdString: String, coord: Coord, area: Double) {
+      this(Id.create(tazIdString, classOf[TAZ]), coord, area)
     }
   }
-
-  def shapeFileToCsv(
-    shapeFilePath: String,
-    tazIDFieldName: String,
-    writeDestinationPath: String
-  ): Unit = {
-    val shapeFileReader: ShapeFileReader = new ShapeFileReader
-    shapeFileReader.readFileAndInitialize(shapeFilePath)
-    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
-
-    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
-    lazy val wgs2utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "utm")
-    var mapWriter: ICsvMapWriter = null
-    try {
-      mapWriter =
-        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
-
-      val processors = getProcessors
-      val header = Array[String]("taz", "coord-x", "coord-y")
-      mapWriter.writeHeader(header: _*)
-
-      val tazs = features.asScala
-        .map(featureToCsvTaz(_, tazIDFieldName))
-        .filter(_.isDefined)
-        .map(_.get)
-        .toArray
-      println(s"Total TAZ ${tazs.length}")
-
-      val groupedTazs = groupTaz(tazs)
-      println(s"Total grouped TAZ ${groupedTazs.size}")
-
-      val (repeatedTaz, nonRepeatedMap) = groupedTazs.partition(i => i._2.length > 1)
-      println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
-      println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
-
-      val clearedTaz = clearRepeatedTaz(repeatedTaz)
-      println(s"Total repeated cleared TAZ ${clearedTaz.length}")
-
-      val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
-      println(s"Total non repeated TAZ ${nonRepeated.length}")
-
-      val allNonRepeatedTaz = clearedTaz ++ nonRepeated
-      println(s"Total all TAZ ${allNonRepeatedTaz.length}")
-
-      for (t <- allNonRepeatedTaz) {
-        val tazToWrite = new util.HashMap[String, Object]()
-        tazToWrite.put(header(0), t.id)
-        //
-        val transFormedCoord: Coord = wgs2utm.transform(new Coord(t.coordX, t.coordY))
-        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
-        tazToWrite.put(header(1), tcoord.getX.toString)
-        tazToWrite.put(header(2), tcoord.getY.toString)
-        mapWriter.write(tazToWrite, header, processors)
-      }
-    } finally {
-      if (mapWriter != null) {
-        mapWriter.close()
-      }
-    }
-  }
-
-  private def getProcessors: Array[CellProcessor] = {
-    Array[CellProcessor](
-      new UniqueHashCode(), // Id (must be unique)
-      new NotNull(), // Coord X
-      new NotNull()
-    ) // Coord Y
-  }
-
-  private def groupTaz(csvSeq: Array[CsvTaz]): Map[String, Array[CsvTaz]] = {
-    csvSeq.groupBy(_.id)
-  }
-
-  private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    groupedRepeatedTaz.flatMap(i => addSuffix(i._1, i._2)).toArray
-  }
-
-  private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
-    ((1 to elems.length) zip elems map {
-      case (index, elem) => elem.copy(id = s"${id}_$index")
-    }).toArray
-  }
-
-  private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {
-    elems.reduce { (a, b) =>
-      val comparison1 = (a, Math.abs(referencePoint - a.coordY))
-      val comparison2 = (b, Math.abs(referencePoint - b.coordY))
-      val closest = Seq(comparison1, comparison2) minBy (_._2)
-      closest._1
-    }
-  }
-
-  case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
-
-  case class CsvTaz(id: String, coordX: Double, coordY: Double)
-
-  case class TAZ(tazId: Id[TAZ], coord: Coord) {
-    def this(tazIdString: String, coord: Coord) {
-      this(Id.create(tazIdString, classOf[TAZ]), coord)
-    }
-  }
-
 }

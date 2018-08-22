@@ -1,8 +1,6 @@
 package beam.utils.plansampling
 
 import java.util
-import java.util.function.BiFunction
-import java.util.stream
 
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
@@ -25,8 +23,8 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.io.PopulationWriter
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
@@ -39,12 +37,12 @@ import org.matsim.core.utils.misc.Counter
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.households.Income.IncomePeriod.year
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, JavaConverters}
-import scala.io.Source
 import scala.util.Random
 
 case class SynthHousehold(
@@ -67,6 +65,7 @@ case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: D
 class SynthHouseholdParser(wgsConverter: WGSConverter) {
 
   import SynthHouseholdParser._
+  import scala.util.control.Breaks._
 
   /**
     * Parses the synthetic households file.
@@ -106,7 +105,7 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
       Id.create(hhIdStr, classOf[Household]),
       row(carNumIdx).toInt,
       row(hhNumIdx).toInt,
-      row(hhIncomeIdx).toInt,
+      row(hhIncomeIdx).toDouble,
       row(hhTractIdx).toInt,
       wgsConverter.wgs2Utm.transform(
         new Coord(row(homeCoordXIdx).toDouble, row(homeCoordYIdx).toDouble)
@@ -277,11 +276,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     // loop through all activities and check if each is in the bounds
     for (person <- pop) {
       val pplan = person.getPlans.get(0) // First and only plan
-      //      val elements = JavaConverters.collectionAsScalaIterable(pplan.getPlanElements())
       val activities = PopulationUtils.getActivities(pplan, null)
-      //      val plans = JavaConverters.collectionAsScalaIterable(person.getPlans())   //.iterator();
-      //      while (plans.hasNext()){
-      //        val plan = plans.next();
 
       // If any activities outside of bounding box, skip this person
       var allIn = true
@@ -322,8 +317,8 @@ object PlansSampler {
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
-  val newHH: Households = sc.getHouseholds
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  val newHH: HouseholdsImpl = new HouseholdsImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
 
@@ -412,22 +407,12 @@ object PlansSampler {
 
     val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-    var totalPersonNumber = 0
-    var idx = 0
-    val popSize = synthHouseholds.map { hh =>
-      hh.individuals.size
-    }.sum
-    val shuffledHouseholds = Random.shuffle(synthHouseholds) // Randomize here
-    var ret = ListBuffer[SynthHousehold]()
-    while (totalPersonNumber < popSize && totalPersonNumber < sampleNumber) {
-      val hh: SynthHousehold = shuffledHouseholds(idx)
-      if (aoi.contains(MGC.coord2Point(hh.coord))) {
-        ret += hh
-        totalPersonNumber += hh.numPersons
-      }
-      idx += 1
-    }
-    ret.toVector
+
+    Random
+      .shuffle(synthHouseholds)
+      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+      .take(sampleNumber)
+
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -448,13 +433,13 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val defaultVehicleType =
+    val carVehicleType =
       JavaConverters
         .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
         .head
-    newVehicles.addVehicleType(defaultVehicleType)
+    newVehicles.addVehicleType(carVehicleType)
     synthHouseholds foreach (sh => {
-      val numPersons = sh.individuals.size
+      val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
         numPersons * 2
       } else {
@@ -470,13 +455,17 @@ object PlansSampler {
 
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
+
+      // Set hh income
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
+
       counter.incCounter()
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
       (0 to sh.vehicles).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
         val vehicle: Vehicle =
-          VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
+          VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
         newVehicles.addVehicle(vehicle)
         spHH.getVehicleIds.add(vehicleId)
       })
@@ -550,7 +539,9 @@ object PlansSampler {
 }
 
 /**
-  * Inputs
+  * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+  * command-line args]:
+  *
   * [0] Raw plans input filename
   * [1] Input AOI shapefile
   * [2] Network input filename

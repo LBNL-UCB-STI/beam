@@ -6,9 +6,12 @@ import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.events.ShutdownEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +33,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private static final String fileName = "realized_mode";
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static List<String> personIdList = new ArrayList<>();
+
+    private static Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
+    private static Set<String> iterationTypeSet = new HashSet();
+
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     @Override
@@ -47,6 +54,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
+        updateRealizedModeChoiceInIteration(event.getIteration());
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
@@ -66,7 +74,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         hourPerson.clear();
     }
 
+    public Map<Integer, Map<String,Integer>> getHoursDataCountOccurrenceAgainstMode() {
+        return hourModeFrequency;
+    }
 
+    // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
@@ -137,10 +149,36 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
                         }
                     }
+                    hourModeFrequency.put(hour, hourData);
                 }
+
             }
         }
     }
+
+    //    accumulating data for each iteration
+    public void updateRealizedModeChoiceInIteration(Integer iteration) {
+        Set<Integer> hours = hourModeFrequency.keySet();
+        Map<String, Integer> totalModeChoice = new HashMap<>();
+        for (Integer hour : hours) {
+            Map<String, Integer> iterationHourData = hourModeFrequency.get(hour);
+            Set<String> iterationModes = iterationHourData.keySet();
+            for (String iterationMode : iterationModes) {
+                Integer freq = iterationHourData.get(iterationMode);
+                Integer iterationFrequency = totalModeChoice.get(iterationMode);
+                if (iterationFrequency == null) {
+                    totalModeChoice.put(iterationMode, freq);
+                } else {
+                    totalModeChoice.put(iterationMode, freq + iterationFrequency);
+                }
+
+            }
+        }
+        iterationTypeSet.add("it." + iteration);
+        realizedModeChoiceInIteration.put(iteration, totalModeChoice);
+
+    }
+
 
     private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour) {
         double[] modeOccurrencePerHour = new double[maxHour + 1];
@@ -219,6 +257,84 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         return modes;
     }
 
+    public void notifyShutdown(ShutdownEvent event) throws Exception {
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
+        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
+        if (dataset != null)
+            createRootRealizedModeChoosenGraph(dataset, fileName);
+        writeToRootCSV();
+    }
+
+
+    // dataset for root graph
+    private CategoryDataset buildRealizedModeChoiceDatasetForGraph() {
+        CategoryDataset categoryDataset = null;
+        double[][] dataset = buildTotalRealizedModeChoiceDataset();
+
+        if (dataset != null) {
+            categoryDataset = createCategoryDataset("it.", dataset);
+        }
+        return categoryDataset;
+    }
+
+    public CategoryDataset createCategoryDataset(String columnKeyPrefix, double[][] data) {
+
+        DefaultCategoryDataset result = new DefaultCategoryDataset();
+        for (int r = 0; r < data.length; r++) {
+            String rowKey = String.valueOf(r + 1);
+            for (int c = 0; c < data[r].length; c++) {
+                String columnKey = columnKeyPrefix + c;
+                result.addValue(data[r][c], rowKey, columnKey);
+            }
+        }
+        return result;
+    }
+
+    private double[][] buildTotalRealizedModeChoiceDataset() {
+
+        List<Integer> iterationList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(realizedModeChoiceInIteration.keySet());
+        List<String> modeChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(getModesChosen());
+        if (iterationList.size() == 0)
+            return null;
+        Integer maxIteration = iterationList.get(iterationList.size() - 1);
+        double[][] dataset = new double[getModesChosen().size()][];
+        for (int i = 0; i < modeChosenList.size(); i++) {
+            String mode = modeChosenList.get(i);
+            dataset[i] = getDataPerOccurrenceAgainstRealizedModeChoice(mode, maxIteration);
+        }
+        return dataset;
+    }
+
+
+    private double[] getDataPerOccurrenceAgainstRealizedModeChoice(String mode, int maxIteration) {
+        double[] occurrenceAgainstModeChoice = new double[maxIteration + 1];
+        int index = 0;
+        for (int iteration = 0; iteration <= maxIteration; iteration++) {
+            Map<String, Integer> iterationData = realizedModeChoiceInIteration.get(iteration);
+            if (iterationData != null) {
+                occurrenceAgainstModeChoice[index] = iterationData.get(mode) == null ? 0 : iterationData.get(mode);
+            } else {
+                occurrenceAgainstModeChoice[index] = 0;
+            }
+            index = index + 1;
+        }
+        return occurrenceAgainstModeChoice;
+    }
+
+    // generating graph in root directory
+    private void createRootRealizedModeChoosenGraph(CategoryDataset dataset, String fileName) throws IOException {
+        boolean legend = true;
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        List<String> modesChosenList = new ArrayList<>();
+        modesChosenList.addAll(getModesChosen());
+        Collections.sort(modesChosenList);
+        GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+
     private void writeToCSV(IterationEndsEvent event) {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName + ".csv");
@@ -257,6 +373,44 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             log.error("CSV generation failed.", e);
         }
     }
+
+    // csv for root graph
+    public void writeToRootCSV() {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
+        try {
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+            Set<String> modes = getModesChosen();
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
+            out.write("iterations," + heading);
+            out.newLine();
+
+            int max = realizedModeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
+
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Integer> modeCountIteration = realizedModeChoiceInIteration.get(iteration);
+                StringBuilder stringBuilder = new StringBuilder(iteration + "");
+                if (modeCountIteration != null) {
+                    for (String mode : modes) {
+                        if (modeCountIteration.get(mode) != null) {
+                            stringBuilder.append(",").append(modeCountIteration.get(mode));
+                        } else {
+                            stringBuilder.append(",0");
+                        }
+                    }
+                } else {
+                    for (String ignored : modes) {
+                        stringBuilder.append(",0");
+                    }
+                }
+                out.write(stringBuilder.toString());
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            log.error("error in generating CSV", e);
+        }
+    }
+
 
     class ModePerson {
         private String mode;
