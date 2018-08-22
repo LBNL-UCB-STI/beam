@@ -72,7 +72,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           // If no manager is set, we ignore
-          data.passengerSchedule.schedule.keys
+          data.passengerSchedule.schedule.keys.view
             .drop(data.currentLegPassengerScheduleIndex)
             .headOption match {
             case Some(currentLeg) =>
@@ -140,7 +140,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .asInstanceOf[T]
         } else {
           val nextLeg =
-            data.passengerSchedule.schedule.keys
+            data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
           goto(WaitingToDrive) using data
@@ -157,7 +157,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           val stall = beamServices.vehicles(data.currentVehicle.head).stall
           stall.foreach { stall =>
             val nextLeg =
-              data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+              data.passengerSchedule.schedule.keys.view.drop(data.currentLegPassengerScheduleIndex).head
             val distance =
               beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
             eventsManager
@@ -205,7 +205,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      data.passengerSchedule.schedule.keys
+      data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
@@ -231,7 +231,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      data.passengerSchedule.schedule.keys
+      data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
@@ -352,14 +352,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
       RoutingModel
-        .traverseStreetLeg(
+        .traverseStreetLeg_opt(
           data.passengerSchedule.schedule
             .drop(data.currentLegPassengerScheduleIndex)
             .head
             ._1,
-          data.currentVehicle.head,
-          (_, _) => 0L
-        )
+          data.currentVehicle.head)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule
         .drop(data.currentLegPassengerScheduleIndex)
@@ -429,7 +427,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         .toVector
-      val triggersToSchedule2 = data.passengerSchedule.schedule.keys
+      val triggersToSchedule2 = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
