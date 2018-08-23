@@ -172,7 +172,7 @@ dependencies {
 
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:${scalaBinaryVersion}.1"
+    compile "org.scala-lang:scala-compiler:${scalaBinaryVersion}"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
