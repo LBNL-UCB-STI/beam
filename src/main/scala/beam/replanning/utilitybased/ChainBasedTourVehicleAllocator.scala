@@ -4,7 +4,11 @@ import java.util.Random
 
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
+import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{
+  SubtourRecord,
+  VehicleRecord,
+  VehicleRecordFactory
+}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.Id
