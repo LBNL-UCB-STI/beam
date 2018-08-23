@@ -2,21 +2,50 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
-import org.matsim.api.core.v01.Id
+import beam.router.RoutingModel.DiscreteTime
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = ???
+  override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
+    // TODO: MISSING: scheduling modify passenger ack messages from vehicle
 
-  override def handleRideCancellationReply(
-    reply: DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-  ): Unit = ???
+    for (request <- rideHailManager.getCompletedDummyRequests.values) {
+      rideHailManager
+        .getClosestIdleRideHailAgent(
+          request.pickUpLocation,
+          rideHailManager.radiusInMeters
+        ) match {
 
-  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
-  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
+        case Some(rhl) =>
+          val updatedRequest = request.copy(
+            departAt = DiscreteTime(tick.toInt)
+          )
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = ???
+          rideHailManager.requestRoutesToCustomerAndDestination(
+            request,
+            rhl
+          )
+
+          println(
+            s" new vehicle assigned:${rhl.vehicleId}, tick: ${tick}, person: ${request.customer.personId}"
+          )
+
+          rideHailManager.removeDummyRequest(request)
+        case None =>
+      }
+      //bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
+
+    }
+
+  }
+
+//  override def handleRideCancellationReply(
+  //   reply: DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
+  // ): Unit = ???
+
 }
