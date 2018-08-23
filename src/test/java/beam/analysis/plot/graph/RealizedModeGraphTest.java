@@ -17,7 +17,7 @@ public class RealizedModeGraphTest {
         createDummySimWithCRCXML();
     }
 
-    @Test
+    @Test @Ignore
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -39,7 +39,7 @@ public class RealizedModeGraphTest {
 
     }
 
-    @Test
+    @Test @Ignore
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -61,7 +61,7 @@ public class RealizedModeGraphTest {
 
     }
 
-    @Test
+    @Test @Ignore
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -83,7 +83,7 @@ public class RealizedModeGraphTest {
 
     }
 
-    @Test // when replanning and upper mode choice are in same hour
+    @Test @Ignore// when replanning and upper mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeA() {
 
         int expectedWalkResult = 2;
@@ -104,7 +104,7 @@ public class RealizedModeGraphTest {
 
     }
 
-    @Test // when replanning and lower mode choice are in same hour
+    @Test @Ignore// when replanning and lower mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeB() {
 
         int expectedWalkResult = 2;
