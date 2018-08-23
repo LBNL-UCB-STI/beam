@@ -81,6 +81,12 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   }
 
+  private val pendingDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
+    mutable.Map[Int, RideHailRequest]()
+
+  private val completedDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
+    mutable.Map[Int, RideHailRequest]()
+
   val allocationManager: String =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
 
@@ -629,7 +635,24 @@ class RideHailManager(
       }
     rideHailLocationOpt match {
       case Some(rhLocation) =>
+        /* if (rhLocation.vehicleId.toString.contains("dummy")) {
+
+          val travelProposal = TravelProposal(
+            RideHailAgentLocation(null, rhLocation.vehicleId, null),
+            0,
+            0,
+            Some(FiniteDuration(0, TimeUnit.SECONDS)),
+            RoutingResponse(Vector(), None),
+            RoutingResponse(Vector(), None)
+          )
+
+          travelProposalCache.put(request.requestId.toString, travelProposal)
+
+          request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
+        } else {*/
         requestRoutesToCustomerAndDestination(request, rhLocation)
+        //}
+
         true
       case None =>
         false
@@ -916,7 +939,16 @@ class RideHailManager(
             )
           }
         } else {
-          handleReservation(request, travelProposal)
+          if (pendingDummyRideHailRequests.contains(request.requestId)) {
+
+            println(s"stranding customer: ${request.customer.personId}")
+
+            request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
+
+            completedDummyRequest(request)
+          } else {
+            handleReservation(request, travelProposal)
+          }
 
         }
       case None =>
@@ -983,6 +1015,28 @@ class RideHailManager(
       // TODO: provide input to caller to change option resp. test this?
     }
 
+  }
+
+  def markAsDummyRidehailRequest(request: RideHailRequest): Unit = {
+    pendingDummyRideHailRequests.put(request.requestId, request)
+    DebugLib.emptyFunctionForSettingBreakPoint()
+  }
+
+  def getPendingDummyRequests: mutable.Map[Int, RideHailRequest] = {
+    pendingDummyRideHailRequests
+  }
+
+  def completedDummyRequest(request: RideHailRequest): Unit = {
+    pendingDummyRideHailRequests.remove(request.requestId)
+    completedDummyRideHailRequests.put(request.requestId, request)
+  }
+
+  def getCompletedDummyRequests: mutable.Map[Int, RideHailRequest] = {
+    completedDummyRideHailRequests
+  }
+
+  def removeDummyRequest(request: RideHailRequest): Unit = {
+    completedDummyRideHailRequests.remove(request.requestId)
   }
 
   def requestRoutesToCustomerAndDestination(

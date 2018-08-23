@@ -46,6 +46,9 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   }
 
+  /*
+    This method is called periodically
+   */
   def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
     logger.trace("default implementation updateVehicleAllocations executed")
   }
