@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import java.awt.Color
+import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
@@ -8,7 +9,7 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
-import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -47,6 +48,15 @@ import scala.collection.{concurrent, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future}
+
+object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
+  override def compare(
+    o1: (RideHailAgentLocation, Double),
+    o2: (RideHailAgentLocation, Double)
+  ): Int = {
+    java.lang.Double.compare(o1._2, o2._2)
+  }
+}
 
 // TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
 // TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
@@ -214,7 +224,12 @@ class RideHailManager(
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
-    case NotifyResourceIdle(vehicleId: Id[Vehicle], whenWhere, passengerSchedule) =>
+    case NotifyVehicleResourceIdle(
+        vehicleId: Id[Vehicle],
+        whenWhere,
+        passengerSchedule,
+        fuelLevel
+        ) =>
       updateLocationOfAgent(vehicleId, whenWhere, isAvailable = isAvailable(vehicleId))
 
       //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
@@ -231,7 +246,7 @@ class RideHailManager(
           }
           modifyPassengerScheduleManager
             .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
-          driver ! GetBeamVehicleFuelLevel
+          vehicleFuelLevel.put(vehicleId, fuelLevel)
         })
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
@@ -894,11 +909,20 @@ class RideHailManager(
   def getClosestIdleVehiclesWithinRadius(
     pickupLocation: Coord,
     radius: Double
-  ): Vector[RideHailAgentLocation] = {
+  ): Array[RideHailAgentLocation] = {
+    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius).toArray
+    util.Arrays.sort(idleVehicles, RideHailAgentLocationWithRadiusOrdering)
+    idleVehicles.map { case (location, _) => location }
+  }
+
+  def getIdleVehiclesWithinRadius(
+    pickupLocation: Location,
+    radius: Double
+  ): Iterable[(RideHailAgentLocation, Double)] = {
     val nearbyRideHailAgents = availableRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
-      .toVector
+      .view
     val distances2RideHailAgents =
       nearbyRideHailAgents.map(rideHailAgentLocation => {
         val distance = CoordUtils
@@ -906,23 +930,20 @@ class RideHailManager(
         (rideHailAgentLocation, distance)
       })
     //TODO: Possibly get multiple taxis in this block
-    val result = distances2RideHailAgents
+    distances2RideHailAgents
       .filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
-      .sorted(
-        (
-          vehicleRadius1: (RideHailAgentLocation, Double),
-          vehicleRadius2: (RideHailAgentLocation, Double)
-        ) => java.lang.Double.compare(vehicleRadius1._2, vehicleRadius2._2)
-      )
-      .map(_._1)
-    result
   }
 
   def getClosestIdleRideHailAgent(
     pickupLocation: Coord,
     radius: Double
   ): Option[RideHailAgentLocation] = {
-    getClosestIdleVehiclesWithinRadius(pickupLocation, radius).headOption
+    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius)
+    if (idleVehicles.isEmpty) None
+    else {
+      val min = idleVehicles.min(RideHailAgentLocationWithRadiusOrdering)
+      Some(min._1)
+    }
   }
 
   private def handleReservationRequest(request: RideHailRequest): Unit = {

@@ -84,7 +84,7 @@ object FileUtils extends LazyLogging {
       resource.close()
     }
 
-  def safeLines(fileLoc:String): stream.Stream[String] ={
+  def safeLines(fileLoc: String): stream.Stream[String] = {
     using(CsvUtils.readerFromFile(fileLoc))(_.lines)
   }
 

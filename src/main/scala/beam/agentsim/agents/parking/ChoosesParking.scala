@@ -51,7 +51,9 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).right.get.getType,
-        beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(id.toString,"valueOfTime").asInstanceOf[Double],
+        beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+          .getAttribute(id.toString, "valueOfTime")
+          .asInstanceOf[Double],
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble
@@ -80,7 +82,8 @@ trait ChoosesParking extends {
         ) //nextLeg.travelPath.endPoint.loc
         val cost = stall.cost
         val energyCharge: Double = 0.0 //TODO
-        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0)  // TODO: CJRS... let's discuss how to fix this - SAF
+        val timeCost
+          : BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
         val score = calculateScore(distance, cost, energyCharge, timeCost)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
@@ -132,8 +135,10 @@ trait ChoosesParking extends {
         val finalPoint = nextLeg.travelPath.endPoint
 
         // get route from customer to stall, add body for backup in case car route fails
-        val carStreetVeh = StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
-        val bodyStreetVeh = StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
+        val carStreetVeh =
+          StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
+        val bodyStreetVeh =
+          StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),

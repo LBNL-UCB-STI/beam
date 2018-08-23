@@ -100,8 +100,7 @@ class ModeChoiceLCCM(
        */
       val chosenClassOpt = lccm
         .classMembershipModels(tourType)
-
-        .sampleAlternative(classMembershipInputData,new Random())
+        .sampleAlternative(classMembershipInputData, new Random())
 
       chosenClassOpt match {
         case None =>

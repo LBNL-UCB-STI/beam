@@ -15,10 +15,11 @@ case class RideHailRequest(
   departAt: BeamTime,
   destination: Location
 ) {
+
   /**
-   * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
-   * @return hashCode(customer, pickUpLocation, departAt, destination)
-   */
+    * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
+    * @return hashCode(customer, pickUpLocation, departAt, destination)
+    */
   lazy val requestId: Int = {
     new HashCodeBuilder()
       .append(customer)
