@@ -16,17 +16,16 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
   ): Option[VehicleAllocation] = {
 
     if (rideHailManager.getPendingDummyRequests.size < 5) {
-      rideHailManager.markAsDummyRidehailRequest(vehicleAllocationRequest.request)
+      rideHailManager.assignDummyRidehail(vehicleAllocationRequest.request)
     }
-    // mark request as dummy ride hail dispatch (later over write possible)
-    None
+
+    None // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
 
-    // TODO: danger if we use updateVehicleAllocations/handleRideCancellationReply mechanism as well, this won't work
-    // also make sure: within scheduler window, this shouldn't be called twice to avoid iddues -> how to resolve?
-    bufferedRideHailRequests.newTimeout(tick, triggerId)
+    // TODO: test if any issue with mixing with updateVehicleAllocations/handleRideCancellationReply
+    //bufferedRideHailRequests.newTimeout(tick, triggerId)
 
     for (request <- rideHailManager.getCompletedDummyRequests.values) {
       rideHailManager
