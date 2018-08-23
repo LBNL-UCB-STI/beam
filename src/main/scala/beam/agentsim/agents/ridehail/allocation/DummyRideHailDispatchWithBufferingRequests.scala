@@ -23,7 +23,10 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
   }
 
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
-    // TODO: MISSING: scheduling modify passenger ack messages from vehicle
+
+    // TODO: danger if we use updateVehicleAllocations/handleRideCancellationReply mechanism as well, this won't work
+    // also make sure: within scheduler window, this shouldn't be called twice to avoid iddues -> how to resolve?
+    bufferedRideHailRequests.newTimeout(tick, triggerId)
 
     for (request <- rideHailManager.getCompletedDummyRequests.values) {
       rideHailManager
@@ -38,7 +41,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
           )
 
           rideHailManager.requestRoutesToCustomerAndDestination(
-            request,
+            updatedRequest,
             rhl
           )
 
@@ -47,6 +50,8 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
           )
 
           rideHailManager.removeDummyRequest(request)
+
+          bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
         case None =>
       }
       //bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
