@@ -9,7 +9,7 @@ import java.util.Map;
 import static beam.analysis.plot.graph.GraphTestRealizedUtil.createDummySimWithCRCXML;
 import static org.junit.Assert.assertEquals;
 
-public class RealizedModeCRCGraphTest {
+public class RealizedModeGraphTest {
     private RealizedModeStats realizedModeStats = new RealizedModeStats();
 
     @BeforeClass
@@ -17,7 +17,7 @@ public class RealizedModeCRCGraphTest {
         createDummySimWithCRCXML();
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -39,7 +39,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -61,7 +61,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
 
         int expectedWalkResult = 2;
@@ -83,7 +83,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore // when replanning and upper mode choice are in same hour
+    @Test // when replanning and upper mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeA() {
 
         int expectedWalkResult = 2;
@@ -104,7 +104,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore // when replanning and lower mode choice are in same hour
+    @Test // when replanning and lower mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeB() {
 
         int expectedWalkResult = 2;
