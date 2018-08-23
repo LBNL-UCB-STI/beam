@@ -1,12 +1,8 @@
 package beam.integration.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.allocation.{
-  RideHailResourceAllocationManager,
-  VehicleAllocation,
-  VehicleAllocationRequest
-}
+import beam.agentsim.agents.ridehail.{ReserveRide, RideHailInquiry, RideHailManager}
+import beam.agentsim.agents.ridehail.allocation._
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.DiscreteTime
 import beam.utils.DebugLib
@@ -22,14 +18,24 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
+  ): VehicleAllocationResponse = {
 
-    if (!vehicleAllocationRequest.isInquiry) {
+    if (vehicleAllocationRequest.request.requestType == ReserveRide) {
       bufferedRideHailRequestsQueue += vehicleAllocationRequest
     }
 
     // just go with closest request
-    None
+    rideHailManager
+      .getClosestIdleVehiclesWithinRadius(
+        vehicleAllocationRequest.request.pickUpLocation,
+        rideHailManager.radiusInMeters
+      )
+      .headOption match {
+      case Some(agentLocation) =>
+        VehicleAllocation(agentLocation, None)
+      case None =>
+        NoVehicleAllocated
+    }
   }
 
   var firstRidehailRequestDuringDay = true
@@ -43,7 +49,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
       val rhl = rideHailManager
         .getClosestIdleRideHailAgent(
-          firstRequestOfDay.pickUpLocation,
+          firstRequestOfDay.request.pickUpLocation,
           rideHailManager.radiusInMeters
         )
         .get
@@ -52,7 +58,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         departAt = DiscreteTime(bufferedRideHailRequests.getTick().toInt)
       )
 
-      rideHailManager.requestRoutesToCustomerAndDestination(
+      rideHailManager.createRoutingRequestsToCustomerAndDestination(
         request,
         rhl
       )
