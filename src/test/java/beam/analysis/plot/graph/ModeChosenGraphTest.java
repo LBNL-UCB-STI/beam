@@ -19,7 +19,7 @@ public class ModeChosenGraphTest {
         createDummySimWithXML();
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventCarOccurrence() {
 
         int expectedResult = 33;
@@ -28,7 +28,7 @@ public class ModeChosenGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventDriveTransitOccurrence() {
         int expectedResult = 1;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
@@ -36,7 +36,7 @@ public class ModeChosenGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventRideHailOccurrence() {
         int expectedResult = 20;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
@@ -44,7 +44,7 @@ public class ModeChosenGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventWalkOccurrence() {
         int expectedResult = 41;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
@@ -52,7 +52,7 @@ public class ModeChosenGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventWalkTransitOccurrence() {
         int expectedResult = 11;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
@@ -60,7 +60,7 @@ public class ModeChosenGraphTest {
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForSpecificHour() {
         /**
          * 0 index represent CAR count
