@@ -1226,7 +1226,7 @@ class RideHailManager(
 
   }
 
-  def markAsDummyRidehailRequest(request: RideHailRequest): Unit = {
+  def assignDummyRidehail(request: RideHailRequest): Unit = {
     pendingDummyRideHailRequests.put(request.requestId, request)
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
