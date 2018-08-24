@@ -46,14 +46,14 @@ import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
 case class SynthHousehold(
-                           householdId: Id[Household],
-                           numPersons: Int,
-                           vehicles: Int,
-                           hhIncome: Double,
-                           tract: Int,
-                           coord: Coord,
-                           var individuals: Array[SynthIndividual]
-                         ) {
+  householdId: Id[Household],
+  numPersons: Int,
+  vehicles: Int,
+  hhIncome: Double,
+  tract: Int,
+  coord: Coord,
+  var individuals: Array[SynthIndividual]
+) {
 
   def addIndividual(individual: SynthIndividual): Unit = {
     individuals ++= Array(individual)
@@ -213,8 +213,8 @@ case class QuadTreeExtent(minx: Double, miny: Double, maxx: Double, maxy: Double
 class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   private def quadTreeExtentFromShapeFile(
-                                           features: util.Collection[SimpleFeature]
-                                         ): QuadTreeExtent = {
+    features: util.Collection[SimpleFeature]
+  ): QuadTreeExtent = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue
@@ -237,9 +237,9 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   // Returns a single geometry that is the union of all the polgyons in a shapefile
   def geometryUnionFromShapefile(
-                                  features: util.Collection[SimpleFeature],
-                                  sourceCRS: CoordinateReferenceSystem
-                                ): Geometry = {
+    features: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem
+  ): Geometry = {
 
     import scala.collection.JavaConverters._
     val targetCRS = CRS.decode(wgsConverter.targetCRS)
@@ -262,10 +262,10 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   // This version parses all activity locations and only keeps agents who have all activities w/ in the bounds
   def buildQuadTree[T: HasXY](
-                               aoiShapeFileLoc: util.Collection[SimpleFeature],
-                               sourceCRS: CoordinateReferenceSystem,
-                               pop: Vector[Person]
-                             ): QuadTree[T] = {
+    aoiShapeFileLoc: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem,
+    pop: Vector[Person]
+  ): QuadTree[T] = {
     val ev = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
@@ -284,7 +284,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
       activities.forEach(act => {
         val coord = act.getCoord
         val point: Point =
-          MGC.xy2Point(coord.getX,coord.getY)
+          MGC.xy2Point(coord.getX, coord.getY)
         if (!aoi.contains(point)) {
           allIn = false
         }
@@ -398,15 +398,16 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-                                     synthHouseholds: Vector[SynthHousehold],
-                                     aoiFeatures: util.Collection[SimpleFeature],
-                                     sourceCRS: CoordinateReferenceSystem
-                                   ): Vector[SynthHousehold] = {
+    synthHouseholds: Vector[SynthHousehold],
+    aoiFeatures: util.Collection[SimpleFeature],
+    sourceCRS: CoordinateReferenceSystem
+  ): Vector[SynthHousehold] = {
 
     val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
 
-    synthHouseholds.filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+    synthHouseholds
+      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
       .take(sampleNumber)
   }
 
@@ -433,7 +434,7 @@ object PlansSampler {
         .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
         .head
     newVehicles.addVehicleType(carVehicleType)
-    synthHouseholds.foreach (sh => {
+    synthHouseholds.foreach(sh => {
       val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
         numPersons * 2
