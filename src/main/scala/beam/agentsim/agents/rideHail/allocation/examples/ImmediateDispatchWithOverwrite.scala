@@ -1,4 +1,4 @@
-package beam.integration.ridehail.allocation
+package beam.agentsim.agents.rideHail.allocation.examples
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager
@@ -24,15 +24,13 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
 
-    if (!vehicleAllocationRequest.isInquiry) {
+    if (bufferedRideHailRequestsQueue.size < 1) {
       bufferedRideHailRequestsQueue += vehicleAllocationRequest
     }
 
     // just go with closest request
     None
   }
-
-  var firstRidehailRequestDuringDay = true
 
   override def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
 
@@ -64,21 +62,19 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
 
     } else {
-      firstRidehailRequestDuringDay = true
-      bufferedRideHailRequestsQueue = new mutable.Queue[VehicleAllocationRequest]
       bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
     }
 
-    DebugLib.emptyFunctionForSettingBreakPoint()
-
-    // CONTINUE HERE ###########
-    // failed or successful
+    bufferedRideHailRequestsQueue = new mutable.Queue[VehicleAllocationRequest]
 
   }
 
+  // TODO: define 3 state names to allow for proper transitioning
+
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
-    if (firstRidehailRequestDuringDay && bufferedRideHailRequestsQueue.size > 0) {
-      // try to cancel first ride of day
+    // try to cancel first ride of day
+
+    if (!bufferedRideHailRequestsQueue.isEmpty) {
       val firstRequestOfDay = bufferedRideHailRequestsQueue.head
 
       logger.debug(
@@ -95,15 +91,9 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       // , if not, cancel it (go to idle state properly) - make new request type for this?
       // let us lock the other ride and unlock if already picked up, otherwise dispatch it to customer
 
-      bufferedRideHailRequests.setNumberOfOverwriteRequests(1)
-
-      firstRidehailRequestDuringDay = false
+      bufferedRideHailRequests.increaseNumberOfOpenOverwriteRequests()
     }
-  }
-
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-
-    Vector()
 
   }
+
 }
