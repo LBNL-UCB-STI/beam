@@ -1,5 +1,6 @@
 package beam.integration.ridehail
 
+import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
@@ -23,7 +24,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.integration.ridehail.allocation.ImmediateDispatchWithOverwrite"
+          RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE
         )
       )
       .withValue(
