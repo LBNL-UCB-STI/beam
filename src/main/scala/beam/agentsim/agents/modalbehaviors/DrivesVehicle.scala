@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailUtils
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
@@ -45,9 +46,9 @@ object DrivesVehicle {
 
   case class AddFuel(fuelInJoules: Double)
 
-  case object GetBeamVehicleFuelLevel
+  case object GetBeamVehicleState
 
-  case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
+  case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
   case class StopDrivingIfNoPassengerOnBoard(tick: Double, requestId: Int)
 
@@ -87,7 +88,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     currentVehicleUnderControl,
                     beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
                     data.passengerSchedule,
-                    theVehicle.fuelLevel.getOrElse(Double.NaN)
+                    theVehicle.getState()
                   )
                 )
               }
@@ -264,7 +265,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     currentVehicleUnderControl,
                     beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
                     data.passengerSchedule,
-                    theVehicle.fuelLevel.getOrElse(Double.NaN)
+                    theVehicle.getState()
                   )
                 )
               }
@@ -493,7 +494,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       currentVehicleUnderControl.addFuel(fuelInJoules)
       stay()
 
-    case ev @ Event(GetBeamVehicleFuelLevel, data) =>
+    case ev @ Event(GetBeamVehicleState, data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
@@ -504,9 +505,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       //      val lastLocationVisited = SpaceTime(new Coord(0, 0), 0) // TODO: don't ask for this here - TNC should keep track of it?
       // val lastLocationVisited = currentLeg.travelPath.endPoint
 
-      sender() ! BeamVehicleFuelLevelUpdate(
+      sender() ! BeamVehicleStateUpdate(
         currentVehicleUnderControl.id,
-        currentVehicleUnderControl.fuelLevel.get
+        currentVehicleUnderControl.getState()
       )
       stay()
   }

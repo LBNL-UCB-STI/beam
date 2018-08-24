@@ -21,7 +21,7 @@ import akka.actor.{
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
   BufferedRideHailRequestsTimeout,
   NotifyIterationEnds,
@@ -316,9 +316,9 @@ class BeamMobsim @Inject()(
               )
               beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
               rideHailBeamVehicle.registerResource(rideHailManager)
-              rideHailManager ! BeamVehicleFuelLevelUpdate(
+              rideHailManager ! BeamVehicleStateUpdate(
                 rideHailBeamVehicle.getId,
-                rideHailBeamVehicle.fuelLevel.get
+                rideHailBeamVehicle.getState()
               )
               val rideHailAgentProps = RideHailAgent.props(
                 beamServices,

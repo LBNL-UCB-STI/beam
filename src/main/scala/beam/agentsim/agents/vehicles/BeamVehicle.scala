@@ -3,6 +3,7 @@ package beam.agentsim.agents.vehicles
 import akka.actor.ActorRef
 import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.infrastructure.ParkingStall
@@ -98,10 +99,25 @@ class BeamVehicle(
     fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
   }
 
+  def getState(): BeamVehicleState =
+    BeamVehicleState(
+      fuelLevel.getOrElse(Double.NaN),
+      fuelLevel.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
+      driver,
+      stall
+    )
+
 }
 
 object BeamVehicle {
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
+
+  case class BeamVehicleState(
+    fuelLevel: Double,
+    remainingRangeInM: Double,
+    driver: Option[ActorRef],
+    stall: Option[ParkingStall]
+  )
 }
