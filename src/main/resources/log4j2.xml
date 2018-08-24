@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration package="log4j.test" status="INFO">
+<Configuration package="log4j.test" status="debug">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
@@ -7,7 +7,7 @@
     </Appenders>
 
     <Loggers>
-        <Root level="info">
+        <Root level="debug">
             <AppenderRef ref="Console" level="info"/>
         </Root>
         <Logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR">
@@ -19,7 +19,7 @@
         <Logger name="org.reflections" level="ERROR">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.matsim" level="ERROR">
+        <Logger name="org.matsim" level="debug">
             <AppenderRef ref="Console"/>
         </Logger>
 
@@ -59,7 +59,7 @@
         </Logger>
 
 
-        <Logger name="beam.utils.DebugActorWithTimer" level="error">
+        <Logger name="beam.utils.DebugActorWithTimer" level="debug">
             <AppenderRef ref="Console"/>
         </Logger>
 
