@@ -5,7 +5,6 @@ import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{Matchers, WordSpecLike}
-
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Elem, Node}
 

@@ -7,7 +7,8 @@ import org.apache.http.client.fluent.Content;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.concurrent.FutureCallback;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
@@ -29,7 +30,7 @@ import static beam.utils.UnzipUtility.unzip;
  */
 class TransitDataDownloader {
 
-    private static final Logger log = Logger.getLogger(TransitDataDownloader.class);
+    private static final Logger log = LoggerFactory.getLogger(TransitDataDownloader.class);
 
     private static final int BUFFER_SIZE = 1024;
     private static TransitDataDownloader instance = null;
