@@ -123,8 +123,8 @@ class RideHailManager(
         new RepositioningLowWaitingTimes(this, tncIterationStats)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(this)
-      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
-        new DummyRideHailDispatchWithBufferingRequests(this)
+      // case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
+      //   new DummyRideHailDispatchWithBufferingRequests(this)
       case x if x startsWith ("Test_") =>
         //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
         //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]

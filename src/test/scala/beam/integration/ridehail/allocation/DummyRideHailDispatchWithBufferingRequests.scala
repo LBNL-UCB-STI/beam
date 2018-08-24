@@ -1,12 +1,12 @@
-package beam.agentsim.agents.ridehail.allocation
+package beam.integration.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.Location
+import beam.agentsim.agents.ridehail.allocation.{
+  RideHailResourceAllocationManager,
+  VehicleAllocation,
+  VehicleAllocationRequest
+}
 import beam.router.RoutingModel.DiscreteTime
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
