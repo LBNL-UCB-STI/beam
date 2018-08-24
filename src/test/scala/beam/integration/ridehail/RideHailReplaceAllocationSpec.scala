@@ -25,39 +25,15 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
           "Test_beam.integration.ridehail.allocation.ImmediateDispatchWithOverwrite"
         )
       )
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
-      )
-      .withValue(
-        "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
-        ConfigValueFactory.fromAnyRef(0.1)
-      )
       .withValue("beam.debug.skipOverBadActors", ConfigValueFactory.fromAnyRef(true))
       .resolve()
-    val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(0)
-    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-    val beamConfig = BeamConfig(config)
-    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    scenario.setNetwork(networkCoordinator.network)
-    val iterationCounter = mock[IterationEndsListener]
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      new AbstractModule() {
-        override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator.transportNetwork))
-          addControlerListenerBinding().toInstance(iterationCounter)
-        }
-      }
-    )
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
-    verify(iterationCounter, times(1)).notifyIterationEnds(any())
+
+    runBeamWithConfig(config)
+
+    // access to events?
+
+    //
+
   }
 
 }
