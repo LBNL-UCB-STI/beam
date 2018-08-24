@@ -547,6 +547,13 @@ object PlansSampler {
   * [5] Number of persons to sample (e.g., 1k, 5k, etc.)
   * [6] Output directory
   * [7] Target CRS
+  *
+  * Run from directly from CLI with, for example:
+  *
+  * $> gradle :execute -PmainClass=beam.utils.plansampling.PlansSamplerApp
+  * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
+  * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
+  * 'production/application-sfbay/vehicles.xml.gz', '41387', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler
