@@ -90,15 +90,15 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
     log.info("{} {}", getPrefix, msg)
   }
 
-  def logWarn(msg:  => String): Unit = {
+  def logWarn(msg: => String): Unit = {
     log.warning("{} {}", getPrefix, msg)
   }
 
-  def logError(msg:  => String): Unit = {
+  def logError(msg: => String): Unit = {
     log.error("{} {}", getPrefix, msg)
   }
 
-  def logDebug(msg: String): Unit = {
+  def logDebug(msg: => String): Unit = {
     log.debug("{} {}", getPrefix, msg)
   }
 
