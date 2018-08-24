@@ -11,6 +11,8 @@ import beam.router.RoutingModel.DiscreteTime
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
+  val enableDummyRidehailReplacement = true
+
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
@@ -24,36 +26,40 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
 
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
 
-    // TODO: test if any issue with mixing with updateVehicleAllocations/handleRideCancellationReply
-    //bufferedRideHailRequests.newTimeout(tick, triggerId)
+    if (enableDummyRidehailReplacement) {
 
-    for (request <- rideHailManager.getCompletedDummyRequests.values) {
-      rideHailManager
-        .getClosestIdleRideHailAgent(
-          request.pickUpLocation,
-          rideHailManager.radiusInMeters
-        ) match {
+      // TODO: test if any issue with mixing with updateVehicleAllocations/handleRideCancellationReply
+      //bufferedRideHailRequests.newTimeout(tick, triggerId)
 
-        case Some(rhl) =>
-          val updatedRequest = request.copy(
-            departAt = DiscreteTime(tick.toInt)
-          )
+      for (request <- rideHailManager.getCompletedDummyRequests.values) {
+        rideHailManager
+          .getClosestIdleRideHailAgent(
+            request.pickUpLocation,
+            rideHailManager.radiusInMeters
+          ) match {
 
-          rideHailManager.requestRoutesToCustomerAndDestination(
-            updatedRequest,
-            rhl
-          )
+          case Some(rhl) =>
+            val updatedRequest = request.copy(
+              departAt = DiscreteTime(tick.toInt)
+            )
 
-          println(
-            s" new vehicle assigned:${rhl.vehicleId}, tick: ${tick}, person: ${request.customer.personId}"
-          )
+            rideHailManager.requestRoutesToCustomerAndDestination(
+              updatedRequest,
+              rhl
+            )
 
-          rideHailManager.removeDummyRequest(request)
+            println(
+              s" new vehicle assigned:${rhl.vehicleId}, tick: ${tick}, person: ${request.customer.personId}"
+            )
 
-          bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
-        case None =>
+            rideHailManager.removeDummyRequest(request)
+
+            bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
+          case None =>
+        }
+        //bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
+
       }
-      //bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
 
     }
 
