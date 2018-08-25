@@ -14,6 +14,8 @@ import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+
 class ParkingSpec
     extends WordSpecLike
     with BeforeAndAfterAll
@@ -36,6 +38,10 @@ class ParkingSpec
     reader.readFile(filePath)
 
     events
+  }
+
+  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
+    runAndCollectForIterations(parkingScenario, 1).head
   }
 
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
@@ -149,10 +155,6 @@ class ParkingSpec
           val parkEventsWithoutLast = parkEvents.dropRight(1)
           val leavingParkEventsWithoutFirst = leavingEvents.tail
 
-          if (parkEventsWithoutLast.size != leavingParkEventsWithoutFirst.size) {
-            println(parkEventsWithoutLast)
-            println(leavingParkEventsWithoutFirst)
-          }
           parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
           (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }
