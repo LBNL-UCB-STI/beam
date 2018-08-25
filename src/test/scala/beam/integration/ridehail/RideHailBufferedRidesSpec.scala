@@ -1,33 +1,89 @@
 package beam.integration.ridehail
 
-import beam.router.r5.NetworkCoordinator
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.integration.EventsFileHandlingCommon
+import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.core.controler.AbstractModule
-import org.matsim.core.controler.listener.IterationEndsListener
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import org.matsim.api.core.v01.events.Event
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar {
-// TODO: include events handling as with : RideHailPassengersEventsSpec
-  it should "be able to run for 1 iteration without exceptions" in {
+import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
+class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar with EventsFileHandlingCommon{
+
+
+  def getActivitiesGroupedByPerson(events: Queue[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
+    val activities = events.filter( e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
+
+    val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) {
+      case (c, ev) =>
+        val personId = ev.getAttributes.get("person")
+        val array = c.getOrElse(personId, ArrayBuffer[Event]())
+        array.append(ev)
+        c.updated(personId, array)
+    }
+
+    groupedByPerson.map {
+      case (id, events) =>
+        val (startActEvents, endActEvents) =
+          events.partition(e => "actstart".equals(e.getEventType))
+        (id, (startActEvents, endActEvents))
+    }
+
+  }
+
+  it should "have same actstart as endstart events for persons when using ridehail replacement in DummyRideHailDispatchWithBufferingRequests" in {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.integration.ridehail.allocation.DummyRideHailDispatchWithBufferingRequests"
+          "Test_beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
           //"DEFAULT_MANAGER"
         )
       )
       .resolve()
-    runBeamWithConfig(config)
+
+    val matsimConfig = runBeamWithConfig(config)._1
+    val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
+    val events = collectEvents(filePath)
+
+    val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
+
+    assert(groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
+      startActEvents.size == endActEvent.size
+    })
+
+//    groupedByPersonStartEndEvents.foreach{ case (_, (startActEvents, endActEvent)) =>
+//      assert(startActEvents.size == endActEvent.size)
+//    }
+    
+  }
+
+  it should "have different actstart and endstart events for persons when NOT using ridehail replacement in DummyRideHailDispatchWithBufferingRequestsWithoutReplacement" in {
+    val config = testConfig("test/input/beamville/beam.conf")
+      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+      .withValue(
+        "beam.agentsim.agents.rideHail.allocationManager.name",
+        ConfigValueFactory.fromAnyRef(
+          "Test_beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+          //"DEFAULT_MANAGER"
+        )
+      )
+      .resolve()
+
+    val matsimConfig = runBeamWithConfig(config)._1
+    val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
+    val events = collectEvents(filePath)
+
+    val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
+
+    assert(!groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
+        startActEvents.size == endActEvent.size
+    })
+
   }
 
 }
