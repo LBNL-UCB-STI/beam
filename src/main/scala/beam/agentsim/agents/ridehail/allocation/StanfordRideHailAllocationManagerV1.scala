@@ -26,20 +26,8 @@ class StanfordRideHailAllocationManagerV1(val rideHailManager: RideHailManager)
   This assignment can be attempted to overwritten later when the allocateVehicles is called.
    */
 
-  override def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
-    val rideHailAgentLocation = rideHailManager.getClosestIdleRideHailAgent(
-      vehicleAllocationRequest.pickUpLocation,
-      rideHailManager.radiusInMeters
-    )
-
-    rideHailAgentLocation match {
-      case Some(rideHailLocation) =>
-        Some(VehicleAllocation(rideHailLocation.vehicleId, rideHailLocation.currentLocation))
-      case None => None
-    }
-  }
+  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
+  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
   /*
     This method can be used to attempt an overwrite of previous vehicle allocation proposal (only possible, if passenger not already picked up).
