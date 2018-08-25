@@ -271,7 +271,9 @@ object FareCalculator {
     * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
     * @return collection of @BeamFareSegment for an itinerary after applying transfer rules
     */
-  def filterFaresOnTransfers(fareSegments: IndexedSeq[BeamFareSegment]): IndexedSeq[BeamFareSegment] = {
+  def filterFaresOnTransfers(
+    fareSegments: IndexedSeq[BeamFareSegment]
+  ): IndexedSeq[BeamFareSegment] = {
 
     /**
       * Apply filter on fare segments, agency by agency in order
@@ -352,9 +354,9 @@ object FareCalculator {
       // and reiterate for rest of the fare segments (rhs) with next iteration number
       fareSegments.span(_.fare.transfers == trans) match {
         case (IndexedSeq(), IndexedSeq()) => Vector()
-        case (IndexedSeq(), rhs)      => iterateTransfers(rhs, next)
-        case (lhs, IndexedSeq())      => applyTransferRules(lhs)
-        case (lhs, rhs)           => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
+        case (IndexedSeq(), rhs)          => iterateTransfers(rhs, next)
+        case (lhs, IndexedSeq())          => applyTransferRules(lhs)
+        case (lhs, rhs)                   => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
       }
     }
 

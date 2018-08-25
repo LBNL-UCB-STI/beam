@@ -9,8 +9,7 @@ import beam.sim.BeamServices
 /**
   * BEAM
   */
-class ModeChoiceDriveIfAvailable(val beamServices: BeamServices)
-    extends ModeChoiceCalculator {
+class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {

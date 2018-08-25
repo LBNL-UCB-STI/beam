@@ -8,8 +8,7 @@ import beam.sim.BeamServices
 /**
   * BEAM
   */
-class ModeChoiceTransitIfAvailable(val beamServices: BeamServices)
-    extends ModeChoiceCalculator {
+class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def clone(): ModeChoiceCalculator =
     new ModeChoiceTransitIfAvailable(beamServices)

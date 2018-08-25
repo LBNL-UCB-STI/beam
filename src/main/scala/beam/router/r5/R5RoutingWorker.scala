@@ -99,7 +99,8 @@ class R5RoutingWorker(
       }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
-        .maxBy(e => e.getTime).getTime - leg.startTime
+        .maxBy(e => e.getTime)
+        .getTime - leg.startTime
 
       sender ! RoutingResponse(
         Vector(
@@ -584,7 +585,7 @@ class R5RoutingWorker(
       })
 
       tripsWithFares.map(tripWithFares => {
-        val embodiedLegs: Vector[EmbodiedBeamLeg] =
+        val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
           for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
             val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
             if (Modes.isR5TransitMode(beamLeg.mode)) {

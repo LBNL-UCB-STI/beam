@@ -9,8 +9,7 @@ import beam.sim.BeamServices
 /**
   * BEAM
   */
-class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices)
-    extends ModeChoiceCalculator {
+class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {

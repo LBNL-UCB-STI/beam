@@ -157,7 +157,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           val stall = beamServices.vehicles(data.currentVehicle.head).stall
           stall.foreach { stall =>
             val nextLeg =
-              data.passengerSchedule.schedule.keys.view.drop(data.currentLegPassengerScheduleIndex).head
+              data.passengerSchedule.schedule.keys.view
+                .drop(data.currentLegPassengerScheduleIndex)
+                .head
             val distance =
               beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
             eventsManager
@@ -351,13 +353,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      val head = data.passengerSchedule.schedule
+      val beamLeg = data.passengerSchedule.schedule
         .drop(data.currentLegPassengerScheduleIndex)
         .head
+        ._1
       RoutingModel
-        .traverseStreetLeg_opt(head._1, data.currentVehicle.head)
+        .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
         .foreach(eventsManager.processEvent)
-      val endTime = tick + head._1.duration
+      val endTime = tick + beamLeg.duration
       goto(Driving) using LiterallyDrivingData(data, endTime)
         .asInstanceOf[T] replying CompletionNotice(
         triggerId,

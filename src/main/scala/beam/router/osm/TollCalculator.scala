@@ -80,6 +80,7 @@ class TollCalculator(val directory: String) extends LazyLogging {
   }
 
   var maxOsmIdsLen: Long = Long.MinValue
+
   def calcToll(osmIds: Vector[Long]): Double = {
     if (osmIds.length > maxOsmIdsLen) {
       maxOsmIdsLen = osmIds.length
