@@ -28,6 +28,7 @@ case class RideHailRequest(
       .append(destination)
       .toHashCode
   }
+  override def toString(): String = s"id: ${requestId}, type: ${requestType}, customer: ${customer.personId}, pickup: ${pickUpLocation}, time: ${departAt}, dest: ${destination}"
 }
 
 object RideHailRequest {
