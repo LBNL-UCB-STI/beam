@@ -29,31 +29,35 @@ object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
 
-  case class BeamTrip(legs: Vector[BeamLeg], accessMode: BeamMode)
+  case class BeamTrip(legs: IndexedSeq[BeamLeg], accessMode: BeamMode)
 
   object BeamTrip {
-    def apply(legs: Vector[BeamLeg]): BeamTrip = BeamTrip(legs, legs.head.mode)
+    def apply(legs: IndexedSeq[BeamLeg]): BeamTrip = BeamTrip(legs, legs.head.mode)
 
     val empty: BeamTrip = BeamTrip(Vector(), BeamMode.WALK)
   }
 
-  case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
+  case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
+    @transient
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
+    @transient
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
-    lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
+    @transient
+    lazy val vehiclesInTrip: IndexedSeq[Id[Vehicle]] = determineVehiclesInTrip(legs)
+    @transient
     lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
       !_.asDriver
     )
 
     val totalTravelTimeInSecs: Long = legs.map(_.beamLeg.duration).sum
 
-    def beamLegs(): Vector[BeamLeg] =
+    def beamLegs(): IndexedSeq[BeamLeg] =
       legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
     def toBeamTrip: BeamTrip = BeamTrip(beamLegs())
 
-    def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
+    def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
       var hasUsedCar: Boolean = false
       var hasUsedRideHail: Boolean = false
@@ -82,7 +86,7 @@ object RoutingModel {
       }
     }
 
-    def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
+    def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
     override def toString: String = {
