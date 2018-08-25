@@ -231,7 +231,12 @@ object HouseholdActor {
       )
 
       val valueOfTime: Double =
-        personAttributes.getAttribute(person.getId.toString, "valueOfTime").asInstanceOf[Double]
+        personAttributes.getAttribute(person.getId.toString, "valueOfTime") match{
+          case null =>
+            beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+          case specifiedVot =>
+            specifiedVot.asInstanceOf[Double]
+        }
 
       val attributes =
         AttributesOfIndividual(person, household, vehicles, availableModes, valueOfTime)
@@ -264,7 +269,6 @@ object HouseholdActor {
       val newBodyVehicle = new BeamVehicle(
         powerTrainForHumanBody,
         matsimBodyVehicle,
-        None,
         HumanBodyVehicle,
         None,
         None

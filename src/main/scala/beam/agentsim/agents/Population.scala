@@ -176,6 +176,7 @@ class Population(
 }
 
 object Population {
+  val defaultVehicleRange = 5e3
 
   case object InitParkingVehicles
 
@@ -193,7 +194,11 @@ object Population {
     }
     houseHoldVehicles
       .map({ id =>
-        makeHouseholdVehicle(beamServices.matsimServices.getScenario.getVehicles, id) match {
+        makeHouseholdVehicle(
+          beamServices.matsimServices.getScenario.getVehicles,
+          id,
+          defaultVehicleRange
+        ) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
         }
       })

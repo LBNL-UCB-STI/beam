@@ -131,7 +131,6 @@ class BeamRouter(
           val vehicle: BeamVehicle = new BeamVehicle(
             Powertrain.PowertrainFromMilesPerGallon(consumption),
             matSimTransitVehicle,
-            None,
             TransitVehicle,
             None,
             None

@@ -122,7 +122,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   currentLeg,
                   beamServices
                     .vehicles(currentVehicleUnderControl)
-                    .fuelLevel
+                    .fuelLevelInJoules
                     .getOrElse(-1.0)
                 )
               )
@@ -289,7 +289,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   updatedBeamLeg,
                   beamServices
                     .vehicles(currentVehicleUnderControl)
-                    .fuelLevel
+                    .fuelLevelInJoules
                     .getOrElse(-1.0)
                 )
               )

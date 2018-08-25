@@ -29,9 +29,8 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 class BeamVehicle(
   val powerTrain: Powertrain,
   val matSimVehicle: Vehicle,
-  val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
-  var fuelLevel: Option[Double],
+  var fuelLevelInJoules: Option[Double],
   val fuelCapacityInJoules: Option[Double]
 ) extends Resource[BeamVehicle] {
   val log: Logger = Logger.getLogger(classOf[BeamVehicle])
@@ -88,21 +87,21 @@ class BeamVehicle(
     stall = None
   }
 
-  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(
+  def useFuel(distanceInMeters: Double): Unit = fuelLevelInJoules foreach { fLevel =>
+    fuelLevelInJoules = Some(
       fLevel - powerTrain
         .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
     )
   }
 
-  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
+  def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>
+    fuelLevelInJoules = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
   }
 
   def getState(): BeamVehicleState =
     BeamVehicleState(
-      fuelLevel.getOrElse(Double.NaN),
-      fuelLevel.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
+      fuelLevelInJoules.getOrElse(Double.NaN),
+      fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
       driver,
       stall
     )

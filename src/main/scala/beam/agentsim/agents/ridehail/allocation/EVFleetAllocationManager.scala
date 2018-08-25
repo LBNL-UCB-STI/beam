@@ -3,6 +3,7 @@ package beam.agentsim.agents.rideHail.allocation
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager, RideHailRequest}
+import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -59,7 +60,14 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         if (rideHailManager
               .getVehicleState(agentLocation.vehicleId)
               .remainingRangeInM < routingResponses.get
-              .map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
+              .map(
+                _.itineraries
+                  .find(_.tripClassifier == RIDE_HAIL)
+                  .map(
+                    _.legs.filter(_.beamLeg.mode == CAR).map(_.beamLeg.travelPath.distanceInM).sum
+                  )
+                  .sum
+              )
               .sum) {
           requestToExcludedDrivers.put(
             reqId,
@@ -102,7 +110,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         rideHailManager.radiusInMeters,
         request.departAt.atTime
       )
-      .filterNot(rhETa => excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId))
+      .filterNot{rhETa => excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId)}
       .filter { rhEta =>
         rideHailManager
           .getVehicleState(rhEta.agentLocation.vehicleId)
