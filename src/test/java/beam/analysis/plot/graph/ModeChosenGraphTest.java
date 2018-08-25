@@ -19,7 +19,7 @@ public class ModeChosenGraphTest {
         createDummySimWithXML();
     }
 
-    @Test 
+    @Test
     public void testShouldPassShouldReturnModeChoseEventCarOccurrence() {
 
         int expectedResult = 33;
