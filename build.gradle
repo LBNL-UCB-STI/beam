@@ -500,7 +500,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx130g"] + logGC
+applicationDefaultJvmArgs = ["-Xmx200g"] + logGC
 println(applicationDefaultJvmArgs)
 
 run {
