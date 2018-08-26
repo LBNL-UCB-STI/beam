@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import java.io.FileWriter
 import java.nio.file.{Files, Paths}
-import java.util 
+import java.util
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource._
