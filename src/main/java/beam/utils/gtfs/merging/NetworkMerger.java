@@ -22,7 +22,6 @@
 package beam.utils.gtfs.merging;
 
 import com.google.common.collect.Sets;
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
@@ -31,6 +30,8 @@ import org.matsim.api.core.v01.network.NetworkFactory;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -41,7 +42,7 @@ import java.util.Set;
  * @author sfeygin (modifying)
  */
 public class NetworkMerger {
-    private static Logger log = Logger.getLogger(NetworkMerger.class);
+    private static Logger log = LoggerFactory.getLogger(NetworkMerger.class);
 
     public static Network mergeNetworks(final Network networkA, final Network networkB) {
         final Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());

@@ -9,12 +9,16 @@ import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.scenario.ScenarioUtils;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
+import java.util.concurrent.TimeoutException;
 
 //import akka.stream.scaladsl.BroadcastHub.Consumer;
 
 public class ActorVersionJDEQSimMain {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws TimeoutException, InterruptedException {
 //		 See beam.agentsim.sim.AgentsimServices
 //		@Depracated
 //
@@ -57,7 +61,7 @@ public class ActorVersionJDEQSimMain {
 //            System.out.println(">>> Producing & sending a number " +  i);
 //            printNumbersConsumer.tell(i, ActorRef.noSender());
 //        }
-        system.awaitTermination();
+        Await.ready(system.whenTerminated(), Duration.Inf());
         //System.out.println("===== Finished producing & sending numbers 1 to 10");
         // Await.ready(system.whenTerminated, new Timeout(FiniteDuration.create(1, java.util.concurrent.TimeUnit.SECONDS)));
 

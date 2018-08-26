@@ -16,10 +16,14 @@ import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.scenario.ScenarioUtils;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
+import java.util.concurrent.TimeoutException;
 
 public class BeamSimAkkaMain {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws TimeoutException, InterruptedException {
         // TODO: read Plans
         // TODO: introduce infrastructure (3 times more chargers than cars).
 
@@ -50,7 +54,7 @@ public class BeamSimAkkaMain {
 
         scheduler.tell(new StartSimulationMessage(), ActorRef.noSender());
 
-        system.awaitTermination();
+        Await.ready(system.whenTerminated(), Duration.Inf());
     }
 
     public static void clonePerson(Scenario scenario, int numberOfPeople, Person templatePerson) {
