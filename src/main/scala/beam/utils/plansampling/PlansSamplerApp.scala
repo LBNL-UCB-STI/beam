@@ -553,7 +553,7 @@ object PlansSampler {
   * $> gradle :execute -PmainClass=beam.utils.plansampling.PlansSamplerApp
   * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
   * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
-  * 'production/application-sfbay/vehicles.xml.gz', '41387', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
+  * 'production/application-sfbay/vehicles.xml.gz', '413187', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler

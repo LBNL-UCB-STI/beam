@@ -119,7 +119,7 @@ class RideHailManager(
         new RandomRepositioning(this)
       case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
         new DummyRideHailDispatchWithBufferingRequests(this)
-      case x if x startsWith ("Test_") =>
+      case x if x startsWith "Test_" =>
         //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
         //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
 
@@ -144,8 +144,6 @@ class RideHailManager(
       scheduler,
       beamServices.beamConfig
     )
-
-  private val handleRideHailInquirySubmitted = mutable.Set[String]()
 
   var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
 

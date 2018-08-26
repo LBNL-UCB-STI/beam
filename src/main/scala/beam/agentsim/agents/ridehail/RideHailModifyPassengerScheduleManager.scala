@@ -98,13 +98,6 @@ class RideHailModifyPassengerScheduleManager(
     )
   }
 
-  private def printVehicleVariables(status: RideHailModifyPassengerScheduleStatus): Unit = {
-    log.debug("vehicleId status - vehicleId(" + status.vehicleId + ")")
-    log.debug("vehicleIdToModifyPassengerScheduleStatus: " + status.vehicleId + ")")
-    vehicleIdToModifyPassengerScheduleStatus.get(status.vehicleId)
-    val resourcesNotCheckedIn = mutable.Set[Id[Vehicle]]()
-  }
-
   private def sendModifyPassengerScheduleMessage(
     selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus],
     stopDriving: Boolean
@@ -162,7 +155,7 @@ class RideHailModifyPassengerScheduleManager(
         }
 
         var selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus] = None
-        var withVehicleIds = getWithVehicleIds(vehicleId)
+        val withVehicleIds = getWithVehicleIds(vehicleId)
         if (reservationModifyPassengerScheduleStatus.isEmpty) {
 
           if (withVehicleIds.isEmpty) {
@@ -184,9 +177,7 @@ class RideHailModifyPassengerScheduleManager(
             interruptIdToModifyPassengerScheduleStatus.remove(interruptId)
             vehicleIdToModifyPassengerScheduleStatus.put(
               vehicleId,
-              vehicleIdToModifyPassengerScheduleStatus
-                .get(vehicleId)
-                .get
+              vehicleIdToModifyPassengerScheduleStatus(vehicleId)
                 .filterNot(x => x.interruptId == interruptId)
             )
 
