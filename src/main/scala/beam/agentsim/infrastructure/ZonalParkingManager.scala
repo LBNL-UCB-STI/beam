@@ -47,7 +47,7 @@ class ZonalParkingManager(
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
-  def fillInDefaultPooledResources (): Unit = {
+  def fillInDefaultPooledResources(): Unit = {
     for {
       taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Residential, Workplace, Public)
