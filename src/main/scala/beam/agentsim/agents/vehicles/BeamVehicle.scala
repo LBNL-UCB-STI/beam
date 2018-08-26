@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.infrastructure.ParkingStall
-import org.apache.log4j.Logger
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
@@ -32,8 +32,8 @@ class BeamVehicle(
   val beamVehicleType: BeamVehicleType,
   var fuelLevelInJoules: Option[Double],
   val fuelCapacityInJoules: Option[Double]
-) extends Resource[BeamVehicle] {
-  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+) extends Resource[BeamVehicle]
+    with StrictLogging {
 
   /**
     * Identifier for this vehicle

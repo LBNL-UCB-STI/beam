@@ -1,6 +1,5 @@
 package beam.utils.gtfs.merging;
 
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
@@ -11,6 +10,8 @@ import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.pt.transitSchedule.TransitScheduleFactoryImpl;
 import org.matsim.pt.transitSchedule.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -20,6 +21,8 @@ import java.util.*;
  * @author dhosse
  */
 public class TransitScheduleSimplifier {
+
+    private static final Logger log = LoggerFactory.getLogger(TransitScheduleSimplifier.class);
 
     private final Map<Id, Double[]> departures = new HashMap<>();
     private TransitSchedule transitSchedule;
@@ -76,8 +79,6 @@ public class TransitScheduleSimplifier {
     }
 
     private TransitSchedule mergeEqualTransitRoutes(final TransitSchedule schedule, String outputDirectory) {
-
-        final Logger log = Logger.getLogger(TransitScheduleSimplifier.class);
 
         log.info("starting simplify method for given transit schedule...");
         log.info("equal transit routes within a transit line will be merged...");
@@ -212,8 +213,6 @@ public class TransitScheduleSimplifier {
     }
 
     private TransitSchedule mergeEqualTransitRoutesV1(final TransitSchedule schedule, String outputDirectory) {
-
-        final Logger log = Logger.getLogger(TransitScheduleSimplifier.class);
 
         log.info("starting simplify method for given transit schedule...");
         log.info("all equal transit routes will be merged...");
@@ -365,8 +364,6 @@ public class TransitScheduleSimplifier {
     private TransitSchedule mergeTouchingTransitRoutes(Scenario scenario, String outputDirectory) {
 
         final String UNDERLINE = "_____";
-
-        Logger log = Logger.getLogger(TransitScheduleSimplifier.class);
 
         log.info("starting simplify method for given transit schedule...");
         log.info("transit routes within a transit line that overlap at least at one stop facility will be merged...");

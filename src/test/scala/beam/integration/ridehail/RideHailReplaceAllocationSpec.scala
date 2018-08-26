@@ -16,7 +16,8 @@ import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
 class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar {
-// TODO: include events handling as with : RideHailPassengersEventsSpec
+
+  // TODO: include events handling as with : RideHailPassengersEventsSpec
   it should "be able to run for 1 iteration without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
