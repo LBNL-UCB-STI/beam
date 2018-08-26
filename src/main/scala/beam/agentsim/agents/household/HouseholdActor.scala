@@ -231,7 +231,7 @@ object HouseholdActor {
       )
 
       val valueOfTime: Double =
-        personAttributes.getAttribute(person.getId.toString, "valueOfTime") match{
+        personAttributes.getAttribute(person.getId.toString, "valueOfTime") match {
           case null =>
             beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
           case specifiedVot =>

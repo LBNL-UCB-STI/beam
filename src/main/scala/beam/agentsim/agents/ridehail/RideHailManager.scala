@@ -341,7 +341,11 @@ class RideHailManager(
           request.customer.personId,
           request.requestId
         )
-        request.customer.personRef.get ! RideHailResponse(request,None,Some(CouldNotFindRouteToCustomer))
+        request.customer.personRef.get ! RideHailResponse(
+          request,
+          None,
+          Some(CouldNotFindRouteToCustomer)
+        )
       }
 
     case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _) =>
@@ -578,7 +582,7 @@ class RideHailManager(
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
 //        println(s"${request.requestId} -- NoVehicleAllocated")
-        request.customer.personRef.get ! RideHailResponse(request,None,Some(DriverNotFoundError))
+        request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
 
@@ -965,8 +969,9 @@ object RideHailManager {
     estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
-  ){
-    override def toString(): String = s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: ${timeToCustomer}, price: ${estimatedPrice}, travelTime: ${estimatedTravelTime}"
+  ) {
+    override def toString(): String =
+      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: ${timeToCustomer}, price: ${estimatedPrice}, travelTime: ${estimatedTravelTime}"
   }
 
   case class RoutingResponses(

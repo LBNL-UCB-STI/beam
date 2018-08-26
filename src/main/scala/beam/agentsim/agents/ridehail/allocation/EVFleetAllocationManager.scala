@@ -110,7 +110,9 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         rideHailManager.radiusInMeters,
         request.departAt.atTime
       )
-      .filterNot{rhETa => excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId)}
+      .filterNot { rhETa =>
+        excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId)
+      }
       .filter { rhEta =>
         rideHailManager
           .getVehicleState(rhEta.agentLocation.vehicleId)

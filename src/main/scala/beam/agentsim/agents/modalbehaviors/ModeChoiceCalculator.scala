@@ -43,7 +43,7 @@ trait ModeChoiceCalculator extends HasServices {
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
-      DefaultVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
       GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
