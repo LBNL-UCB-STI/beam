@@ -263,6 +263,7 @@ class RideHailManager(
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
     case RoutingResponses(request, None, responses) =>
+//      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
     case RoutingResponses(
@@ -270,6 +271,7 @@ class RideHailManager(
         Some(rideHailLocation),
         responses
         ) =>
+//      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
       val itins = responses.map { response =>
         response.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL))
       }
@@ -349,8 +351,10 @@ class RideHailManager(
           request.customer.personId,
           request.requestId
         )
-        request.customer.personRef.get ! RideHailResponse.dummyWithError(
-          CouldNotFindRouteToCustomer
+        request.customer.personRef.get ! RideHailResponse(
+          request,
+          None,
+          Some(CouldNotFindRouteToCustomer)
         )
       }
 
@@ -582,17 +586,21 @@ class RideHailManager(
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None) =>
+//        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
         requestRoutes(
           request,
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation)
         )
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
+//        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
+//        println(s"${request.requestId} -- RoutingRequired")
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
-        request.customer.personRef.get ! RideHailResponse.dummyWithError(DriverNotFoundError)
+//        println(s"${request.requestId} -- NoVehicleAllocated")
+        request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
 
@@ -932,16 +940,22 @@ class RideHailManager(
     routingRequests: List[RoutingRequest]
   ) = {
     val preservedOrder = routingRequests.map(_.requestId)
+//    print(s"Routing reqs for RHReq ${rideHailRequest.requestId}: ")
+//    routingRequests.foreach(req => print(s"${req.requestId}, "))
+//    println("")
     Future
       .sequence(routingRequests.map { req =>
         akka.pattern.ask(router, req).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
+//        print(s"Routing responses for RHReq ${rideHailRequest.requestId}: ")
+//        responseList.foreach(req => print(s"${req.requestId}, "))
+//        println("")
         val requestIdToResponse = responseList.map { response =>
           (response.requestId.get -> response)
         }.toMap
-        val orderedResponese = preservedOrder.map(requestId => requestIdToResponse(requestId))
-        self ! RoutingResponses(rideHailRequest, rideHailAgentLocation, orderedResponese)
+        val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
+        self ! RoutingResponses(rideHailRequest, rideHailAgentLocation, orderedResponses)
       }
   }
 
@@ -972,7 +986,10 @@ object RideHailManager {
     estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
-  )
+  ) {
+    override def toString(): String =
+      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: ${timeToCustomer}, price: ${estimatedPrice}, travelTime: ${estimatedTravelTime}"
+  }
 
   case class RoutingResponses(
     request: RideHailRequest,
