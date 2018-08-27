@@ -203,7 +203,9 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
             .size()
         },\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
       )
-      awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+      awaitingResponse
+        .values()
+        .forEach(x => log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
       val stuckAgents = stuckFinder.detectStuckAgents()

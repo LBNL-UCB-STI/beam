@@ -1,58 +1,157 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
+import beam.agentsim.agents.rideHail.allocation.{
+  EVFleetAllocationManager,
+  ImmediateDispatchWithOverwrite
+}
+import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  RideHailAgentLocation,
+  RoutingResponses
+}
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.Location
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.RoutingModel.BeamTime
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import org.slf4j.{Logger, LoggerFactory}
 
-trait RideHailResourceAllocationManager {
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
+    extends LazyLogging {
 
-  lazy val log: Logger = LoggerFactory.getLogger(getClass)
+  val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
+    rideHailManager.scheduler
+  )
 
-  // TODO RW make two traits, one for rideHail manager and one for buffered RideHail Manager?
-
-  val isBufferedRideHailAllocationMode: Boolean
-
-  // def respondToCustomerInquiry()
-
-  // def allocateSingleCustomer()
-  // NON batch: None means: go to default behaviour
-  // batch none means: allocate dummy vehicle (person should send confirmation to scheduler, don't move any vehicle).
-
-  // def allocateBatchCustomers()
-
-  // TODO: add distinguish param inquiry vs. reservation
   def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation]
+  ): VehicleAllocationResponse = {
+    // closest request
+    rideHailManager
+      .getClosestIdleVehiclesWithinRadius(
+        vehicleAllocationRequest.request.pickUpLocation,
+        rideHailManager.radiusInMeters
+      )
+      .headOption match {
+      case Some(agentLocation) =>
+        VehicleAllocation(agentLocation, None)
+      case None =>
+        NoVehicleAllocated
+    }
+  }
 
-  // add assigned and get back new
+  def updateVehicleAllocations(
+    tick: Double,
+    triggerId: Long,
+    rideHailManager: RideHailManager
+  ): Unit = {
+    bufferedRideHailRequests.newTimeout(tick, triggerId)
 
-  def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): IndexedSeq[(VehicleAllocationRequest, Option[VehicleAllocation])]
+    updateVehicleAllocations(tick, triggerId)
 
-  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)]
+    // TODO: refactor to BufferedRideHailRequests?
+    val timerTrigger = BufferedRideHailRequestsTimeout(
+      tick + 10 // TODO: replace with new config variable
+    )
+    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
+    Vector(timerMessage)
+
+    val nextMessage = Vector(timerMessage)
+
+    bufferedRideHailRequests.addTriggerMessages(nextMessage)
+
+    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+
+  }
+
+  def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
+    logger.trace("default implementation updateVehicleAllocations executed")
+  }
+
+  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+    logger.trace("default implementation handleRideCancellationReply executed")
+  }
+
+  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+    logger.trace("default implementation repositionVehicles executed")
+    Vector()
+  }
+
+  def setBufferedRideHailRequests(bufferedRideHailRequests: BufferedRideHailRequests): Unit = {}
 
 }
 
 object RideHailResourceAllocationManager {
   val DEFAULT_MANAGER = "DEFAULT_MANAGER"
-  val BUFFERED_IMPL_TEMPLATE = "BUFFERED_IMPL_TEMPLATE"
+  val EV_MANAGER = "EV_MANAGER"
+  val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val STANFORD_V1 = "STANFORD_V1"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
+  val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
+
+  def apply(
+    allocationManager: String,
+    rideHailManager: RideHailManager
+  ): RideHailResourceAllocationManager = {
+    allocationManager match {
+      case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
+        new DefaultRideHailResourceAllocationManager(rideHailManager)
+      case RideHailResourceAllocationManager.EV_MANAGER =>
+        new EVFleetAllocationManager(rideHailManager)
+      case RideHailResourceAllocationManager.STANFORD_V1 =>
+        new StanfordRideHailAllocationManagerV1(rideHailManager)
+      case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
+        new RepositioningLowWaitingTimes(rideHailManager)
+      case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
+        new RandomRepositioning(rideHailManager)
+      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
+        new ImmediateDispatchWithOverwrite(rideHailManager)
+      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
+        new DummyRideHailDispatchWithBufferingRequests(rideHailManager)
+      case x if x startsWith ("Test_") =>
+        //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
+        //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
+
+        val classFullName = x.replaceAll("Test_", "")
+        Class
+          .forName(classFullName)
+          .getDeclaredConstructors()(0)
+          .newInstance(rideHailManager)
+          .asInstanceOf[RideHailResourceAllocationManager]
+
+      case _ =>
+        throw new IllegalStateException(
+          s"Unknown RideHailResourceAllocationManager: $allocationManager"
+        )
+    }
+  }
 }
 
-case class VehicleAllocation(vehicleId: Id[Vehicle], availableAt: SpaceTime)
+trait VehicleAllocationResponse
+
+case class RoutingRequiredToAllocateVehicle(
+  request: RideHailRequest,
+  routesRequired: List[RoutingRequest]
+) extends VehicleAllocationResponse
+case class VehicleAllocation(
+  rideHailAgentLocation: RideHailAgentLocation,
+  routingResponses: Option[List[RoutingResponse]]
+) extends VehicleAllocationResponse
+case object NoVehicleAllocated extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(
-  pickUpLocation: Location,
-  departAt: BeamTime,
-  destination: Location,
-  isInquiry: Boolean
+  request: RideHailRequest,
+  routingResponses: List[RoutingResponse]
 )
+
+//requestType: RideHailRequestType,
+//customer: VehiclePersonId,
+//pickUpLocation: Location,
+//departAt: BeamTime,
+//destination: Location
 
 // TODO (RW): mention to CS that cost removed from VehicleAllocationResult, as not needed to be returned (RHM default implementation calculates it already)

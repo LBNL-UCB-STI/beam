@@ -40,7 +40,7 @@ beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hailing_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0.0
 beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
 

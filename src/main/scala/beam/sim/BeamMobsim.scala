@@ -23,21 +23,28 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
   NotifyIterationEnds,
   RideHailAllocationManagerTimeout
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.ParkingManager.{
+  ParkingInquiry,
+  ParkingInquiryResponse,
+  ParkingStockAttributes
+}
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
-import beam.agentsim.infrastructure.TAZTreeMap.QuadTreeBounds
-import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils._
+import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -71,10 +78,14 @@ class BeamMobsim @Inject()(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
+  var memoryLoggingTimerActorRef: ActorRef = _
+  var memoryLoggingTimerCancellable: Cancellable = _
+
+  var rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
   val rideHailHouseholds: mutable.Set[Id[Household]] =
     mutable.Set[Id[Household]]()
+
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   /*
@@ -154,6 +165,13 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
+        private val parkingManager = context.actorOf(
+          ZonalParkingManager
+            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+          "ParkingManager"
+        )
+        context.watch(parkingManager)
+
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef =
             context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
@@ -172,6 +190,7 @@ class BeamMobsim @Inject()(
             transportNetwork,
             beamServices.beamRouter,
             rideHailManager,
+            parkingManager,
             eventsManager
           ),
           "population"
@@ -292,7 +311,7 @@ class BeamMobsim @Inject()(
                 powerTrain,
                 rideHailVehicle,
                 vehicleAttribute,
-                Car,
+                CarVehicle,
                 Some(1.0),
                 Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
               )
@@ -346,7 +365,7 @@ class BeamMobsim @Inject()(
 
         log.info(s"Transit schedule has been initialized")
 
-        scheduleRideHailManagerTimerMessage()
+        scheduleRideHailManagerTimerMessages()
 
         def prepareMemoryLoggingTimerActor(
           timeoutInSeconds: Int,
@@ -369,12 +388,13 @@ class BeamMobsim @Inject()(
 
           case CompletionNotice(_, _) =>
             log.info("Scheduler is finished.")
+            cleanupRideHailingAgents()
             endSegment("agentsim-execution", "agentsim")
             log.info("Ending Agentsim")
             log.info("Processing Agentsim Events (Start)")
             startSegment("agentsim-events", "agentsim")
 
-            cleanupRideHailAgents()
+            cleanupRideHailingAgents()
             cleanupVehicle()
             population ! Finish
             val future = rideHailManager.ask(NotifyIterationEnds())
@@ -382,9 +402,14 @@ class BeamMobsim @Inject()(
             context.stop(rideHailManager)
             context.stop(scheduler)
             context.stop(errorListener)
+            context.stop(parkingManager)
             if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
               debugActorWithTimerCancellable.cancel()
               context.stop(debugActorWithTimerActorRef)
+            }
+            if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
+//              memoryLoggingTimerCancellable.cancel()
+//              context.stop(memoryLoggingTimerActorRef)
             }
           case Terminated(_) =>
             if (context.children.isEmpty) {
@@ -406,16 +431,19 @@ class BeamMobsim @Inject()(
             scheduler ! StartSchedule(beamServices.iterationNumber)
         }
 
-        private def scheduleRideHailManagerTimerMessage(): Unit = {
+        private def scheduleRideHailManagerTimerMessages(): Unit = {
           val timerTrigger = RideHailAllocationManagerTimeout(0.0)
           val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
           scheduler ! timerMessage
+
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0.0), rideHailManager)
           log.info(s"rideHailManagerTimerScheduled")
         }
 
-        private def cleanupRideHailAgents(): Unit = {
+        private def cleanupRideHailingAgents(): Unit = {
           rideHailAgents.foreach(_ ! Finish)
-          rideHailAgents.clear()
+          rideHailAgents = new ArrayBuffer()
+
         }
 
         private def cleanupVehicle(): Unit = {

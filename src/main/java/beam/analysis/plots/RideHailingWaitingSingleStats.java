@@ -30,7 +30,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String fileName = "RideHailWaitingSingleStats";
     private double numberOfTimeBins;
     private double lastMaximumTime = 0;
-    private Map<String, Event> rideHailingWaiting = new HashMap<>();
+    private Map<String, Event> rideHailWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
 
@@ -46,7 +46,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     public void resetStats() {
         lastMaximumTime = 0;
 
-        rideHailingWaiting.clear();
+        rideHailWaiting.clear();
         hoursTimesMap.clear();
     }
 
@@ -56,11 +56,11 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         if (event instanceof ModeChoiceEvent) {
 
             String mode = event.getAttributes().get("mode");
-            if (mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hail")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
-                rideHailingWaiting.put(personId.toString(), event);
+                rideHailWaiting.put(personId.toString(), event);
             }
         } else if (event instanceof PersonEntersVehicleEvent) {
 
@@ -68,14 +68,14 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if (rideHailingWaiting.containsKey(personId.toString())) {
+            if (rideHailWaiting.containsKey(personId.toString())) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(_personId);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailingWaitingTimes(modeChoiceEvent, difference);
 
                 // Remove the personId from the list of ModeChoiceEvent
-                rideHailingWaiting.remove(_personId);
+                rideHailWaiting.remove(_personId);
             }
         }
     }
@@ -85,9 +85,12 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
         Collections.sort(hours);
-        int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
+        //int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
 
-        double[][] data = new double[1][maxHour + 1];
+        Double _numberOfTimeBins = this.numberOfTimeBins;
+        int maxHour = _numberOfTimeBins.intValue();
+
+        double[][] data = new double[1][maxHour];
         for (Integer key : hoursTimesMap.keySet()) {
 
             if (key >= data[0].length) {
@@ -142,17 +145,18 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private void writeToCSV(int iterationNumber, Map<Integer, Double> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
-            for (int hours = 1; hours <= numberOfTimeBins; hours++) {
-                heading.append(",").append(hours);
-            }
+
+            String heading = "WaitingTime(sec),Hour";
             out.write(heading.toString());
             out.newLine();
-            String line;
+
             for (int i = 0; i < numberOfTimeBins; i++) {
+
                 Double inner = hourModeFrequency.get(i);
-                line = (inner == null) ? ",0" : "," + Math.round(inner * 100.0) / 100.0;
+                String line = (inner == null) ? "0" : "" + Math.round(inner * 100.0) / 100.0;
+                line += "," + (i + 1);
                 out.write(line);
+                out.newLine();
             }
             out.flush();
         } catch (IOException e) {

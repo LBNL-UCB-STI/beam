@@ -53,7 +53,8 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
         5 -> (0d, 0d),
         6 -> (0d, 0d)
       )
-      val totalsMap = statsTotals.map(e => (e.day_of_week, (e.dropoffs, e.pickups)))
+      val totalsMap =
+        statsTotals.map(e => (e.day_of_week, (e.dropoffs, e.pickups)))
       totalsMap should contain theSameElementsAs (totals)
 
     }

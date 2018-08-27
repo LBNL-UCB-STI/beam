@@ -5,7 +5,8 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import org.apache.log4j.Logger
+import beam.agentsim.infrastructure.ParkingStall
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
@@ -31,8 +32,8 @@ class BeamVehicle(
   val beamVehicleType: BeamVehicleType,
   var fuelLevel: Option[Double],
   val fuelCapacityInJoules: Option[Double]
-) extends Resource[BeamVehicle] {
-  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+) extends Resource[BeamVehicle]
+    with StrictLogging {
 
   /**
     * Identifier for this vehicle
@@ -46,6 +47,8 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+
+  var stall: Option[ParkingStall] = None
 
   def getType: VehicleType = matSimVehicle.getType
 
@@ -76,9 +79,18 @@ class BeamVehicle(
     }
   }
 
+  def useParkingStall(newStall: ParkingStall) = {
+    stall = Some(newStall)
+  }
+
+  def unsetParkingStall() = {
+    stall = None
+  }
+
   def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
     fuelLevel = Some(
-      fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
+      fLevel - powerTrain
+        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
     )
   }
 

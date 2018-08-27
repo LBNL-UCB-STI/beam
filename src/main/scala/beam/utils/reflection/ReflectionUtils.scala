@@ -12,7 +12,6 @@ import scala.reflect.ClassTag
 /**
   * Created by dserdiuk on 5/19/17.
   */
-
 trait ReflectionUtils {
 
   /**
@@ -27,7 +26,11 @@ trait ReflectionUtils {
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
-    reflections.getSubTypesOf(ct.runtimeClass).asScala.map(_.asInstanceOf[Class[T]]).toList
+    reflections
+      .getSubTypesOf(ct.runtimeClass)
+      .asScala
+      .map(_.asInstanceOf[Class[T]])
+      .toList
   }
 
   def concreteClassesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {

@@ -390,7 +390,8 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void writePriceSurgeCsv(double[][] dataset, List<String> categoriesList, boolean categorize) {
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingCsvFileName)))) {
 
-            out.write("Categories," + binsHeaderCsv());
+
+            out.write("Categories,PriceLevel,Hour");
             out.newLine();
 
             if (categorize) {
@@ -408,13 +409,24 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
                     } else {
                         strFormat += categoriesList.get(j + 1);
                     }
-                    out.write(strFormat + "," + toDoubleCsv(dataset[j]));
-                    out.newLine();
+
+                    double[] priceLevels = dataset[j];
+
+                    for(int i = 0; i < priceLevels.length; i++) {
+                        out.write(strFormat + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                        out.newLine();
+                    }
                 }
             } else {
                 for (int j = 0; j < categoriesList.size(); j++) {
-                    out.write(categoriesList.get(j) + "," + toDoubleCsv(dataset[j]));
-                    out.newLine();
+
+
+                    double[] priceLevels = dataset[j];
+
+                    for(int i = 0; i < priceLevels.length; i++) {
+                        out.write(categoriesList.get(j) + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                        out.newLine();
+                    }
                 }
             }
 
@@ -427,17 +439,22 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void writeTazCsv(Map<String, double[][]> dataset) {
 
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)))) {
-            out.write("TazId,DataType," + binsHeaderCsv());
+            out.write("TazId,DataType,Value,Hour");
             out.newLine();
 
             for (String tazId : dataset.keySet()) {
                 double[][] data = dataset.get(tazId);
 
-                out.write(tazId + ",pricelevel," + toDoubleCsv(data[0]));
-                out.newLine();
+                double[] priceLevels = data[0];
+                double[] revenues = data[1];
 
-                out.write(tazId + ",revenue," + toDoubleCsv(data[1]));
-                out.newLine();
+                for(int i = 0; i < priceLevels.length; i++) {
+                    out.write(tazId + ",pricelevel," + getRoundedNumber(priceLevels[i]) + "," + (i + 1));
+                    out.newLine();
+
+                    out.write(tazId + ",revenue," + getRoundedNumber(revenues[i]) + "," + (i + 1));
+                    out.newLine();
+                }
             }
 
             out.flush();
@@ -449,8 +466,15 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void writeRevenueCsv(double[] revenueDataSet) {
 
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)))) {
-            out.write(binsHeaderCsv());
+
+            out.write("Revenue,Hour");
             out.newLine();
+
+            for(int i=0; i<revenueDataSet.length; i++){
+
+                out.write(getRoundedNumber(revenueDataSet[i]) + "," + (i));
+                out.newLine();
+            }
 
             toDoubleCsv(revenueDataSet);
             out.newLine();

@@ -58,7 +58,7 @@ to.title <- function(abbrev){
 }
 pretty.modes <- function(ugly){
   pretty.list <- c('TNC'='ride_hail',
-                   'TNC'='ride_hailing',
+                   'TNC'='ride_hail',
                    'Cable Car'='cable_car',
                    'Car'='car',
                    'Walk'='walk',

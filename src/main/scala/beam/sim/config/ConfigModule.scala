@@ -14,7 +14,8 @@ class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule wi
   }
 
   @Provides @Singleton
-  def beamConfig(typesafeConfig: TypesafeConfig): BeamConfig = BeamConfig(typesafeConfig)
+  def beamConfig(typesafeConfig: TypesafeConfig): BeamConfig =
+    BeamConfig(typesafeConfig)
 
   implicit class ExtendedBeamConfig(beamConfig: BeamConfig) {
 

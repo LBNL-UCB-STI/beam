@@ -1,31 +1,47 @@
 package beam.agentsim.agents
 
+import java.text.AttributedCharacterIterator.Attribute
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
+
+import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  NotifyLegEndTrigger,
+  NotifyLegStartTrigger
+}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.RideHailManager.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
+import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
+import beam.agentsim.agents.vehicles.{
+  BeamVehicle,
+  ReservationRequest,
+  ReservationResponse,
+  ReserveConfirmInfo
+}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.scheduler.BeamAgentScheduler.{
+  CompletionNotice,
+  ScheduleTrigger,
+  SchedulerProps,
+  StartSchedule
+}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -34,19 +50,22 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
+import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
+
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import scala.util.Random
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -67,19 +86,24 @@ class PersonAgentSpec
     with MockitoSugar
     with ImplicitSender {
 
-  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
 
   val dummyAgentId = Id.createPersonId("dummyAgent")
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  val randomSeed: Int = 4771
+  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
-  val services: BeamServices = {
+  val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
+    val matsimServices = mock[MatsimServices]
+    when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
+    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -88,12 +112,12 @@ class PersonAgentSpec
   val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = services
+    override val beamServices: BeamServices = beamServices
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
-      mode: Modes.BeamMode,
-      cost: Double,
-      time: Double,
+      mode: BeamMode,
+      cost: BigDecimal,
+      time: BigDecimal,
       numTransfers: Int
     ): Double = 0.0
   }
@@ -112,6 +136,12 @@ class PersonAgentSpec
     "router"
   )
 
+  val parkingManager = system.actorOf(
+    ZonalParkingManager
+      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+    "ParkingManager"
+  )
+
   case class TestTrigger(tick: Double) extends Trigger
 
   private val networkCoordinator = new NetworkCoordinator(config)
@@ -127,8 +157,7 @@ class PersonAgentSpec
         }
       })
       val scheduler =
-        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)))
+        TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
@@ -138,7 +167,7 @@ class PersonAgentSpec
       val personAgentRef = TestFSMRef(
         new PersonAgent(
           scheduler,
-          services,
+          beamServices,
           modeChoiceCalculator,
           networkCoordinator.transportNetwork,
           self,
@@ -146,7 +175,8 @@ class PersonAgentSpec
           eventsManager,
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
-          Id.create("dummyBody", classOf[Vehicle])
+          Id.create("dummyBody", classOf[Vehicle]),
+          parkingManager
         )
       )
 
@@ -167,8 +197,13 @@ class PersonAgentSpec
         }
       })
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      val population = PopulationUtils.createPopulation(matsimConfig)
+
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      scenario.getPopulation.getPersonAttributes
+        .putAttribute(person.getId.toString, "valueOfTime", 15.0)
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800) // 8:00:00 AM
@@ -179,20 +214,23 @@ class PersonAgentSpec
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
-          (_) => modeChoiceCalculator,
+          beamServices,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
@@ -269,10 +307,13 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, CarVehicle, None, None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val matsimConfig = ConfigUtils.createConfig()
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -293,20 +334,32 @@ class PersonAgentSpec
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      val attributesOfIndividual = AttributesOfIndividual(
+        person,
+        household,
+        Map(Id.create(vehicleId, classOf[BeamVehicle]) -> beamVehicle),
+        Seq(CAR),
+        BigDecimal(18.0)
+      )
+      person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
-          (_) => modeChoiceCalculator,
+          beamServices,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
@@ -376,7 +429,7 @@ class PersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -384,7 +437,7 @@ class PersonAgentSpec
         new Powertrain(0.0),
         new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
-        Car,
+        CarVehicle,
         None,
         None
       )
@@ -473,8 +526,7 @@ class PersonAgentSpec
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       bus.becomeDriver(
@@ -492,12 +544,13 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          services,
+          beamServices,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
           self,
+          parkingManager,
           eventsManager,
           population,
           household.getId,
