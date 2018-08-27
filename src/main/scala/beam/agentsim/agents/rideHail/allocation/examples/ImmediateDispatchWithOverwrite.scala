@@ -9,23 +9,33 @@ import beam.agentsim.agents.ridehail.allocation.{
 }
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.DiscreteTime
+import beam.sim.metrics.MetricsPrinter.Print
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
+/*
+Idea: try to buffer one request at a time.
+
+
+ */
 class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  var bufferedRideHailRequestsQueue = new mutable.Queue[VehicleAllocationRequest]
+  var bufferedRideHailRequest: Option[VehicleAllocationRequest] = None
+  var reservationCompleted = false
+  var overwriteAttemptStarted = false
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): Option[VehicleAllocation] = {
 
-    if (bufferedRideHailRequestsQueue.size < 1) {
-      bufferedRideHailRequestsQueue += vehicleAllocationRequest
+    bufferedRideHailRequest match {
+      case None => bufferedRideHailRequest = Some(vehicleAllocationRequest)
+      case _    =>
     }
 
     // just go with closest request
@@ -37,7 +47,9 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     bufferedRideHailRequests.decreaseNumberOfOpenOverwriteRequests()
 
     if (reply.success) {
-      val firstRequestOfDay = bufferedRideHailRequestsQueue.head
+      // overwrite first ride of day
+
+      val firstRequestOfDay = bufferedRideHailRequest.get
 
       val rhl = rideHailManager
         .getClosestIdleRideHailAgent(
@@ -59,13 +71,22 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
       )
 
+      logger.debug(
+        s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
+      )
+
       bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
 
     } else {
+      println(
+        s"reassignment failed"
+      )
       bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
     }
 
-    bufferedRideHailRequestsQueue = new mutable.Queue[VehicleAllocationRequest]
+    bufferedRideHailRequest = None
+    overwriteAttemptStarted = false
+    reservationCompleted = false
 
   }
 
@@ -74,24 +95,35 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
     // try to cancel first ride of day
 
-    if (!bufferedRideHailRequestsQueue.isEmpty) {
-      val firstRequestOfDay = bufferedRideHailRequestsQueue.head
+    bufferedRideHailRequest match {
+      case Some(bufferedRideHailRequest) if !overwriteAttemptStarted && reservationCompleted =>
+        println(
+          s"trying to reassign vehicle to customer:${bufferedRideHailRequest.request.customer}, tick: $tick"
+        )
+        logger.debug(
+          s"trying to reassign vehicle to customer:${bufferedRideHailRequest.request.customer}, tick: $tick"
+        )
+        rideHailManager.attemptToCancelCurrentRideRequest(
+          tick,
+          bufferedRideHailRequest.request.requestId
+        )
+        logger.debug(
+          s"attempt finished, tick: $tick"
+        )
+        bufferedRideHailRequests.increaseNumberOfOpenOverwriteRequests()
+        overwriteAttemptStarted = true
 
-      logger.debug(
-        s"trying to reassign vehicle to customer:${firstRequestOfDay.request.customer}, tick: $tick"
-      )
-      rideHailManager.attemptToCancelCurrentRideRequest(tick, firstRequestOfDay.request.requestId) // CONTINUE HERE
-      logger.debug(
-        s"attempt finished, tick: $tick"
-      )
+      case _ =>
+    }
 
-      // TODO: ask vehicle, if customer already picked up (can't rely on tick, as RHM tick might be in same window as driver pickup).
-      //  -> make method custom
-      //
-      // , if not, cancel it (go to idle state properly) - make new request type for this?
-      // let us lock the other ride and unlock if already picked up, otherwise dispatch it to customer
+  }
 
-      bufferedRideHailRequests.increaseNumberOfOpenOverwriteRequests()
+  override def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {
+    bufferedRideHailRequest match {
+      case Some(bufferedRideHailRequest)
+          if bufferedRideHailRequest.request.customer.personId == personId =>
+        reservationCompleted = true
+      case _ =>
     }
 
   }

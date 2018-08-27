@@ -20,6 +20,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -60,6 +61,33 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val transportNetwork: TransportNetwork
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
+
+  private def handleStopDrivingIfNoPassengerOnBoard(
+    tick: Double,
+    requestId: Int,
+    data: T
+  ): State = {
+
+    data.passengerSchedule.schedule.keys
+      .drop(data.currentLegPassengerScheduleIndex)
+      .headOption match {
+      case Some(currentLeg) =>
+        if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
+          log.info(s"stopping vehicle: $id")
+
+          goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+            success = true,
+            requestId,
+            tick
+          )
+
+        } else {
+          stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
+        }
+      case None =>
+        stay()
+    }
+  }
 
   when(Driving) {
     case ev @ Event(
@@ -205,25 +233,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      data.passengerSchedule.schedule.keys
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption match {
-        case Some(currentLeg) =>
-          if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info(s"stopping vehicle: $id")
-
-            goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
-              success = true,
-              requestId,
-              tick
-            )
-
-          } else {
-            stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
-          }
-        case None =>
-          stay()
-      }
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
 
   }
 
@@ -375,6 +385,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       stash()
       stay
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+
   }
 
   when(WaitingToDriveInterrupted) {
@@ -509,6 +523,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         currentVehicleUnderControl.fuelLevel.get
       )
       stay()
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ")
+
+      DebugLib.emptyFunctionForSettingBreakPoint()
+      stay()
+
   }
 
   private def hasRoomFor(
