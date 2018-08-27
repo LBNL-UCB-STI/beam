@@ -110,13 +110,15 @@ trait ChoosesMode {
       }
 
       def makeRideHailRequest(): Unit = {
-        rideHailManager ! RideHailRequest(
+        val inquiry = RideHailRequest(
           RideHailInquiry,
           bodyVehiclePersonId,
           currentActivity(choosesModeData.personData).getCoord,
           departTime,
           nextAct.getCoord
         )
+//        println(s"requesting: ${inquiry.requestId}")
+        rideHailManager ! inquiry
       }
 
       def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
@@ -334,6 +336,7 @@ trait ChoosesMode {
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
+//      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {
         case choosesModeData.rideHail2TransitAccessInquiryId =>
           choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailResult))
@@ -367,6 +370,7 @@ trait ChoosesMode {
       DiscreteTime(legs.head.startTime.toInt),
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
     )
+//    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
     Some(inquiry.requestId)
   }

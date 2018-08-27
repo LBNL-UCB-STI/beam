@@ -15,14 +15,8 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
     reply: DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
   ): Unit = ???
 
-  override def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
-    //Some(
-    //  VehicleAllocation(RideHailManager.dummyRideHailVehicleId, vehicleAllocationRequest.departAt)
-    //)
-    ???
-  }
+  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
+  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = ???
 }

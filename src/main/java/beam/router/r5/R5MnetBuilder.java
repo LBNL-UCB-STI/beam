@@ -6,7 +6,6 @@ import com.conveyal.osmlib.Way;
 import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.vividsolutions.jts.geom.Coordinate;
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
@@ -14,6 +13,8 @@ import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,7 +28,7 @@ import java.util.Set;
  * Created by Andrew A. Campbell on 6/7/17.
  */
 public class R5MnetBuilder {
-    private static final Logger log = Logger.getLogger(R5MnetBuilder.class);
+    private static final Logger log = LoggerFactory.getLogger(R5MnetBuilder.class);
 
     private final TransportNetwork r5Network;
     private Network mNetowrk = null;  // MATSim mNetowrk
@@ -66,8 +67,8 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
         while (cursor.advance()) {
-            log.debug(cursor.getEdgeIndex());
-            log.debug(cursor);
+            log.debug(String.valueOf(cursor.getEdgeIndex()));
+            log.debug(cursor.toString());
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();

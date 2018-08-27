@@ -1,6 +1,7 @@
 package beam.gui;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.BufferedInputStream;
@@ -19,7 +20,7 @@ import java.util.zip.GZIPOutputStream;
  */
 /*package*/ class GUnZipper {
 
-    private final static Logger log = Logger.getLogger(GUnZipper.class);
+    private static final Logger log = LoggerFactory.getLogger(GUnZipper.class);
     private static final int MB = 1024 * 1024;
     private static final int KB = 1024;
 
