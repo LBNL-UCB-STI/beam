@@ -20,8 +20,9 @@
 
 package beam.gui;
 
-import org.apache.log4j.Logger;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.BufferedReader;
@@ -38,7 +39,7 @@ import java.util.Arrays;
  */
 /*package*/ class ExeRunner {
 
-	/*package*/ final static Logger log = Logger.getLogger(ExeRunner.class);
+	private static final Logger log = LoggerFactory.getLogger(ExeRunner.class);
 	
 	private final ExternalExecutor executor;
 

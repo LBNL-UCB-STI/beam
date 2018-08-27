@@ -1,13 +1,14 @@
 package beam.utils;
 
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * BEAM
  */
 public class DebugLib {
-    private static final Logger log = Logger.getLogger(DebugLib.class);
+    private static final Logger log = LoggerFactory.getLogger(DebugLib.class);
 
     public static void traceAgent(Id personId) {
         if (personId.toString().equalsIgnoreCase("3711631")) {

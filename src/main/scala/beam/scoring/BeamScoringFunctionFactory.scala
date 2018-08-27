@@ -7,10 +7,10 @@ import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEve
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
-import org.apache.log4j.Logger
+
+import org.slf4j.LoggerFactory
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
-import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 
 import scala.collection.JavaConverters._
@@ -19,7 +19,7 @@ import scala.collection.mutable
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     extends ScoringFunctionFactory {
 
-  private val log = Logger.getLogger(classOf[BeamScoringFunctionFactory])
+  private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   lazy val lccm = new LatentClassChoiceModel(beamServices)
 
@@ -73,7 +73,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                 modeChoiceCalculatorForStyle =>
                   trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
               )
-            log.debug(vectorOfUtilities)
+            log.debug(vectorOfUtilities.toString())
             person.getSelectedPlan.getAttributes
               .putAttribute("scores", MapStringDouble(vectorOfUtilities))
 

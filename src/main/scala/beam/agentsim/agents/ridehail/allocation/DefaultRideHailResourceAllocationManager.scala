@@ -10,10 +10,7 @@ import org.matsim.vehicles.Vehicle
 class DefaultRideHailResourceAllocationManager(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
-    None
-  }
+  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
+  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
 }

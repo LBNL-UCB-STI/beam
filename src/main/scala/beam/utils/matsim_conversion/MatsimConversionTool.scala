@@ -52,10 +52,7 @@ object MatsimConversionTool extends App {
 
     if (conversionConfig.shapeConfig.isDefined) {
       val shapeConfig = conversionConfig.shapeConfig.get
-      ShapeUtils.shapeFileToCsv(
-        shapeConfig.shapeFile,
-        shapeConfig.tazIDFieldName,
-        outputFilePath)
+      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath)
     } else {
       val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
       generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)

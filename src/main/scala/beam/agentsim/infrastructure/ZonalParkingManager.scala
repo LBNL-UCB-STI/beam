@@ -47,30 +47,36 @@ class ZonalParkingManager(
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
-  for {
-    taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-    parkingType  <- List(Residential, Workplace, Public)
-    pricingModel <- List(Free, FlatFee, Block)
-    chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-    reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
-  } yield {
-    pooledResources.put(
-      StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-      defaultStallValues
-    )
+  def fillInDefaultPooledResources(): Unit = {
+    for {
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Residential, Workplace, Public)
+      pricingModel <- List(Free, FlatFee, Block)
+      chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
+      reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
+    } yield {
+      pooledResources.put(
+        StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
+        defaultStallValues
+      )
+    }
   }
 
-  if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
-    readCsvFile(pathResourceCSV).foreach(f => {
-      pooledResources.update(f._1, f._2)
-    })
-  } else {
-    //Used to generate csv file
-    parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+  def updatePooledResources(): Unit = {
+    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
+      readCsvFile(pathResourceCSV).foreach(f => {
+        pooledResources.update(f._1, f._2)
+      })
+    } else {
+      //Used to generate csv file
+      parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+    }
+    // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
+    pooledResources.put(defaultStallAtrrs, defaultStallValues)
   }
 
-  // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
-  pooledResources.put(defaultStallAtrrs, defaultStallValues)
+  fillInDefaultPooledResources()
+  updatePooledResources()
 
   override def receive: Receive = {
     case RegisterResource(stallId: Id[ParkingStall]) =>
@@ -121,7 +127,8 @@ class ZonalParkingManager(
         )
       }
 
-      sender() ! DepotParkingInquiryResponse(parkingStall)
+      val response = DepotParkingInquiryResponse(parkingStall)
+      sender() ! response
 
     case inquiry @ ParkingInquiry(
           customerId: Id[PersonAgent],
@@ -370,10 +377,12 @@ class ZonalParkingManager(
         "pricingModel",
         "chargingType",
         "numStalls",
-        "feeInCents"
+        "feeInCents",
+        "reservedFor"
       ) //, "parkingId"
       val processors = Array[CellProcessor](
         new NotNull(), // Id (must be unique)
+        new NotNull(),
         new NotNull(),
         new NotNull(),
         new NotNull(),
@@ -394,6 +403,7 @@ class ZonalParkingManager(
         tazToWrite.put(header(3), attrs.chargingType.toString)
         tazToWrite.put(header(4), "" + values.numStalls)
         tazToWrite.put(header(5), "" + values.feeInCents)
+        tazToWrite.put(header(6), "" + attrs.reservedFor.toString)
         //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
         mapWriter.write(tazToWrite, header, processors)
       }

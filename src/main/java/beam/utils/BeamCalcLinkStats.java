@@ -20,7 +20,6 @@
 package beam.utils;
 
 
-import org.apache.log4j.Logger;
 import org.matsim.analysis.CalcLinkStats;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
@@ -28,6 +27,8 @@ import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.BufferedWriter;
@@ -37,7 +38,7 @@ import java.util.TreeMap;
 
 public class BeamCalcLinkStats {
 
-    private final static Logger log = Logger.getLogger(CalcLinkStats.class);
+    private final static Logger log = LoggerFactory.getLogger(CalcLinkStats.class);
     private static final int MIN = 0;
     private static final int MAX = 1;
     private static final int SUM = 2;
