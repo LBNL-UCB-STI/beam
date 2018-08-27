@@ -1073,10 +1073,15 @@ class RideHailManager(
 
           bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
         } else {
+
           response.request.customer.personRef.get ! response.copy(
             triggersToSchedule = triggersToSchedule.toVector
           )
         }
+        rideHailResourceAllocationManager.reservationCompletionNotice(
+          response.request.customer.personId,
+          response.travelProposal.get.rideHailAgentLocation.vehicleId
+        )
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $requestId")
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)

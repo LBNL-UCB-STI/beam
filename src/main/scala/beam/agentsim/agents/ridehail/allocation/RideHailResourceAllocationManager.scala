@@ -9,6 +9,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
@@ -80,6 +81,13 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     logger.trace("default implementation repositionVehicles executed")
     Vector()
   }
+
+  /*
+  This method is called whenever a reservation is sucessfully completed. Overwrite this method if you need to process this info further.
+  Use case: You want to overwrite a ride and make sure that it has been processed before cancelling it. Reason: If you cancel it during the reservation,
+  the reservation will overwrite the cancellation.
+   */
+  def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
 }
 
