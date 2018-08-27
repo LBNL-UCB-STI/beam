@@ -991,6 +991,10 @@ class RideHailManager(
   def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
+        println(
+          s"trying to stop vehicle: ${travelProposal.rideHailAgentLocation.vehicleId}, tick: $tick"
+        )
+
         log.debug(
           s"trying to stop vehicle: ${travelProposal.rideHailAgentLocation.vehicleId}, tick: $tick"
         )
@@ -1105,7 +1109,6 @@ class RideHailManager(
       rideHail2DestinationResponse <- futureRideHail2DestinationResponse
         .mapTo[RoutingResponse]
     } {
-      // TODO: could we just call the code, instead of sending the message here?
       self ! RoutingResponses(
         request,
         rideHailLocation,
