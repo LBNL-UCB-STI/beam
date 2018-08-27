@@ -97,10 +97,10 @@ class ParkingSpec
     queueEvents
   }
 
-  val limitedEvents = runAndCollectForIterations("limited", 10)
-  val defaultEvents = runAndCollectForIterations("default", 10)
-  val expensiveEvents = runAndCollectForIterations("expensive", 10)
-  val emptyEvents = runAndCollectForIterations("empty", 10)
+  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
+  lazy val defaultEvents = runAndCollectForIterations("default", 10)
+  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
+  lazy val emptyEvents = runAndCollectForIterations("empty", 10)  
 
   val filterForCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
