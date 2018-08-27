@@ -15,7 +15,12 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{
+  CompletionNotice,
+  ScheduleTrigger,
+  SchedulerProps,
+  StartSchedule
+}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
@@ -166,8 +171,12 @@ class RideHailAgentSpec
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(
+          config,
+          stopTick = 64800.0,
+          maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)
+        )
       )
 
       val rideHailAgent = TestFSMRef(
@@ -232,8 +241,12 @@ class RideHailAgentSpec
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(
+          config,
+          stopTick = 64800.0,
+          maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)
+        )
       )
 
       val rideHailAgent = TestFSMRef(
@@ -289,8 +302,12 @@ class RideHailAgentSpec
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0,
-          new StuckFinder(config.beam.debug.stuckAgentDetection))
+        SchedulerProps(
+          config,
+          stopTick = 64800.0,
+          maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)
+        )
       )
 
       val rideHailAgent = TestFSMRef(

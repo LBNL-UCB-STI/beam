@@ -8,8 +8,10 @@ import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import org.scalatest.{Matchers, WordSpec}
 
 class StuckFinderSpec extends WordSpec with Matchers {
-  val stuckAgentDetectionCfg = StuckAgentDetection(enabled = true, checkIntervalMs = 100, markAsStuckAfterMs = 100)
-  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1.0), 1L),  Actor.noSender, 1)
+
+  val stuckAgentDetectionCfg =
+    StuckAgentDetection(enabled = true, checkIntervalMs = 100, markAsStuckAfterMs = 100)
+  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1.0), 1L), Actor.noSender, 1)
 
   "A StuckFinder" should {
     "return true" when {
@@ -34,9 +36,16 @@ class StuckFinderSpec extends WordSpec with Matchers {
       s.add(7, st.copy(priority = 7))
 
       val seq = s.detectStuckAgents(stuckAgentDetectionCfg.markAsStuckAfterMs + 11)
-      seq should be (Seq(ValueWithTime(st.copy(priority = 2), 2), ValueWithTime(st.copy(priority = 4), 4),
-        ValueWithTime(st.copy(priority = 5), 5), ValueWithTime(st.copy(priority = 7), 7),
-        ValueWithTime(st.copy(priority = 9), 9), ValueWithTime(st.copy(priority = 10), 10)))
+      seq should be(
+        Seq(
+          ValueWithTime(st.copy(priority = 2), 2),
+          ValueWithTime(st.copy(priority = 4), 4),
+          ValueWithTime(st.copy(priority = 5), 5),
+          ValueWithTime(st.copy(priority = 7), 7),
+          ValueWithTime(st.copy(priority = 9), 9),
+          ValueWithTime(st.copy(priority = 10), 10)
+        )
+      )
     }
   }
 }

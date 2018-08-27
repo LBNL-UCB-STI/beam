@@ -9,6 +9,7 @@ case class ValueWithTime[T](value: T, time: Long)
 class StuckFinderHelper[K] {
 
   object Comparator extends Comparator[ValueWithTime[K]] {
+
     def compare(o1: ValueWithTime[K], o2: ValueWithTime[K]): Int = {
       o1.time.compare(o2.time)
     }
@@ -51,4 +52,3 @@ class StuckFinderHelper[K] {
     }
   }
 }
-

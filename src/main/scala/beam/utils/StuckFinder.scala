@@ -13,7 +13,6 @@ import scala.collection.mutable.ArrayBuffer
 class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyLogging {
   private val helper = new StuckFinderHelper[ScheduledTrigger]
 
-
   def add(time: Long, st: ScheduledTrigger): Unit = {
     helper.add(time, st)
   }
@@ -22,9 +21,13 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
     helper.removeByKey(st)
   }
 
-  def detectStuckAgents(time: Long = System.currentTimeMillis()): Seq[ValueWithTime[ScheduledTrigger]] = {
+  def detectStuckAgents(
+    time: Long = System.currentTimeMillis()
+  ): Seq[ValueWithTime[ScheduledTrigger]] = {
     @tailrec
-    def detectStuckAgents0(stuckAgents: mutable.ArrayBuffer[ValueWithTime[ScheduledTrigger]]): Seq[ValueWithTime[ScheduledTrigger]] = {
+    def detectStuckAgents0(
+      stuckAgents: mutable.ArrayBuffer[ValueWithTime[ScheduledTrigger]]
+    ): Seq[ValueWithTime[ScheduledTrigger]] = {
       helper.removeOldest match {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
@@ -32,8 +35,7 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
             // We have to add it back
             add(oldest.time, oldest.value)
             stuckAgents
-          }
-          else {
+          } else {
             stuckAgents += oldest
             detectStuckAgents0(stuckAgents)
           }

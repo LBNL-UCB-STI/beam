@@ -20,9 +20,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
-
-case class RideHailingManagerIsExtremelySlowException
-(
+case class RideHailingManagerIsExtremelySlowException(
   message: String,
   cause: Throwable = null
 ) extends Exception(message, cause)
@@ -43,16 +41,16 @@ object BeamAgentScheduler {
   case class DoSimStep(tick: Double) extends SchedulerMessage
 
   case class CompletionNotice(
-                               id: Long,
-                               newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
-                             ) extends SchedulerMessage
+    id: Long,
+    newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+  ) extends SchedulerMessage
 
   case object Monitor extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0)
-    extends SchedulerMessage {
+      extends SchedulerMessage {
 
     def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
       CompletionNotice(triggerId, scheduleTriggers)
@@ -67,7 +65,7 @@ object BeamAgentScheduler {
     * @param priority      schedule priority
     */
   case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int)
-    extends Ordered[ScheduledTrigger] {
+      extends Ordered[ScheduledTrigger] {
 
     // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
     //   smaller tick => then higher priority value => then lower triggerId
@@ -84,17 +82,21 @@ object BeamAgentScheduler {
   }
 
   def SchedulerProps(
-                      beamConfig: BeamConfig,
-                      stopTick: Double = 3600.0 * 24.0,
-                      maxWindow: Double = 1.0,
-                      stuckFinder: StuckFinder
-                    ): Props = {
+    beamConfig: BeamConfig,
+    stopTick: Double = 3600.0 * 24.0,
+    maxWindow: Double = 1.0,
+    stuckFinder: StuckFinder
+  ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
   }
 }
 
-class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWindow: Double, val stuckFinder: StuckFinder)
-  extends Actor
+class BeamAgentScheduler(
+  val beamConfig: BeamConfig,
+  stopTick: Double,
+  val maxWindow: Double,
+  val stuckFinder: StuckFinder
+) extends Actor
     with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -118,7 +120,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   private var currentIter: Int = -1
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
-  private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] = mutable.HashMap.empty
+  private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
+    mutable.HashMap.empty
 
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
@@ -160,7 +163,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     case DoSimStep(newNow: Double) =>
       doSimStep(newNow)
 
-    case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
+    case notice @ CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
       // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailManager")).isEmpty){
       // DebugLib.emptyFunctionForSettingBreakPoint()
       // }
@@ -170,7 +173,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       }
       val completionTickOpt = triggerIdToTick.get(triggerId)
       if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse
-        .containsKey(completionTickOpt.get)) {
+            .containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
         val st = triggerIdToScheduledTrigger(triggerId)
@@ -198,10 +201,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
     case Monitor =>
       log.debug(
-        s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${
-          awaitingResponse
-            .size()
-        },\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
+        s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
+          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
       )
       awaitingResponse
         .values()
@@ -214,7 +215,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
-          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger.isInstanceOf[RideHailAllocationManagerTimeout]
+          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
+            .isInstanceOf[RideHailAllocationManagerTimeout]
         }
         log.warning("Cleaning {} agents", canClean.size)
         canClean.foreach { stuckInfo =>
@@ -237,16 +239,15 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
           if (times == 10) {
             log.error("RideHailingManager is slow")
-          }
-          else if (times == 50) {
-            throw new RideHailingManagerIsExtremelySlowException("RideHailingManager is extremly slow")
+          } else if (times == 50) {
+            throw new RideHailingManagerIsExtremelySlowException(
+              "RideHailingManager is extremly slow"
+            )
           }
         }
       }
       if (started) doSimStep(nowInSeconds)
   }
-
-
 
   @tailrec
   private def doSimStep(newNow: Double): Unit = {
@@ -256,8 +257,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       // println("doSimStep:" + newNow)
 
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
-        .keySet()
-        .first() + 1 < maxWindow) {
+            .keySet()
+            .first() + 1 < maxWindow) {
         while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
           val scheduledTrigger = this.triggerQueue.dequeue
           val triggerWithId = scheduledTrigger.triggerWithId
@@ -269,8 +270,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           scheduledTrigger.agent ! triggerWithId
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
-          .keySet()
-          .first() + 1 < maxWindow) {
+              .keySet()
+              .first() + 1 < maxWindow) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
               "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
@@ -327,11 +328,19 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       )
     else None
   }
+
   def scheduleStuckAgentCheck: Option[Cancellable] = {
     if (beamConfig.beam.debug.stuckAgentDetection.enabled)
       Some(
-        context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),
-          new FiniteDuration(beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs, TimeUnit.MILLISECONDS),
+        context.system.scheduler.schedule(
+          new FiniteDuration(
+            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
+            TimeUnit.MILLISECONDS
+          ),
+          new FiniteDuration(
+            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
+            TimeUnit.MILLISECONDS
+          ),
           self,
           SkipOverBadActors
         )
