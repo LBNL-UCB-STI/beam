@@ -210,7 +210,7 @@ class BeamAgentScheduler(
 
     case SkipOverBadActors =>
       val stuckAgents = stuckFinder.detectStuckAgents()
-      if (stuckAgents.size > 0) {
+      if (stuckAgents.nonEmpty) {
         log.warning("{} agents are candidates to be cleaned", stuckAgents.size)
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
@@ -240,7 +240,7 @@ class BeamAgentScheduler(
           if (times == 10) {
             log.error("RideHailingManager is slow")
           } else if (times == 50) {
-            throw new RideHailingManagerIsExtremelySlowException(
+            throw RideHailingManagerIsExtremelySlowException(
               "RideHailingManager is extremly slow"
             )
           }
