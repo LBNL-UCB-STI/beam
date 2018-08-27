@@ -71,11 +71,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     requestId: Int,
     data: T
   ): State = {
+    println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
 
     data.passengerSchedule.schedule.keys
       .drop(data.currentLegPassengerScheduleIndex)
       .headOption match {
       case Some(currentLeg) =>
+        println(currentLeg)
+
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
           log.info(s"stopping vehicle: $id")
 
@@ -595,10 +598,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ")
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ${stateName}")
 
-      DebugLib.emptyFunctionForSettingBreakPoint()
-      stay()
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+    //stay()
 
   }
 

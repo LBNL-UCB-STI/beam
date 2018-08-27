@@ -46,7 +46,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
     // TODO: refactor to BufferedRideHailRequests?
     val timerTrigger = BufferedRideHailRequestsTimeout(
-      tick + 10 // TODO: replace with new config variable
+      tick + 1 // TODO: replace with new config variable
     )
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
     Vector(timerMessage)
