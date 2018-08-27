@@ -35,7 +35,7 @@ class StuckFinderHelperSpec extends WordSpec with Matchers {
       s.removeOldest should be(None)
       s.add(100, "100")
 
-      val oldest = s.removeOldest
+      val oldest = s.removeOldest()
       s.size should be(0)
       oldest should be(Some(ValueWithTime("100", 100)))
 
@@ -43,16 +43,16 @@ class StuckFinderHelperSpec extends WordSpec with Matchers {
       s.add(100, "100")
       s.add(200, "200")
 
-      s.removeOldest should be(Some(ValueWithTime("100", 100)))
+      s.removeOldest() should be(Some(ValueWithTime("100", 100)))
       s.size should be(2)
 
-      s.removeOldest should be(Some(ValueWithTime("200", 200)))
+      s.removeOldest() should be(Some(ValueWithTime("200", 200)))
       s.size should be(1)
 
-      s.removeOldest should be(Some(ValueWithTime("300", 300)))
+      s.removeOldest() should be(Some(ValueWithTime("300", 300)))
       s.size should be(0)
 
-      s.removeOldest should be(None)
+      s.removeOldest() should be(None)
     }
 
     "remove value by key" in {

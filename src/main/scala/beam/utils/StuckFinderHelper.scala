@@ -2,25 +2,26 @@ package beam.utils
 
 import java.util.{Comparator, PriorityQueue}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 case class ValueWithTime[T](value: T, time: Long)
 
+private case class InternalValueWithTime[T](value: T, time: Long, var isAlive: Boolean)
+
 class StuckFinderHelper[K] {
 
-  object Comparator extends Comparator[ValueWithTime[K]] {
+  private object Comparator extends Comparator[InternalValueWithTime[K]] {
 
-    def compare(o1: ValueWithTime[K], o2: ValueWithTime[K]): Int = {
+    def compare(o1: InternalValueWithTime[K], o2: InternalValueWithTime[K]): Int = {
       o1.time.compare(o2.time)
     }
   }
 
-  private[this] val pq = new PriorityQueue[ValueWithTime[K]](Comparator)
-  private[this] val map = mutable.HashMap.empty[K, ValueWithTime[K]]
+  private[this] val pq = new PriorityQueue[InternalValueWithTime[K]](Comparator)
+  private[this] val map = mutable.HashMap.empty[K, InternalValueWithTime[K]]
 
-  def size: Int = {
-    pq.size()
-  }
+  def size: Int = map.size
 
   def add(time: Long, key: K): Unit = {
     map.get(key) match {
@@ -30,25 +31,36 @@ class StuckFinderHelper[K] {
       // 2 => Change map to be K -> List to store all different timestamps
       // Go with first approach for now
       case None =>
-        val valueWithTs = ValueWithTime(key, time)
+        val valueWithTs = InternalValueWithTime(key, time, isAlive = true)
         pq.add(valueWithTs)
         map.put(key, valueWithTs)
     }
   }
 
-  def removeOldest: Option[ValueWithTime[K]] = {
-    if (pq.isEmpty) None
-    else {
-      val result = pq.poll()
-      removeByKey(result.value)
-      Some(result)
-    }
+  def removeOldest(): Option[ValueWithTime[K]] = {
+    val head = pollFirstAlive(pq)
+    head.foreach { x => removeByKey(x.value) }
+    head
   }
 
   def removeByKey(key: K): Option[ValueWithTime[K]] = {
-    map.remove(key).map { ts =>
-      pq.remove(ts)
-      ts
+    val value = map.remove(key)
+    // Mark removed element as not alive
+    value.foreach { v => v.isAlive = false }
+    value.map { ts => ValueWithTime(ts.value, ts.time) }
+  }
+
+  @tailrec
+  private final def pollFirstAlive(
+    pq: PriorityQueue[InternalValueWithTime[K]]
+  ): Option[ValueWithTime[K]] = {
+    if (pq.isEmpty) None
+    else {
+      val head = pq.poll()
+      if (head.isAlive)
+        Some(ValueWithTime(head.value, head.time))
+      else
+        pollFirstAlive(pq)
     }
   }
 }
