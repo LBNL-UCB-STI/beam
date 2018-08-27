@@ -21,7 +21,6 @@
 
 package beam.utils.gtfs.merging;
 
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
@@ -32,6 +31,8 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.utils.misc.Counter;
 import org.matsim.pt.transitSchedule.api.*;
 import org.matsim.vehicles.Vehicle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +45,9 @@ import java.util.List;
  * @author sfeygin (modifying)
  */
 public class ScheduleMerger {
-    private static Logger log = Logger.getLogger(ScheduleMerger.class);
+
+    private static final Logger log = LoggerFactory.getLogger(ScheduleMerger.class);
+
     private static TransitScheduleFactory factory;
     private static TransitSchedule mergedSchedule;
     private static String postfix;

@@ -16,7 +16,6 @@ import com.vividsolutions.jts.geom.{
 }
 import enumeratum.EnumEntry._
 import enumeratum._
-import org.apache.log4j.Logger
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
@@ -306,7 +305,6 @@ object PlansSampler {
 
   val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
-  private val logger = Logger.getLogger("PlansSampler")
 
   private var planQt: Option[QuadTree[Plan]] = None
   var wgsConverter: Option[WGSConverter] = None

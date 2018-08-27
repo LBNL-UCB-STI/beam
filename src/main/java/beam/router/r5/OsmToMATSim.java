@@ -1,13 +1,14 @@
 package beam.router.r5;
 
 import com.conveyal.osmlib.Way;
-import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,7 +22,8 @@ import java.util.Set;
  */
 
 public class OsmToMATSim {
-    private final static Logger log = Logger.getLogger(OsmToMATSim.class);
+
+    private final static Logger log = LoggerFactory.getLogger(OsmToMATSim.class);
 
     private final static String TAG_LANES = "lanes";
     private final static String TAG_HIGHWAY = "highway";
