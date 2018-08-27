@@ -9,7 +9,7 @@ import java.util.Map;
 import static beam.analysis.plot.graph.GraphTestRealizedUtil.createDummySimWithCRCXML;
 import static org.junit.Assert.assertEquals;
 
-public class RealizedModeCRCGraphTest {
+public class RealizedModeGraphTest {
     private RealizedModeStats realizedModeStats = new RealizedModeStats();
 
     @BeforeClass
@@ -83,7 +83,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore // when replanning and upper mode choice are in same hour
+    @Test @Ignore// when replanning and upper mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeA() {
 
         int expectedWalkResult = 2;
@@ -104,7 +104,7 @@ public class RealizedModeCRCGraphTest {
 
     }
 
-    @Test @Ignore // when replanning and lower mode choice are in same hour
+    @Test @Ignore// when replanning and lower mode choice are in same hour
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeB() {
 
         int expectedWalkResult = 2;
