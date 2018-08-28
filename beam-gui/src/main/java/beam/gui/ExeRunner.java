@@ -145,7 +145,7 @@ import java.util.Arrays;
 			}
 		}
 	}
-	
+
 	static class StreamHandler extends Thread {
 		private final BufferedReader in;
 		private final JTextArea[] textArea;

@@ -97,4 +97,3 @@ import java.nio.channels.FileChannel;
 		this.setVisible(false);
 	}
 }
-

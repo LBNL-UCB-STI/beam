@@ -23,7 +23,14 @@ object ShapeUtils {
   private def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y, g.getArea))
+        Some(
+          CsvTaz(
+            f.getAttribute(tazIDFieldName).toString,
+            g.getCoordinate.x,
+            g.getCoordinate.y,
+            g.getArea
+          )
+        )
       case _ => None
     }
   }
