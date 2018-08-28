@@ -7,8 +7,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -132,7 +132,7 @@ class BeamRouter(
             Powertrain.PowertrainFromMilesPerGallon(consumption),
             matSimTransitVehicle,
             None,
-            TransitVehicle,
+            BeamVehicleType.getTransitVehicle,
             None,
             None
           ) // TODO: implement fuel level later as needed

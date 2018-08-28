@@ -6,12 +6,8 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
-  createId,
-  powerTrainForHumanBody
-}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -214,10 +210,10 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
     val personAttributes: ObjectAttributes = population.getPersonAttributes
     household.members.foreach { person =>
-      val bodyVehicleIdFromPerson = createId(person.getId)
+      val bodyVehicleIdFromPerson = ??? //createId(person.getId) //FIXME
       val matsimBodyVehicle =
         VehicleUtils.getFactory
-          .createVehicle(bodyVehicleIdFromPerson, HumanBodyVehicle.MatsimVehicleType)
+          .createVehicle(bodyVehicleIdFromPerson, ??? /*HumanBodyVehicle.MatsimVehicleType*/) //FIXME
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       val personId = person.getId
@@ -265,12 +261,14 @@ object HouseholdActor {
         personId.toString
       )
       context.watch(personRef)
+
+
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
-        powerTrainForHumanBody,
+        BeamVehicleType.powerTrainForHumanBody,
         matsimBodyVehicle,
         None,
-        HumanBodyVehicle,
+        BeamVehicleType.getHumanBodyVehicle(),
         None,
         None
       )
@@ -438,10 +436,11 @@ object HouseholdActor {
           val person = population.getPersons.get(memberId)
 
           // Should never reserve for person who doesn't have mode available to them
-          val mode = vehicles(vehicleId).beamVehicleType match {
-            case CarVehicle     => CAR
-            case BicycleVehicle => BIKE
-          }
+          val mode = BeamVehicleType.getMode(vehicles(vehicleId))
+//            vehicles(vehicleId).beamVehicleType match {
+//            case CarVehicle     => CAR
+//            case BicycleVehicle => BIKE
+//          }
 
           if (isModeAvailableForPerson(person, vehicleId, mode)) {
             _reservedForPerson += (memberId -> vehicleId)
@@ -455,10 +454,13 @@ object HouseholdActor {
 
       for { veh <- _vehicles } yield {
         //TODO following mode should match exhaustively
-        val mode = vehicles(veh).beamVehicleType match {
-          case BicycleVehicle => BIKE
-          case CarVehicle     => CAR
-        }
+        val mode = BeamVehicleType.getMode(vehicles(veh))
+
+//          vehicles(veh).beamVehicleType match {
+//          case BicycleVehicle => BIKE
+//          case CarVehicle     => CAR
+//        }
+
         _vehicleToStreetVehicle +=
           (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
       }

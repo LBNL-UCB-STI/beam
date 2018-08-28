@@ -105,3 +105,4 @@ object BeamVehicle {
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 }
+

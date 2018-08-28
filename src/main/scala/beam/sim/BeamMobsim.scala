@@ -28,7 +28,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
   RideHailAllocationManagerTimeout
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.ParkingManager.{
@@ -310,7 +309,7 @@ class BeamMobsim @Inject()(
                 powerTrain,
                 rideHailVehicle,
                 vehicleAttribute,
-                CarVehicle,
+                BeamVehicleType.getCarVehicle(),
                 Some(1.0),
                 Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
               )
@@ -448,7 +447,7 @@ class BeamMobsim @Inject()(
         private def cleanupVehicle(): Unit = {
           // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
           scenario.getPopulation.getPersons.keySet().forEach { personId =>
-            val bodyVehicleId = HumanBodyVehicle.createId(personId)
+            val bodyVehicleId = BeamVehicleType.createId(personId)
             beamServices.vehicles -= bodyVehicleId
           }
         }

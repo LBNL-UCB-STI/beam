@@ -2,6 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.router.Modes.BeamMode
 import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.Id
@@ -16,7 +17,19 @@ import scala.collection.immutable
   *
   * @author saf
   */
-sealed abstract class BeamVehicleType(val idString: String) extends EnumEntry {
+case class BeamVehicleType(val idString: String,
+                           seatingCapacity: Double,
+                           standingRoomCapacity: Double,
+                           lengthInMeter: Double,
+                           fuelType: String,
+                           fuelConsumptionInJoule: Double,
+                           fuelCapacityInJoule: Double,
+                           automationLevel: String,
+                           maxVelocity: Double,
+                           passengerCarUnit: String,
+                           rechargeLevel2RateLimitInWatts: Double,
+                           rechargeLevel3RateLimitInWatts: Double,
+                           vehicleCategory: String){
 
   /**
     * Assign a new id based on the personAgent
@@ -63,38 +76,72 @@ sealed abstract class BeamVehicleType(val idString: String) extends EnumEntry {
     }
   }
 
+  def toMatsimVehicleType: VehicleType = ???
 }
 
-case object BeamVehicleType extends Enum[BeamVehicleType] {
+object BeamVehicleType {
+  def getBicycleType(): BeamVehicleType = ??? //TODO
 
-  val values: immutable.IndexedSeq[BeamVehicleType] = findValues
-
-  case object RideHailVehicle extends BeamVehicleType("rideHailVehicle") with LowerCamelcase
-
-  case object CarVehicle extends BeamVehicleType("car") with LowerCamelcase
-
-  case object BicycleVehicle extends BeamVehicleType("bicycle") with LowerCamelcase {
-
-    MatsimVehicleType.setMaximumVelocity(15.0 / 3.6)
-    MatsimVehicleType.setPcuEquivalents(0.25)
-    MatsimVehicleType.setDescription(idString)
-
-    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Bicycle
-    lazy val powerTrainForBicycle: Powertrain = Powertrain.PowertrainFromMilesPerGallon(732)
-
+  def getHumanBodyVehicle(): BeamVehicleType = {
+    ??? //TODO
   }
 
-  case object TransitVehicle extends BeamVehicleType("transit") with LowerCamelcase
+  def getCarVehicle(): BeamVehicleType = ???
 
-  case object HumanBodyVehicle extends BeamVehicleType("body") with LowerCamelcase {
+  def getTransitVehicle(): BeamVehicleType = ???
 
-    // TODO: Does this need to be "Human"? Couldn't we just use the idString?
-    MatsimVehicleType.setDescription("Human")
+  def createId(personId: Id[Person]): Id[Vehicle] = ???
 
-    // TODO: Don't hardcode!!!
-    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking
-    lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
+  def createMatsimVehicle[T](id: Id[T]): Vehicle = ???
 
+  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
+
+  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
+
+  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
+
+  lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
+
+  def getMode(beamVehicle: BeamVehicle): BeamMode = {
+    ???
+    //          beamVehicle.beamVehicleType match {
+    //          case BicycleVehicle => BIKE
+    //          case CarVehicle     => CAR
+    //        }
   }
 
+  //TODO's in BeamVehicleUtils
 }
+
+//case object BeamVehicleType extends Enum[BeamVehicleType] {
+//
+//  val values: immutable.IndexedSeq[BeamVehicleType] = findValues
+//
+//  case object RideHailVehicle extends BeamVehicleType("rideHailVehicle") with LowerCamelcase
+//
+//  case object CarVehicle extends BeamVehicleType("car") with LowerCamelcase
+//
+//  case object BicycleVehicle extends BeamVehicleType("bicycle") with LowerCamelcase {
+//
+//    MatsimVehicleType.setMaximumVelocity(15.0 / 3.6)
+//    MatsimVehicleType.setPcuEquivalents(0.25)
+//    MatsimVehicleType.setDescription(idString)
+//
+//    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Bicycle
+//    lazy val powerTrainForBicycle: Powertrain = Powertrain.PowertrainFromMilesPerGallon(732)
+//
+//  }
+//
+//  case object TransitVehicle extends BeamVehicleType("transit") with LowerCamelcase
+//
+//  case object HumanBodyVehicle extends BeamVehicleType("body") with LowerCamelcase {
+//
+//    // TODO: Does this need to be "Human"? Couldn't we just use the idString?
+//    MatsimVehicleType.setDescription("Human")
+//
+//    // TODO: Don't hardcode!!!
+//    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking
+//    lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
+//
+//  }
+//}

@@ -1,19 +1,10 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+//import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -131,8 +122,8 @@ object RoutingModel {
   ) {
 
     val isHumanBodyVehicle: Boolean =
-      HumanBodyVehicle.isVehicleType(beamVehicleId)
-    val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
+      BeamVehicleType.isHumanVehicle(beamVehicleId)
+    val isRideHail: Boolean = BeamVehicleType.isRidehailVehicle(beamVehicleId)
   }
 
   def traverseStreetLeg(

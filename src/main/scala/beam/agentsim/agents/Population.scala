@@ -11,7 +11,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}

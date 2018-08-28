@@ -1,5 +1,4 @@
 package beam.agentsim.agents.vehicles
-import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.households.Household
@@ -15,7 +14,7 @@ class BicycleFactory(scenario: Scenario) {
   def bicyclePrepareForSim(): Unit = {
     // Add the bicycle as a vehicle type here
     implicit val vehicles: Vehicles = scenario.getVehicles
-    vehicles.addVehicleType(BicycleVehicle.MatsimVehicleType)
+    vehicles.addVehicleType(BeamVehicleType.getBicycleType().toMatsimVehicleType)
 
     // Add bicycles to household (all for now)
     JavaConverters
@@ -31,10 +30,10 @@ class BicycleFactory(scenario: Scenario) {
       JavaConverters.collectionAsScalaIterable(household.getMemberIds)
 
     householdMembers.foreach { id: Id[Person] =>
-      val bicycleId: Id[Vehicle] = BicycleVehicle.createId(id)
+      val bicycleId: Id[Vehicle] = BeamVehicleType.createId(id)
       household.getVehicleIds.add(bicycleId)
 
-      vehicles.addVehicle(BicycleVehicle.createMatsimVehicle(bicycleId))
+      vehicles.addVehicle(BeamVehicleType.createMatsimVehicle(bicycleId))
     }
   }
 }
