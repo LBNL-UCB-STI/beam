@@ -88,33 +88,35 @@ class Population(
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
-    import scala.concurrent.ExecutionContext.Implicits.global
     // Have to wait for households to create people so they can send their first trigger to the scheduler
-    val houseHoldsInitialized =
-      Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
+    val households = scenario.getHouseholds.getHouseholds.values().asScala.toParArray
+    val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
+
+    households.map { household =>
         //TODO a good example where projection should accompany the data
-        if (scenario.getHouseholds.getHouseholdAttributes
+        if (householdAttributes
               .getAttribute(household.getId.toString, "homecoordx") == null) {
           log.error(
             s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
           )
         }
-        if (scenario.getHouseholds.getHouseholdAttributes
+        if (householdAttributes
               .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
           log.error(
             s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
           )
         }
+
         val homeCoord = new Coord(
-          scenario.getHouseholds.getHouseholdAttributes
+          householdAttributes
             .getAttribute(household.getId.toString, "homecoordx")
             .asInstanceOf[Double],
-          scenario.getHouseholds.getHouseholdAttributes
+          householdAttributes
             .getAttribute(household.getId.toString, "homecoordy")
             .asInstanceOf[Double]
         )
 
-        var houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
           Population.getVehiclesFromHousehold(household, beamServices)
 
         houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
@@ -156,7 +158,7 @@ class Population(
                 0
               ) //TODO personSelectedPlan.getType is null
 
-              def receive = {
+              def receive: PartialFunction[Any, Unit] = {
                 case ParkingInquiryResponse(stall) =>
                   vehicle._2.useParkingStall(stall)
                   context.stop(self)
@@ -168,8 +170,8 @@ class Population(
 
         context.watch(householdActor)
         householdActor ? Identify(0)
-      })
-    Await.result(houseHoldsInitialized, timeout.duration)
+      }
+
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
 
