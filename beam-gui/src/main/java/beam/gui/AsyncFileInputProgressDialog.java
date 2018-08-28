@@ -13,15 +13,15 @@ import java.nio.channels.FileChannel;
 /**
  * A dialog showing the progress on how far a {@link FileInputStream} has been consumed
  * asyncronously.
- * 
+ *
  * @author mrieser / Senozon AG
  */
 /*package*/ class AsyncFileInputProgressDialog extends JDialog {
 
 	private static final Logger log = LoggerFactory.getLogger(AsyncFileInputProgressDialog.class);
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	public AsyncFileInputProgressDialog(final FileInputStream fis) {
 		this(fis, "Operation in Progress…");
 	}
@@ -45,7 +45,7 @@ import java.nio.channels.FileChannel;
 					.addContainerGap())
 		);
 		getContentPane().setLayout(groupLayout);
-		
+
 		Thread t = new Thread(new Runnable() {
 
 			@Override
@@ -63,22 +63,25 @@ import java.nio.channels.FileChannel;
 							}
 						});
 						Thread.sleep(250);
-					} catch (InterruptedException | IOException e) {
+					} catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 						log.error(e.getMessage(), e);
-					}
+					} catch (IOException e) {
+                        log.error(e.getMessage(), e);
+                    }
 				}
 			}
-			
+
 		}, "ProgressObserver");
-		
+
 		t.setDaemon(true);
 		t.start();
-		
+
 		this.setModal(false);
 		this.setResizable(false);
 		this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 		this.pack();
-		
+
 		// center on screen
 		Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
 		int w = this.getSize().width;
@@ -86,11 +89,12 @@ import java.nio.channels.FileChannel;
 		int x = (dim.width-w)/2;
 		int y = (dim.height-h)/2;
 		this.setLocation(x, y);
-		
+
 		this.setVisible(true);
 	}
-	
+
 	public void close() {
 		this.setVisible(false);
 	}
 }
+
