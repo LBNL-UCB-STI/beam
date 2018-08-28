@@ -82,11 +82,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .vehicles(currentVehicleUnderControl)
                 .useFuel(currentLeg.travelPath.distanceInM)
 
-              // updatedBeamLeg = None
-
               if (isLastLeg) {
                 val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-                //theVehicle.manager.foreach(
                 nextNotifyVehicleResourceIdle = Some(
                   NotifyVehicleResourceIdle(
                     currentVehicleUnderControl,
@@ -95,7 +92,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     theVehicle.fuelLevel.getOrElse(Double.NaN)
                   )
                 )
-                // )
               }
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -249,13 +245,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
           data.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
-              // If no manager is set, we ignore
-
-              // TODO: can we update the current leg based on the stop time?
-              // as this kind of stop happens seldomly, we might try to send a query to any entity which has access to the network, e.g. router or RideHailManager?
-
-              //val a = beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
-
               val updatedBeamLeg =
                 RideHailUtils.getUpdatedBeamLegAfterStopDriving(
                   currentLeg,
@@ -272,15 +261,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   theVehicle.fuelLevel.getOrElse(Double.NaN)
                 )
               )
-
-              /*
-              if (isLastLeg) {
-
-                theVehicle.manager.foreach(
-
-                )
-              }
-               */
 
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
