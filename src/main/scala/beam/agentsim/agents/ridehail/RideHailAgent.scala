@@ -273,6 +273,8 @@ class RideHailAgent(
         case None =>
       }
 
+      nextNotifyVehicleResourceIdle = None
+
     case _ -> _ =>
       unstashAll()
 
