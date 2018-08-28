@@ -25,7 +25,7 @@ public class FuelUsageStats implements IGraphStats {
 
     private final IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation;
 
-    FuelUsageStats(IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation) {
+    public FuelUsageStats(IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation) {
         this.statsComputation = statsComputation;
     }
 

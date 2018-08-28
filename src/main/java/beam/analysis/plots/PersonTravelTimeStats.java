@@ -28,7 +28,7 @@ public class PersonTravelTimeStats implements IGraphStats {
 
     private final IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
-    PersonTravelTimeStats(IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
+    public PersonTravelTimeStats(IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 

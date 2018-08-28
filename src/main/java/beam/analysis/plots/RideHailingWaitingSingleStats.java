@@ -55,7 +55,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         }
     }
 
-    RideHailingWaitingSingleStats(BeamConfig beamConfig, IStatComputation<Map<Integer, Double>, double[][]> statComputation) {
+    public RideHailingWaitingSingleStats(BeamConfig beamConfig, IStatComputation<Map<Integer, Double>, double[][]> statComputation) {
         this.statComputation = statComputation;
 
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());

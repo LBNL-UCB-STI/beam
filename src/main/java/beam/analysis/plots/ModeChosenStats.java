@@ -11,8 +11,6 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -62,7 +60,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
-    ModeChosenStats(IStatComputation<Map<Integer, Map<String, Integer>>, double[][]> statComputation) {
+    public ModeChosenStats(IStatComputation<Map<Integer, Map<String, Integer>>, double[][]> statComputation) {
         this.statComputation = statComputation;
     }
 
@@ -112,12 +110,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
         if (hourData != null) {
-            frequency = hourData.get(mode);
-            if (frequency != null) {
-                frequency++;
-            } else {
-                frequency = 1;
-            }
+            frequency = hourData.getOrDefault(mode, 0);
+            frequency++;
         } else {
             hourData = new HashMap<>();
         }

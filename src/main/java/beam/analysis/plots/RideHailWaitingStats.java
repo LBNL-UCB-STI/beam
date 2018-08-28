@@ -24,7 +24,7 @@ import java.util.*;
  */
 public class RideHailWaitingStats implements IGraphStats {
 
-    RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
+    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 

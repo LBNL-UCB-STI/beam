@@ -35,7 +35,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    RealizedModeStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
+    public RealizedModeStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
         this.statComputation = statComputation;
     }
 
@@ -59,15 +59,13 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Integer>> stat) {
             double[] modeOccurrencePerHour = new double[maxHour + 1];
-            int index = 0;
             for (int hour = 0; hour <= maxHour; hour++) {
                 Map<String, Integer> hourData = stat.get(hour);
                 if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                    modeOccurrencePerHour[hour] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
                 } else {
-                    modeOccurrencePerHour[index] = 0;
+                    modeOccurrencePerHour[hour] = 0;
                 }
-                index = index + 1;
             }
             return modeOccurrencePerHour;
         }
@@ -126,12 +124,8 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
             Integer frequency = 1;
             if (hourData != null) {
-                frequency = hourData.get(mode);
-                if (frequency != null) {
-                    frequency++;
-                } else {
-                    frequency = 1;
-                }
+                frequency = hourData.getOrDefault(mode, 0);
+                frequency++;
             } else {
                 hourData = new HashMap<>();
             }
