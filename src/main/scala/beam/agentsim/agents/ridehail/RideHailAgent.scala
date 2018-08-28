@@ -11,7 +11,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.{
+  CompletionNotice,
+  IllegalTriggerGoToError,
+  ScheduleTrigger
+}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -243,26 +247,19 @@ class RideHailAgent(
     case _ -> Idle =>
       unstashAll()
 
-      val data:PersonAgent.DrivingData=_
+      nextNotifyVehicleResourceIdle match {
 
-      stateData.currentVehicle.headOption match {
-        case Some(currentVehicleUnderControl) =>
-
-          data.passengerSchedule.schedule.keys
-            .drop(data.currentLegPassengerScheduleIndex)
-            .headOption match {
-            case Some(currentLeg) =>
-
+        case Some(nextNotifyVehicleResourceIdle) =>
+          stateData.currentVehicle.headOption match {
+            case Some(currentVehicleUnderControl) =>
               val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+
               theVehicle.manager.foreach(
-                _ ! NotifyVehicleResourceIdle(
-                  currentVehicleUnderControl,
-                  beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
-                  stateData.passengerSchedule,
-                  theVehicle.fuelLevel.getOrElse(Double.NaN)
-                )
+                _ ! nextNotifyVehicleResourceIdle
               )
           }
+
+        case None =>
       }
 
     case _ -> _ =>

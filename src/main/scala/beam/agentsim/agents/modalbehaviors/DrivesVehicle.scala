@@ -61,6 +61,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
+  var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
+
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
@@ -80,16 +82,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .vehicles(currentVehicleUnderControl)
                 .useFuel(currentLeg.travelPath.distanceInM)
 
+              // updatedBeamLeg = None
+
               if (isLastLeg) {
                 val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-                theVehicle.manager.foreach(
-                  _ ! NotifyVehicleResourceIdle(
+                //theVehicle.manager.foreach(
+                nextNotifyVehicleResourceIdle = Some(
+                  NotifyVehicleResourceIdle(
                     currentVehicleUnderControl,
                     beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
                     data.passengerSchedule,
                     theVehicle.fuelLevel.getOrElse(Double.NaN)
                   )
                 )
+                // )
               }
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -257,17 +263,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   transportNetwork
                 )
 
+              val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+              nextNotifyVehicleResourceIdle = Some(
+                NotifyVehicleResourceIdle(
+                  currentVehicleUnderControl,
+                  beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
+                  data.passengerSchedule,
+                  theVehicle.fuelLevel.getOrElse(Double.NaN)
+                )
+              )
+
+              /*
               if (isLastLeg) {
-                val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+
                 theVehicle.manager.foreach(
-                  _ ! NotifyVehicleResourceIdle(
-                    currentVehicleUnderControl,
-                    beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
-                    data.passengerSchedule,
-                    theVehicle.fuelLevel.getOrElse(Double.NaN)
-                  )
+
                 )
               }
+               */
 
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
