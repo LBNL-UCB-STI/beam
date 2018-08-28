@@ -334,7 +334,7 @@ class PersonAgent(
     case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), _), data: BasePersonData) =>
-      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
+      logDebug(s"replanning because ${firstErrorResponse.errorCode}")
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick, triggerId)
@@ -342,7 +342,7 @@ class PersonAgent(
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailResponse(_, _, Some(error), _), data: BasePersonData) =>
-      logWarn(s"replanning because ${error.errorCode}")
+      logDebug(s"replanning because ${error.errorCode}")
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick, triggerId)
@@ -650,7 +650,7 @@ class PersonAgent(
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyVehicleResourceIdle, _) =>
+    case Event(NotifyVehicleResourceIdle(_,_,_,_), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

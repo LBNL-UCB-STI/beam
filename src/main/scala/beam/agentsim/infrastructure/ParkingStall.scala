@@ -46,10 +46,6 @@ object ParkingStall {
     }
   }
 
-//  lazy val parkingMap = Map[Int, ParkingType](
-//    1 -> Residential, 2 -> Workplace, 3 -> Public, 4 -> NoOtherExists
-//  )
-
   sealed trait ChargingType
 
   case object NoCharger extends ChargingType
@@ -60,21 +56,51 @@ object ParkingStall {
 
   object ChargingType {
 
+
     def fromString(s: String): ChargingType = {
       s match {
         case "NoCharger" => NoCharger
-        case "Level1"    => Level1
-        case "Level2"    => Level2
-        case "DCFast"    => DCFast
+        case "Level1" => Level1
+        case "Level2" => Level2
+        case "DCFast" => DCFast
         case "UltraFast" => UltraFast
-        case _           => throw new RuntimeException("Invalid case")
+        case _ => throw new RuntimeException("Invalid case")
       }
     }
-  }
 
-//  lazy val chargingMap = Map[Int, ChargingType](
-//    1 -> NoCharger, 2 -> Level1, 3 -> Level2, 4 -> DCFast, 5 -> UltraFast
-//  )
+    def getChargerPowerInKW(chargerType: ChargingType): Double = {
+      chargerType match {
+        case NoCharger => 0.0
+        case Level1 =>
+          1.5
+        case Level2 =>
+          6.7
+        case DCFast =>
+          50.0
+        case UltraFast =>
+          250.0
+      }
+    }
+
+    def calculateChargingSessionLengthAndEnergyInJoules(chargerType: ChargingType, currentEnergyLevelInJoule: Double, energyCapacityInJoule: Double, vehicleChargingLimit: Option[Double], sessionDurationLimit: Option[Long]): (Long, Double) = {
+      val vehicleChargingLimitActual = vehicleChargingLimit.getOrElse(Double.MaxValue)
+      val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
+      val sessionLength = Math.min(sessionLengthLimiter, chargerType match {
+          case NoCharger => 0L
+          case chType if chType == Level1 || chType == Level2 =>
+            Math.round((energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)))
+          case chType if chType == DCFast || chType == UltraFast =>
+            if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
+              0L
+            } else {
+              Math.round((energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)))
+            }
+        }
+      )
+      val sessionEnergyInJoules = sessionLength.toDouble * Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3.6e6
+      (sessionLength, sessionEnergyInJoules)
+    }
+  }
 
   sealed trait ChargingPreference
   case object NoNeed extends ChargingPreference
@@ -104,9 +130,5 @@ object ParkingStall {
   sealed trait ReservedParkingType
   case object Any extends ReservedParkingType
   case object RideHailManager extends ReservedParkingType
-
-//  lazy val PricingMap = Map[Int, PricingModel](
-//    1 -> Free, 2 -> FlatFee, 3 -> Block
-//  )
 
 }

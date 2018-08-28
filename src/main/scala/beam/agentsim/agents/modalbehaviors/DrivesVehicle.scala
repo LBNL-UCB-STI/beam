@@ -46,6 +46,9 @@ object DrivesVehicle {
 
   case class AddFuel(fuelInJoules: Double)
 
+  case class StartRefuelTrigger(tick: Double) extends Trigger
+  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
+
   case object GetBeamVehicleState
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
@@ -327,6 +330,34 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   }
 
   when(WaitingToDrive) {
+    case Event(TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules),triggerId),data) =>
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          theVehicle.addFuel(energyInJoules)
+          theVehicle.manager.foreach(
+            _ ! NotifyVehicleResourceIdle(
+              currentVehicleUnderControl,
+              beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.last._1.travelPath.endPoint),
+              data.passengerSchedule,
+              theVehicle.getState()
+            )
+          )
+        case None =>
+          log.debug("currentVehicleUnderControl not found")
+      }
+      stay() replying CompletionNotice(triggerId, Vector())
+    case Event(TriggerWithId(StartRefuelTrigger(tick),triggerId),data) =>
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          val (sessionDuration, energyDelivered) = theVehicle.refuelingSessionDurationAndEnergyInJoules()
+          stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(
+            EndRefuelTrigger(tick + sessionDuration, tick, energyDelivered),self)))
+        case None =>
+          log.debug("currentVehicleUnderControl not found")
+          stay()
+      }
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
@@ -414,7 +445,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .keys
         .toSeq
       if (legsInThePast.nonEmpty)
-        log.warning("Legs in the past: {} -- {}", legsInThePast, req)
+        log.debug("Legs in the past: {} -- {}", legsInThePast, req)
       val triggersToSchedule = legsInThePast
         .flatMap(
           leg =>

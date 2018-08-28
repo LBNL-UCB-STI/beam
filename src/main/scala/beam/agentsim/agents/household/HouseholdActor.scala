@@ -271,6 +271,7 @@ object HouseholdActor {
         matsimBodyVehicle,
         HumanBodyVehicle,
         None,
+        None,
         None
       )
       newBodyVehicle.registerResource(personRef)

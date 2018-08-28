@@ -16,6 +16,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.CsvUtils
 import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
 import org.supercsv.prefs.CsvPreference
@@ -101,7 +102,7 @@ class ZonalParkingManager(
         "Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet."
       )
 
-    case inquiry @ DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
+    case inquiry @ DepotParkingInquiry(vehicleId: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
       val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
       val mStalls = mNearestTaz.flatMap {
         case (taz, _) =>
@@ -113,12 +114,12 @@ class ZonalParkingManager(
           }
       }
 
-      val mParkingStall = mStalls.flatMap {
+      val maybeParkingStall = mStalls.flatMap {
         case (attr, values) =>
           maybeCreateNewStall(attr, location, 0.0, Some(values))
       }
 
-      mParkingStall.foreach { stall =>
+      maybeParkingStall.foreach { stall =>
         resources.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
         pooledResources.update(
@@ -127,7 +128,7 @@ class ZonalParkingManager(
         )
       }
 
-      val response = DepotParkingInquiryResponse(mParkingStall)
+      val response = DepotParkingInquiryResponse(maybeParkingStall, inquiry.requestId)
       sender() ! response
 
     case inquiry @ ParkingInquiry(
@@ -178,7 +179,7 @@ class ZonalParkingManager(
             case _ =>
               selectStallWithCharger(inquiry, 500.0)
           }
-      })
+      }, inquiry.requestId)
   }
 
   private def maybeCreateNewStall(
@@ -204,14 +205,14 @@ class ZonalParkingManager(
     }
   }
 
-  def respondWithStall(stall: ParkingStall): Unit = {
+  def respondWithStall(stall: ParkingStall, requestId: Int): Unit = {
     resources.put(stall.id, stall)
     val stallValues = pooledResources(stall.attributes)
     pooledResources.update(
       stall.attributes,
       stallValues.copy(numStalls = stallValues.numStalls - 1)
     )
-    sender() ! ParkingInquiryResponse(stall)
+    sender() ! ParkingInquiryResponse(stall, requestId)
   }
 
   // TODO make these distributions more custom to the TAZ and stall type

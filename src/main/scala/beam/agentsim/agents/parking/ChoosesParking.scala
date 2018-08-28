@@ -99,7 +99,7 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
   }
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall), data) =>
+    case Event(ParkingInquiryResponse(stall,_), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =

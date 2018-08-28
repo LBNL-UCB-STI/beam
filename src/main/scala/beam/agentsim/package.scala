@@ -48,6 +48,7 @@ package object agentsim {
               veh,
               BeamVehicleType.CarVehicle,
               None,
+              None,
               None
             )
           )

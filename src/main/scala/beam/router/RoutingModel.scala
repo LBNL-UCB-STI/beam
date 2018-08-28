@@ -130,8 +130,6 @@ object RoutingModel {
     unbecomeDriverOnCompletion: Boolean
   ) {
 
-    val isHumanBodyVehicle: Boolean =
-      HumanBodyVehicle.isVehicleType(beamVehicleId)
     val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
   }
 

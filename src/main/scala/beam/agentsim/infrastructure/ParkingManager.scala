@@ -4,11 +4,11 @@ import akka.actor.Actor
 import beam.agentsim.ResourceManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import org.apache.commons.lang.builder.HashCodeBuilder
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
-import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.vehicles.Vehicle
 
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes
@@ -26,12 +26,16 @@ object ParkingManager {
     arrivalTime: Long,
     parkingDuration: Double,
     reservedFor: ReservedParkingType = ParkingStall.Any
-  )
+  ){
+    lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
+  }
 
-  case class DepotParkingInquiry(customerLocationUtm: Location, reservedFor: ReservedParkingType)
-  case class DepotParkingInquiryResponse(mStall: Option[ParkingStall])
+  case class DepotParkingInquiry(vehicleId: Id[Vehicle], customerLocationUtm: Location, reservedFor: ReservedParkingType){
+    lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
+  }
+  case class DepotParkingInquiryResponse(maybeStall: Option[ParkingStall], requestId: Int)
 
-  case class ParkingInquiryResponse(stall: ParkingStall)
+  case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int)
 
   // Use this to pass data from CSV or config file into the manager
   case class ParkingStockAttributes(numSpacesPerTAZ: Int)

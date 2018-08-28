@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -31,7 +32,8 @@ class BeamVehicle(
   val matSimVehicle: Vehicle,
   val beamVehicleType: BeamVehicleType,
   var fuelLevelInJoules: Option[Double],
-  val fuelCapacityInJoules: Option[Double]
+  val fuelCapacityInJoules: Option[Double],
+  val refuelRateLimitInJoulesPerSecond: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
@@ -92,6 +94,19 @@ class BeamVehicle(
       fLevel - powerTrain
         .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
     )
+  }
+
+  /**
+    *
+    * @return refuelingDuration
+    */
+  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+    stall match {
+      case Some(theStall) =>
+        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(theStall.attributes.chargingType,fuelLevelInJoules.get,fuelCapacityInJoules.get,refuelRateLimitInJoulesPerSecond, None)
+      case None =>
+        (0, 0.0) // if we are not parked, no refueling can occur
+    }
   }
 
   def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>

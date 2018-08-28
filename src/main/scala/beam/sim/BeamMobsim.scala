@@ -152,24 +152,25 @@ class BeamMobsim @Inject()(
           beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
         envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
-        private val rideHailManager = context.actorOf(
-          RideHailManager.props(
-            beamServices,
-            scheduler,
-            beamServices.beamRouter,
-            envelopeInUTM,
-            rideHailSurgePricingManager
-          ),
-          "RideHailManager"
-        )
-        context.watch(rideHailManager)
-
         private val parkingManager = context.actorOf(
           ZonalParkingManager
             .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
           "ParkingManager"
         )
         context.watch(parkingManager)
+
+        private val rideHailManager = context.actorOf(
+          RideHailManager.props(
+            beamServices,
+            scheduler,
+            beamServices.beamRouter,
+            parkingManager,
+            envelopeInUTM,
+            rideHailSurgePricingManager
+          ),
+          "RideHailManager"
+        )
+        context.watch(rideHailManager)
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef =
@@ -306,7 +307,8 @@ class BeamMobsim @Inject()(
                 Option(scenario.getVehicles.getVehicleAttributes)
               val rideHailBeamVehicle = BeamVehicleUtils.makeCar(
                 rideHailVehicle,
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters,
+                None
               )
 
               beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)

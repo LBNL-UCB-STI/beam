@@ -17,11 +17,12 @@ object BeamVehicleUtils {
       BicycleVehicle.createMatsimVehicle(id),
       BicycleVehicle,
       None,
+      None,
       None
     )
   }
 
-  def makeCar(matsimVehicle: Vehicle, vehicleRangeInMeters: Double): BeamVehicle = {
+  def makeCar(matsimVehicle: Vehicle, vehicleRangeInMeters: Double, refuelRateLimitInWatts: Option[Double]): BeamVehicle = {
     val engineInformation = Option(matsimVehicle.getType.getEngineInformation)
 
     val powerTrain = engineInformation match {
@@ -38,28 +39,31 @@ object BeamVehicleUtils {
       matsimVehicle,
       CarVehicle,
       Some(fuelCapacityInJoules),
-      Some(fuelCapacityInJoules)
+      Some(fuelCapacityInJoules),
+      refuelRateLimitInWatts
     )
   }
 
   def makeCar(
     matsimVehicles: Vehicles,
     id: Id[Vehicle],
-    vehicleRangeInMeters: Double
+    vehicleRangeInMeters: Double,
+    refuelRateLimitInWatts: Option[Double]
   ): BeamVehicle = {
-    makeCar(matsimVehicles.getVehicles.get(id), vehicleRangeInMeters)
+    makeCar(matsimVehicles.getVehicles.get(id), vehicleRangeInMeters, refuelRateLimitInWatts)
   }
 
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
     matsimVehicles: Vehicles,
     id: Id[Vehicle],
-    vehicleRangeInM: Double = Double.MaxValue
+    vehicleRangeInM: Double = Double.MaxValue,
+    refuelRateLimitInWatts: Option[Double]
   ): Either[IllegalArgumentException, BeamVehicle] = {
     if (BicycleVehicle.isVehicleType(id)) {
       Right(makeBicycle(id))
     } else {
-      Right(makeCar(matsimVehicles, id, vehicleRangeInM))
+      Right(makeCar(matsimVehicles, id, vehicleRangeInM, refuelRateLimitInWatts))
     }
   }
 

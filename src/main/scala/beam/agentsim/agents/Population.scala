@@ -157,7 +157,7 @@ class Population(
               ) //TODO personSelectedPlan.getType is null
 
               def receive = {
-                case ParkingInquiryResponse(stall) =>
+                case ParkingInquiryResponse(stall,_) =>
                   vehicle._2.useParkingStall(stall)
                   context.stop(self)
                 //TODO deal with timeouts and errors
@@ -177,6 +177,7 @@ class Population(
 
 object Population {
   val defaultVehicleRange = 5e3
+  val refuelRateLimitInWatts = None
 
   case object InitParkingVehicles
 
@@ -197,7 +198,8 @@ object Population {
         makeHouseholdVehicle(
           beamServices.matsimServices.getScenario.getVehicles,
           id,
-          defaultVehicleRange
+          defaultVehicleRange,
+          refuelRateLimitInWatts
         ) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
         }
