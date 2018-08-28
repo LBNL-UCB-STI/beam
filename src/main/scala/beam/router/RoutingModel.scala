@@ -91,7 +91,9 @@ object RoutingModel {
   }
 
   object EmbodiedBeamTrip {
+
     val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
+
   }
 
   /**
