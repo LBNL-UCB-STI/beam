@@ -5,18 +5,15 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.infrastructure.ParkingManager.{
-  DepotParkingInquiry,
-  DepotParkingInquiryResponse,
-  ParkingStockAttributes
-}
+import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse, ParkingStockAttributes}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
+import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -78,13 +75,15 @@ class ZonalParkingManagerSpec
 
       val zonalParkingManager = TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
       val location = new Coord(170572.95810126758, 2108.0402919341077)
+      val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
 
-      zonalParkingManager ! DepotParkingInquiry(location, ParkingStall.Any)
-      expectMsg(DepotParkingInquiryResponse(None))
+      zonalParkingManager ! inquiry
+      expectMsg(DepotParkingInquiryResponse(None,inquiry.requestId))
 
-      zonalParkingManager ! DepotParkingInquiry(location, ParkingStall.RideHailManager)
+      val newInquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.RideHailManager)
+      zonalParkingManager ! newInquiry
       expectMsgPF() {
-        case dpier @ DepotParkingInquiryResponse(Some(_)) => dpier
+        case dpier @ DepotParkingInquiryResponse(Some(_),newInquiry.requestId) => dpier
       }
     }
 
@@ -107,14 +106,16 @@ class ZonalParkingManagerSpec
 
       val zonalParkingManager = TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
       val location = new Coord(170572.95810126758, 2108.0402919341077)
+      val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
 
-      zonalParkingManager ! DepotParkingInquiry(location, ParkingStall.Any)
+      zonalParkingManager ! inquiry
       expectMsgPF() {
-        case dpier @ DepotParkingInquiryResponse(Some(_)) => dpier
+        case dpier @ DepotParkingInquiryResponse(Some(_),inquiry.requestId) => dpier
       }
 
-      zonalParkingManager ! DepotParkingInquiry(location, ParkingStall.RideHailManager)
-      expectMsg(DepotParkingInquiryResponse(None))
+      val newInquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.RideHailManager)
+      zonalParkingManager ! newInquiry
+      expectMsg(DepotParkingInquiryResponse(None,newInquiry.requestId))
     }
   }
 
