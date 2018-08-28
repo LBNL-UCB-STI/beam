@@ -64,7 +64,7 @@ import java.nio.channels.FileChannel;
 						});
 						Thread.sleep(250);
 					} catch (InterruptedException e) {
-//						Thread.currentThread().interrupt();
+						Thread.currentThread().interrupt();
 						log.error(e.getMessage(), e);
 					} catch(IOException e) {
 						log.error(e.getMessage(), e);
