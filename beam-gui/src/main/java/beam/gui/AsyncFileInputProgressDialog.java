@@ -71,7 +71,6 @@ import java.nio.channels.FileChannel;
                     }
                 }
             }
-
         }, "ProgressObserver");
 
         t.setDaemon(true);
