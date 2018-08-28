@@ -154,7 +154,9 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
-
+    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(newTriggers)
   }
 
   when(IdleInterrupted) {
@@ -185,6 +187,9 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(newTriggers)
   }
 
   when(PassengerScheduleEmpty) {
@@ -235,25 +240,23 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop
 
-    // the following block would be handled in idle state, but new repositioning requests can move system into IdleInterrupted as well
-    // should we restrict this more (e.g. just idle and IdleInterrupted)?
-    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
-      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      _currentTriggerId match {
-        case Some(_) =>
-          val (_, triggerId) = releaseTickAndTriggerId()
-          scheduler ! CompletionNotice(triggerId, newTriggers)
-        case None =>
-      }
-
-      stay()
-
     case event @ Event(_, _) =>
       log.warning(
         s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle(" + vehicle.id.toString + ")"
       )
       stay()
 
+  }
+
+  def handleNotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]): State = {
+    _currentTriggerId match {
+      case Some(_) =>
+        val (_, triggerId) = releaseTickAndTriggerId()
+        scheduler ! CompletionNotice(triggerId, newTriggers)
+      case None =>
+    }
+
+    stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
@@ -283,4 +286,5 @@ class RideHailAgent(
       unstashAll()
 
   }
+
 }
