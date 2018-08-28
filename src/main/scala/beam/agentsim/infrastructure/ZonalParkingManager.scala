@@ -102,8 +102,8 @@ class ZonalParkingManager(
       )
 
     case inquiry @ DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
-      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
-      val mStalls = mNearestTaz.flatMap {
+      val nearestTaz = findTAZsWithDistances(location, 1000.0).headOption
+      val stalls = nearestTaz.flatMap {
         case (taz, _) =>
           pooledResources.find {
             case (attr, values) =>
@@ -113,12 +113,12 @@ class ZonalParkingManager(
           }
       }
 
-      val mParkingStall = mStalls.flatMap {
+      val parkingStall = stalls.flatMap {
         case (attr, values) =>
           maybeCreateNewStall(attr, location, 0.0, Some(values))
       }
 
-      mParkingStall.foreach { stall =>
+      parkingStall.foreach { stall =>
         resources.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
         pooledResources.update(
@@ -127,7 +127,7 @@ class ZonalParkingManager(
         )
       }
 
-      val response = DepotParkingInquiryResponse(mParkingStall)
+      val response = DepotParkingInquiryResponse(parkingStall)
       sender() ! response
 
     case inquiry @ ParkingInquiry(
