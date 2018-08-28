@@ -2,19 +2,16 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
+import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -243,7 +240,33 @@ class RideHailAgent(
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   onTransition {
+    case _ -> Idle =>
+      unstashAll()
+
+      val data:PersonAgent.DrivingData=_
+
+      stateData.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+
+          data.passengerSchedule.schedule.keys
+            .drop(data.currentLegPassengerScheduleIndex)
+            .headOption match {
+            case Some(currentLeg) =>
+
+              val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+              theVehicle.manager.foreach(
+                _ ! NotifyVehicleResourceIdle(
+                  currentVehicleUnderControl,
+                  beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
+                  stateData.passengerSchedule,
+                  theVehicle.fuelLevel.getOrElse(Double.NaN)
+                )
+              )
+          }
+      }
+
     case _ -> _ =>
       unstashAll()
+
   }
 }
