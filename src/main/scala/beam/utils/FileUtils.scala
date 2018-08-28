@@ -85,7 +85,11 @@ object FileUtils extends LazyLogging {
     }
 
   def safeLines(fileLoc: String): stream.Stream[String] = {
-    using(CsvUtils.readerFromFile(fileLoc))(_.lines)
+    using(readerFromFile(fileLoc))(_.lines)
+  }
+
+  def readerFromFile(filePath: String): java.io.BufferedReader = {
+    IOUtils.getBufferedReader(filePath)
   }
 
   def downloadFile(source: String): Unit = {
@@ -96,5 +100,10 @@ object FileUtils extends LazyLogging {
     assert(source != null)
     assert(target != null)
     copyURLToFile(new URL(source), Paths.get(target).toFile)
+  }
+
+  def getHash(concatParams: Any*): Int = {
+    val concatString = concatParams.foldLeft("")(_ + _)
+    concatString.hashCode
   }
 }

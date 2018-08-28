@@ -96,6 +96,13 @@ allprojects {
 
 dependencies {
 
+    /*
+     The current implementation of conveyal repository contains the logback.xml as part of
+     the library. This avoid our project to have a specific logback.xml file.
+     A PR was submitted after the maintainers fix it this line can be removed.
+     */
+    implementation 'com.github.carloscaldas:osm-lib:master-SNAPSHOT'
+
     ////////////////////////////
     // Java dependencies
     ////////////////////////////

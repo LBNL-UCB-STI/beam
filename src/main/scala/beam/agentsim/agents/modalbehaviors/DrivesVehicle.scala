@@ -65,6 +65,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
+  var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
+
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
@@ -86,8 +88,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
               if (isLastLeg) {
                 val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-                theVehicle.manager.foreach(
-                  _ ! NotifyVehicleResourceIdle(
+                nextNotifyVehicleResourceIdle = Some(
+                  NotifyVehicleResourceIdle(
                     currentVehicleUnderControl,
                     beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
                     data.passengerSchedule,
@@ -247,13 +249,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
           data.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
-              // If no manager is set, we ignore
-
-              // TODO: can we update the current leg based on the stop time?
-              // as this kind of stop happens seldomly, we might try to send a query to any entity which has access to the network, e.g. router or RideHailManager?
-
-              //val a = beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer,currentLeg.travelPath.endPoint.loc,10000)
-
               val updatedBeamLeg =
                 RideHailUtils.getUpdatedBeamLegAfterStopDriving(
                   currentLeg,
@@ -261,17 +256,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   transportNetwork
                 )
 
-              if (isLastLeg) {
-                val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-                theVehicle.manager.foreach(
-                  _ ! NotifyVehicleResourceIdle(
-                    currentVehicleUnderControl,
-                    beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
-                    data.passengerSchedule,
-                    theVehicle.getState()
-                  )
+              val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+              nextNotifyVehicleResourceIdle = Some(
+                NotifyVehicleResourceIdle(
+                  currentVehicleUnderControl,
+                  beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
+                  data.passengerSchedule,
+                  theVehicle.fuelLevel.getOrElse(Double.NaN)
                 )
-              }
+              )
 
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(

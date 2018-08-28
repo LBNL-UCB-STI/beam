@@ -330,6 +330,9 @@ class RideHailManager(
             .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
         })
 
+      // ridehail agent awaiting NotifyVehicleResourceIdleReply
+      sender() ! NotifyVehicleResourceIdleReply(Vector[ScheduleTrigger]())
+
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, InService)
 

@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.CsvUtils
+import beam.utils.{FileUtils}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.supercsv.cellprocessor.ift.CellProcessor
@@ -322,11 +322,9 @@ class ZonalParkingManager(
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = ???
 
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
-    var mapReader: ICsvMapReader = null
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-    try {
-      mapReader =
-        new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+
+    FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -348,10 +346,6 @@ class ZonalParkingManager(
 
         line = mapReader.read(header: _*)
       }
-
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
     }
     res
   }
