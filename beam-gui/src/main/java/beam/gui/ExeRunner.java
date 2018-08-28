@@ -63,7 +63,7 @@ import java.util.Arrays;
 			try {
 				this.executor.join();
 			} catch (InterruptedException e) {
-//				Thread.currentThread().interrupt();
+				Thread.currentThread().interrupt();
 				log.info("Got interrupted while waiting for external exe to finish.", e);
 			}
 		}
