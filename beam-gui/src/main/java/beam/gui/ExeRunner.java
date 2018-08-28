@@ -63,7 +63,7 @@ import java.util.Arrays;
 			try {
 				this.executor.join();
 			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
+//				Thread.currentThread().interrupt();
 				log.info("Got interrupted while waiting for external exe to finish.", e);
 			}
 		}
@@ -122,7 +122,7 @@ import java.util.Arrays;
 						log.info("external exe returned " + this.erg);
 						processRunning = false;
 					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
+//						Thread.currentThread().interrupt();
 						log.info("Thread waiting for external exe to finish was interrupted");
 						this.erg = -3;
 					}
@@ -130,13 +130,13 @@ import java.util.Arrays;
 				try {
 					outputHandler.join();
 				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
+//					Thread.currentThread().interrupt();
 					log.info("got interrupted while waiting for outputHandler to die.", e);
 				}
 				try {
 					errorHandler.join();
 				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
+//					Thread.currentThread().interrupt();
 					log.info("got interrupted while waiting for errorHandler to die.", e);
 				}
 			} catch (IOException e) {

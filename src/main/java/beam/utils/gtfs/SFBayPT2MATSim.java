@@ -57,7 +57,7 @@ public class SFBayPT2MATSim {
                 TransitDataDownloader DOWNLOADER = TransitDataDownloader.getInstance(this.apiKey);
                 DOWNLOADER.getGTFSZip(opPathName, opKey).get();
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+//                Thread.currentThread().interrupt();
                 e.printStackTrace();
             } catch(ExecutionException e) {
                 e.printStackTrace();

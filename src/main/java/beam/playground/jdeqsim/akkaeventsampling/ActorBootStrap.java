@@ -27,7 +27,7 @@ public class ActorBootStrap {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+//            Thread.currentThread().interrupt();
             e.printStackTrace();
         }
         ActorRef scheduleActorUtilRef = system.actorOf(Props.create(SchedulerActorUtil.class), SchedulerActorUtil.ACTOR_NAME);
