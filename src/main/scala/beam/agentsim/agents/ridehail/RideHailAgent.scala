@@ -9,7 +9,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
@@ -76,6 +76,8 @@ object RideHailAgent {
   case object Idle extends BeamAgentState
 
   case object IdleInterrupted extends BeamAgentState
+
+  case class NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger])
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
@@ -152,6 +154,17 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+
+    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      _currentTriggerId match {
+        case Some(_) =>
+          val (_, triggerId) = releaseTickAndTriggerId()
+          scheduler ! CompletionNotice(triggerId, newTriggers)
+        case None =>
+      }
+
+      stay()
   }
 
   when(IdleInterrupted) {
@@ -187,8 +200,6 @@ class RideHailAgent(
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
-      val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
