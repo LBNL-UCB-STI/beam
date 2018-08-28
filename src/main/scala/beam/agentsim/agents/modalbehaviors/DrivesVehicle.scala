@@ -262,7 +262,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   currentVehicleUnderControl,
                   beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
                   data.passengerSchedule,
-                  theVehicle.fuelLevel.getOrElse(Double.NaN)
+                  theVehicle.getState()
                 )
               )
 
