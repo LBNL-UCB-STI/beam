@@ -665,6 +665,11 @@ class RideHailManager(
 
           request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
         } else {*/
+
+        println(
+          s"inquiry reply, customer: ${request.customer.personId}, vehicleId: ${rhLocation.vehicleId}"
+        )
+
         requestRoutesToCustomerAndDestination(request, rhLocation)
         //}
 
