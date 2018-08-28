@@ -18,82 +18,82 @@ import java.nio.channels.FileChannel;
  */
 /*package*/ class AsyncFileInputProgressDialog extends JDialog {
 
-	private static final Logger log = LoggerFactory.getLogger(AsyncFileInputProgressDialog.class);
+    private static final Logger log = LoggerFactory.getLogger(AsyncFileInputProgressDialog.class);
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public AsyncFileInputProgressDialog(final FileInputStream fis) {
-		this(fis, "Operation in Progress…");
-	}
+    public AsyncFileInputProgressDialog(final FileInputStream fis) {
+        this(fis, "Operation in Progress…");
+    }
 
-	public AsyncFileInputProgressDialog(final FileInputStream fis, final String title) {
-		setTitle(title);
-		final JProgressBar progressbar = new JProgressBar(0, 1000);
-		GroupLayout groupLayout = new GroupLayout(getContentPane());
-		groupLayout.setHorizontalGroup(
-			groupLayout.createParallelGroup(Alignment.LEADING)
-				.addGroup(groupLayout.createSequentialGroup()
-					.addContainerGap()
-					.addComponent(progressbar, GroupLayout.DEFAULT_SIZE, 300, Short.MAX_VALUE)
-					.addContainerGap())
-		);
-		groupLayout.setVerticalGroup(
-			groupLayout.createParallelGroup(Alignment.LEADING)
-				.addGroup(groupLayout.createSequentialGroup()
-					.addContainerGap()
-					.addComponent(progressbar)
-					.addContainerGap())
-		);
-		getContentPane().setLayout(groupLayout);
+    public AsyncFileInputProgressDialog(final FileInputStream fis, final String title) {
+        setTitle(title);
+        final JProgressBar progressbar = new JProgressBar(0, 1000);
+        GroupLayout groupLayout = new GroupLayout(getContentPane());
+        groupLayout.setHorizontalGroup(
+                groupLayout.createParallelGroup(Alignment.LEADING)
+                        .addGroup(groupLayout.createSequentialGroup()
+                                .addContainerGap()
+                                .addComponent(progressbar, GroupLayout.DEFAULT_SIZE, 300, Short.MAX_VALUE)
+                                .addContainerGap())
+        );
+        groupLayout.setVerticalGroup(
+                groupLayout.createParallelGroup(Alignment.LEADING)
+                        .addGroup(groupLayout.createSequentialGroup()
+                                .addContainerGap()
+                                .addComponent(progressbar)
+                                .addContainerGap())
+        );
+        getContentPane().setLayout(groupLayout);
 
-		Thread t = new Thread(new Runnable() {
+        Thread t = new Thread(new Runnable() {
 
-			@Override
-			public void run() {
-				FileChannel ch = fis.getChannel();
-				while (ch.isOpen()) {
-					try {
-						long size = ch.size();
-						long pos = ch.position();
-						final int progress = (int) ((((double) pos) / ((double) size)) * 1000.0);
-						SwingUtilities.invokeLater(new Runnable() {
-							@Override
-							public void run() {
-								progressbar.setValue(progress);
-							}
-						});
-						Thread.sleep(250);
-					} catch (InterruptedException e) {
+            @Override
+            public void run() {
+                FileChannel ch = fis.getChannel();
+                while (ch.isOpen()) {
+                    try {
+                        long size = ch.size();
+                        long pos = ch.position();
+                        final int progress = (int) ((((double) pos) / ((double) size)) * 1000.0);
+                        SwingUtilities.invokeLater(new Runnable() {
+                            @Override
+                            public void run() {
+                                progressbar.setValue(progress);
+                            }
+                        });
+                        Thread.sleep(250);
+                    } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-						log.error(e.getMessage(), e);
-					} catch (IOException e) {
+                        log.error(e.getMessage(), e);
+                    } catch (IOException e) {
                         log.error(e.getMessage(), e);
                     }
-				}
-			}
+                }
+            }
 
-		}, "ProgressObserver");
+        }, "ProgressObserver");
 
-		t.setDaemon(true);
-		t.start();
+        t.setDaemon(true);
+        t.start();
 
-		this.setModal(false);
-		this.setResizable(false);
-		this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-		this.pack();
+        this.setModal(false);
+        this.setResizable(false);
+        this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        this.pack();
 
-		// center on screen
-		Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-		int w = this.getSize().width;
-		int h = this.getSize().height;
-		int x = (dim.width-w)/2;
-		int y = (dim.height-h)/2;
-		this.setLocation(x, y);
+        // center on screen
+        Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+        int w = this.getSize().width;
+        int h = this.getSize().height;
+        int x = (dim.width - w) / 2;
+        int y = (dim.height - h) / 2;
+        this.setLocation(x, y);
 
-		this.setVisible(true);
-	}
+        this.setVisible(true);
+    }
 
-	public void close() {
-		this.setVisible(false);
-	}
+    public void close() {
+        this.setVisible(false);
+    }
 }
