@@ -47,7 +47,8 @@ object ResourceManager {
     override val resourceId: Id[_],
     override val whenWhere: SpaceTime,
     val passengerSchedule: PassengerSchedule,
-    val beamVehicleState: BeamVehicleState
+    val beamVehicleState: BeamVehicleState,
+    val triggerId: Option[Long] // triggerId is included to facilitate debugging
   ) extends NotifyResourceIdle
 
 }
