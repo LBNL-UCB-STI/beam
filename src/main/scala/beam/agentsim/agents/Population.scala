@@ -27,6 +27,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 import scala.util.Try
@@ -52,7 +53,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var initParkingVeh: Seq[ActorRef] = Nil
+  var initParkingVeh = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -70,7 +71,7 @@ class Population(
     case Finish =>
       context.children.foreach(_ ! Finish)
       initParkingVeh.foreach(context.stop(_))
-      initParkingVeh = Nil
+      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
@@ -116,6 +117,7 @@ class Population(
           .asInstanceOf[Double]
       )
 
+<<<<<<< HEAD
       val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
         Population.getVehiclesFromHousehold(household, beamServices)
 
@@ -170,6 +172,31 @@ class Population(
       context.watch(householdActor)
       householdActor ? Identify(0)
     }
+=======
+        houseHoldVehicles.foreach {
+          vehicle =>
+            val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
+              parkingManager ! ParkingInquiry(
+                Id.createPersonId("atHome"),
+                homeCoord,
+                homeCoord,
+                "home",
+                0,
+                NoNeed,
+                0,
+                0
+              ) //TODO personSelectedPlan.getType is null
+
+              def receive = {
+                case ParkingInquiryResponse(stall) =>
+                  vehicle._2.useParkingStall(stall)
+                  context.stop(self)
+                //TODO deal with timeouts and errors
+              }
+            }))
+            initParkingVeh append initParkingVehicle
+        }
+>>>>>>> master
 
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
