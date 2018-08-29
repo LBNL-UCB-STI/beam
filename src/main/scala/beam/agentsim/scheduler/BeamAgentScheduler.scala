@@ -326,7 +326,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
         log.info(
-          s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds = ${duration.toMinutes} minutes"
+          s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
