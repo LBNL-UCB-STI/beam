@@ -329,3 +329,108 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
 You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
 
 .. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
+
+Scala tips
+^^^^^^^^^^
+Scala Collection
+~~~~~~~~~~~~~~~~
+
+Use ``mutable`` buffer instead of ``immutable var``:
+****************************************************
+
+::
+
+   // Before
+   var buffer = scala.collection.immutable.Vector.empty[Int]
+   buffer = buffer :+ 1
+   buffer = buffer :+ 2
+
+   // After
+   val buffer = scala.collection.mutable.ArrayBuffer.empty[Int]
+   buffer += 1
+   buffer += 2
+
+Don’t create temporary collections, use ``view``:
+*************************************************
+
+::
+
+   val seq: Seq[Int] = Seq(1, 2, 3, 4, 5)
+
+   // Before
+   seq.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+   // After
+   seq.view.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+Don’t emulate ``collectFirst``:
+*******************************
+
+::
+
+   // Get first number >= 4
+   val seq: Seq[Int] = Seq(1, 2, 10, 20)
+   val predicate: Int => Boolean = (x: Int)  => { x >= 4 }
+
+   // Before
+   seq.filter(predicate).headOption
+
+   // After
+   seq.collectFirst { case num if predicate(num) => num }
+
+Don’t emulate ``collect``:
+**************************
+
+::
+
+   // Get first char of string, if it's longer than 3
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+   val predicate: String => Boolean = (s: String)  => { s.size > 3 }
+
+   // Before
+   s.filter(predicate).map { s => s.head }
+
+   // After
+   s.collect { case curr if predicate(curr) => curr.head }
+
+Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
+**********************************************************************
+
+::
+
+   // Get odd elements of sequence s
+   val predicate: Int => Boolean = (idx: Int)  => { idx % 2 == 1 }
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+
+   // Before
+   s.zipWithIndex.collect {
+       case x if predicate(x._2) => x._1   // what is _1 or _2 ??
+   }
+
+   // After
+   s.zipWithIndex.collect {
+       case (s, idx) if predicate(idx) => s
+   }
+
+Great article about `Scala Collection tips and tricks`_, must read
+******************************************************************
+
+Use lazy logging
+~~~~~~~~~~~~~~~~
+
+When you log, prefer to use API which are lazy. If you use
+``scala logging``, you have `it for free`_. When use ``ActorLogging`` in
+Akka, you should not use `string interpolation`_, but use method with
+replacement arguments:
+
+::
+
+   // Before
+   log.debug(s"Hello: $name")
+
+   // After
+   log.debug("Hello: {}", name)
+
+.. _Scala Collection tips and tricks: https://pavelfatin.com/scala-collections-tips-and-tricks/#sequences-rewriting
+.. _it for free: https://github.com/lightbend/scala-logging#scala-logging-
+.. _string interpolation: https://docs.scala-lang.org/overviews/core/string-interpolation.html
