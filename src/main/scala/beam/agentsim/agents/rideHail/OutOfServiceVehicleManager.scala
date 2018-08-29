@@ -23,9 +23,6 @@ import scala.collection.mutable
 class OutOfServiceVehicleManager(
   val log: LoggingAdapter,
   val rideHailManagerActor: ActorRef,
-  val rideHailAllocationManagerTimeoutInSeconds: Double,
-  val scheduler: ActorRef,
-  val beamConfig: BeamConfig,
   val rideHailManager: RideHailManager
 ) {
 

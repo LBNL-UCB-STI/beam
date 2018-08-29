@@ -234,9 +234,6 @@ class RideHailManager(
     new OutOfServiceVehicleManager(
       log,
       self,
-      rideHailAllocationManagerTimeoutInSeconds,
-      scheduler,
-      beamServices.beamConfig,
       this
     )
 
