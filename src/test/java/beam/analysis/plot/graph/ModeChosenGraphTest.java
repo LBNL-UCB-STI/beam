@@ -4,6 +4,8 @@ import beam.analysis.plots.ModeChosenStats;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -19,48 +21,52 @@ public class ModeChosenGraphTest {
         createDummySimWithXML();
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventCarOccurrence() {
 
-        int expectedResult = 33;
+        int expectedResult = 43;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         int actualResult = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(CAR, maxHour);
         assertEquals(expectedResult, actualResult);
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventDriveTransitOccurrence() {
         int expectedResult = 1;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         int actualResult = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(DRIVE_TRANS, maxHour);
         assertEquals(expectedResult, actualResult);
+
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventRideHailOccurrence() {
-        int expectedResult = 20;
+        int expectedResult = 52;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         int actualResult = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(RIDE_HAIL, maxHour);
         assertEquals(expectedResult, actualResult);
+
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventWalkOccurrence() {
-        int expectedResult = 41;
+        int expectedResult = 71;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         int actualResult = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(WALK, maxHour);
         assertEquals(expectedResult, actualResult);
+
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventWalkTransitOccurrence() {
         int expectedResult = 11;
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         int actualResult = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(WALK_TRANS, maxHour);
         assertEquals(expectedResult, actualResult);
+
     }
 
-    @Test @Ignore
+    @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForSpecificHour() {
         /**
          * 0 index represent CAR count
@@ -69,7 +75,7 @@ public class ModeChosenGraphTest {
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
-        int expectedResultOfMode[] = {14, 1, 9, 15, 10};
+        int expectedResultOfMode[] = {16, 1, 15, 21, 10};
         int actualResultOfMode[] = new int[5];
         int maxHour = getMaxHour(modeChosenStats.getSortedHourModeFrequencyList());
         actualResultOfMode[0] = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(CAR, maxHour, 6);
@@ -77,6 +83,7 @@ public class ModeChosenGraphTest {
         actualResultOfMode[2] = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(RIDE_HAIL, maxHour, 6);
         actualResultOfMode[3] = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(WALK, maxHour, 6);
         actualResultOfMode[4] = modeChosenStats.getHoursDataCountOccurrenceAgainstMode(WALK_TRANS, maxHour, 6);
+
         assertArrayEquals(expectedResultOfMode, actualResultOfMode);
     }
 
