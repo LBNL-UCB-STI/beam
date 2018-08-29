@@ -12,7 +12,10 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.rideHail.OutOfServiceVehicleManager
+import beam.agentsim.agents.rideHail.{
+  MoveOutOfServiceVehicleToDepotParking,
+  OutOfServiceVehicleManager
+}
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
