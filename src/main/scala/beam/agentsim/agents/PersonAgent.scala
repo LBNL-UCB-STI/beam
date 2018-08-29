@@ -279,8 +279,9 @@ class PersonAgent(
   }
 
   when(WaitingForDeparture) {
+
     /**
-     * Callback from [[ChoosesMode]]
+      * Callback from [[ChoosesMode]]
      **/
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
@@ -438,18 +439,18 @@ class PersonAgent(
   }
 
   /**
-   * processNextLegOrStartActivity
-   *
-   * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
-   * now complete. There are four outcomes possible:
-   *
-   * 1 There are more legs in the trip and the [[PersonAgent]] is the driver => goto [[WaitingToDrive]] and schedule
-   * [[StartLegTrigger]]
-   * 2 There are more legs in the trip but the [[PersonAgent]] is a passenger => goto [[Waiting]] and schedule nothing
-   * further (the driver will initiate the start of the leg)
-   * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
-   * of activity
-   * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
+    * processNextLegOrStartActivity
+    *
+    * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
+    * now complete. There are four outcomes possible:
+    *
+    * 1 There are more legs in the trip and the [[PersonAgent]] is the driver => goto [[WaitingToDrive]] and schedule
+    * [[StartLegTrigger]]
+    * 2 There are more legs in the trip but the [[PersonAgent]] is a passenger => goto [[Waiting]] and schedule nothing
+    * further (the driver will initiate the start of the leg)
+    * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
+    * of activity
+    * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
    **/
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
@@ -650,7 +651,7 @@ class PersonAgent(
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyVehicleResourceIdle(_,_,_,_), _) =>
+    case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
