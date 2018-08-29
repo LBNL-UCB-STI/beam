@@ -77,7 +77,11 @@ object RideHailAgent {
 
   case object IdleInterrupted extends BeamAgentState
 
-  case class NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger])
+  // triggerId is included to facilitate debugging
+  case class NotifyVehicleResourceIdleReply(
+    triggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+  )
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
@@ -154,7 +158,13 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
-    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+    case ev @ Event(
+          NotifyVehicleResourceIdleReply(
+            triggerId: Option[Long],
+            newTriggers: Seq[ScheduleTrigger]
+          ),
+          _
+        ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(newTriggers)
   }
@@ -187,7 +197,13 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
-    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+    case ev @ Event(
+          NotifyVehicleResourceIdleReply(
+            triggerId: Option[Long],
+            newTriggers: Seq[ScheduleTrigger]
+          ),
+          _
+        ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(newTriggers)
   }
@@ -241,7 +257,7 @@ class RideHailAgent(
       stop
 
     case event @ Event(_, _) =>
-      log.warning(
+      log.error(
         s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle(" + vehicle.id.toString + ")"
       )
       stay()
@@ -272,9 +288,24 @@ class RideHailAgent(
             case Some(currentVehicleUnderControl) =>
               val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
 
+              _currentTriggerId.foreach(
+                log.debug(
+                  "state(RideHailingAgent.awaiting NotifyVehicleResourceIdleReply) - triggerId: {}",
+                  _
+                )
+              )
+
+              if (_currentTriggerId != nextNotifyVehicleResourceIdle.triggerId) {
+                log.error(
+                  s"_currentTriggerId(${_currentTriggerId}) and nextNotifyVehicleResourceIdle.triggerId(${nextNotifyVehicleResourceIdle.triggerId}) don't match - vehicleId($currentVehicleUnderControl)"
+                )
+                //assert(false)
+              }
+
               theVehicle.manager.foreach(
                 _ ! nextNotifyVehicleResourceIdle
               )
+
           }
 
         case None =>
