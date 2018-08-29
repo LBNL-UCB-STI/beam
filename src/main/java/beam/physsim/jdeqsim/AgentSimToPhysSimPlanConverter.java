@@ -283,8 +283,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
+        long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
-
+        log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
     }
 
