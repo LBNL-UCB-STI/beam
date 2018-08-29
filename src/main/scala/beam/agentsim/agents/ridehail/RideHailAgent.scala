@@ -6,16 +6,12 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -167,6 +163,44 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(newTriggers)
+    case Event(
+    TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules), triggerId),
+    data
+    ) =>
+      holdTickAndTriggerId(tick,triggerId)
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          theVehicle.addFuel(energyInJoules)
+          theVehicle.manager.foreach(
+            _ ! NotifyVehicleResourceIdle(
+              currentVehicleUnderControl,
+              None,
+              data.passengerSchedule,
+              theVehicle.getState(),
+              _currentTriggerId
+            )
+          )
+        case None =>
+          log.debug("currentVehicleUnderControl not found")
+      }
+      stay()
+    case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          val (sessionDuration, energyDelivered) =
+            theVehicle.refuelingSessionDurationAndEnergyInJoules()
+          stay() replying CompletionNotice(
+            triggerId,
+            Vector(
+              ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration, tick, energyDelivered), self)
+            )
+          )
+        case None =>
+          log.debug("currentVehicleUnderControl not found")
+          stay()
+      }
   }
 
   when(IdleInterrupted) {

@@ -322,16 +322,18 @@ class RideHailManager(
 
     case ev @ NotifyVehicleResourceIdle(
           vehicleId: Id[Vehicle],
-          whenWhere,
+          whenWhereOpt,
           passengerSchedule,
           beamVehicleState,
           triggerId
         ) =>
       log.debug("RHM.NotifyVehicleResourceIdle: {}", ev)
 
+      val whenWhere = whenWhereOpt.getOrElse(getRideHailAgentLocation(vehicleId).currentLocation)
+
       updateLocationOfAgent(vehicleId, whenWhere, getServiceStatusOf(vehicleId))
 
-      //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
+      //updateLocationOfAgent(vehicleId, whenWhereOpt, isAvailable = true)
       resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver
         .foreach(driver => {
           val rideHailAgentLocation =

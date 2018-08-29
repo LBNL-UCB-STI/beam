@@ -336,7 +336,7 @@ object HouseholdActor {
           fuelLevel,
           None
           ) =>
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))

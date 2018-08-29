@@ -45,7 +45,7 @@ object ResourceManager {
 
   case class NotifyVehicleResourceIdle(
     override val resourceId: Id[_],
-    override val whenWhere: SpaceTime,
+    override val whenWhere: Option[SpaceTime],
     val passengerSchedule: PassengerSchedule,
     val beamVehicleState: BeamVehicleState,
     val triggerId: Option[Long] // triggerId is included to facilitate debugging
