@@ -10,6 +10,7 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.utils.collections.Tuple;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -20,25 +21,25 @@ public class FuelUsageStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     private static final String fileName = "energy_use.png";
-    private static Set<String> modesFuel = new TreeSet<>();
-    private static Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
+    private Set<String> modesFuel = new TreeSet<>();
+    private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
-    private final IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation;
+    private final IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageStats(IStatComputation<Map<Integer, Map<String, Double>>, double[][]> statsComputation) {
+    public FuelUsageStats(IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
         this.statsComputation = statsComputation;
     }
 
-    public static class FuelUsageStatsComputation implements IStatComputation<Map<Integer, Map<String, Double>>, double[][]> {
+    public static class FuelUsageStatsComputation implements IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
         @Override
-        public double[][] compute(Map<Integer, Map<String, Double>> stat) {
-            List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.keySet());
-            List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
+        public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
+            List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
+            List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.getSecond());
             int maxHour = hours.get(hours.size() - 1);
-            double[][] dataset = new double[modesFuel.size()][maxHour + 1];
+            double[][] dataset = new double[stat.getSecond().size()][maxHour + 1];
             for (int i = 0; i < modesFuelList.size(); i++) {
                 String modeChosen = modesFuelList.get(i);
-                dataset[i] = getFuelageHourDataAgainstMode(modeChosen, maxHour, stat);
+                dataset[i] = getFuelageHourDataAgainstMode(modeChosen, maxHour, stat.getFirst());
             }
             return dataset;
         }
@@ -84,7 +85,7 @@ public class FuelUsageStats implements IGraphStats {
     }
 
     private CategoryDataset buildModesFuelageGraphDataset() {
-        double[][] dataset = statsComputation.compute(hourModeFuelage);
+        double[][] dataset = statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 

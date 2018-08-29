@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.graph
 
+import java.util
 import java.util.concurrent.CopyOnWriteArrayList
 
 import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{
@@ -17,6 +18,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
@@ -86,20 +88,15 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
 
           override def compute(
-            stat: java.util.Map[Integer, java.util.Map[String, Integer]]
+            stat: Tuple[java.util.Map[Integer, java.util.Map[String, Integer]], util.Set[String]]
           ): Array[Array[Double]] = {
-            promise.success(stat)
+            promise.success(stat.getFirst)
             super.compute(stat)
           }
 
           override def eventFile(iteration: Int): Unit = {
-            val eventsFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-              .getIterationFilename(iteration, "events.xml")
-            val eventManager = EventsUtils.createEventsManager()
             val handler = new StatsValidationHandler
-            eventManager.addHandler(handler)
-            val reader = new MatsimEventsReader(eventManager)
-            reader.readFile(eventsFilePath)
+            parseEventFile(iteration, handler)
             promise.future.foreach { a =>
               val modes = handler.counterValue
                 .groupBy(identity)
@@ -109,7 +106,8 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
                 .flatMap(_.asScala)
                 .groupBy(_._1)
                 .map { case (s, is) => s -> is.map(_._2.toInt).sum }
-              println(s"Mode choice : $modes and $all")
+
+              modes shouldEqual all
             }
           }
         }

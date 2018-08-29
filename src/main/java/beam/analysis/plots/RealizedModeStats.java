@@ -29,9 +29,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "realized_mode";
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private static List<String> personIdList = new ArrayList<>();
-    private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
+    private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private List<String> personIdList = new ArrayList<>();
+    private Map<ModePerson, Integer> hourPerson = new HashMap<>();
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
@@ -132,7 +132,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             hourData.put(mode, frequency);
 
             hourPerson.put(new ModePerson(mode, personId), hour);
-            hourModeFrequency.put(hour, hourData);
         }
         if (ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
             if (eventAttributes != null) {
@@ -168,12 +167,13 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                         if (frequency != null) {
                             frequency--;
                             hourMode.put(mode, frequency);
-
                         }
                     }
+                    hourModeFrequency.put(modeHour, hourMode);
                 }
             }
         }
+        hourModeFrequency.put(hour, hourData);
     }
 
     //This is used for removing columns if all entries is 0

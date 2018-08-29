@@ -1,18 +1,26 @@
 package beam.agentsim.agents.ridehail.graph
+import java.{lang, util}
+
 import beam.analysis.plots.PersonTravelTimeStats
+import beam.integration.IntegrationSpecCommon
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.utils.collections.Tuple
+import org.scalatest.{Matchers, WordSpecLike}
+
+import scala.concurrent.Promise
 
 object PersonTravelTimeStatsGraphSpec {
 
-  class PersonTravelTimeStatsGraph(comp: PersonTravelTimeStats.PersonTravelTimeComputation)
-      extends BasicEventHandler
+  class PersonTravelTimeStatsGraph(
+    computation: PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer
+  ) extends BasicEventHandler
       with IterationEndsListener {
 
     private val personTravelTimeStats =
-      new PersonTravelTimeStats(comp)
+      new PersonTravelTimeStats(computation)
 
     override def reset(iteration: Int): Unit = {
       personTravelTimeStats.resetStats()
@@ -35,8 +43,75 @@ object PersonTravelTimeStatsGraphSpec {
 
     override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
       personTravelTimeStats.createGraph(event)
+      computation.eventFile(event.getIteration)
     }
+  }
+
+  class StatsValidationHandler extends BasicEventHandler {
+
+    private var personTravelTime = Map[(String, String), Double]()
+    private var counter = Seq[(String, Double)]()
+
+    override def handleEvent(event: Event): Unit = event match {
+      case evn if evn.getEventType.equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE) =>
+        personTravelTime = updateDepartureTime(evn.asInstanceOf[PersonDepartureEvent])
+      case evn if evn.getEventType.equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE) =>
+        counter = updateCounterTime(evn.asInstanceOf[PersonArrivalEvent])
+      case evn: PersonArrivalEvent =>
+        counter = updateCounterTime(evn)
+      case evn: PersonDepartureEvent =>
+        personTravelTime = updateDepartureTime(evn)
+      case _ =>
+    }
+
+    private def updateDepartureTime(evn: PersonDepartureEvent): Map[(String, String), Double] = {
+      val mode = evn.getLegMode
+      val personId = evn.getPersonId.toString
+      val time = evn.getTime
+      personTravelTime + ((mode, personId) -> time)
+    }
+
+    private def updateCounterTime(evn: PersonArrivalEvent): Seq[(String, Double)] = {
+      val mode = evn.getLegMode
+      val personId = evn.getPersonId.toString
+      val modeTime = personTravelTime
+        .get((mode, personId.toString))
+        .map { time =>
+          val travelTime = (evn.getTime - time) / 60
+          mode -> travelTime
+        }
+      personTravelTime = personTravelTime - (mode -> personId)
+      modeTime.fold(counter)(items => counter :+ items)
+    }
+
+    def counterValue = counter
+
+    def isEmpty = personTravelTime.isEmpty
   }
 }
 
-class PersonTravelTimeStatsGraphSpec {}
+class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with IntegrationSpecCommon {
+  "Person Travel Time Graph Collected Data" must {
+
+    "contains valid travel time stats" in {
+      val computation = new PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer {
+
+        private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
+
+        override def compute(
+          stat: util.Map[
+            String,
+            util.Map[Integer, util.List[lang.Double]]
+          ]
+        ): Tuple[util.List[String], Array[
+          Array[Double]
+        ]] = {
+          promise.success(stat)
+          super.compute(stat)
+        }
+
+        override def eventFile(iteration: Int): Unit = ???
+      }
+    }
+  }
+}

@@ -2,9 +2,12 @@ package beam.agentsim.agents.ridehail.graph
 import java.util
 import java.util.concurrent.CopyOnWriteArrayList
 
-import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.RealizedModeStatsGraph
+import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{
+  RealizedModeStatsGraph,
+  StatsValidationHandler
+}
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
-import beam.analysis.plots.RealizedModeStats
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeStats}
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
@@ -13,13 +16,13 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.concurrent.Promise
-
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Promise
 
 object RealizedModeStatsGraphSpec {
 
@@ -59,19 +62,16 @@ object RealizedModeStatsGraphSpec {
   class StatsValidationHandler extends BasicEventHandler {
     private val counter = new CopyOnWriteArrayList[String]()
     private var personsId = Set[String]()
+    private var lastPersonMode = Map[String, String]()
 
     override def handleEvent(event: Event): Unit = event match {
       case evn if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE) =>
         updateModeChoice(evn)
-      case evn: ModeChoiceEvent                                                 => updateModeChoice(evn)
+      case evn: ModeChoiceEvent => updateModeChoice(evn)
       case evn if evn.getEventType.equalsIgnoreCase(ReplanningEvent.EVENT_TYPE) =>
-      case evn: ReplanningEvent                                                 =>
-      case _                                                                    =>
-    }
-
-    private def updateCounter(event: Event) = {
-      val mode = event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE)
-      counter.add(mode)
+        updateReplanning(evn)
+      case evn: ReplanningEvent => updateReplanning(evn)
+      case _                    =>
     }
 
     private def updateModeChoice(evn: Event): Unit = {
@@ -79,7 +79,21 @@ object RealizedModeStatsGraphSpec {
       val personId = evn.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
       if (personsId.contains(personId)) {
         personsId = personsId - personId
-      } else {}
+      } else {
+        counter.add(mode)
+        lastPersonMode = lastPersonMode + (personId -> mode)
+      }
+    }
+
+    private def updateReplanning(evn: Event): Unit = {
+      val personId = evn.getAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON)
+      personsId = personsId + personId
+      val mode = lastPersonMode.get(personId)
+      mode.foreach { m =>
+        lastPersonMode = lastPersonMode - personId
+        counter.add("others")
+        counter.remove(m)
+      }
     }
 
     def counterValue: Seq[String] = counter.asScala
@@ -104,7 +118,22 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
           super.compute(stat)
         }
 
-        override def eventFile(iteration: Int): Unit = {}
+        override def eventFile(iteration: Int): Unit = {
+          val handler = new StatsValidationHandler
+          parseEventFile(iteration, handler)
+          promise.future.foreach { a =>
+            val modes = handler.counterValue
+              .groupBy(identity)
+              .map { case (mode, ms) => mode -> ms.size }
+
+            val all = a.asScala.values
+              .flatMap(_.asScala)
+              .groupBy(_._1)
+              .map { case (s, is) => s -> is.map(_._2.toInt).sum }
+
+            modes shouldEqual all
+          }
+        }
       }
 
       GraphRunHelper(

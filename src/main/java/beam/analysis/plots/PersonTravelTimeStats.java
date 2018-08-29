@@ -23,8 +23,8 @@ public class PersonTravelTimeStats implements IGraphStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
-    private static Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
-    private static Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
+    private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
+    private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
     private final IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
@@ -159,7 +159,8 @@ public class PersonTravelTimeStats implements IGraphStats {
                     hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                 }
                 hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
-                personLastDepartureEvents.remove(personId.toString());
+                departureEvents.remove(personId);
+                personLastDepartureEvents.put(mode, departureEvents);
             }
         }
     }
@@ -167,12 +168,12 @@ public class PersonTravelTimeStats implements IGraphStats {
     private void processPersonDepartureEvent(Event event) {
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
-        String mode = ((PersonDepartureEvent) event).getLegMode();
+        String mode = personDepartureEvent.getLegMode();
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
         if (departureEvents == null) {
             departureEvents = new HashMap<>();
         }
-        departureEvents.put(((PersonDepartureEvent) event).getPersonId(), personDepartureEvent);
+        departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
         personLastDepartureEvents.put(mode, departureEvents);
     }
 
