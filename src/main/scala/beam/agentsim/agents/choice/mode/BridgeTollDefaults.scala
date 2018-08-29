@@ -5,7 +5,6 @@ import java.nio.file.{Files, Paths}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import beam.utils.FileUtils
 
 import scala.io.Source
 
