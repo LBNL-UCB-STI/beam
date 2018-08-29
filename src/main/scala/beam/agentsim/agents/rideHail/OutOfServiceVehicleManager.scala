@@ -97,3 +97,9 @@ class OutOfServiceVehicleManager(
   }
 
 }
+
+case class MoveOutOfServiceVehicleToDepotParking(
+  passengerSchedule: PassengerSchedule,
+  tick: Double,
+  vehicleId: Id[Vehicle],
+)
