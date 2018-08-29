@@ -101,7 +101,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 )
               }
               log.debug(
-                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl)"
+                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl) - tick($tick)"
               )
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
