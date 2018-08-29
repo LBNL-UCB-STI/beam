@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -47,7 +48,8 @@ object DrivesVehicle {
   case class AddFuel(fuelInJoules: Double)
 
   case class StartRefuelTrigger(tick: Double) extends Trigger
-  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
+  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double)
+      extends Trigger
 
   case object GetBeamVehicleState
 
@@ -93,10 +95,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     currentVehicleUnderControl,
                     beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
                     data.passengerSchedule,
-                    theVehicle.getState()
+                    theVehicle.getState(),
+                    Some(triggerId)
                   )
                 )
               }
+              log.debug(
+                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl)"
+              )
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
@@ -262,8 +268,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   currentVehicleUnderControl,
                   beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
                   data.passengerSchedule,
-                  theVehicle.getState()
+                  theVehicle.getState(),
+                  _currentTriggerId
                 )
+              )
+
+              log.debug(
+                s"DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle"
               )
 
               eventsManager.processEvent(
@@ -323,7 +334,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   }
 
   when(WaitingToDrive) {
-    case Event(TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules),triggerId),data) =>
+    case Event(
+        TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules), triggerId),
+        data
+        ) =>
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
@@ -333,20 +347,26 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               currentVehicleUnderControl,
               beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.last._1.travelPath.endPoint),
               data.passengerSchedule,
-              theVehicle.getState()
+              theVehicle.getState(),
+              _currentTriggerId
             )
           )
         case None =>
           log.debug("currentVehicleUnderControl not found")
       }
       stay() replying CompletionNotice(triggerId, Vector())
-    case Event(TriggerWithId(StartRefuelTrigger(tick),triggerId),data) =>
+    case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-          val (sessionDuration, energyDelivered) = theVehicle.refuelingSessionDurationAndEnergyInJoules()
-          stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(
-            EndRefuelTrigger(tick + sessionDuration, tick, energyDelivered),self)))
+          val (sessionDuration, energyDelivered) =
+            theVehicle.refuelingSessionDurationAndEnergyInJoules()
+          stay() replying CompletionNotice(
+            triggerId,
+            Vector(
+              ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration, tick, energyDelivered), self)
+            )
+          )
         case None =>
           log.debug("currentVehicleUnderControl not found")
           stay()
@@ -400,6 +420,30 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       stash()
       stay
+
+    case ev @ Event(
+          NotifyVehicleResourceIdleReply(
+            triggerId: Option[Long],
+            newTriggers: Seq[ScheduleTrigger]
+          ),
+          _
+        ) =>
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+
+      if (triggerId != _currentTriggerId) {
+        log.error(
+          s"triggerIds don't match - something went wrong!!! - expected(${_currentTriggerId}), received($triggerId)"
+        )
+      }
+
+      _currentTriggerId match {
+        case Some(_) =>
+          val (_, triggerId) = releaseTickAndTriggerId()
+          scheduler ! CompletionNotice(triggerId, newTriggers)
+        case None =>
+      }
+
+      stay()
   }
 
   when(WaitingToDriveInterrupted) {
