@@ -1,7 +1,7 @@
 package beam.experiment
 
 import java.io._
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
@@ -26,7 +26,7 @@ object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
 
-  private def validateExperimentConfig(experiment: ExperimentDef): Unit = {
+  def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(
         s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}"
@@ -63,7 +63,7 @@ object ExperimentGenerator extends App {
     Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
 
-  private val projectRoot = {
+  val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
       Paths.get(System.getenv("BEAM_ROOT"))
     } else {
@@ -76,14 +76,14 @@ object ExperimentGenerator extends App {
   if (argsMap.get(ExperimentsParamName).isEmpty) {
     throw new IllegalArgumentException(s"$ExperimentsParamName param is missing")
   }
-  private val experimentFile = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
+  val experimentFile: Path = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
   if (!Files.exists(experimentFile)) {
     throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
   }
 
-  val experiment = loadExperimentDefs(experimentFile.toFile)
+  val experiment: ExperimentDef = loadExperimentDefs(experimentFile.toFile)
 
-  private def loadExperimentDefs(file: File) = {
+  def loadExperimentDefs(file: File) = {
     import org.yaml.snakeyaml.{TypeDescription, Yaml}
     val constructor = new Constructor(classOf[ExperimentDef])
     //Experiment.class is root

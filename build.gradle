@@ -16,7 +16,7 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-        classpath 'cz.alenkacz:gradle-scalafmt:1.6.0'
+        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
     }
 }
 
@@ -49,10 +49,11 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.4.16"
+def akkaBinaryVersion = "2.5.15"
 def circeBinaryVersion="0.7.1"
-def slf4jVersion = "1.7.12"
+def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
+def tscfgVersion = "0.9.4"
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
 sourceSets.main.java.srcDirs = []
@@ -95,6 +96,13 @@ allprojects {
 
 dependencies {
 
+    /*
+     The current implementation of conveyal repository contains the logback.xml as part of
+     the library. This avoid our project to have a specific logback.xml file.
+     A PR was submitted after the maintainers fix it this line can be removed.
+     */
+    implementation 'com.github.carloscaldas:osm-lib:master-SNAPSHOT'
+
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -133,13 +141,17 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
 
-    compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.9.0'
+    compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
+    compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+
     compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
-    compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
+    compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.10.0'
 
-    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
+    compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile "ch.qos.logback:logback-classic:1.2.3"
+    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
@@ -147,12 +159,15 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
 
+    compile "com.sigopt:sigopt-java:4.9.0"
+
+
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
-    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.18.3'
-    testCompile group: "org.mockito", name: "mockito-core", version: "2.18.3"
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
+    testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
 
     /////////////////////////////////
@@ -160,12 +175,12 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:${scalaBinaryVersion}"
+    compile "org.scala-lang:scala-library:2.12.6"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:${scalaBinaryVersion}.1"
+    compile "org.scala-lang:scala-compiler:2.12.6"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
@@ -173,7 +188,7 @@ dependencies {
     // 3rd Party Scala //
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
-    compile ('com.github.carueda:tscfg:v0.8.0'){ // config
+    compile ('com.github.carueda:tscfg:v'+ tscfgVersion){ // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
     // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
@@ -230,9 +245,6 @@ dependencies {
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
-    compile "org.slf4j:slf4j-api:${slf4jVersion}"
-    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.9.0'
-
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 }
 
@@ -273,14 +285,17 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
 }
 
 
-/* Task to run tests periodically on continue integration server */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Task to run tests periodically on continue integration server.
+// ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
-            (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+    (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+            (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+    (project.hasProperty('config') && project.hasProperty('iterations') ?
+            '-Diterations='+project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -361,7 +376,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '2g'}",
+  "max_ram": "${maxRAM ?: '64g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -431,16 +446,17 @@ task stopEC2(type: AWSLambdaInvokeTask) {
 //////////////////////////////////////////////////////////////////////
 task generateConfig {
     doLast {
-        if (!project.file('build/tscfg-0.8.1.jar').exists()) {
+        def tscfgJarFile = project.file('build/tscfg-'+tscfgVersion+'.jar')
+        if (!tscfgJarFile.exists() || !tscfgJarFile.isFile()) {
             download {
-                src 'https://github.com/carueda/tscfg/releases/download/v0.8.1/tscfg-0.8.1.jar'
+                src 'https://github.com/carueda/tscfg/releases/download/v'+tscfgVersion+'/tscfg-'+tscfgVersion+'.jar'
                 dest buildDir
             }
         }
         javaexec {
             main = "-jar"
             args = [
-                    "build/tscfg-0.8.1.jar",
+                    "build/tscfg-${tscfgVersion}.jar",
                     "--spec", "src/main/resources/beam-template.conf",
                     "--scala",
                     "--pn", "beam.sim.config",
@@ -484,7 +500,9 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
+
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")
+
 
 def getCurrentTimestamp = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss")
@@ -518,6 +536,8 @@ run {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
 //  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+// Run R5 GUI server
+//  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
@@ -527,9 +547,8 @@ task execute(type:JavaExec) {
     }else{
         main = mainClassName
     }
-   classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }
 }
-

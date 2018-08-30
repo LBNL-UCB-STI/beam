@@ -15,7 +15,8 @@ object DrivingCostDefaults {
     beamServices: BeamServices
   ): Seq[BigDecimal] = {
 
-    val drivingCostConfig = beamServices.beamConfig.beam.agentsim.agents.drivingCost
+    val drivingCostConfig =
+      beamServices.beamConfig.beam.agentsim.agents.drivingCost
 
     alternatives.map { alt =>
       alt.tripClassifier match {

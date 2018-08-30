@@ -197,7 +197,9 @@ class TimeDependentRoutingSpec
           )
         )
       )
-      var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
+      var carOption = expectMsgType[RoutingResponse].itineraries
+        .find(_.tripClassifier == CAR)
+        .get
 
       // Now feed the TravelTimeCalculator events resulting from me traversing the proposed route,
       // but taking me 2000s (a lot) for each link.
@@ -234,10 +236,12 @@ class TimeDependentRoutingSpec
             )
           )
         )
-        carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
+        carOption = expectMsgType[RoutingResponse].itineraries
+          .find(_.tripClassifier == CAR)
+          .get
       }
 
-      assert(scala.math.abs(gap) < 71) // isn't exactly 0, probably rounding errors?
+      assert(scala.math.abs(gap) < 75) // isn't exactly 0, probably rounding errors?
     }
 
     "give updated travel times for a given route after travel times were updated" in {

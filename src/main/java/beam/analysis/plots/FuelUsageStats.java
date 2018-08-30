@@ -99,7 +99,7 @@ public class FuelUsageStats implements IGraphStats {
         String fuelString = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
 
         String mode = originalMode;
-        if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailingVehicle")) {
+        if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle")) {
             mode = "rideHail";
         }
         modesFuel.add(mode);

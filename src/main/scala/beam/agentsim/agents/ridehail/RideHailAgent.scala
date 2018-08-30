@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
+import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
@@ -26,7 +27,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 object RideHailAgent {
-  val idPrefix: String = "rideHailingAgent"
+  val idPrefix: String = "rideHailAgent"
 
   def props(
     services: BeamServices,
@@ -59,12 +60,13 @@ object RideHailAgent {
 
     override def withCurrentLegPassengerScheduleIndex(
       currentLegPassengerScheduleIndex: Int
-    ): DrivingData =
-      copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+
+    override def hasParkingBehaviors: Boolean = false
   }
 
   def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
-    currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
+    currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
   }
 
   def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): Vector[RoutingModel.EmbodiedBeamLeg] = {
@@ -74,6 +76,8 @@ object RideHailAgent {
   case object Idle extends BeamAgentState
 
   case object IdleInterrupted extends BeamAgentState
+
+  case class NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger])
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
@@ -150,6 +154,9 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(newTriggers)
   }
 
   when(IdleInterrupted) {
@@ -180,13 +187,14 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+    case ev @ Event(NotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]), _) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(newTriggers)
   }
 
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
-      val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
@@ -237,12 +245,46 @@ class RideHailAgent(
         s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle(" + vehicle.id.toString + ")"
       )
       stay()
+
+  }
+
+  def handleNotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]): State = {
+    _currentTriggerId match {
+      case Some(_) =>
+        val (_, triggerId) = releaseTickAndTriggerId()
+        scheduler ! CompletionNotice(triggerId, newTriggers)
+      case None =>
+    }
+
+    stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   onTransition {
+    case _ -> Idle =>
+      unstashAll()
+
+      nextNotifyVehicleResourceIdle match {
+
+        case Some(nextNotifyVehicleResourceIdle) =>
+          stateData.currentVehicle.headOption match {
+            case Some(currentVehicleUnderControl) =>
+              val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+
+              theVehicle.manager.foreach(
+                _ ! nextNotifyVehicleResourceIdle
+              )
+          }
+
+        case None =>
+      }
+
+      nextNotifyVehicleResourceIdle = None
+
     case _ -> _ =>
       unstashAll()
+
   }
+
 }

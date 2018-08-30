@@ -24,7 +24,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
       transportNetwork =
         TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       network = NetworkUtils.createNetwork()
-      new MatsimNetworkReader(network).readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+      new MatsimNetworkReader(network)
+        .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
     } else { // Need to create the unpruned and pruned networks from directory
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
@@ -43,7 +44,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
       rmNetBuilder.buildMNet()
       network = rmNetBuilder.getNetwork
       logger.info(s"MATSim network created")
-      new NetworkWriter(network).write(beamConfig.matsim.modules.network.inputNetworkFile)
+      new NetworkWriter(network)
+        .write(beamConfig.matsim.modules.network.inputNetworkFile)
       logger.info(s"MATSim network written")
     }
   }

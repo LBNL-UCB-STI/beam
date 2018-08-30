@@ -1,35 +1,39 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import java.awt.Color
+import java.util.concurrent.TimeUnit
 
+import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
+import akka.pattern._
+import akka.util.Timeout
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.Await
 
 class RepositioningLowWaitingTimes(
-  val rideHailManager: RideHailManager,
-  tncIterationStats: Option[TNCIterationStats]
-) extends RideHailResourceAllocationManager {
+  val rideHailManager: RideHailManager
+) extends RideHailResourceAllocationManager(rideHailManager) {
+  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val isBufferedRideHailAllocationMode = false
-
-  def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
-    None
+  val tncIterationStats: Option[TNCIterationStats] = {
+    val rideHailIterationHistoryActor =
+      rideHailManager.context.actorSelection("/user/rideHailIterationHistoryActor")
+    val future =
+      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
+    Await
+      .result(future, rideHailManager.timeout.duration)
+      .asInstanceOf[Option[TNCIterationStats]]
   }
+  tncIterationStats.foreach(_.logMap())
 
-  def allocateVehicles(
-    allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
-  ): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])] = {
-    log.error("batch procesbsing is not implemented for DefaultRideHailResourceAllocationManager")
-    allocationsDuringReservation
-  }
+  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
+  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
     idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
@@ -47,7 +51,7 @@ class RepositioningLowWaitingTimes(
     }
 
     if (result.size < idleVehicles.values.size) {
-      log.debug(
+      logger.debug(
         s"filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by ${idleVehicles.values.size - result.size}"
       )
     }
@@ -72,16 +76,20 @@ class RepositioningLowWaitingTimes(
         // TODO: get proper number here from rideHailManager
         val timeWindowSizeInSecForDecidingAboutRepositioning =
           repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
-        val percentageOfVehiclesToReposition = repositioningConfig.percentageOfVehiclesToReposition
-        val maxNumberOfVehiclesToReposition = (fleetSize * percentageOfVehiclesToReposition).toInt
+        val percentageOfVehiclesToReposition =
+          repositioningConfig.percentageOfVehiclesToReposition
+        val maxNumberOfVehiclesToReposition =
+          (fleetSize * percentageOfVehiclesToReposition).toInt
 
-        var repositionCircleRadiusInMeters = repositioningConfig.repositionCircleRadiusInMeters
+        var repositionCircleRadiusInMeters =
+          repositioningConfig.repositionCircleRadiusInMeters
         val minimumNumberOfIdlingVehiclesThresholdForRepositioning =
           repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
 
         val allowIncreasingRadiusIfDemandInRadiusLow =
           repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
-        val minDemandPercentageInRadius = repositioningConfig.minDemandPercentageInRadius
+        val minDemandPercentageInRadius =
+          repositioningConfig.minDemandPercentageInRadius
 
         //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
         // allow more aggressive repositioning at start of day
@@ -139,13 +147,14 @@ class RepositioningLowWaitingTimes(
 
         // add keepMaxTopNScores (TODO)
 
-        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] = tncIterStats.reposition(
-          vehiclesToReposition,
-          repositionCircleRadiusInMeters,
-          tick,
-          timeWindowSizeInSecForDecidingAboutRepositioning,
-          rideHailManager.beamServices
-        )
+        val whichTAZToRepositionTo: Vector[(Id[Vehicle], Location)] =
+          tncIterStats.reposition(
+            vehiclesToReposition,
+            repositionCircleRadiusInMeters,
+            tick,
+            timeWindowSizeInSecForDecidingAboutRepositioning,
+            rideHailManager.beamServices
+          )
         //}
 
         val produceDebugImages = repositioningConfig.produceDebugImages
@@ -174,7 +183,7 @@ class RepositioningLowWaitingTimes(
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
-              if (!firstRepositionCoordsOfDay.isDefined || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
+              if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
                     .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
@@ -190,7 +199,10 @@ class RepositioningLowWaitingTimes(
 
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(
-                rideHailManager.getRideHailAgentLocation(vehToRepso._1).currentLocation.loc,
+                rideHailManager
+                  .getRideHailAgentLocation(vehToRepso._1)
+                  .currentLocation
+                  .loc,
                 vehToRepso._2,
                 Color.blue,
                 3
@@ -209,7 +221,7 @@ class RepositioningLowWaitingTimes(
               spatialPlot.addString(StringToPlot("A", firstRepositionCoordOfDay.get, Color.BLACK, 50))
             }*/
 
-            if (!firstRepositionCoordsOfDay.isDefined) {
+            if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
                 rideHailManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
@@ -243,12 +255,14 @@ class RepositioningLowWaitingTimes(
         }
 
         if (whichTAZToRepositionTo.nonEmpty) {
-          log.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+          logger.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
         }
 
         val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
-          idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
+          idleVehicles
+            .map(idle => (idle._1, idle._2.currentLocation.loc))
+            .toVector
         } else {
           whichTAZToRepositionTo
         }
@@ -270,7 +284,9 @@ class RepositioningLowWaitingTimes(
           //  val vehicleToTAZ=idleVehicles.foreach( x=> log.debug(s"${x._2.vehicleId} -> ${mTazTreeMap.get.getTAZ(x._2.currentLocation.loc.getX,
           //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
-          val result = idleVehicles.map(idle => (idle._1, idle._2.currentLocation.loc)).toVector
+          val result = idleVehicles
+            .map(idle => (idle._1, idle._2.currentLocation.loc))
+            .toVector
           result
         } else {
           Vector()

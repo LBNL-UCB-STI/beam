@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -12,6 +13,7 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.matsim.core.utils.misc.Time;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -125,6 +127,20 @@ public class RideHailWaitingStats implements IGraphStats {
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private final IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
+    private int timeBinSize = 3600;
+    private int numberOfTimeBins = 30;
+
+    public RideHailWaitingStats(BeamConfig beamConfig){
+
+        this.timeBinSize = beamConfig.beam().outputs().stats().binSize();
+
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        Double _endTime = Time.parseTime(endTime);
+        Double _noOfTimeBins = _endTime / timeBinSize;
+        _noOfTimeBins = Math.floor(_noOfTimeBins);
+        this.numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+    }
+
     @Override
     public void resetStats() {
         lastMaximumTime = 0;
@@ -141,7 +157,7 @@ public class RideHailWaitingStats implements IGraphStats {
         Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent) {
             String mode = eventAttributes.get("mode");
-            if (mode.equalsIgnoreCase("ride_hailing")) {
+            if (mode.equalsIgnoreCase("ride_hail")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
@@ -267,34 +283,40 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
+    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-            StringBuilder heading = new StringBuilder("WaitingTime(sec)\\Hour");
-            for (int hours = 1; hours <= 24; hours++) {
-                heading.append(",").append(hours);
-            }
-            out.write(heading.toString());
+        BufferedWriter out = null;
+        try {
+            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+            String heading = "WaitingTime,Hour,Count";
+            out.write(heading);
             out.newLine();
 
             List<Double> categories = getCategories();
 
+            for (int j = 0; j < categories.size(); j++){
 
-            for (Double category : categories) {
-
+                Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
-                out.write(_category + "");
-                String line;
-                for (int i = 0; i < 24; i++) {
+
+                String line = "";
+                for (int i = 0; i < this.numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
-                    line = (innerMap == null || innerMap.get(category) == null) ? ",0" : "," + innerMap.get(category);
+                    line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
+
+                    line = _category + "," + (i + 1) + "," + line;
                     out.write(line);
+                    out.newLine();
                 }
-                out.newLine();
             }
             out.flush();
+            out.close();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (out != null) {
+                out.close();
+            }
         }
     }
 

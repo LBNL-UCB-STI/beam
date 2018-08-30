@@ -1,9 +1,10 @@
 package beam.utils
 
-import java.io.{ByteArrayInputStream, File}
+import java.io.{BufferedInputStream, ByteArrayInputStream, File, FileInputStream}
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
+import java.util.stream
 import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
@@ -11,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
-
+import org.matsim.core.utils.io.IOUtils
 import scala.language.reflectiveCalls
 import scala.util.Try
 
@@ -67,11 +68,14 @@ object FileUtils extends LazyLogging {
   private def getDateString: String =
     new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
 
-  def decompress(compressed: Array[Byte]): Option[String] =
-    Try {
-      val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
-      scala.io.Source.fromInputStream(inputStream).mkString
-    }.toOption
+  def createDirectoryIfNotExists(path: String): Boolean = {
+    val dir = new File(path).getAbsoluteFile
+    if (!dir.exists() && !dir.isDirectory) {
+      dir.mkdirs()
+    } else {
+      false
+    }
+  }
 
   def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B =
     try {
@@ -79,6 +83,14 @@ object FileUtils extends LazyLogging {
     } finally {
       resource.close()
     }
+
+  def safeLines(fileLoc: String): stream.Stream[String] = {
+    using(readerFromFile(fileLoc))(_.lines)
+  }
+
+  def readerFromFile(filePath: String): java.io.BufferedReader = {
+    IOUtils.getBufferedReader(filePath)
+  }
 
   def downloadFile(source: String): Unit = {
     downloadFile(source, Paths.get(getTempDirectoryPath, getName(source)).toString)
@@ -88,5 +100,10 @@ object FileUtils extends LazyLogging {
     assert(source != null)
     assert(target != null)
     copyURLToFile(new URL(source), Paths.get(target).toFile)
+  }
+
+  def getHash(concatParams: Any*): Int = {
+    val concatString = concatParams.foldLeft("")(_ + _)
+    concatString.hashCode
   }
 }

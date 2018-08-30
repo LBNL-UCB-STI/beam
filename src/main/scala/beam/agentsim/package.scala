@@ -47,7 +47,7 @@ package object agentsim {
                 .PowertrainFromMilesPerGallon(veh.getType.getEngineInformation.getGasConsumption),
               veh,
               None,
-              BeamVehicleType.Car,
+              BeamVehicleType.CarVehicle,
               None,
               None
             )
