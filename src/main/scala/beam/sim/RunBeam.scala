@@ -1,6 +1,7 @@
 package beam.sim
 
 object RunBeam extends BeamHelper {
+
   def main(args: Array[String]): Unit = {
     print("""
     |  ________

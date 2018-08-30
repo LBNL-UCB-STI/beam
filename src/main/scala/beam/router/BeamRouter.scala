@@ -1,5 +1,7 @@
 package beam.router
 
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
@@ -25,17 +27,17 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 class BeamRouter(
-                  services: BeamServices,
-                  transportNetwork: TransportNetwork,
-                  network: Network,
-                  eventsManager: EventsManager,
-                  transitVehicles: Vehicles,
-                  fareCalculator: FareCalculator,
-                  tollCalculator: TollCalculator,
-                  useLocalWorker: Boolean = true
-                ) extends Actor
-  with Stash
-  with ActorLogging {
+  services: BeamServices,
+  transportNetwork: TransportNetwork,
+  network: Network,
+  eventsManager: EventsManager,
+  transitVehicles: Vehicles,
+  fareCalculator: FareCalculator,
+  tollCalculator: TollCalculator,
+  useLocalWorker: Boolean = true
+) extends Actor
+    with Stash
+    with ActorLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
@@ -45,13 +47,13 @@ class BeamRouter(
       R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator),
       "router-worker"
     )
-  // }
+  //}
 
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
   private var numStopsNotFound = 0
 
   override def receive: PartialFunction[Any, Unit] = {
-    case InitTransit(scheduler) =>
+    case InitTransit(scheduler, id) =>
       val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
       val transits = initializer.initMap
       initDriverAgents(initializer, scheduler, transits)
@@ -76,10 +78,10 @@ class BeamRouter(
   }
 
   private def initDriverAgents(
-                                initializer: TransitInitializer,
-                                scheduler: ActorRef,
-                                transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
-                              ): Unit = {
+    initializer: TransitInitializer,
+    scheduler: ActorRef,
+    transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
+  ): Unit = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
@@ -106,11 +108,15 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class InitTransit(scheduler: ActorRef)
+  case class InitTransit(scheduler: ActorRef, id: UUID = UUID.randomUUID())
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
-  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
+  case class EmbodyWithCurrentTravelTime(
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    id: Int = this.hashCode()
+  )
 
   case class UpdateTravelTime(travelTime: TravelTime)
 
@@ -133,14 +139,14 @@ object BeamRouter {
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-                             origin: Location,
-                             destination: Location,
-                             departureTime: BeamTime,
-                             transitModes: Vector[BeamMode],
-                             streetVehicles: Vector[StreetVehicle],
-                             streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-                             mustParkAtEnd: Boolean = false
-                           ) {
+    origin: Location,
+    destination: Location,
+    departureTime: BeamTime,
+    transitModes: Seq[BeamMode],
+    streetVehicles: Seq[StreetVehicle],
+    streetVehiclesUseIntermodalUse: IntermodalUse = Access,
+    mustParkAtEnd: Boolean = false
+  ) {
     lazy val requestId: Int = this.hashCode()
   }
 
@@ -154,17 +160,22 @@ object BeamRouter {
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestId: Option[Int] = None)
+  case class RoutingResponse(
+    itineraries: Seq[EmbodiedBeamTrip],
+    requestId: Option[Int] = None
+  ) {
+    lazy val responseId: Int = this.hashCode()
+  }
 
   def props(
-             beamServices: BeamServices,
-             transportNetwork: TransportNetwork,
-             network: Network,
-             eventsManager: EventsManager,
-             transitVehicles: Vehicles,
-             fareCalculator: FareCalculator,
-             tollCalculator: TollCalculator
-           ) =
+    beamServices: BeamServices,
+    transportNetwork: TransportNetwork,
+    network: Network,
+    eventsManager: EventsManager,
+    transitVehicles: Vehicles,
+    fareCalculator: FareCalculator,
+    tollCalculator: TollCalculator
+  ) =
     Props(
       new BeamRouter(
         beamServices,
@@ -176,4 +187,8 @@ object BeamRouter {
         tollCalculator
       )
     )
+
+  sealed trait WorkMessage
+  case object GimmeWork extends WorkMessage
+  case object WorkAvailable extends WorkMessage
 }

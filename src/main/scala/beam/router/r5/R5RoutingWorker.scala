@@ -1,8 +1,10 @@
 package beam.router.r5
 
 import java.time.temporal.ChronoUnit
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
+import java.util.concurrent.Executors
+import java.util.UUID
 
 import akka.actor._
 import akka.pattern._
@@ -35,7 +37,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 class R5RoutingWorker(
@@ -50,11 +53,51 @@ class R5RoutingWorker(
   private val distanceThresholdToIgnoreWalking =
     beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
+  val numOfThreads =
+    if (Runtime.getRuntime().availableProcessors() <= 2) 1
+    else Runtime.getRuntime().availableProcessors() - 2
+  implicit val executionContext: ExecutionContext =
+    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
+
+  val tickTask =
+    context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
+  var msgs: Long = 0
+  var firstMsgTime: Option[ZonedDateTime] = None
+  log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
+  log.info(
+    "Num of avaiable processors: {}. Will use: {}",
+    Runtime.getRuntime().availableProcessors(),
+    numOfThreads
+  )
+  def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
+
+  var master: ActorRef = null
+
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
   import context.dispatcher
 
   override final def receive: Receive = {
+    case "tick" => {
+      firstMsgTime match {
+        case Some(firstMsgTimeValue) =>
+          val seconds =
+            ChronoUnit.SECONDS.between(firstMsgTimeValue, ZonedDateTime.now(ZoneOffset.UTC))
+          if (seconds > 0) {
+            val rate = msgs.toDouble / seconds
+            if (seconds > 60) {
+              firstMsgTime = None
+              msgs = 0
+            }
+            log.info(
+              "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
+              rate,
+              firstMsgTime
+            )
+          }
+        case None => //
+      }
+    }
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
     case GetTravelTime =>
@@ -63,6 +106,8 @@ class R5RoutingWorker(
         case None             => sender ! R5Network(transportNetwork)
       }
     case request: RoutingRequest =>
+      msgs += 1
+      if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request).copy(requestId = Some(request.requestId))
@@ -72,10 +117,11 @@ class R5RoutingWorker(
       eventualResponse pipeTo sender
 
     case UpdateTravelTime(travelTime) =>
+      log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
-
       cache.invalidateAll()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: Int) =>
+      val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Long, linkId: Int) =>
         maybeTravelTime match {
           case Some(matsimTravelTime) =>
@@ -113,7 +159,8 @@ class R5RoutingWorker(
               )
             )
           )
-        )
+        ),
+        Some(embodyRequestId)
       )
   }
 
@@ -261,7 +308,7 @@ class R5RoutingWorker(
           val transitModes = Nil
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-              getPlanUsingCache(
+              cache.get(
                 R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
               )
             }
@@ -319,7 +366,7 @@ class R5RoutingWorker(
         val transitModes = Nil
         val profileResponse =
           latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-            getPlanUsingCache(
+            cache.get(
               R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
             )
           }
@@ -385,18 +432,18 @@ class R5RoutingWorker(
         case time: WindowTime =>
           WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
-      val transitModes: Vector[TransitModes] =
+      val transitModes: Seq[TransitModes] =
         routingRequest.transitModes.map(_.r5Mode.get.right.get)
       val latencyTag = (if (transitModes.isEmpty)
                           "mainVehicleToDestinationRoute"
                         else "mainTransitRoute") + "-router-time"
       val profileResponse: ProfileResponse =
         latency(latencyTag, Metrics.RegularLevel) {
-          getPlanUsingCache(
+          cache.get(
             R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
           )
         }
-      def splitLegForParking(leg: BeamLeg): Vector[BeamLeg] = {
+      def splitLegForParking(leg: BeamLeg): IndexedSeq[BeamLeg] = {
         val theLinkIds = leg.travelPath.linkIds
         if (theLinkIds.length <= 1) {
           Vector(leg)
@@ -452,9 +499,8 @@ class R5RoutingWorker(
             startTime >= time.fromTime && startTime <= time.fromTime + 1800
           }
           .map(itinerary => {
-            var legsWithFares = maybeWalkToVehicle
-              .map(x => ArrayBuffer((x, 0.0)))
-              .getOrElse(ArrayBuffer[(BeamLeg, Double)]())
+            val legsWithFares = mutable.ArrayBuffer.empty[(BeamLeg, Double)]
+            maybeWalkToVehicle.foreach(x => legsWithFares += ((x, 0.0)))
 
             val access = option.access.get(itinerary.connection.access)
             val toll = if (access.mode == LegMode.CAR) {
@@ -488,8 +534,8 @@ class R5RoutingWorker(
               Vector(theLeg)
             }
             // assign toll to first part of the split
-            legsWithFares :+= (splitLegs.head, toll)
-            splitLegs.tail.foreach(leg => legsWithFares :+= (leg, 0.0))
+            legsWithFares += ((splitLegs.head, toll))
+            splitLegs.tail.foreach(leg => legsWithFares += ((leg, 0.0)))
 
             //add a Dummy walk BeamLeg to the end of that trip
             if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -582,7 +628,7 @@ class R5RoutingWorker(
       })
 
       tripsWithFares.map(tripWithFares => {
-        val embodiedLegs: Vector[EmbodiedBeamLeg] =
+        val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
           for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
             val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
             if (Modes.isR5TransitMode(beamLeg.mode)) {
@@ -640,13 +686,16 @@ class R5RoutingWorker(
           maybeBody.get.id,
           beamServices
         )
-        RoutingResponse(embodiedTrips :+ dummyTrip)
+        RoutingResponse(
+          embodiedTrips :+ dummyTrip,
+          Some(routingRequest.requestId)
+        )
       } else {
 //        log.debug("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(embodiedTrips)
+        RoutingResponse(embodiedTrips, Some(routingRequest.requestId))
       }
     } else {
-      RoutingResponse(embodiedTrips)
+      RoutingResponse(embodiedTrips, Some(routingRequest.requestId))
     }
   }
 
@@ -655,12 +704,12 @@ class R5RoutingWorker(
     tripStartTime: Long,
     mode: StreetMode
   ): BeamPath = {
-    var activeLinkIds = Vector[Int]()
+    var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       if (!network.getLinks.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
         throw new RuntimeException("Link not found: " + edge.edgeId)
       }
-      activeLinkIds = activeLinkIds :+ edge.edgeId.intValue()
+      activeLinkIds += edge.edgeId.intValue()
     }
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
@@ -711,12 +760,12 @@ class R5RoutingWorker(
   /**
     * Use to extract a collection of FareSegments for an itinerary.
     *
-    * @param segments Vector[(TransitSegment, TransitJourneyID)]
+    * @param segments IndexedSeq[(TransitSegment, TransitJourneyID)]
     * @return a collection of FareSegments for an itinerary.
     */
   private def getFareSegments(
-    segments: Vector[(TransitSegment, TransitJourneyID)]
-  ): Vector[BeamFareSegment] = {
+    segments: IndexedSeq[(TransitSegment, TransitJourneyID)]
+  ): IndexedSeq[BeamFareSegment] = {
     segments
       .groupBy(s => getRoute(s._1, s._2).agency_id)
       .flatMap(t => {
@@ -739,7 +788,7 @@ class R5RoutingWorker(
 
           val containsIds =
             t._2
-              .flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to)))
+              .flatMap(s => IndexedSeq(getStopId(s._1.from), getStopId(s._1.to)))
               .toSet
 
           rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds)
@@ -747,14 +796,14 @@ class R5RoutingWorker(
         }
         rules
       })
-      .toVector
+      .toIndexedSeq
   }
 
   private def getFareSegments(
     transitSegment: TransitSegment,
     transitJourneyID: TransitJourneyID,
     fromTime: ZonedDateTime
-  ): Vector[BeamFareSegment] = {
+  ): IndexedSeq[BeamFareSegment] = {
     val pattern = getPattern(transitSegment, transitJourneyID)
     val route = getRoute(pattern)
     val routeId = route.route_id
@@ -780,7 +829,7 @@ class R5RoutingWorker(
     fromId: String,
     toId: String,
     containsIds: Set[String] = null
-  ): Vector[BeamFareSegment] =
+  ): IndexedSeq[BeamFareSegment] =
     fareCalculator.getFareSegments(agencyId, routeId, fromId, toId, containsIds)
 
   private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =

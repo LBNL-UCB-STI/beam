@@ -362,7 +362,7 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: Vector[BeamLeg]): Option[Int] = {
+  def makeRideHailRequestFromBeamLeg(legs: IndexedSeq[BeamLeg]): Option[Int] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,

@@ -488,9 +488,12 @@ class RideHailManager(
             )
 
             if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: Vector[RoutingModel.EmbodiedBeamTrip] =
-                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
+              val modRHA2Cust: IndexedSeq[RoutingModel.EmbodiedBeamTrip] =
+                itins2Cust
+                  .map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+                  .toIndexedSeq
+              val rideHailAgent2CustomerResponseMod =
+                RoutingResponse(modRHA2Cust, Some(routingRequest.requestId))
 
               // TODO: extract creation of route to separate method?
               val passengerSchedule = PassengerSchedule().addLegs(

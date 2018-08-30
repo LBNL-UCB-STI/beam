@@ -31,7 +31,9 @@ import beam.router.r5.NetworkCoordinator
 import beam.router.BeamRouter._
 import com.google.inject.Injector
 import org.matsim.vehicles.Vehicle
+
 class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
+
   // This router is used both with lookup and deploy of routees. If you
   // have a router with only lookup of routees you can use Props.empty
   // instead of Props[StatsWorker.class].
@@ -50,19 +52,21 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   )
   def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"
   log.info("{} inited. workerRouter => {}", getNameAndHashCode, workerRouter)
+
   def receive = {
     // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
     case transitInited: TransitInited =>
       log.info("{} Sending Broadcast", getNameAndHashCode)
       workerRouter.tell(Broadcast(transitInited), sender())
     // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
-    //    case initTransit_v2: InitTransit_v2 =>
-    //      log.info("{} Sending Broadcast", getNameAndHashCode)
-    //      workerRouter.tell(Broadcast(initTransit_v2), sender())
+    case initTransit: InitTransit =>
+      log.info("{} Sending Broadcast", getNameAndHashCode)
+      workerRouter.tell(Broadcast(initTransit), sender())
     case other =>
       log.debug("{} received {}", getNameAndHashCode, other)
       workerRouter.forward(other)
   }
+
   lazy val workerParameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
@@ -88,7 +92,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       override lazy val registry: ActorRef = throw new Exception("???")
       override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
       override var modeChoiceCalculatorFactory
-      : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+        : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
       override val dates: DateUtils = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
@@ -104,16 +108,16 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
       override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
     }
-    //private var numStopsNotFound = 0
+
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
     WorkerParameters(beamServices, transportNetwork, network, fareCalculator, tollCalculator)
   }
 }
 case class WorkerParameters(
-                             beamServices: BeamServices,
-                             transportNetwork: TransportNetwork,
-                             network: Network,
-                             fareCalculator: FareCalculator,
-                             tollCalculator: TollCalculator
-                           )
+  beamServices: BeamServices,
+  transportNetwork: TransportNetwork,
+  network: Network,
+  fareCalculator: FareCalculator,
+  tollCalculator: TollCalculator
+)

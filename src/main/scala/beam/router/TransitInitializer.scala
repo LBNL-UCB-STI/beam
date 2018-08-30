@@ -19,24 +19,26 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
 class TransitInitializer(
-                          services: BeamServices,
-                          transportNetwork: TransportNetwork,
-                          transitVehicles: Vehicles,
-                        ) extends LazyLogging {
+  services: BeamServices,
+  transportNetwork: TransportNetwork,
+  transitVehicles: Vehicles,
+) extends LazyLogging {
   private val config = services.beamConfig.beam.routing
   private var numStopsNotFound = 0
+
   /*
-  * Plan of action:
-  * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and
-  * a vehicle
-  * The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the
-  * TripPattern
-  * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
-  * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
-  * be used to decide what type of vehicle to assign
-  *
-  */
+   * Plan of action:
+   * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and
+   * a vehicle
+   * The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the
+   * TripPattern
+   * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
+   * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
+   * be used to decide what type of vehicle to assign
+   *
+   */
   def initMap: Map[Id[Vehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
     val activeServicesToday =
       transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
@@ -175,11 +177,12 @@ class TransitInitializer(
     logger.info(s"Finished Transit initialization trips, ${transitData.length}")
     transitScheduleToCreate
   }
+
   def createTransitVehicle(
-                            transitVehId: Id[Vehicle],
-                            route: RouteInfo,
-                            legs: Seq[BeamLeg]
-                          ): Option[BeamVehicle] = {
+    transitVehId: Id[Vehicle],
+    route: RouteInfo,
+    legs: Seq[BeamLeg]
+  ): Option[BeamVehicle] = {
     val mode =
       Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId =
@@ -218,9 +221,9 @@ class TransitInitializer(
     }
   }
   private def routeTransitPathThroughStreets(
-                                              fromStopIdx: Int,
-                                              toStopIdx: Int
-                                            ): Option[StreetPath] = {
+    fromStopIdx: Int,
+    toStopIdx: Int
+  ): Option[StreetPath] = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone

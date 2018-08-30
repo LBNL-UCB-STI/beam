@@ -47,7 +47,7 @@ trait BeamHelper extends LazyLogging {
           args.copy(
             config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
             configLocation = Option(value)
-          )
+        )
       )
       .validate(
         value =>
@@ -93,9 +93,9 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def updateConfigForClusterUsing(
-                                           parsedArgs: Arguments,
-                                           config: TypesafeConfig
-                                         ): TypesafeConfig = {
+    parsedArgs: Arguments,
+    config: TypesafeConfig
+  ): TypesafeConfig = {
     (for {
       seedAddress <- parsedArgs.seedAddress
       nodeHost    <- parsedArgs.nodeHost
@@ -114,10 +114,10 @@ trait BeamHelper extends LazyLogging {
   }
 
   def module(
-              typesafeConfig: TypesafeConfig,
-              scenario: Scenario,
-              transportNetwork: TransportNetwork
-            ): com.google.inject.Module =
+    typesafeConfig: TypesafeConfig,
+    scenario: Scenario,
+    transportNetwork: TransportNetwork
+  ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
         override def install(): Unit = {
@@ -191,7 +191,7 @@ trait BeamHelper extends LazyLogging {
     val config = (
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
-      ).resolve()
+    ).resolve()
 
     parsedArgs.clusterType match {
       case Some(Master) => runClusterMasterUsing(config)
@@ -208,7 +208,7 @@ trait BeamHelper extends LazyLogging {
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-      .equalsIgnoreCase("ModeChoiceLCCM")) {
+          .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
         Paths.get(
@@ -326,10 +326,10 @@ trait BeamHelper extends LazyLogging {
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
-                        scenario: MutableScenario,
-                        beamConfig: BeamConfig,
-                        matsimConfig: Config
-                      ): Unit = {
+    scenario: MutableScenario,
+    beamConfig: BeamConfig,
+    matsimConfig: Config
+  ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
@@ -372,13 +372,13 @@ trait BeamHelper extends LazyLogging {
 
 case class MapStringDouble(data: Map[String, Double])
 case class Arguments(
-                      configLocation: Option[String] = None,
-                      config: Option[TypesafeConfig] = None,
-                      clusterType: Option[ClusterType] = None,
-                      nodeHost: Option[String] = None,
-                      nodePort: Option[String] = None,
-                      seedAddress: Option[String] = None
-                    ) {
+  configLocation: Option[String] = None,
+  config: Option[TypesafeConfig] = None,
+  clusterType: Option[ClusterType] = None,
+  nodeHost: Option[String] = None,
+  nodePort: Option[String] = None,
+  seedAddress: Option[String] = None
+) {
   val useCluster = clusterType.isDefined
 }
 
