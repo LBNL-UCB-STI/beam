@@ -30,7 +30,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.router.r5.NetworkCoordinator
 import beam.router.BeamRouter._
 import com.google.inject.Injector
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, Vehicles}
 
 class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
 
@@ -45,7 +45,8 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
         workerParameters.transportNetwork,
         workerParameters.network,
         workerParameters.fareCalculator,
-        workerParameters.tollCalculator
+        workerParameters.tollCalculator,
+        workerParameters.transitVehicles
       )
     ),
     name = "workerRouter"
@@ -62,6 +63,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
     case initTransit: InitTransit =>
       log.info("{} Sending Broadcast", getNameAndHashCode)
       workerRouter.tell(Broadcast(initTransit), sender())
+
     case other =>
       log.debug("{} received {}", getNameAndHashCode, other)
       workerRouter.forward(other)
@@ -111,7 +113,14 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
-    WorkerParameters(beamServices, transportNetwork, network, fareCalculator, tollCalculator)
+    WorkerParameters(
+      beamServices,
+      transportNetwork,
+      network,
+      fareCalculator,
+      tollCalculator,
+      scenario.getTransitVehicles
+    )
   }
 }
 case class WorkerParameters(
@@ -119,5 +128,6 @@ case class WorkerParameters(
   transportNetwork: TransportNetwork,
   network: Network,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator
+  tollCalculator: TollCalculator,
+  transitVehicles: Vehicles
 )
