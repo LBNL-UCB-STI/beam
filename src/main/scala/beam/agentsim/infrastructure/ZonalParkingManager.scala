@@ -13,8 +13,9 @@ import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
+import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.{FileUtils}
+import beam.utils.FileUtils
 import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -313,7 +314,8 @@ class ZonalParkingManager(
     }
     nearbyTazs
       .zip(nearbyTazs.map { taz =>
-        beamServices.geo.distInMeters(taz.coord, searchCenter)
+        // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+        GeoUtils.distFormula(taz.coord, searchCenter)
       })
       .sortBy(_._2)
   }
