@@ -474,35 +474,45 @@ class PersonAgent(
           (WaitingToDrive, currentTick)
         }
 
-      //      goto(WaitingToDrive) using data.copy(
-      goto(stateToGo) using data.copy(
-        passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
-        currentLegPassengerScheduleIndex = 0,
-        currentVehicle =
-          if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-            vehicle
-              .becomeDriver(self)
-              .fold(
-                fa =>
-                  throw new RuntimeException(
-                    s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned."
-                ),
-                fb => {
-                  eventsManager.processEvent(
-                    new PersonEntersVehicleEvent(
-                      currentTick,
-                      Id.createPersonId(id),
-                      nextLeg.beamVehicleId
+      val theNewVehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+      if (theNewVehicle.driver.isDefined && self != theNewVehicle.driver.get) {
+        stop(
+          Failure(
+            s"person $id tried to drive vehicle ${theNewVehicle.id} but already occupied by driver ${theNewVehicle.driver.get}"
+          )
+        )
+      } else {
+        //      goto(WaitingToDrive) using data.copy(
+        goto(stateToGo) using data.copy(
+          passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle =
+            if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+              theNewVehicle
+                .becomeDriver(self)
+                .fold(
+                  fa =>
+                    stop(
+                      Failure(
+                        "shouldn't be possible to execut this code but just in case this is becomeDriver failure"
+                      )
+                  ),
+                  fb => {
+                    eventsManager.processEvent(
+                      new PersonEntersVehicleEvent(
+                        currentTick,
+                        Id.createPersonId(id),
+                        nextLeg.beamVehicleId
+                      )
                     )
-                  )
-                }
-              )
-            nextLeg.beamVehicleId +: currentVehicle
-          } else {
-            currentVehicle
-          }
-      )
+                  }
+                )
+              nextLeg.beamVehicleId +: currentVehicle
+            } else {
+              currentVehicle
+            }
+        )
+      }
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
