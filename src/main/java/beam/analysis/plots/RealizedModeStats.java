@@ -306,34 +306,8 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     private double[][] buildTotalRealizedModeChoiceDataset() {
-
-        List<Integer> iterationList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(realizedModeChoiceInIteration.keySet());
-        List<String> modeChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(getModesChosen());
-        if (iterationList.size() == 0)
-            return null;
-        Integer maxIteration = iterationList.get(iterationList.size() - 1);
-        double[][] dataset = new double[getModesChosen().size()][];
-        for (int i = 0; i < modeChosenList.size(); i++) {
-            String mode = modeChosenList.get(i);
-            dataset[i] = getDataPerOccurrenceAgainstRealizedModeChoice(mode, maxIteration);
-        }
-        return dataset;
-    }
-
-
-    private double[] getDataPerOccurrenceAgainstRealizedModeChoice(String mode, int maxIteration) {
-        double[] occurrenceAgainstModeChoice = new double[maxIteration + 1];
-        int index = 0;
-        for (int iteration = 0; iteration <= maxIteration; iteration++) {
-            Map<String, Integer> iterationData = realizedModeChoiceInIteration.get(iteration);
-            if (iterationData != null) {
-                occurrenceAgainstModeChoice[index] = iterationData.get(mode) == null ? 0 : iterationData.get(mode);
-            } else {
-                occurrenceAgainstModeChoice[index] = 0;
-            }
-            index = index + 1;
-        }
-        return occurrenceAgainstModeChoice;
+        Set<String> modeChoosen = getModesChosen();
+        return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, modeChoosen));
     }
 
     // generating graph in root directory

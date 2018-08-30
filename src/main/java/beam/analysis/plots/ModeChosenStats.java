@@ -240,7 +240,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = buildTotalModeChoiceDataset();
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, modesChosen));;
 
         if (dataset != null) {
             categoryDataset = createCategoryDataset("it.", dataset);
@@ -260,38 +260,6 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
         return result;
     }
-
-    private double[][] buildTotalModeChoiceDataset() {
-
-        List<Integer> iterationList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(modeChoiceInIteration.keySet());
-        List<String> modeChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
-        if (iterationList.size() == 0)
-            return null;
-        Integer maxIteration = iterationList.get(iterationList.size() - 1);
-        double[][] dataset = new double[modesChosen.size()][];
-        for (int i = 0; i < modeChosenList.size(); i++) {
-            String mode = modeChosenList.get(i);
-            dataset[i] = getDataPerOccurrenceAgainstModeChoice(mode, maxIteration);
-        }
-        return dataset;
-    }
-
-
-    private double[] getDataPerOccurrenceAgainstModeChoice(String mode, int maxIteration) {
-        double[] occurrenceAgainstModeChoice = new double[maxIteration + 1];
-        int index = 0;
-        for (int iteration = 0; iteration <= maxIteration; iteration++) {
-            Map<String, Integer> iterationData = modeChoiceInIteration.get(iteration);
-            if (iterationData != null) {
-                occurrenceAgainstModeChoice[index] = iterationData.get(mode) == null ? 0 : iterationData.get(mode);
-            } else {
-                occurrenceAgainstModeChoice[index] = 0;
-            }
-            index = index + 1;
-        }
-        return occurrenceAgainstModeChoice;
-    }
-
 
 //    generating graph in root directory
     private void createRootModeChoosenGraph(CategoryDataset dataset, String fileName) throws IOException {
