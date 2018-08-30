@@ -269,4 +269,8 @@ public class PhyssimCalcLinkStats {
 
         this.relativeSpeedFrequenciesPerBin.clear();
     }
+
+    public void clean(){
+        this.linkStats.reset();
+    }
 }

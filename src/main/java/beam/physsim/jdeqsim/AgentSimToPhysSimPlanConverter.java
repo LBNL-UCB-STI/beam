@@ -26,6 +26,8 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
+import org.matsim.core.mobsim.jdeqsim.Message;
+import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
@@ -147,6 +149,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             eventsWriterXML.closeFile();
         }
 
+        Road.setAllRoads(null);
+        Message.setEventsManager(null);
+        jdeqSimScenario.setNetwork(null);
+        jdeqSimScenario.setPopulation(null);
+        linkStatsGraph.clean();
+
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
@@ -246,8 +254,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // hack: removing non-road links from route
         // TODO: debug problem properly, so that no that no events for physsim contain non-road links
         List<Id<Link>> removeLinks = new ArrayList<>();
+        Map<Id<Link>, ? extends Link> networkLinks = agentSimScenario.getNetwork().getLinks();
         for (Id<Link> linkId : linkIds) {
-            if (!agentSimScenario.getNetwork().getLinks().containsKey(linkId)) {
+            if (!networkLinks.containsKey(linkId)) {
                 throw new RuntimeException("Link not found: " + linkId);
             }
         }
@@ -274,8 +283,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
+        long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
-
+        log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
     }
 
