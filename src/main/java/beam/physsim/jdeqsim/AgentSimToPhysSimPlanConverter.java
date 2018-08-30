@@ -143,7 +143,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         endSegment("jdeqsim-execution", "jdeqsim");
         log.info("JDEQSim End");
 
-        CompletableFuture.runAsync(() -> linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
+        CompletableFuture.runAsync(() -> {
+            linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
+            linkStatsGraph.clean();
+        });
 
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
@@ -153,7 +156,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Message.setEventsManager(null);
         jdeqSimScenario.setNetwork(null);
         jdeqSimScenario.setPopulation(null);
-        linkStatsGraph.clean();
 
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
