@@ -6,14 +6,7 @@ import beam.utils.gis.Plans2Shapefile
 import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plansampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
-import com.vividsolutions.jts.geom.{
-  Coordinate,
-  Envelope,
-  Geometry,
-  GeometryCollection,
-  GeometryFactory,
-  Point
-}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
 import org.geotools.geometry.jts.JTS
@@ -35,13 +28,14 @@ import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.vehicles.{Vehicle, Vehicles, VehicleUtils, VehicleWriterV1}
 import org.matsim.households.Income.IncomePeriod.year
+
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
-
 import scala.collection.mutable.ListBuffer
-import scala.collection.{immutable, JavaConverters}
+import scala.collection.{immutable, mutable, AbstractSeq, JavaConverters}
+import scala.collection.generic.CanBuildFrom
 import scala.util.Random
 
 case class SynthHousehold(
@@ -318,7 +312,6 @@ object PlansSampler {
   val newHH: HouseholdsImpl = new HouseholdsImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
-
   val modeAllocator: AvailableModeUtils.AllowAllModes =
     new AvailableModeUtils.AllowAllModes
 
@@ -467,6 +460,10 @@ object PlansSampler {
       })
 
       var homePlan: Option[Plan] = None
+
+      var ranks: immutable.Seq[Int] = 0 to sh.individuals.length
+      ranks = Random.shuffle(ranks)
+
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
@@ -474,7 +471,7 @@ object PlansSampler {
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
         newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(numPersons))
+          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
