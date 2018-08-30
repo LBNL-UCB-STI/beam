@@ -62,8 +62,6 @@ class R5RoutingWorker(
         case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
         case None             => sender ! R5Network(transportNetwork)
       }
-    case GetMatSimNetwork =>
-      sender ! MATSimNetwork(network)
     case request: RoutingRequest =>
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {

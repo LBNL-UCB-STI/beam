@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest /*, WorkAvailable*/}
 import beam.router.Modes.BeamMode.TRANSIT
 
 /**
@@ -39,6 +40,13 @@ class ErrorListener() extends Actor with ActorLogging {
           log.warning(s"Trigger sent to dead letters $trigger")
           d.sender ! CompletionNotice(triggerId)
         //
+        case m: RoutingRequest =>
+          //        log.debug("Retrying {} via {} tell {} using {}", m.id, d.recipient, d.message, d.sender)
+          d.recipient.tell(d.message, d.sender)
+        case m: EmbodyWithCurrentTravelTime =>
+          //        log.debug("Retrying {} via {} tell {} using {}", m.id, d.recipient, d.message, d.sender)
+          d.recipient.tell(d.message, d.sender)
+        //      case WorkAvailable => //Do not retry GimmeWork - resiliency is built in
         case _ =>
           log.error(s"ErrorListener: saw dead letter without knowing how to handle it: $d")
       }
