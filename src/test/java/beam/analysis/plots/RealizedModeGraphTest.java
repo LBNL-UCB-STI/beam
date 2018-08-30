@@ -1,4 +1,4 @@
-package beam.analysis.plot.graph;
+package beam.analysis.plots;
 
 import beam.analysis.plots.RealizedModeStats;
 import org.junit.BeforeClass;
@@ -8,12 +8,12 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.Set;
 
-import static beam.analysis.plot.graph.GraphTestUtil.*;
 
+import static beam.analysis.plots.GraphTestUtil.*;
 import static org.junit.Assert.assertEquals;
 
 public class RealizedModeGraphTest {
-    private RealizedModeStats realizedModeStats = new RealizedModeStats();
+    private RealizedModeStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
 
     @BeforeClass
     public static void setUpCRC() {

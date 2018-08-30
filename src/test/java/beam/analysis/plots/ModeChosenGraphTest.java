@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import static beam.analysis.plot.graph.GraphTestUtil.*;
+import static beam.analysis.plots.GraphTestUtil.createDummySimWithXML;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 

@@ -74,7 +74,7 @@ object RideHailingWaitingGraphSpec {
 
     private def updatePersonTime(evn: Event): Map[String, Double] = {
       val mode = evn.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE)
-      if (mode.equalsIgnoreCase("ride_hailing")) {
+      if (mode.equalsIgnoreCase("ride_hail")) {
         val personId = evn.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
         val time = evn.getTime
         personLastTime + (personId -> time)

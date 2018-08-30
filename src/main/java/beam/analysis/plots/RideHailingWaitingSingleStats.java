@@ -28,7 +28,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
     private static final String fileName = "RideHailWaitingSingleStats";
-    private double numberOfTimeBins;
+    private static double numberOfTimeBins;
     private double lastMaximumTime = 0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
 
@@ -41,14 +41,17 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         public double[][] compute(Map<Integer, Double> stat) {
             List<Integer> hours = new ArrayList<>(stat.keySet());
             Collections.sort(hours);
-            int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
 
-            double[][] data = new double[1][maxHour + 1];
+            Double _numberOfTimeBins = numberOfTimeBins;
+            int maxHour = _numberOfTimeBins.intValue();
+
+            double[][] data = new double[1][maxHour];
             for (Integer key : stat.keySet()) {
 
                 if (key >= data[0].length) {
                     DebugLib.emptyFunctionForSettingBreakPoint();
                 }
+
                 data[0][key] = stat.get(key);
             }
             return data;
@@ -104,23 +107,6 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-
-        List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
-        Collections.sort(hours);
-        //int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
-
-        Double _numberOfTimeBins = this.numberOfTimeBins;
-        int maxHour = _numberOfTimeBins.intValue();
-
-        double[][] data = new double[1][maxHour];
-        for (Integer key : hoursTimesMap.keySet()) {
-
-            if (key >= data[0].length) {
-                DebugLib.emptyFunctionForSettingBreakPoint();
-            }
-
-            data[0][key] = hoursTimesMap.get(key);
-        }
         double[][] data = statComputation.compute(hoursTimesMap);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
         if (dataset != null)

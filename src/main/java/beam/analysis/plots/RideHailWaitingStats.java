@@ -103,7 +103,7 @@ public class RideHailWaitingStats implements IGraphStats {
             if (hoursList.isEmpty())
                 return null;
 
-            int maxHour = hoursList.get(hoursList.size() - 1);
+            int maxHour = numberOfTimeBins;
 
             double[][] dataset = new double[categories.size()][maxHour + 1];
 
@@ -128,9 +128,11 @@ public class RideHailWaitingStats implements IGraphStats {
     private final IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
     private int timeBinSize = 3600;
-    private int numberOfTimeBins = 30;
+    private static int numberOfTimeBins = 30;
 
-    public RideHailWaitingStats(BeamConfig beamConfig){
+    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+                                BeamConfig beamConfig){
+        this.statComputation = statComputation;
 
         this.timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
@@ -138,7 +140,7 @@ public class RideHailWaitingStats implements IGraphStats {
         Double _endTime = Time.parseTime(endTime);
         Double _noOfTimeBins = _endTime / timeBinSize;
         _noOfTimeBins = Math.floor(_noOfTimeBins);
-        this.numberOfTimeBins = _noOfTimeBins.intValue() + 1;
+        numberOfTimeBins = _noOfTimeBins.intValue() + 1;
     }
 
     @Override

@@ -74,7 +74,7 @@ object FuelUsageStatsGraphSpec {
       val fuelString = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL)
 
       val mode =
-        if (originalMode.equalsIgnoreCase("car") && vehicleId.contains("rideHailingVehicle"))
+        if (originalMode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle"))
           "rideHail"
         else
           originalMode

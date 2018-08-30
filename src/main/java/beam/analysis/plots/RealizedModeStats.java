@@ -35,13 +35,10 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private List<String> personIdList = new ArrayList<>();
     private Map<ModePerson, Integer> hourPerson = new HashMap<>();
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private static List<String> personIdList = new ArrayList<>();
-    private static List<String> recentPersonIdRemoveList = new ArrayList<>();
+    private List<String> recentPersonIdRemoveList = new ArrayList<>();
 
-    private static Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
-    private static Map<ModePerson, Integer> hourPerson = new HashMap<>();
-    private static Set<String> iterationTypeSet = new HashSet();
+    private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
+    private Set<String> iterationTypeSet = new HashSet<>();
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -229,39 +226,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
     }
 
-
-    private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour) {
-        double[] modeOccurrencePerHour = new double[maxHour + 1];
-        int index = 0;
-        for (int hour = 0; hour <= maxHour; hour++) {
-            Map<String, Integer> hourData = hourModeFrequency.get(hour);
-            if (hourData != null) {
-                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-            } else {
-                modeOccurrencePerHour[index] = 0;
-            }
-            index = index + 1;
-        }
-        return modeOccurrencePerHour;
-    }
-
-    private double[][] buildModesFrequencyDataset() {
-
-        Set<String> modeChoosen = getModesChosen();
-
-        List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
-        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modeChoosen);
-        if (0 == hoursList.size())
-            return null;
-        int maxHour = hoursList.get(hoursList.size() - 1);
-        double[][] dataset = new double[modeChoosen.size()][maxHour + 1];
-        for (int i = 0; i < modesChosenList.size(); i++) {
-            String modeChosen = modesChosenList.get(i);
-            dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen, maxHour);
-        }
-        return dataset;
-    }
-
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = buildModesFrequencyDataset();
@@ -388,25 +352,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private double[][] buildModesFrequencyDataset() {
         Set<String> modeChoosen = getModesChosen();
         return statComputation.compute(new Tuple<>(hourModeFrequency, modeChoosen));
-    }
-
-    private CategoryDataset buildModesFrequencyDatasetForGraph() {
-        CategoryDataset categoryDataset = null;
-        double[][] dataset = buildModesFrequencyDataset();
-        if (dataset != null)
-            categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-
-        return categoryDataset;
-    }
-
-    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
-        CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>(getModesChosen());
-        Collections.sort(modesChosenList);
-        GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
-        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     private void writeToCSV(IterationEndsEvent event) {

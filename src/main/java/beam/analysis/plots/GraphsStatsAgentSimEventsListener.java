@@ -43,7 +43,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
-    private IGraphStats rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation());
     private IGraphStats rideHailWaitingStats;
     //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
@@ -51,8 +50,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig);
-        rideHailWaitingStats = new RideHailWaitingStats(beamConfig);
+        rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
         rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
     }
 
@@ -65,7 +63,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
 
-        this.rideHailWaitingStats = new RideHailWaitingStats(beamConfig);
+        this.rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
     }
 
     // helper methods
