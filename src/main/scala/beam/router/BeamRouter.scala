@@ -57,6 +57,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamServices, TransitInitializer}
 import beam.sim.metrics.MetricsPrinter
+import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.router.r5.R5RoutingWorker
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
@@ -103,7 +104,8 @@ class BeamRouter(
   // TODO Fix me!
   val servicePath = "/user/statsServiceProxy"
 
-  //val cluster = Cluster(context.system)
+  val clusterOption = scala.util.Try { Cluster(context.system) }.toOption
+
   val servicePathElements = servicePath match {
     case RelativeActorPath(elements) => elements
     case _ =>
@@ -117,13 +119,13 @@ class BeamRouter(
   implicit val ex = context.system.dispatcher
   log.info("BeamRouter: {}", self.path)
 
-  //override def preStart(): Unit = {
-  //  cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
-  //}
+  override def preStart(): Unit = {
+    clusterOption.foreach(_.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent]))
+  }
 
-  //override def postStop(): Unit = {
-  //  cluster.unsubscribe(self)
-  //}
+  override def postStop(): Unit = {
+    clusterOption.foreach(_.unsubscribe(self))
+  }
 
   val tick = "work-pull-tick"
 
@@ -185,7 +187,7 @@ class BeamRouter(
           Success("success")
         }
       f.pipeTo(sender)
-    /*case msg: UpdateTravelTime =>
+    case msg: UpdateTravelTime =>
       metricsPrinter ! Print(
         Seq(
           "cache-router-time",
@@ -195,8 +197,11 @@ class BeamRouter(
         ),
         Nil
       )
-
-      routerWorker.forward(msg)*/
+      remoteNodes.foreach(address => {
+        val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
+        remoteWorker.forward(msg)
+      })
+      localNodes.foreach(_.forward(msg))
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case state: CurrentClusterState =>
