@@ -18,6 +18,10 @@
         <AppenderRef ref="STDOUT"/>
     </logger>
 
+    <logger name="beam.utils.StuckFinder" level="DEBUG">
+        <AppenderRef ref="STDOUT"/>
+    </logger>
+
     <root level="ERROR">
         <appender-ref ref="STDOUT" />
     </root>

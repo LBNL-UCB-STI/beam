@@ -5,29 +5,38 @@ import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
   */
-class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyLogging {
-  private val helper = new StuckFinderHelper[ScheduledTrigger]
+class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
+  verifyTypesExist()
+
+  private val class2Helper: Map[Class[_], StuckFinderHelper[ScheduledTrigger]] = cfg.thresholds.map { option =>
+    val clazz = Class.forName(option.triggerType)
+    (clazz, new StuckFinderHelper[ScheduledTrigger])
+  }.toMap
+
+  private val class2Threshold: Map[Class[_], Long] = cfg.thresholds.map { option =>
+    val clazz = Class.forName(option.triggerType)
+    logger.info("{} => {} ms", clazz, option.markAsStuckAfterMs)
+    (clazz, option.markAsStuckAfterMs)
+  }.toMap
 
   def add(time: Long, st: ScheduledTrigger): Unit = {
-    helper.add(time, st)
+    class2Helper(toKey(st)).add(time, st)
   }
 
   def removeByKey(st: ScheduledTrigger): Option[ValueWithTime[ScheduledTrigger]] = {
-    helper.removeByKey(st)
+    class2Helper(toKey(st)).removeByKey(st)
   }
 
   def detectStuckAgents(
     time: Long = System.currentTimeMillis()
   ): Seq[ValueWithTime[ScheduledTrigger]] = {
     @tailrec
-    def detectStuckAgents0(
-      stuckAgents: mutable.ArrayBuffer[ValueWithTime[ScheduledTrigger]]
-    ): Seq[ValueWithTime[ScheduledTrigger]] = {
+    def detectStuckAgents0(helper: StuckFinderHelper[ScheduledTrigger],
+                           stuckAgents: ArrayBuffer[ValueWithTime[ScheduledTrigger]]): Seq[ValueWithTime[ScheduledTrigger]] = {
       helper.removeOldest match {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
@@ -37,21 +46,37 @@ class StuckFinder(val stuckAgentDetectionCfg: StuckAgentDetection) extends LazyL
             stuckAgents
           } else {
             stuckAgents += oldest
-            detectStuckAgents0(stuckAgents)
+            detectStuckAgents0(helper, stuckAgents)
           }
         case None =>
           stuckAgents
       }
     }
-    detectStuckAgents0(ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]])
+
+    val result = ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]]
+    class2Helper.values.foreach { helper =>
+      detectStuckAgents0(helper, result)
+    }
+    result
   }
 
   def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
     val diff = currentTimeMs - startedAtMs
-    val isStuck = diff > stuckAgentDetectionCfg.markAsStuckAfterMs
+    val threshold = class2Threshold(toKey(st))
+    val isStuck = diff > threshold
     if (isStuck) {
-      logger.warn(s"$st is stuck. Diff: $diff ms")
+      logger.warn(s"$st is stuck. Diff: $diff ms, Threshold: $threshold ms")
     }
     isStuck
+  }
+
+  private def toKey(st: ScheduledTrigger): Class[_] = st.triggerWithId.trigger.getClass
+
+  private def verifyTypesExist(): Unit = {
+    // Make sure that those classes exist
+    cfg.thresholds.foreach { t =>
+      // ClassNotFoundException  will be thrown if class does not exists or renamed or deleted
+      Class.forName(t.triggerType)
+    }
   }
 }

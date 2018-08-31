@@ -39,15 +39,21 @@ class StuckFinderHelper[K] {
 
   def removeOldest(): Option[ValueWithTime[K]] = {
     val head = pollFirstAlive(pq)
-    head.foreach { x => removeByKey(x.value) }
+    head.foreach { x =>
+      removeByKey(x.value)
+    }
     head
   }
 
   def removeByKey(key: K): Option[ValueWithTime[K]] = {
     val value = map.remove(key)
     // Mark removed element as not alive
-    value.foreach { v => v.isAlive = false }
-    value.map { ts => ValueWithTime(ts.value, ts.time) }
+    value.foreach { v =>
+      v.isAlive = false
+    }
+    value.map { ts =>
+      ValueWithTime(ts.value, ts.time)
+    }
   }
 
   @tailrec
