@@ -167,6 +167,7 @@ class R5RoutingWorker(
         case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
         case None             => sender ! R5Network(transportNetwork)
       }
+      askForMoreWork
     case request: RoutingRequest =>
       msgs += 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
@@ -183,7 +184,7 @@ class R5RoutingWorker(
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
       askForMoreWork
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: Int) =>
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Long, linkId: Int) =>
         maybeTravelTime match {

@@ -30,6 +30,7 @@ import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import java.util.UUID
 
 /**
   * BEAM
@@ -120,7 +121,7 @@ trait ChoosesMode {
         rideHailManager ! inquiry
       }
 
-      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
+      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[UUID] = {
         //TODO make ride hail wait buffer config param
         val startWithWaitBuffer = 600 + departTime.atTime.toLong
         val currentSpaceTime =
@@ -156,7 +157,7 @@ trait ChoosesMode {
       val hasRideHail = availableModes.contains(RIDE_HAIL)
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
-      var requestId: Option[Int] = None
+      var requestId: Option[UUID] = None
       // Form and send requests
 
       choosesModeData.personData.currentTourMode match {
@@ -362,7 +363,7 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: IndexedSeq[BeamLeg]): Option[Int] = {
+  def makeRideHailRequestFromBeamLeg(legs: IndexedSeq[BeamLeg]): Option[UUID] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,
@@ -620,11 +621,11 @@ object ChoosesMode {
     routingResponse: Option[RoutingResponse] = None,
     rideHailResult: Option[RideHailResponse] = None,
     rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
-    rideHail2TransitRoutingRequestId: Option[Int] = None,
+    rideHail2TransitRoutingRequestId: Option[UUID] = None,
     rideHail2TransitAccessResult: Option[RideHailResponse] = None,
-    rideHail2TransitAccessInquiryId: Option[Int] = None,
+    rideHail2TransitAccessInquiryId: Option[UUID] = None,
     rideHail2TransitEgressResult: Option[RideHailResponse] = None,
-    rideHail2TransitEgressInquiryId: Option[Int] = None,
+    rideHail2TransitEgressInquiryId: Option[UUID] = None,
     availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false

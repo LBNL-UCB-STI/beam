@@ -84,7 +84,7 @@ class BeamRouter(
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
-  type WorkId = Int
+  type WorkId = UUID
   type TimeSent = ZonedDateTime
 
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
@@ -112,7 +112,8 @@ class BeamRouter(
       )
   }
 
-  var nodes = Set.empty[(Address, WorkerType)]
+  var remoteNodes = Set.empty[Address]
+  var localNodes = Set.empty[ActorRef]
   implicit val ex = context.system.dispatcher
   log.info("BeamRouter: {}", self.path)
 
@@ -133,7 +134,7 @@ class BeamRouter(
 
   private val config = services.beamConfig.beam.routing
 
-  if (useLocalWorker) { 
+  if (useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
         services,
@@ -145,7 +146,7 @@ class BeamRouter(
       ),
       "router-worker"
     )
-    nodes += ((localWorker.path.address, LocalWorker))
+    localNodes += localWorker
     //TODO: Add Deathwatch to remove node
   }
 
@@ -160,8 +161,8 @@ class BeamRouter(
       // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
       val f = Future
         .sequence(
-          nodes.filter(_._2 == ClusterWorker).map {
-            case (address, _) =>
+          remoteNodes.map {
+            case address =>
               context
                 .actorSelection(RootActorPath(address) / servicePathElements)
                 .resolveOne(10.seconds)
@@ -173,10 +174,8 @@ class BeamRouter(
             val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
             val transits = initializer.initMap
             initDriverAgents(initializer, scheduler, transits)
-            nodes.filter(_._2 == LocalWorker).map {
-              case (address, _) => {
-                val localWorker = Await
-                  .result(context.actorSelection(RootActorPath(address)).resolveOne, 60.seconds)
+            localNodes.map {
+              case localWorker => {
                 localWorker ! TransitInited(transits)
               }
             }
@@ -202,31 +201,29 @@ class BeamRouter(
       sender ! MATSimNetwork(network)
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
-      nodes = state.members.collect {
-        case m if m.hasRole("compute") && m.status == MemberStatus.Up =>
-          ((m.address, ClusterWorker))
+      remoteNodes = state.members.collect {
+        case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
       }
       if (isWorkAvailable) notifyWorkersOfAvailableWork
     case MemberUp(m) if m.hasRole("compute") =>
       log.info("MemberUp[compute]: {}", m)
-      nodes += ((m.address, ClusterWorker))
-      notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]", ClusterWorker)
+      remoteNodes += m.address
+      notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]")
     case other: MemberEvent =>
       log.info("MemberEvent: {}", other)
-      nodes -= ((other.member.address, ClusterWorker))
-      removeUnavailableMemberFromAvailableWorkers(other.member, ClusterWorker)
+      remoteNodes -= other.member.address
+      removeUnavailableMemberFromAvailableWorkers(other.member)
     //Why is this a removal?
     case UnreachableMember(m) =>
       log.info("UnreachableMember: {}", m)
-      nodes -= ((m.address, ClusterWorker))
-      removeUnavailableMemberFromAvailableWorkers(m, ClusterWorker)
+      remoteNodes -= m.address
+      removeUnavailableMemberFromAvailableWorkers(m)
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
-      nodes += ((m.address, ClusterWorker))
+      remoteNodes += m.address
       notifyNewWorkerIfWorkAvailable(
         m.address,
-        receivePath = "ReachableMember[compute]",
-        ClusterWorker
+        receivePath = "ReachableMember[compute]"
       )
     case GimmeWork =>
       val worker = context.sender
@@ -262,15 +259,13 @@ class BeamRouter(
   private def isWorkAndNoAvailableWorkers: Boolean =
     isWorkAvailable && !isWorkerAvailable
 
-  private def notifyWorkersOfAvailableWork: Unit =
-    nodes.foreach {
-      case (workerAddress, workerType) => workerFrom(workerAddress, workerType) ! WorkAvailable
-    }
-
-  private def workerFrom(workerAddress: Address, workerType: WorkerType) = workerType match {
-    case LocalWorker   => context.actorSelection(RootActorPath(workerAddress))
-    case ClusterWorker => context.actorSelection(RootActorPath(workerAddress) / servicePathElements)
+  private def notifyWorkersOfAvailableWork: Unit = {
+    remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! WorkAvailable)
+    localNodes.foreach(_ ! WorkAvailable)
   }
+
+  private def workerFrom(workerAddress: Address) =
+    context.actorSelection(RootActorPath(workerAddress) / servicePathElements)
 
   private def getCurrentTime: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
 
@@ -290,21 +285,19 @@ class BeamRouter(
   }
 
   private def removeUnavailableMemberFromAvailableWorkers(
-    member: Member,
-    workerType: WorkerType
+    member: Member
   ) = {
-    val worker = Await.result(workerFrom(member.address, workerType).resolveOne, 60.seconds)
+    val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
     if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
     //TODO: If there is work outstanding then it needs handled
   }
 
   private def notifyNewWorkerIfWorkAvailable(
     workerAddress: => Address,
-    receivePath: => String,
-    workerType: => WorkerType
+    receivePath: => String
   ) = {
     if (isWorkAvailable) {
-      val worker = workerFrom(workerAddress, workerType)
+      val worker = workerFrom(workerAddress)
       log.debug("Sending WorkAvailable via {}: {}", receivePath, worker)
       worker ! WorkAvailable
     }
@@ -405,7 +398,7 @@ object BeamRouter {
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
-    id: Int = this.hashCode()
+    id: UUID = UUID.randomUUID()
   )
 
   case class UpdateTravelTime(travelTime: TravelTime)
@@ -437,7 +430,7 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
   ) {
-    lazy val requestId: Int = this.hashCode()
+    lazy val requestId: UUID = UUID.randomUUID()
   }
 
   sealed trait IntermodalUse
@@ -452,9 +445,9 @@ object BeamRouter {
     */
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
-    requestId: Option[Int] = None
+    requestId: Option[UUID] = None
   ) {
-    lazy val responseId: Int = this.hashCode()
+    lazy val responseId: UUID = UUID.randomUUID()
   }
 
   def props(
@@ -481,8 +474,4 @@ object BeamRouter {
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
-
-  sealed trait WorkerType
-  case object LocalWorker extends WorkerType
-  case object ClusterWorker extends WorkerType
 }

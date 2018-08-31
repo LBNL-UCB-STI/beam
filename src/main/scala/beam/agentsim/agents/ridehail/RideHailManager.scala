@@ -755,7 +755,7 @@ class RideHailManager(
   }
 
   private def completeReservation(
-    requestId: Int,
+    requestId: java.util.UUID,
     triggersToSchedule: Seq[ScheduleTrigger]
   ): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
@@ -848,7 +848,7 @@ class RideHailManager(
     }
   }
 
-  def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
+  def attemptToCancelCurrentRideRequest(tick: Double, requestId: java.util.UUID): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
         log.debug(

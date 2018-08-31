@@ -497,8 +497,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 mainClassName = "beam.sim.RunBeam"
 
 
-def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")
-        .toString().replace("g", "").toInteger()
+def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")).toString().replace("g", "").toInteger()
 
 
 def getCurrentTimestamp = {

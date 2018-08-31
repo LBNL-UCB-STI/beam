@@ -49,9 +49,13 @@ object DrivesVehicle {
 
   case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel: Double)
 
-  case class StopDrivingIfNoPassengerOnBoard(tick: Double, requestId: Int)
+  case class StopDrivingIfNoPassengerOnBoard(tick: Double, requestId: java.util.UUID)
 
-  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Double)
+  case class StopDrivingIfNoPassengerOnBoardReply(
+    success: Boolean,
+    requestId: java.util.UUID,
+    tick: Double
+  )
 
 }
 
