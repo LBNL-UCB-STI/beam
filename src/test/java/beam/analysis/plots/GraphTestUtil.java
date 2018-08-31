@@ -1,12 +1,12 @@
-package beam.analysis.plot.graph;
+package beam.analysis.plots;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
+import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.nio.file.Paths;
 
@@ -30,13 +30,14 @@ public class GraphTestUtil {
     static EventsManager events;
 
     public synchronized static void createDummySimWithXML() {
-        if (!simRunFlag) {
-            PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
-            events = EventsUtils.createEventsManager();
-            events.addHandler(graphsFromAgentSimEvents);
-            MatsimEventsReader reader = new MatsimEventsReader(events);
-            reader.readFile(EVENTS_FILE_PATH);
-            simRunFlag = true;
-        }
+        createDummySimWithXML(graphsFromAgentSimEvents);
+    }
+
+    public synchronized static void createDummySimWithXML(BasicEventHandler handler) {
+        PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
+        events = EventsUtils.createEventsManager();
+        events.addHandler(handler);
+        MatsimEventsReader reader = new MatsimEventsReader(events);
+        reader.readFile(EVENTS_FILE_PATH);
     }
 }
