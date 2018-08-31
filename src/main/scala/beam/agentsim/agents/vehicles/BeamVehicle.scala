@@ -92,7 +92,7 @@ class BeamVehicle(
   def useFuel(distanceInMeters: Double): Unit = fuelLevelInJoules foreach { fLevel =>
     fuelLevelInJoules = Some(
       fLevel - powerTrain
-        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
+        .estimateConsumptionInJoules(distanceInMeters)
     )
   }
 

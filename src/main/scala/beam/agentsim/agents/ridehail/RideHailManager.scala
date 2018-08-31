@@ -292,7 +292,7 @@ class RideHailManager(
     collection.concurrent.TrieMap[String, RideHailResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
   private val parkingInquiryCache = collection.concurrent.TrieMap[Int, RideHailAgentLocation]()
-  private val pendingAgentsSentToPark = collection.mutable.Set[Id[Vehicle]]()
+  private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle],ParkingStall]()
 
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
@@ -344,17 +344,18 @@ class RideHailManager(
                 .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
                 .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
-            if (pendingAgentsSentToPark.remove(vehicleId)) {
-              // this agent has arrived to refuel, initiate that setting
+            val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
+            if (stallOpt.isDefined) {
+              // this agent has arrived to refuel, initiate that session
               val startFuelTrigger = ScheduleTrigger(
                 StartRefuelTrigger(whenWhere.time),
                 rideHailAgentLocation.rideHailAgent
               )
+              beamServices.vehicles.get(rideHailAgentLocation.vehicleId).get.useParkingStall(stallOpt.get)
               sender() ! NotifyVehicleResourceIdleReply(
                 triggerId,
                 Vector[ScheduleTrigger](startFuelTrigger)
               )
-
             } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
               // not enough range to make trip
               log.debug("Not enough range: {}", vehicleId)
@@ -751,7 +752,7 @@ class RideHailManager(
             val passengerSchedule = PassengerSchedule().addLegs(
               itin.toBeamTrip.legs
             )
-            pendingAgentsSentToPark.add(agentLocation.vehicleId)
+            pendingAgentsSentToPark.put(agentLocation.vehicleId,stall)
             self ! MoveOutOfServiceVehicleToDepotParking(
               passengerSchedule,
               itin.legs.head.beamLeg.startTime,

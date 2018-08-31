@@ -38,7 +38,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
   protected var _currentTick: Option[Double] = None
 
   onTermination {
-    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), _, _) =>
+    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
       reason match {
         case FSM.Shutdown =>
           log.error(
@@ -46,7 +46,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
           )
         case _ =>
       }
-      log.error(event.toString)
+      log.error("State: {} Event: {}",currentState,event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
   }

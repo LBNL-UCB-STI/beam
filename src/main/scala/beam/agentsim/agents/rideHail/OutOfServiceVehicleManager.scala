@@ -72,10 +72,6 @@ class OutOfServiceVehicleManager(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Seq[ScheduleTrigger]
   ): Unit = {
-    val rideHailAgent = rideHailManager
-      .getRideHailAgentLocation(vehicleId)
-      .rideHailAgent
-
     releaseTrigger(vehicleId, triggersToSchedule)
   }
 

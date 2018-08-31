@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefu
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{RefuelEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RoutingModel
@@ -172,6 +172,7 @@ class RideHailAgent(
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
           theVehicle.addFuel(energyInJoules)
+          eventsManager.processEvent(new RefuelEvent(tick,theVehicle.stall.get,energyInJoules,tick-sessionStart,theVehicle.id))
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
@@ -184,11 +185,14 @@ class RideHailAgent(
         case None =>
           log.debug("currentVehicleUnderControl not found")
       }
-      stay()
+      stay() replying CompletionNotice(
+        triggerId,
+        Vector())
     case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+//          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
           stay() replying CompletionNotice(
@@ -282,7 +286,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stay replying CompletionNotice(triggerId)
 
-    case ev @ Event(IllegalTriggerGoToError(reason), _) =>
+    case ev @ Event(IllegalTriggerGoToError(reason), data) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop(Failure(reason))
 
