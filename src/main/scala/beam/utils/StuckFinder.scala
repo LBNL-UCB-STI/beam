@@ -10,25 +10,43 @@ import scala.collection.mutable.ArrayBuffer
 /** THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
   */
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
-  verifyTypesExist()
+  if (!cfg.enabled) {
+    logger.info("StuckFinder is ** DISABLED **")
+  }
+  else {
+    verifyTypesExist()
+  }
 
-  private val class2Helper: Map[Class[_], StuckFinderHelper[ScheduledTrigger]] = cfg.thresholds.map { option =>
-    val clazz = Class.forName(option.triggerType)
-    (clazz, new StuckFinderHelper[ScheduledTrigger])
-  }.toMap
+  private val class2Helper: Map[Class[_], StuckFinderHelper[ScheduledTrigger]] = if (!cfg.enabled) {
+    Map.empty
+  } else {
+    cfg.thresholds.map { option =>
+      val clazz = Class.forName(option.triggerType)
+      (clazz, new StuckFinderHelper[ScheduledTrigger])
+    }.toMap
+  }
 
-  private val class2Threshold: Map[Class[_], Long] = cfg.thresholds.map { option =>
-    val clazz = Class.forName(option.triggerType)
-    logger.info("{} => {} ms", clazz, option.markAsStuckAfterMs)
-    (clazz, option.markAsStuckAfterMs)
-  }.toMap
+  private val class2Threshold: Map[Class[_], Long] = if (!cfg.enabled) {
+    Map.empty
+  }
+  else {
+    cfg.thresholds.map { option =>
+      val clazz = Class.forName(option.triggerType)
+      logger.info("{} => {} ms", clazz, option.markAsStuckAfterMs)
+      (clazz, option.markAsStuckAfterMs)
+    }.toMap
+  }
 
   def add(time: Long, st: ScheduledTrigger): Unit = {
-    class2Helper(toKey(st)).add(time, st)
+    if (cfg.enabled)
+      class2Helper(toKey(st)).add(time, st)
   }
 
   def removeByKey(st: ScheduledTrigger): Option[ValueWithTime[ScheduledTrigger]] = {
-    class2Helper(toKey(st)).removeByKey(st)
+    if (cfg.enabled)
+      class2Helper(toKey(st)).removeByKey(st)
+    else
+      None
   }
 
   def detectStuckAgents(
@@ -52,10 +70,9 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
           stuckAgents
       }
     }
-
     val result = ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]]
-    class2Helper.values.foreach { helper =>
-      detectStuckAgents0(helper, result)
+    if (cfg.enabled) {
+      class2Helper.values.foreach { helper => detectStuckAgents0(helper, result) }
     }
     result
   }
