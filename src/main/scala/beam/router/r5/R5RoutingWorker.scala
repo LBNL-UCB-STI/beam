@@ -173,7 +173,8 @@ class R5RoutingWorker(
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          calcRoute(request).copy(requestId = Some(request.requestId))
+          calcRoute(request)
+            .copy(requestId = Some(request.requestId), staticRequestId = request.staticRequestId)
         }
       }
       eventualResponse.failed.foreach(log.error(_, ""))
@@ -224,7 +225,7 @@ class R5RoutingWorker(
             )
           )
         ),
-        Some(embodyRequestId)
+        embodyRequestId
       )
       askForMoreWork
   }
@@ -755,14 +756,19 @@ class R5RoutingWorker(
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
+          routingRequest.staticRequestId,
           Some(routingRequest.requestId)
         )
       } else {
 //        log.debug("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(embodiedTrips, Some(routingRequest.requestId))
+        RoutingResponse(
+          embodiedTrips,
+          routingRequest.staticRequestId,
+          Some(routingRequest.requestId)
+        )
       }
     } else {
-      RoutingResponse(embodiedTrips, Some(routingRequest.requestId))
+      RoutingResponse(embodiedTrips, routingRequest.staticRequestId, Some(routingRequest.requestId))
     }
   }
 

@@ -43,8 +43,10 @@ object RoutingModel {
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     @transient
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+
     @transient
     lazy val vehiclesInTrip: IndexedSeq[Id[Vehicle]] = determineVehiclesInTrip(legs)
+
     @transient
     lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
       !_.asDriver
@@ -211,7 +213,7 @@ object RoutingModel {
 
   case class LinksTimesDistances(
     linkIds: IndexedSeq[Int],
-    travelTimes: IndexedSeq[Long],
+    travelTimes: Vector[Long],
     distances: IndexedSeq[Double]
   )
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)

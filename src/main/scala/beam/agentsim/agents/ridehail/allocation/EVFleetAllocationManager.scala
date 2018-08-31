@@ -4,13 +4,12 @@ import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import java.util.UUID
 
 class EVFleetAllocationManager(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
   val dummyDriverId = Id.create("NA", classOf[Vehicle])
-  val routeReqToDriverMap = scala.collection.mutable.Map[UUID, Id[Vehicle]]()
+  val routeReqToDriverMap = scala.collection.mutable.Map[Int, Id[Vehicle]]()
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest

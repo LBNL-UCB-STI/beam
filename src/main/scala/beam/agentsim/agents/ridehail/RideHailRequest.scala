@@ -16,12 +16,10 @@ case class RideHailRequest(
   destination: Location
 ) {
 
-  lazy val requestId: java.util.UUID = java.util.UUID.randomUUID()
-  /*
   /**
-   * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
-   * @return hashCode(customer, pickUpLocation, departAt, destination)
-   */
+    * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
+    * @return hashCode(customer, pickUpLocation, departAt, destination)
+    */
   lazy val requestId: Int = {
     new HashCodeBuilder()
       .append(customer)
@@ -29,7 +27,7 @@ case class RideHailRequest(
       .append(departAt)
       .append(destination)
       .toHashCode
-  }*/
+  }
   override def toString(): String =
     s"id: ${requestId}, type: ${requestType}, customer: ${customer.personId}, pickup: ${pickUpLocation}, time: ${departAt}, dest: ${destination}"
 }

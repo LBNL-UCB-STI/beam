@@ -81,11 +81,11 @@ object RideHailAgent {
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
-    msgId: Option[java.util.UUID] = None
+    msgId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
-    msgId: Option[java.util.UUID] = None,
+    msgId: Option[Int] = None,
     triggersToSchedule: Seq[ScheduleTrigger],
     vehicleId: Id[Vehicle]
   )

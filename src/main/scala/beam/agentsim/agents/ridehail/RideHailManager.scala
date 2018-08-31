@@ -266,7 +266,7 @@ class RideHailManager(
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
     case RoutingResponses(request, None, responses) =>
-//      println(s"got routingResponse: ${request.requestId} with no RHA")
+      //      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
     case RoutingResponses(
@@ -274,7 +274,7 @@ class RideHailManager(
         Some(rideHailLocation),
         responses
         ) =>
-//      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
+      //      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
       val itins = responses.map { response =>
         response.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL))
       }
@@ -299,7 +299,8 @@ class RideHailManager(
         val tripDriver2Cust = RoutingResponse(
           Vector(
             itins2Cust.head.copy(legs = itins2Cust.head.legs.map(l => l.copy(asDriver = true)))
-          )
+          ),
+          java.util.UUID.randomUUID()
         )
         val timeToCustomer =
           tripDriver2Cust.itineraries.head.totalTravelTimeInSecs
@@ -325,7 +326,8 @@ class RideHailManager(
                 )
               )
             )
-          )
+          ),
+          java.util.UUID.randomUUID()
         )
 
         val travelProposal = TravelProposal(
@@ -493,7 +495,7 @@ class RideHailManager(
                   .map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
                   .toIndexedSeq
               val rideHailAgent2CustomerResponseMod =
-                RoutingResponse(modRHA2Cust, Some(routingRequest.requestId))
+                RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
 
               // TODO: extract creation of route to separate method?
               val passengerSchedule = PassengerSchedule().addLegs(
@@ -592,20 +594,20 @@ class RideHailManager(
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None) =>
-//        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
+        //        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
         requestRoutes(
           request,
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation)
         )
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
-//        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
+        //        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
-//        println(s"${request.requestId} -- RoutingRequired")
+        //        println(s"${request.requestId} -- RoutingRequired")
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
-//        println(s"${request.requestId} -- NoVehicleAllocated")
+        //        println(s"${request.requestId} -- NoVehicleAllocated")
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
@@ -755,7 +757,7 @@ class RideHailManager(
   }
 
   private def completeReservation(
-    requestId: java.util.UUID,
+    requestId: Int,
     triggersToSchedule: Seq[ScheduleTrigger]
   ): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
@@ -848,7 +850,7 @@ class RideHailManager(
     }
   }
 
-  def attemptToCancelCurrentRideRequest(tick: Double, requestId: java.util.UUID): Unit = {
+  def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
         log.debug(
@@ -946,17 +948,17 @@ class RideHailManager(
     routingRequests: List[RoutingRequest]
   ) = {
     val preservedOrder = routingRequests.map(_.requestId)
-//    print(s"Routing reqs for RHReq ${rideHailRequest.requestId}: ")
-//    routingRequests.foreach(req => print(s"${req.requestId}, "))
-//    println("")
+    //    print(s"Routing reqs for RHReq ${rideHailRequest.requestId}: ")
+    //    routingRequests.foreach(req => print(s"${req.requestId}, "))
+    //    println("")
     Future
       .sequence(routingRequests.map { req =>
         akka.pattern.ask(router, req).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
-//        print(s"Routing responses for RHReq ${rideHailRequest.requestId}: ")
-//        responseList.foreach(req => print(s"${req.requestId}, "))
-//        println("")
+        //        print(s"Routing responses for RHReq ${rideHailRequest.requestId}: ")
+        //        responseList.foreach(req => print(s"${req.requestId}, "))
+        //        println("")
         val requestIdToResponse = responseList.map { response =>
           (response.requestId.get -> response)
         }.toMap

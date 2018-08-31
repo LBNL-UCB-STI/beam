@@ -31,7 +31,6 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-import java.util.UUID
 
 /**
   * BEAM
@@ -118,11 +117,11 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord
         )
-//        println(s"requesting: ${inquiry.requestId}")
+        //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
       }
 
-      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[UUID] = {
+      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
         val startWithWaitBuffer = 600 + departTime.atTime.toLong
         val currentSpaceTime =
@@ -158,7 +157,7 @@ trait ChoosesMode {
       val hasRideHail = availableModes.contains(RIDE_HAIL)
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
-      var requestId: Option[UUID] = None
+      var requestId: Option[Int] = None
       // Form and send requests
 
       choosesModeData.personData.currentTourMode match {
@@ -275,7 +274,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, Some(requestId)),
+        theRouterResult @ RoutingResponse(_, _, Some(requestId)),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       val driveTransitTrip =
@@ -337,7 +336,7 @@ trait ChoosesMode {
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
-//      println(s"receiving response: ${theRideHailResult}")
+      //      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {
         case choosesModeData.rideHail2TransitAccessInquiryId =>
           choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailResult))
@@ -363,7 +362,7 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: IndexedSeq[BeamLeg]): Option[UUID] = {
+  def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg]): Option[Int] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,
@@ -371,7 +370,7 @@ trait ChoosesMode {
       DiscreteTime(legs.head.startTime.toInt),
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
     )
-//    println(s"requesting: ${inquiry.requestId}")
+    //    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
     Some(inquiry.requestId)
   }
@@ -479,7 +478,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }
 
-      modeChoiceCalculator(filteredItinerariesForChoice) match {
+      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
@@ -624,11 +623,11 @@ object ChoosesMode {
     routingResponse: Option[RoutingResponse] = None,
     rideHailResult: Option[RideHailResponse] = None,
     rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
-    rideHail2TransitRoutingRequestId: Option[UUID] = None,
+    rideHail2TransitRoutingRequestId: Option[Int] = None,
     rideHail2TransitAccessResult: Option[RideHailResponse] = None,
-    rideHail2TransitAccessInquiryId: Option[UUID] = None,
+    rideHail2TransitAccessInquiryId: Option[Int] = None,
     rideHail2TransitEgressResult: Option[RideHailResponse] = None,
-    rideHail2TransitEgressInquiryId: Option[UUID] = None,
+    rideHail2TransitEgressInquiryId: Option[Int] = None,
     availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false
@@ -671,7 +670,7 @@ object ChoosesMode {
       routingResponse = if (withRouting) {
         None
       } else {
-        Some(RoutingResponse(Vector()))
+        Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
       },
       rideHailResult = if (withRideHail) {
         None

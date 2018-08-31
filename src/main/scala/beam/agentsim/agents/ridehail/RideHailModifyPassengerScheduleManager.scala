@@ -376,7 +376,7 @@ class RideHailModifyPassengerScheduleManager(
     passengerSchedule: PassengerSchedule,
     tick: Double,
     rideHailAgent: RideHailAgentLocation,
-    inquiryId: Option[java.util.UUID]
+    inquiryId: Option[Int]
   ): Unit = {
     log.debug(
       "RideHailModifyPassengerScheduleManager- reserveVehicle request: " + rideHailAgent.vehicleId
