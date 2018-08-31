@@ -394,9 +394,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
 
       if (triggerId != _currentTriggerId) {
-        log.error(
-          s"triggerIds don't match - something went wrong!!! - expected(${_currentTriggerId}), received($triggerId)"
-        )
+        log.error("Driver {}: local triggerId {} does not match the id received from resource manager {}", id, _currentTriggerId, triggerId)
       }
 
       _currentTriggerId match {

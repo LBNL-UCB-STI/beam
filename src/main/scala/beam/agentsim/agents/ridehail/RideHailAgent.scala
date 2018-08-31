@@ -162,7 +162,7 @@ class RideHailAgent(
           _
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(newTriggers)
+      handleNotifyVehicleResourceIdleReply(triggerId,newTriggers)
     case Event(
     TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules), triggerId),
     data
@@ -243,7 +243,7 @@ class RideHailAgent(
           _
         ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(newTriggers)
+      handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
   }
 
   when(PassengerScheduleEmpty) {
@@ -302,14 +302,17 @@ class RideHailAgent(
 
   }
 
-  def handleNotifyVehicleResourceIdleReply(newTriggers: Seq[ScheduleTrigger]): State = {
+  def handleNotifyVehicleResourceIdleReply(receivedtriggerId: Option[Long], newTriggers: Seq[ScheduleTrigger]): State = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
+        if (receivedtriggerId.isEmpty || triggerId != receivedtriggerId.get) {
+          log.error("RHA {}: local triggerId {} does not match the id received from RHM {}", id, triggerId, receivedtriggerId)
+        }
         scheduler ! CompletionNotice(triggerId, newTriggers)
       case None =>
+        log.error("RHA {}: was expecting to release a triggerId but None found",id)
     }
-
     stay()
   }
 
