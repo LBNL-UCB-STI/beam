@@ -315,7 +315,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
 
-    private double[][] buildModesFrequencyDataset() {
+    double[][] buildModesFrequencyDataset() {
         Set<String> modeChoosen = getModesChosen();
         return statComputation.compute(new Tuple<>(hourModeFrequency, modeChoosen));
     }

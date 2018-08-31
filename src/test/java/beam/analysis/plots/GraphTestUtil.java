@@ -34,13 +34,10 @@ public class GraphTestUtil {
     }
 
     public synchronized static void createDummySimWithXML(BasicEventHandler handler) {
-        if (!simRunFlag) {
-            PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
-            events = EventsUtils.createEventsManager();
-            events.addHandler(handler);
-            MatsimEventsReader reader = new MatsimEventsReader(events);
-            reader.readFile(EVENTS_FILE_PATH);
-            simRunFlag = true;
-        }
+        PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
+        events = EventsUtils.createEventsManager();
+        events.addHandler(handler);
+        MatsimEventsReader reader = new MatsimEventsReader(events);
+        reader.readFile(EVENTS_FILE_PATH);
     }
 }

@@ -6,9 +6,11 @@ import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,9 +49,9 @@ public class PersonTravelTimeTest {
     });
 
     @Before
-    public void setUpClass() {
-        statsComputed = null;
+    public void setUpClass() throws IOException {
         GraphTestUtil.createDummySimWithXML(new PersonTravelTimeHandler(personTravelTimeStats));
+        personTravelTimeStats.compute();
     }
 
     @Test

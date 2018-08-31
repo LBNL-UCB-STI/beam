@@ -6,9 +6,11 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,9 +47,9 @@ public class FuelUsageGraphTest {
     });
 
     @Before
-    public void setUpClass() {
-        stats = new HashMap<>();
+    public void setUpClass() throws IOException {
         GraphTestUtil.createDummySimWithXML(new FuelUsageHandler(fuelUsageStats));
+        fuelUsageStats.compute();
     }
 
     @Test

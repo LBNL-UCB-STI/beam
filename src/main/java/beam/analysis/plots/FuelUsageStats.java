@@ -85,8 +85,12 @@ public class FuelUsageStats implements IGraphStats {
     }
 
     private CategoryDataset buildModesFuelageGraphDataset() {
-        double[][] dataset = statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
+        double[][] dataset = compute();
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+    double[][] compute() {
+        return statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
     }
 
     private void processFuelUsage(Event event) {

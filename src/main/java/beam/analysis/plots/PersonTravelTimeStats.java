@@ -76,7 +76,7 @@ public class PersonTravelTimeStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        Tuple<List<String>, double[][]> data = statComputation.compute(hourlyPersonTravelTimes);
+        Tuple<List<String>, double[][]> data = compute();
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond();
         for (int i = 0; i < modes.size(); i++) {
@@ -86,6 +86,10 @@ public class PersonTravelTimeStats implements IGraphStats {
             createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
         }
         createCSV(dataSets, event.getIteration());
+    }
+
+    Tuple<List<String>, double[][]> compute() {
+        return statComputation.compute(hourlyPersonTravelTimes);
     }
 
     private void createCSV(double[][] dataSets, int iteration) {

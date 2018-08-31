@@ -4,9 +4,11 @@ import beam.agentsim.events.ModeChoiceEvent;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.io.IOException;
 import java.util.*;
 
 import static beam.analysis.plots.GraphTestUtil.*;
@@ -41,9 +43,9 @@ public class ModeChosenGraphTest {
     });
 
     @Before
-    public void setUpClass() {
-        stats = new HashMap<>();
+    public void setUpClass() throws IOException {
         createDummySimWithXML(new ModeChosenHandler(modeChoseStats));
+        modeChoseStats.compute();
     }
 
     @Test

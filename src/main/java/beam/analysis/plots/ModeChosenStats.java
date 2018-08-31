@@ -157,11 +157,15 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(hourModeFrequency, modesChosen));
+        double[][] dataset = compute();
         if (dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
 
         return categoryDataset;
+    }
+
+    double[][] compute() {
+        return statComputation.compute(new Tuple<>(hourModeFrequency, modesChosen));
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {

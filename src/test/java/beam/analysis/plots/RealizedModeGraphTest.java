@@ -5,9 +5,11 @@ import beam.agentsim.events.ReplanningEvent;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,9 +47,9 @@ public class RealizedModeGraphTest {
     });
 
     @Before
-    public void setUpCRC() {
-        stats = new HashMap<>();
+    public void setUpCRC() throws IOException {
         createDummySimWithXML(new RealizedModeHandler(realizedModeStats));
+        realizedModeStats.buildModesFrequencyDataset();
     }
 
     @Test
