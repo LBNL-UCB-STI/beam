@@ -82,7 +82,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
 
   "Mode Chosen Graph Collected Data" must {
 
-    "contains valid mode chosen stats" ignore {
+    "contains valid mode chosen stats" in {
       val waitingStat =
         new ModeChosenStats.ModeChosenComputation with EventAnalyzer {
           private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
