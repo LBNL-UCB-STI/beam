@@ -182,12 +182,13 @@ class RideHailAgent(
               _currentTriggerId
             )
           )
+          stay()
         case None =>
           log.debug("currentVehicleUnderControl not found")
+          stay() replying CompletionNotice(
+            triggerId,
+            Vector())
       }
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector())
     case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
