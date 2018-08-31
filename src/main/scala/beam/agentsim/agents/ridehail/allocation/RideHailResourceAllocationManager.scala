@@ -1,10 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.rideHail.allocation.{
-  EVFleetAllocationManager,
-  ImmediateDispatchWithOverwrite
-}
+import beam.agentsim.agents.rideHail.allocation.{EVFleetAllocationManager}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.agents.ridehail.RideHailManager.{
   BufferedRideHailRequestsTimeout,
@@ -124,19 +121,11 @@ object RideHailResourceAllocationManager {
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(rideHailManager)
-      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
-        new ImmediateDispatchWithOverwrite(rideHailManager)
-      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
-        new DummyRideHailDispatchWithBufferingRequests(rideHailManager)
-      case x if x startsWith ("Test_") =>
-        //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
-        //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
-
-        val classFullName = x.replaceAll("Test_", "")
+      case classFullName if classFullName != null =>
         Class
           .forName(classFullName)
           .getDeclaredConstructors()(0)
-          .newInstance(rideHailManager)
+          .newInstance(this)
           .asInstanceOf[RideHailResourceAllocationManager]
 
       case _ =>

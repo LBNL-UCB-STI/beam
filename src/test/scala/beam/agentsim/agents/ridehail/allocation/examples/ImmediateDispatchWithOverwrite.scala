@@ -2,11 +2,7 @@ package beam.agentsim.agents.ridehail.allocation.examples
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.allocation.{
-  RideHailResourceAllocationManager,
-  VehicleAllocation,
-  VehicleAllocationRequest
-}
+import beam.agentsim.agents.ridehail.allocation._
 import beam.router.RoutingModel.DiscreteTime
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -26,7 +22,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
+  ): VehicleAllocationResponse = {
 
     if (!reservationCompleted) {
       bufferedRideHailRequest += vehicleAllocationRequest
@@ -50,7 +46,17 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       case None => None
     }
      */
-    None
+    rideHailManager
+      .getClosestIdleVehiclesWithinRadius(
+        vehicleAllocationRequest.request.pickUpLocation,
+        rideHailManager.radiusInMeters
+      )
+      .headOption match {
+      case Some(agentLocation) =>
+        VehicleAllocation(agentLocation, None)
+      case None =>
+        NoVehicleAllocated
+    }
 
   }
 
@@ -65,7 +71,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
       val rhl = rideHailManager
         .getClosestIdleRideHailAgent(
-          firstRequestOfDay.pickUpLocation,
+          firstRequestOfDay.request.pickUpLocation,
           rideHailManager.radiusInMeters
         )
         .get
@@ -74,7 +80,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         departAt = DiscreteTime(bufferedRideHailRequests.getTick().toInt)
       )
 
-      rideHailManager.requestRoutesToCustomerAndDestination(
+      rideHailManager.createRoutingRequestsToCustomerAndDestination(
         request,
         rhl
       )

@@ -1,11 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation.examples
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.allocation.{
-  RideHailResourceAllocationManager,
-  VehicleAllocation,
-  VehicleAllocationRequest
-}
+import beam.agentsim.agents.ridehail.allocation._
 import beam.router.RoutingModel.DiscreteTime
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
@@ -15,13 +11,23 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
+  ): VehicleAllocationResponse = {
 
     if (rideHailManager.getPendingDummyRequests.size < 5) {
       rideHailManager.assignDummyRidehail(vehicleAllocationRequest.request)
     }
 
-    None // for inquiry the default option is sent to allow selection - some other could be sent here as well
+    rideHailManager
+      .getClosestIdleVehiclesWithinRadius(
+        vehicleAllocationRequest.request.pickUpLocation,
+        rideHailManager.radiusInMeters
+      )
+      .headOption match {
+      case Some(agentLocation) =>
+        VehicleAllocation(agentLocation, None)
+      case None =>
+        NoVehicleAllocated
+    } // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
   override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
@@ -43,7 +49,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
               departAt = DiscreteTime(tick.toInt)
             )
 
-            rideHailManager.requestRoutesToCustomerAndDestination(
+            rideHailManager.createRoutingRequestsToCustomerAndDestination(
               updatedRequest,
               rhl
             )
