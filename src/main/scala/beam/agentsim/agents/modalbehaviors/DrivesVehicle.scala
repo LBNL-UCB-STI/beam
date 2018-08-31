@@ -516,8 +516,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     req: ReservationRequest,
     vehicle: BeamVehicle
   ) = {
-    val vehicleCap = vehicle.getType.getCapacity
-    val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
+//    val vehicleCap = vehicle.getType
+    val fullCap = vehicle.getType.seatingCapacity + vehicle.getType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
     }

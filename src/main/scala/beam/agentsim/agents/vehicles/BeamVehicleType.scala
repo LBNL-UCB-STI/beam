@@ -1,15 +1,10 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.router.Modes.BeamMode
-import enumeratum.EnumEntry.LowerCamelcase
-import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-
-import scala.collection.immutable
 
 /**
   * Enumerates the names of recognized [[BeamVehicle]]s.
@@ -17,13 +12,16 @@ import scala.collection.immutable
   *
   * @author saf
   */
-case class BeamVehicleType(val idString: String,
+case class BeamVehicleType(val vehicleTypeId: String,
                            seatingCapacity: Double,
                            standingRoomCapacity: Double,
                            lengthInMeter: Double,
-                           fuelType: String,
-                           fuelConsumptionInJoule: Double,
-                           fuelCapacityInJoule: Double,
+                           primaryFuelType: FuelType,
+                           primaryFuelConsumptionInJoule: Double,
+                           primaryFuelCapacityInJoule: Double,
+                           secondaryFuelType: FuelType,
+                           secondaryFuelConsumptionInJoule: Double,
+                           secondaryFuelCapacityInJoule: Double,
                            automationLevel: String,
                            maxVelocity: Double,
                            passengerCarUnit: String,
@@ -38,16 +36,16 @@ case class BeamVehicleType(val idString: String,
     * @return the id
     */
   def createId(personId: Id[Person]): Id[Vehicle] = {
-    Id.create(idString + "-" + personId.toString, classOf[Vehicle])
+    Id.create(vehicleTypeId + "-" + personId.toString, classOf[Vehicle])
   }
 
   /**
-    * Is the given [[Id]] a [[BeamVehicle]] of type [[BeamVehicleType.idString]]?
+    * Is the given [[Id]] a [[BeamVehicle]] of type [[BeamVehicleType.vehicleTypeId]]?
     *
     * @param id : The [[Id]] to test
     */
   def isVehicleType(id: Id[_ <: Vehicle]): Boolean = {
-    id.toString.startsWith(idString)
+    id.toString.startsWith(vehicleTypeId)
   }
 
   /**
@@ -77,6 +75,7 @@ case class BeamVehicleType(val idString: String,
   }
 
   def toMatsimVehicleType: VehicleType = ???
+
 }
 
 object BeamVehicleType {
@@ -89,6 +88,8 @@ object BeamVehicleType {
   def getCarVehicle(): BeamVehicleType = ???
 
   def getTransitVehicle(): BeamVehicleType = ???
+
+  def getRidehailVehicle(): BeamVehicleType = ???
 
   def createId(personId: Id[Person]): Id[Vehicle] = ???
 
@@ -112,6 +113,8 @@ object BeamVehicleType {
 
   //TODO's in BeamVehicleUtils
 }
+
+case class FuelType(fuelTypeId: String, priceInDollarsPerMJoule: Double)
 
 //case object BeamVehicleType extends Enum[BeamVehicleType] {
 //

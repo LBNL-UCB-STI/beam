@@ -159,19 +159,20 @@ object HouseholdActor {
 
   object HouseholdAttributes {
 
-    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]) =
+    def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]) = {
       new HouseholdAttributes(
         Option(household.getIncome)
           .getOrElse(new IncomeImpl(0, IncomePeriod.year))
           .getIncome,
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
-          .map(vehicles)
-          .count(_.getType.getDescription.toLowerCase.contains("car")),
+          .map( id => vehicles(id) )
+          .count(_.getType.vehicleCategory.toLowerCase.contains("car")), //TODO will vehicle category contain car?
         household.getVehicleIds.asScala
-          .map(vehicles)
-          .count(_.getType.getDescription.toLowerCase.contains("bike"))
+          .map(id => vehicles(id))
+          .count(_.getType.vehicleCategory.toLowerCase.contains("bike"))
       )
+    }
   }
 
   /**
@@ -210,13 +211,16 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
     val personAttributes: ObjectAttributes = population.getPersonAttributes
     household.members.foreach { person =>
-      val bodyVehicleIdFromPerson = ??? //createId(person.getId) //FIXME
-      val matsimBodyVehicle =
-        VehicleUtils.getFactory
-          .createVehicle(bodyVehicleIdFromPerson, ??? /*HumanBodyVehicle.MatsimVehicleType*/) //FIXME
+
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       val personId = person.getId
+
+      val bodyVehicleIdFromPerson = BeamVehicle.createId(personId) //createId(person.getId) //FIXME
+//      val matsimBodyVehicle =
+//        VehicleUtils.getFactory
+//          .createVehicle(bodyVehicleIdFromPerson, ??? /*HumanBodyVehicle.MatsimVehicleType*/) //FIXME
+
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
           person.getId.toString,
@@ -265,11 +269,10 @@ object HouseholdActor {
 
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
+        bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
-        matsimBodyVehicle,
         None,
         BeamVehicleType.getHumanBodyVehicle(),
-        None,
         None
       )
       newBodyVehicle.registerResource(personRef)

@@ -35,7 +35,7 @@ object BeamVehicleUtils {
         .map(_.getGasConsumption)
         .getOrElse(Powertrain.AverageMilesPerGallon)
     )
-    new BeamVehicle(powerTrain, matsimVehicle, vehicleAttribute, BeamVehicleType.getCarVehicle(), None, None)
+    new BeamVehicle(id, powerTrain, vehicleAttribute, BeamVehicleType.getCarVehicle(), None)
   }
 
   //TODO: Identify the vehicles by type in xml

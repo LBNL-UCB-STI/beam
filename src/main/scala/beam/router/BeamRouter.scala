@@ -101,6 +101,7 @@ class BeamRouter(
 
       val mode =
         Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+
       val vehicleTypeId =
         Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
 
@@ -119,21 +120,26 @@ class BeamRouter(
 
       mode match {
         case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
+
           val matSimTransitVehicle =
             VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
           matSimTransitVehicle.getType.setDescription(mode.value)
+
           val consumption = Option(vehicleType.getEngineInformation)
             .map(_.getGasConsumption)
             .getOrElse(Powertrain.AverageMilesPerGallon)
           //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
           // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
           //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+
+          val beamVehicleId = BeamVehicle.createId(transitVehId, Some(mode.toString))
+
           val vehicle: BeamVehicle = new BeamVehicle(
+            beamVehicleId,
             Powertrain.PowertrainFromMilesPerGallon(consumption),
-            matSimTransitVehicle,
+//            matSimTransitVehicle,
             None,
             BeamVehicleType.getTransitVehicle,
-            None,
             None
           ) // TODO: implement fuel level later as needed
           services.vehicles += (transitVehId -> vehicle)

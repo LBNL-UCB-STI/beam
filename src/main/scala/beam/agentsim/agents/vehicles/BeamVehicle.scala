@@ -26,19 +26,20 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
+  val vehicleId: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val matSimVehicle: Vehicle,
+//  val matSimVehicle: Vehicle,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
-  var fuelLevel: Option[Double],
-  val fuelCapacityInJoules: Option[Double]
+  var fuelLevel: Option[Double]
+//  ,val fuelCapacityInJoules: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
   /**
     * Identifier for this vehicle
     */
-  val id: Id[Vehicle] = matSimVehicle.getId
+  val id: Id[BeamVehicle] = vehicleId //TODO vehicleId
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -50,7 +51,9 @@ class BeamVehicle(
 
   var stall: Option[ParkingStall] = None
 
-  def getType: VehicleType = matSimVehicle.getType
+//  def getType: VehicleType = matSimVehicle.getType
+
+  def getType: BeamVehicleType = beamVehicleType
 
   override def getId: Id[BeamVehicle] = id
 
@@ -90,19 +93,22 @@ class BeamVehicle(
   def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
     fuelLevel = Some(
       fLevel - powerTrain
-        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
+        .estimateConsumptionInJoules(distanceInMeters) / beamVehicleType.primaryFuelCapacityInJoule
     )
   }
 
   def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
+    fuelLevel = Some(fLevel + fuelInJoules / beamVehicleType.primaryFuelCapacityInJoule)
   }
-
 }
 
 object BeamVehicle {
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
+
+  def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
+    Id.create(s"${prefix.map(_+"-").getOrElse("")}${id.toString}", classOf[BeamVehicle])
+  }
 }
 

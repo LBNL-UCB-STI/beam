@@ -292,7 +292,7 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, BeamVehicleType.getCarVehicle(), None, None)
+      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.getCarVehicle(), None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val matsimConfig = ConfigUtils.createConfig()
@@ -411,20 +411,20 @@ class PersonAgentSpec
 
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val bus = new BeamVehicle(
+        Id.createVehicleId("my_bus"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.getCarVehicle(),
-        None,
         None
+//        None
       )
       val tram = new BeamVehicle(
+        Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
         BeamVehicleType.getCarVehicle(),
-        None,
         None
+//        None
       )
 
       vehicles.put(bus.getId, bus)

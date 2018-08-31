@@ -219,13 +219,6 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  def readVehiclesData() = {
-    val vehicleTypeFile = ""
-    val vehiclesFile = ""
-
-
-  }
-
 }
 
 case class MapStringDouble(data: Map[String, Double])

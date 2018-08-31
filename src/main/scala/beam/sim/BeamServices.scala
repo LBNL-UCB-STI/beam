@@ -9,14 +9,16 @@ import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.DateUtils
+import beam.utils.{CsvUtils, DateUtils, FileUtils}
+import beam.utils.matsim_conversion.ShapeUtils.CsvTaz
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import glokka.Registry
 import org.matsim.api.core.v01.{Coord, Id}
@@ -24,8 +26,11 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
+import org.supercsv.io.{CsvMapReader, ICsvMapReader}
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -47,6 +52,10 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
+
+  val privateVehicles: Map[Id[BeamVehicle], BeamVehicle]
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
 
@@ -72,7 +81,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+  val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.taz.file + " ---") //TODO
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.taz.file + " ---", fuelTypes)
+  val privateVehicles: Map[Id[BeamVehicle], BeamVehicle] = BeamServices.readVehiclesFile(beamConfig.beam.agentsim.taz.file + " ---", vehicleTypes)
+
   var matsimServices: MatsimServices = _
 
   val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
@@ -104,4 +118,96 @@ object BeamServices {
       BeamServices.defaultTazTreeMap
     }
   }
+
+  def readVehiclesData(beamConfig: BeamConfig) = {
+    val fuelTypePath = "" //TODO
+    val vehicleTypePath = "" //TODO
+    val vehiclesPath = "" //TODO
+  }
+
+  def readVehiclesFile(filePath: String, vehiclesTypeMap: Map[Id[BeamVehicleType], BeamVehicleType]) = {
+    val prefix = "private"
+    readCsvFileByLine(filePath, Map[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
+      val vehicleIdString = line.get("vehicleId")
+      val vehicleId = Id.create(prefix + vehicleIdString, classOf[BeamVehicle])
+
+      val vehicleTypeIdString = line.get("vehicleTypeId")
+      val vehicleType = vehiclesTypeMap.get(Id.create(vehicleTypeIdString, classOf[BeamVehicleType])).get
+
+      val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
+
+      val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None)
+      acc.updated(vehicleId, beamVehicle)
+    }
+  }
+
+  def readFuelTypeFile (filePath: String): Map[Id[FuelType], FuelType] = {
+    readCsvFileByLine(filePath, Map[Id[FuelType], FuelType]()){ case (line, z) =>
+      val fuelIdString = line.get("fuelTypeId")
+      val fuelTypeId = Id.create(fuelIdString, classOf[FuelType])
+      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
+      val fuelType = FuelType(fuelIdString, priceInDollarsPerMJoule)
+      z.updated(fuelTypeId, fuelType)
+    }
+  }
+
+  def readBeamVehicleTypeFile(filePath: String,
+                                      fuelTypeMap: Map[Id[FuelType], FuelType]): Map[Id[BeamVehicleType], BeamVehicleType] = {
+    readCsvFileByLine(filePath, Map[Id[BeamVehicleType], BeamVehicleType]()) { case (line, z) =>
+      val vIdString = line.get("vehicleTypeId")
+      val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+      val seatingCapacity = line.get("seatingCapacity").toDouble
+      val standingRoomCapacity = line.get("standingRoomCapacity").toDouble
+      val lengthInMeter = line.get("lengthInMeter").toDouble
+      val primaryFuelTypeId = line.get("primaryFuelType")
+      val primaryFuelType = fuelTypeMap.get(Id.create(primaryFuelTypeId, classOf[FuelType])).get
+      val primaryFuelConsumptionInJoule = line.get("primaryFuelConsumptionInJoule").toDouble
+      val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
+      val secondaryFuelTypeId = line.get("secondaryFuelType")
+      val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType])).get
+      val secondaryFuelConsumptionInJoule = line.get("secondaryFuelConsumptionInJoule").toDouble
+      val secondaryFuelCapacityInJoule = line.get("secondaryFuelCapacityInJoule").toDouble
+      val automationLevel = line.get("automationLevel")
+      val maxVelocity = line.get("maxVelocity").toDouble
+      val passengerCarUnit = line.get("passengerCarUnit")
+      val rechargeLevel2RateLimitInWatts = line.get("rechargeLevel2RateLimitInWatts").toDouble
+      val rechargeLevel3RateLimitInWatts = line.get("rechargeLevel3RateLimitInWatts").toDouble
+      val vehicleCategory = line.get("vehicleCategory")
+
+      val bvt = BeamVehicleType(
+        vIdString,
+        seatingCapacity,
+        standingRoomCapacity,
+        lengthInMeter,
+        primaryFuelType,
+        primaryFuelConsumptionInJoule,
+        primaryFuelCapacityInJoule,
+        secondaryFuelType,
+        secondaryFuelConsumptionInJoule,
+        secondaryFuelCapacityInJoule,
+        automationLevel,
+        maxVelocity,
+        passengerCarUnit,
+        rechargeLevel2RateLimitInWatts,
+        rechargeLevel3RateLimitInWatts,
+        vehicleCategory
+      )
+      z.updated(vehicleTypeId, bvt)
+    }
+  }
+
+  private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
+    FileUtils.using(new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {mapReader =>
+      var res: A = z
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        res = readLine(line, res)
+        line = mapReader.read(header: _*)
+      }
+      res
+    }
+  }
+
+
 }

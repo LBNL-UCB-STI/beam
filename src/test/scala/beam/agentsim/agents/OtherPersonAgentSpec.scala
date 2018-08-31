@@ -135,21 +135,25 @@ class OtherPersonAgentSpec
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should also work when the first bus is late") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+
+      val beamVehicleId = Id.createVehicleId("my_bus")
+
       val bus = new BeamVehicle(
+        beamVehicleId,
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
+//        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.getCarVehicle(),
-        None,
         None
+//        None
       )
       val tram = new BeamVehicle(
+        Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
         None,
         BeamVehicleType.getCarVehicle(),
-        None,
         None
+//        None
       )
 
       vehicles.put(bus.getId, bus)

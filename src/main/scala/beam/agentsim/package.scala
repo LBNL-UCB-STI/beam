@@ -28,27 +28,28 @@ package object agentsim {
 
   implicit def beamVehicleMaptoMatsimVehicleMap(
     beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
-  ): Map[Id[Vehicle], Vehicle] = {
-    beamVehicleMap.map({ case (vid, veh) => (Id.createVehicleId(vid), veh.matSimVehicle) })
+  ): Map[Id[BeamVehicle], BeamVehicle] = {
+    beamVehicleMap.map({ case (vid, veh) => (vid, veh) })
   }
 
   //TODO: Make this work for modes other than car
   implicit def matsimVehicleMap2BeamVehicleMap(
-    matsimVehicleMap: java.util.Map[Id[Vehicle], Vehicle]
+    matsimVehicleMap: java.util.Map[Id[BeamVehicle], BeamVehicle]
   ): Map[Id[BeamVehicle], BeamVehicle] = {
     JavaConverters
       .mapAsScalaMap(matsimVehicleMap)
       .map({
         case (vid, veh) =>
+          val beamVehicleId = Id.create(vid, classOf[BeamVehicle])
           (
-            Id.create(vid, classOf[BeamVehicle]),
+            beamVehicleId,
             new BeamVehicle(
+              beamVehicleId,
               Powertrain
-                .PowertrainFromMilesPerGallon(veh.getType.getEngineInformation.getGasConsumption),
-              veh,
+                .PowertrainFromMilesPerGallon(veh.getType.primaryFuelConsumptionInJoule),
+//              veh,
               None,
               BeamVehicleType.getCarVehicle(),
-              None,
               None
             )
           )
