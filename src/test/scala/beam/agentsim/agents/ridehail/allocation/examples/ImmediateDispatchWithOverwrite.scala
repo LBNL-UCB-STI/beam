@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail.allocation.examples
+package beam.agentsim.agents.ridehail.allocation.examples
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager
@@ -7,15 +7,10 @@ import beam.agentsim.agents.ridehail.allocation.{
   VehicleAllocation,
   VehicleAllocationRequest
 }
-import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.DiscreteTime
-import beam.sim.metrics.MetricsPrinter.Print
-import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.mutable
 
 /*
 Idea: try to overwrite one ridehail reservation

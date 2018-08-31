@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail.allocation.examples
+package beam.agentsim.agents.ridehail.allocation.examples
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.allocation.{

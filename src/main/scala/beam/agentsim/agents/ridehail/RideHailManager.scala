@@ -123,13 +123,7 @@ class RideHailManager(
         new RepositioningLowWaitingTimes(this, tncIterationStats)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(this)
-      // case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
-      //   new DummyRideHailDispatchWithBufferingRequests(this)
-      case x if x startsWith ("Test_") =>
-        //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
-        //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
-
-        val classFullName = x.replaceAll("Test_", "")
+      case classFullName if classFullName != null =>
         Class
           .forName(classFullName)
           .getDeclaredConstructors()(0)
@@ -234,20 +228,22 @@ class RideHailManager(
 
       //updateLocationOfAgent(vehicleId, whenWhere, isAvailable = true)
       resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver
-        .foreach(driver => {
-          val rideHailAgentLocation =
-            RideHailAgentLocation(driver, vehicleId, whenWhere)
-          if (modifyPassengerScheduleManager
-                .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
-                .isPendingReservationEnding(vehicleId, passengerSchedule)) {
-            log.debug("Making available: {}", vehicleId)
-            // we still might have some ongoing resrvation in going on
-            makeAvailable(rideHailAgentLocation)
+        .foreach(
+          driver => {
+            val rideHailAgentLocation =
+              RideHailAgentLocation(driver, vehicleId, whenWhere)
+            if (modifyPassengerScheduleManager
+                  .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
+                  .isPendingReservationEnding(vehicleId, passengerSchedule)) {
+              log.debug("Making available: {}", vehicleId)
+              // we still might have some ongoing resrvation in going on
+              makeAvailable(rideHailAgentLocation)
+            }
+            modifyPassengerScheduleManager
+              .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
+            vehicleFuelLevel.put(vehicleId, fuelLevel)
           }
-          modifyPassengerScheduleManager
-            .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
-          vehicleFuelLevel.put(vehicleId, fuelLevel)
-        })
+        )
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, isAvailable = false)
@@ -263,24 +259,26 @@ class RideHailManager(
 
       if (whenWhere.get.time == 0) {
         resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver
-          .foreach(driver => {
-            val rideHailAgentLocation =
-              RideHailAgentLocation(driver, vehicleId, whenWhere.get)
-            if (modifyPassengerScheduleManager
-                  .noPendingReservations(vehicleId)) {
-              // we still might have some ongoing resrvation in going on
-              log.debug("Checking in: {}", vehicleId)
-              makeAvailable(rideHailAgentLocation)
+          .foreach(
+            driver => {
+              val rideHailAgentLocation =
+                RideHailAgentLocation(driver, vehicleId, whenWhere.get)
+              if (modifyPassengerScheduleManager
+                    .noPendingReservations(vehicleId)) {
+                // we still might have some ongoing resrvation in going on
+                log.debug("Checking in: {}", vehicleId)
+                makeAvailable(rideHailAgentLocation)
+              }
+              sender ! CheckInSuccess
+              log.debug(
+                "checking in resource: vehicleId({});availableIn.time({})",
+                vehicleId,
+                whenWhere.get.time
+              )
+              modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere, None)
+              driver ! GetBeamVehicleFuelLevel
             }
-            sender ! CheckInSuccess
-            log.debug(
-              "checking in resource: vehicleId({});availableIn.time({})",
-              vehicleId,
-              whenWhere.get.time
-            )
-            modifyPassengerScheduleManager.checkInResource(vehicleId, whenWhere, None)
-            driver ! GetBeamVehicleFuelLevel
-          })
+          )
       }
 
     case CheckOutResource(_) =>
@@ -454,20 +452,22 @@ class RideHailManager(
             )
           }
 
-          tncIterationStats.foreach(tncIterationStats => {
+          tncIterationStats.foreach(
+            tncIterationStats => {
 
-            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
+              val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
-            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-              spatialPlot.addPoint(
-                PointToPlot(
-                  tazEntry._1,
-                  Color.RED,
-                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+              for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+                spatialPlot.addPoint(
+                  PointToPlot(
+                    tazEntry._1,
+                    Color.RED,
+                    10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+                  )
                 )
-              )
+              }
             }
-          })
+          )
 
           val iteration = "it." + beamServices.iterationNumber
           spatialPlot.writeImage(
@@ -934,11 +934,16 @@ class RideHailManager(
       .asScala
       .view
     val distances2RideHailAgents =
-      nearbyRideHailAgents.map(rideHailAgentLocation => {
-        val distance = CoordUtils
-          .calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-        (rideHailAgentLocation, distance)
-      })
+      nearbyRideHailAgents.map(
+        rideHailAgentLocation => {
+          val distance = CoordUtils
+            .calcProjectedEuclideanDistance(
+              pickupLocation,
+              rideHailAgentLocation.currentLocation.loc
+            )
+          (rideHailAgentLocation, distance)
+        }
+      )
     //TODO: Possibly get multiple taxis in this block
     distances2RideHailAgents
       .filter(x => availableRideHailVehicles.contains(x._1.vehicleId))

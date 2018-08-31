@@ -11,11 +11,17 @@ import org.scalatest.mockito.MockitoSugar
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
-class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar with EventsFileHandlingCommon{
+class RideHailBufferedRidesSpec
+    extends FlatSpec
+    with BeamHelper
+    with MockitoSugar
+    with EventsFileHandlingCommon {
 
-
-  def getActivitiesGroupedByPerson(events: Queue[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
-    val activities = events.filter( e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
+  def getActivitiesGroupedByPerson(
+    events: Queue[Event]
+  ): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
+    val activities =
+      events.filter(e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
 
     val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) {
       case (c, ev) =>
@@ -40,7 +46,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
+          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
           //"DEFAULT_MANAGER"
         )
       )
@@ -52,14 +58,15 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
-    assert(groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
-      startActEvents.size == endActEvent.size
+    assert(groupedByPersonStartEndEvents.forall {
+      case (_, (startActEvents, endActEvent)) =>
+        startActEvents.size == endActEvent.size
     })
 
 //    groupedByPersonStartEndEvents.foreach{ case (_, (startActEvents, endActEvent)) =>
 //      assert(startActEvents.size == endActEvent.size)
 //    }
-    
+
   }
 
   it should "have different actstart and endstart events for persons when NOT using ridehail replacement in DummyRideHailDispatchWithBufferingRequestsWithoutReplacement" in {
@@ -68,7 +75,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
           //"DEFAULT_MANAGER"
         )
       )
@@ -80,7 +87,8 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
-    assert(!groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
+    assert(!groupedByPersonStartEndEvents.forall {
+      case (_, (startActEvents, endActEvent)) =>
         startActEvents.size == endActEvent.size
     })
 
