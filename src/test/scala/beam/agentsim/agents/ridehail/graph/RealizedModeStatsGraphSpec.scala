@@ -104,7 +104,7 @@ object RealizedModeStatsGraphSpec {
 class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with IntegrationSpecCommon {
   "Realized Mode Graph Collected Data" must {
 
-    "contains valid realized mode stats" ignore {
+    "contains valid realized mode stats" in {
       val computation = new RealizedModeStats.RealizedModesStatsComputation with EventAnalyzer {
         private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
 

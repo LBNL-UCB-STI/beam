@@ -99,7 +99,7 @@ class RideHailingWaitingGraphSpec extends WordSpecLike with Matchers with Integr
 
   "Ride Haling Graph Collected Data" must {
 
-    "contains valid rideHailing stats" ignore {
+    "contains valid rideHailing stats" in {
       val rideHailWaitingComputation = new RideHailWaitingStats.WaitingStatsComputation
       with EventAnalyzer {
 
