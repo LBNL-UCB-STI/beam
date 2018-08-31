@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.CsvUtils
+import beam.utils.{FileUtils}
 import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -102,8 +102,8 @@ class ZonalParkingManager(
       )
 
     case inquiry @ DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
-      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
-      val mStalls = mNearestTaz.flatMap {
+      val nearestTaz = findTAZsWithDistances(location, 1000.0).headOption
+      val stalls = nearestTaz.flatMap {
         case (taz, _) =>
           pooledResources.find {
             case (attr, values) =>
@@ -113,12 +113,12 @@ class ZonalParkingManager(
           }
       }
 
-      val mParkingStall = mStalls.flatMap {
+      val parkingStall = stalls.flatMap {
         case (attr, values) =>
           maybeCreateNewStall(attr, location, 0.0, Some(values))
       }
 
-      mParkingStall.foreach { stall =>
+      parkingStall.foreach { stall =>
         resources.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
         pooledResources.update(
@@ -127,7 +127,7 @@ class ZonalParkingManager(
         )
       }
 
-      val response = DepotParkingInquiryResponse(mParkingStall)
+      val response = DepotParkingInquiryResponse(parkingStall)
       sender() ! response
 
     case inquiry @ ParkingInquiry(
@@ -321,11 +321,11 @@ class ZonalParkingManager(
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = ???
 
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
-    var mapReader: ICsvMapReader = null
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-    try {
-      mapReader =
-        new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+
+    FileUtils.using(
+      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    ) { mapReader =>
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -347,10 +347,6 @@ class ZonalParkingManager(
 
         line = mapReader.read(header: _*)
       }
-
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
     }
     res
   }

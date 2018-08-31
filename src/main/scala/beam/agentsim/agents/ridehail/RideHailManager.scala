@@ -214,6 +214,9 @@ class RideHailManager(
           vehicleFuelLevel.put(vehicleId, fuelLevel)
         })
 
+      // ridehail agent awaiting NotifyVehicleResourceIdleReply
+      sender() ! NotifyVehicleResourceIdleReply(Vector[ScheduleTrigger]())
+
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, isAvailable = false)
 

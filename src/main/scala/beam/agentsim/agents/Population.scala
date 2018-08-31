@@ -27,6 +27,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 import scala.util.Try
@@ -52,7 +53,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var initParkingVeh: Seq[ActorRef] = Nil
+  var initParkingVeh = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -70,7 +71,7 @@ class Population(
     case Finish =>
       context.children.foreach(_ ! Finish)
       initParkingVeh.foreach(context.stop(_))
-      initParkingVeh = Nil
+      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
@@ -163,7 +164,7 @@ class Population(
                 //TODO deal with timeouts and errors
               }
             }))
-            initParkingVeh :+= initParkingVehicle
+            initParkingVeh append initParkingVehicle
         }
 
         context.watch(householdActor)

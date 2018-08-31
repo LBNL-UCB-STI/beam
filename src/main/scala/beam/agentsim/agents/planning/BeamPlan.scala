@@ -60,11 +60,11 @@ class BeamPlan extends Plan {
   //////////////////////////////////////////////////////////////////////
   // Beam-Specific methods
   //////////////////////////////////////////////////////////////////////
-  def trips: Vector[Trip] = tours.flatMap(_.trips)
+  lazy val trips: Vector[Trip] = tours.flatMap(_.trips)
 
-  def activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
+  lazy val activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
 
-  def legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
+  lazy val legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
 
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()

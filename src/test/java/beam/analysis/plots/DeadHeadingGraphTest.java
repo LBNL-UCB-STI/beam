@@ -1,11 +1,9 @@
-package beam.analysis.plot.graph;
+package beam.analysis.plots;
 
-import beam.analysis.plots.DeadHeadingStats;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import static beam.analysis.plot.graph.GraphTestUtil.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -14,21 +12,21 @@ public class DeadHeadingGraphTest {
 
     @BeforeClass
     public static void setUpClass() {
-        createDummySimWithXML();
+        GraphTestUtil.createDummySimWithXML();
     }
 
     @Test
     @Ignore
     public void testShouldPassShouldReturnPassengerPerTripInBusForFirstBucket() {
         int expectedResult = 141;
-        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, BUS);
+        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, GraphTestUtil.BUS);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
     public void testShouldPassShouldReturnPassengerPerTripInBusForSecondBucket() {
         int expectedResult = 2;
-        int actualResult = deadHeadingStats.getBucketCountAgainstMode(1, BUS);
+        int actualResult = deadHeadingStats.getBucketCountAgainstMode(1, GraphTestUtil.BUS);
         assertEquals(expectedResult, actualResult);
     }
 
@@ -36,7 +34,7 @@ public class DeadHeadingGraphTest {
     @Ignore
     public void testShouldPassShouldReturnPassengerPerTripInSubWayForFirstBucket() {
         int expectedResult = 8;
-        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, SUBWAY);
+        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, GraphTestUtil.SUBWAY);
         assertEquals(expectedResult, actualResult);
     }
 
@@ -44,7 +42,7 @@ public class DeadHeadingGraphTest {
     @Ignore
     public void testShouldPassShouldReturnPassengerPerTripForCar() {
         int expectedResult = 34;
-        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, CAR);
+        int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, GraphTestUtil.CAR);
         assertEquals(expectedResult, actualResult);
     }
 

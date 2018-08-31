@@ -49,7 +49,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.15" 
+def akkaBinaryVersion = "2.5.15"
 def circeBinaryVersion="0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
@@ -95,6 +95,13 @@ allprojects {
 }
 
 dependencies {
+
+    /*
+     The current implementation of conveyal repository contains the logback.xml as part of
+     the library. This avoid our project to have a specific logback.xml file.
+     A PR was submitted after the maintainers fix it this line can be removed.
+     */
+    implementation 'com.github.carloscaldas:osm-lib:master-SNAPSHOT'
 
     ////////////////////////////
     // Java dependencies
@@ -269,6 +276,15 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
+
+task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+
+    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task to run tests periodically on continue integration server.
 // ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
