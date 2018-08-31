@@ -12,8 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
-  }
-  else {
+  } else {
     verifyTypesExist()
   }
 
@@ -28,8 +27,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
 
   private val class2Threshold: Map[Class[_], Long] = if (!cfg.enabled) {
     Map.empty
-  }
-  else {
+  } else {
     cfg.thresholds.map { option =>
       val clazz = Class.forName(option.triggerType)
       logger.info("{} => {} ms", clazz, option.markAsStuckAfterMs)
@@ -53,8 +51,10 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     time: Long = System.currentTimeMillis()
   ): Seq[ValueWithTime[ScheduledTrigger]] = {
     @tailrec
-    def detectStuckAgents0(helper: StuckFinderHelper[ScheduledTrigger],
-                           stuckAgents: ArrayBuffer[ValueWithTime[ScheduledTrigger]]): Seq[ValueWithTime[ScheduledTrigger]] = {
+    def detectStuckAgents0(
+      helper: StuckFinderHelper[ScheduledTrigger],
+      stuckAgents: ArrayBuffer[ValueWithTime[ScheduledTrigger]]
+    ): Seq[ValueWithTime[ScheduledTrigger]] = {
       helper.removeOldest match {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
@@ -72,7 +72,9 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }
     val result = ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]]
     if (cfg.enabled) {
-      class2Helper.values.foreach { helper => detectStuckAgents0(helper, result) }
+      class2Helper.values.foreach { helper =>
+        detectStuckAgents0(helper, result)
+      }
     }
     result
   }

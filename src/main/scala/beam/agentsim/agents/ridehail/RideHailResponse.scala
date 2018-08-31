@@ -1,6 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor._
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
