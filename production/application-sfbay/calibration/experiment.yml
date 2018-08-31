@@ -3,11 +3,11 @@
 # Header
 
 header:
-    title: SF Light Calibration 5k-Test
-    author: BEAM Developers
-    beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
-    modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 1
+    title: Production_Calibration_500k_Test
+    author: Sid Feygin
+    beamTemplateConfPath: production/application-sfbay/base-500k-no-local.conf
+    modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
+    numWorkers: 2
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
