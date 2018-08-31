@@ -31,7 +31,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   private lazy val injector = org.matsim.core.controler.Injector.createInjector(
     scenario.getConfig,
-    module(baseConfig, scenario, networkCoordinator.transportNetwork),
+    module(baseConfig, scenario, networkCoordinator),
     childModule
   )
 
