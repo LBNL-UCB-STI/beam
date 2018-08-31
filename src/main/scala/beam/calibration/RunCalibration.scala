@@ -46,14 +46,15 @@ object RunCalibration extends App with BeamHelper {
   private implicit val experimentData: SigoptExperimentData =
     SigoptExperimentData(experimentLoc, benchmarkLoc, experimentId, development = false)
 
-  val iterPerNode = Math.ceil(numIters / experimentData.numWorkers)
+  val iterPerNode = Math.ceil(numIters / experimentData.numWorkers).toInt
 
   if (experimentData.isParallel && experimentData.isMaster) {
     import sys.process._
     val gradlewEnding = if(SystemUtils.IS_OS_WINDOWS){".bat"}else{".sh"}
 
     (1 to experimentData.numWorkers).foreach({ _ =>
-      val execString:String =s"./gradlew$gradlewEnding :deploy -PrunName=\'${experimentData.experimentDef.header.title}\' -PinstanceType=\'t2.large\' -PmaxRAM=\'128g\' -PdeployMode=\'execute\'  -PexecuteClass=\'beam.calibration.RunCalibration\' -PexecuteArgs=\'['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode']\'"
+      val execString:String =
+        s"""./gradlew$gradlewEnding :deploy -PrunName=${experimentData.experimentDef.header.title} -PinstanceType=t2.large -PmaxRAM=128g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode']""""
       println(execString)
       execString.!
     })
