@@ -42,12 +42,12 @@ class ModeChoiceLCCM(
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
   private def choose(
-    alternatives: Seq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: Option[AttributesOfIndividual],
     tourType: TourType
   ): Option[EmbodiedBeamTrip] = {
@@ -135,7 +135,7 @@ class ModeChoiceLCCM(
     0.0
 
   def altsToBestInGroup(
-    alternatives: Seq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
     tourType: TourType
   ): Vector[ModeChoiceData] = {
     val transitFareDefaults: Seq[BigDecimal] =
@@ -163,15 +163,15 @@ class ModeChoiceLCCM(
             altAndIdx._1.costEstimate
         }
         //TODO verify wait time is correct, look at transit and ride_hail in particular
-        val walkTime = altAndIdx._1.legs
+        val walkTime = altAndIdx._1.legs.view
           .filter(_.beamLeg.mode == WALK)
           .map(_.beamLeg.duration)
           .sum
-        val bikeTime = altAndIdx._1.legs
+        val bikeTime = altAndIdx._1.legs.view
           .filter(_.beamLeg.mode == BIKE)
           .map(_.beamLeg.duration)
           .sum
-        val vehicleTime = altAndIdx._1.legs
+        val vehicleTime = altAndIdx._1.legs.view
           .filter(_.beamLeg.mode != WALK)
           .filter(_.beamLeg.mode != BIKE)
           .map(_.beamLeg.duration)
@@ -208,7 +208,7 @@ class ModeChoiceLCCM(
   }
 
   def sampleMode(
-    alternatives: Seq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
     conditionedOnModalityStyle: String,
     tourType: TourType
   ): Option[String] = {

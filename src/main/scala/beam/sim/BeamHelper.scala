@@ -27,9 +27,11 @@ import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.Config
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
@@ -116,7 +118,7 @@ trait BeamHelper extends LazyLogging {
   def module(
     typesafeConfig: TypesafeConfig,
     scenario: Scenario,
-    transportNetwork: TransportNetwork
+    networkCoordinator: NetworkCoordinator
   ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
@@ -169,7 +171,13 @@ trait BeamHelper extends LazyLogging {
               override def convert(value: String): MapStringDouble =
                 MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
             })
-          bind(classOf[TransportNetwork]).toInstance(transportNetwork)
+          bind(classOf[TransportNetwork]).toInstance(networkCoordinator.transportNetwork)
+          bind(classOf[TravelTimeCalculator]).toInstance(
+            new FakeTravelTimeCalculator(
+              networkCoordinator.network,
+              new TravelTimeCalculatorConfigGroup()
+            )
+          )
         }
       }
     )
@@ -312,7 +320,7 @@ trait BeamHelper extends LazyLogging {
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator.transportNetwork)
+      module(config, scenario, networkCoordinator)
     )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])

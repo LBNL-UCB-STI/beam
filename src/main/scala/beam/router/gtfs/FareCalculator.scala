@@ -143,7 +143,7 @@ class FareCalculator(directory: String) {
     val rules = agencies.getOrElse(agencyId, Vector()).partition(_.containsId == null)
 
     (rules._1.filter(baseRule(_, routeId, fromId, toId)) ++
-    rules._2.groupBy(_.fare).filter(containsRule(_, routeId, _containsIds)).map(_._2.last))
+    rules._2.groupBy(_.fare).view.filter(containsRule(_, routeId, _containsIds)).map(_._2.last))
       .map(f => BeamFareSegment(f.fare, agencyId))
   }
 
@@ -261,8 +261,8 @@ object FareCalculator {
     routeId: String,
     containsIds: Set[String]
   ) =
-    t._2.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
-    t._2.map(_.containsId).toSet.equals(containsIds)
+    t._2.view.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
+    t._2.view.map(_.containsId).toSet.equals(containsIds)
 
   /**
     * Take an itinerary specific collection of @BeamFareSegment and apply transfer rules
@@ -340,11 +340,12 @@ object FareCalculator {
           case 0 => lhs
           case _ =>
             Vector(lhs.head) ++ iterateTransfers(
-              lhs.tail.zipWithIndex
+              lhs.view.tail.zipWithIndex
                 .filter(
                   fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans
                 )
                 .map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration))
+                .toVector
             )
         }
       }
@@ -363,6 +364,6 @@ object FareCalculator {
   }
 
   def sumFares(rules: Vector[BeamFareSegment]): Double = {
-    filterFaresOnTransfers(rules).map(_.fare.price).sum
+    filterFaresOnTransfers(rules).view.map(_.fare.price).sum
   }
 }

@@ -20,6 +20,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * BEAM
   */
@@ -37,9 +39,13 @@ object RoutingModel {
 
   case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
+    @transient
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
+    @transient
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+    @transient
     lazy val vehiclesInTrip: IndexedSeq[Id[Vehicle]] = determineVehiclesInTrip(legs)
+    @transient
     lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
       !_.asDriver
     )
@@ -141,17 +147,44 @@ object RoutingModel {
     travelTimeByEnterTimeAndLinkId: (Long, Int) => Long
   ): Iterator[Event] = {
     if (leg.travelPath.linkIds.size >= 2) {
-      val fullyTraversedLinks = leg.travelPath.linkIds.drop(1).dropRight(1)
+      val links = leg.travelPath.linkIds.view
+      val fullyTraversedLinks = links.drop(1).dropRight(1)
       def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
         enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
-      leg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
+      val events = new ArrayBuffer[Event]()
+      links.sliding(2).zip(timesAtNodes.iterator).foreach {
         case (Seq(from, to), timeAtNode) =>
-          Vector(
-            new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)),
-            new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
-          )
+          events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
+          events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
       }
+      events.toIterator
+    } else {
+      Iterator.empty
+    }
+  }
+
+  def traverseStreetLeg_opt(leg: BeamLeg, vehicleId: Id[Vehicle]): Iterator[Event] = {
+    if (leg.travelPath.linkIds.size >= 2) {
+      val links = leg.travelPath.linkIds
+      val eventsSize = 2 * (links.length - 1)
+      val events = new Array[Event](eventsSize)
+      var curr: Int = 0
+      val timeAtNode = leg.startTime
+      var arrIdx: Int = 0
+      while (curr < links.length - 1) {
+        val from = links(curr)
+        val to = links(curr + 1)
+
+        events.update(arrIdx, new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
+        arrIdx += 1
+
+        events.update(arrIdx, new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
+        arrIdx += 1
+
+        curr += 1
+      }
+      events.toIterator
     } else {
       Iterator.empty
     }
@@ -166,7 +199,7 @@ object RoutingModel {
   ): LinksTimesDistances = {
     def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
       enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
-    val traversalTimes = linkIds
+    val traversalTimes = linkIds.view
       .scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)
       .sliding(2)
       .map(pair => pair.last - pair.head)

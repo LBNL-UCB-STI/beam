@@ -29,6 +29,7 @@ import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import java.util.UUID
 
@@ -194,19 +195,18 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(streetVehicles, mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
+                  val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
+                  linkIds += r.getStartLinkId.toString.toInt
+                  r.getLinkIds.asScala.foreach { id =>
+                    linkIds += id.toString.toInt
+                  }
+                  linkIds += r.getStartLinkId.toString.toInt
+
                   val leg = BeamLeg(
                     departTime.atTime,
                     mode,
                     l.getTravelTime.toLong,
-                    BeamPath(
-                      (r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId)
-                        .map(id => id.toString.toInt)
-                        .toVector,
-                      None,
-                      SpaceTime.zero,
-                      SpaceTime.zero,
-                      r.getDistance
-                    )
+                    BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
                 case _ =>
@@ -259,7 +259,7 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
         case Some(m) =>
-          logDebug(s"$m: other then expected")
+          logDebug(m.toString)
       }
       val newPersonData = choosesModeData.copy(
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
@@ -279,7 +279,7 @@ trait ChoosesMode {
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       val driveTransitTrip =
-        theRouterResult.itineraries
+        theRouterResult.itineraries.view
           .dropWhile(_.tripClassifier != DRIVE_TRANSIT)
           .headOption
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
@@ -289,10 +289,10 @@ trait ChoosesMode {
               choosesModeData.rideHail2TransitAccessResult
             )) {
           val accessSegment =
-            driveTransitTrip.get.legs
+            driveTransitTrip.get.legs.view
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
-          val egressSegment = driveTransitTrip.get.legs
+          val egressSegment = driveTransitTrip.get.legs.view
             .dropWhile(!_.beamLeg.mode.isMassTransit)
             .dropWhile(_.beamLeg.mode.isMassTransit)
             .map(_.beamLeg)
@@ -517,14 +517,17 @@ trait ChoosesMode {
       // Write start and end links of chosen route into Activities.
       // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
       // Our aim should be that every transition from a link to another link be accounted for.
-      val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
-      if (links.nonEmpty) {
+      val headOpt = chosenTrip.legs.headOption
+        .flatMap(_.beamLeg.travelPath.linkIds.headOption)
+      val lastOpt = chosenTrip.legs.lastOption
+        .flatMap(_.beamLeg.travelPath.linkIds.lastOption)
+      if (headOpt.isDefined && lastOpt.isDefined) {
         _experiencedBeamPlan
           .activities(data.personData.currentActivityIndex)
-          .setLinkId(Id.createLinkId(links.head))
+          .setLinkId(Id.createLinkId(headOpt.get))
         _experiencedBeamPlan
           .activities(data.personData.currentActivityIndex + 1)
-          .setLinkId(Id.createLinkId(links.last))
+          .setLinkId(Id.createLinkId(lastOpt.get))
       } else {
         val origin = beamServices.geo.utm2Wgs(
           _experiencedBeamPlan
@@ -574,13 +577,13 @@ trait ChoosesMode {
             .toString,
           availableAlternatives.mkString(":"),
           data.availablePersonalStreetVehicles.nonEmpty,
-          chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum,
+          chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
           _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).right.get),
           chosenTrip
         )
       )
 
-      val personalVehicleUsed = data.availablePersonalStreetVehicles
+      val personalVehicleUsed = data.availablePersonalStreetVehicles.view
         .map(_.id)
         .intersect(chosenTrip.vehiclesInTrip)
         .headOption
