@@ -1,23 +1,53 @@
 package beam.analysis.plots;
 
-import beam.analysis.plots.RealizedModeStats;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.ReplanningEvent;
+import org.junit.Before;
 import org.junit.Test;
+import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.utils.collections.Tuple;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
 
 import static beam.analysis.plots.GraphTestUtil.*;
 import static org.junit.Assert.assertEquals;
 
 public class RealizedModeGraphTest {
-    private RealizedModeStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private static class RealizedModeHandler implements BasicEventHandler {
 
-    @BeforeClass
-    public static void setUpCRC() {
-        createDummySimWithXML();
+        private final RealizedModeStats realizedModeStats;
+
+        RealizedModeHandler(RealizedModeStats stats) {
+            this.realizedModeStats = stats;
+        }
+
+        @Override
+        public void handleEvent(Event event) {
+            if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE)) {
+                realizedModeStats.processStats(event);
+            }
+            if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
+                realizedModeStats.processStats(event);
+            }
+        }
+    }
+
+    private Map<Integer, Map<String, Integer>> stats;
+    private RealizedModeStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation() {
+        @Override
+        public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
+            stats = stat.getFirst();
+            return super.compute(stat);
+        }
+    });
+
+    @Before
+    public void setUpCRC() {
+        stats = new HashMap<>();
+        createDummySimWithXML(new RealizedModeHandler(realizedModeStats));
     }
 
     @Test
@@ -29,16 +59,15 @@ public class RealizedModeGraphTest {
         int expectedOtherResult = 4;
         int hour = 6;
 
-        Map<Integer,Map<String,Integer>> data = realizedModeStats.getHoursDataCountOccurrenceAgainstMode( );
-        int actaulWalkResult = data.get(hour).get(WALK);
-        int actaulCarResult = data.get(hour).get(CAR);
-        int actaulRideHailResult = data.get(hour).get(RIDE_HAIL);
-        int actaulOtherResult = data.get(hour).get(OTHERS);
+        int actaulWalkResult = stats.get(hour).get(WALK);
+        int actaulCarResult = stats.get(hour).get(CAR);
+        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        int actaulOtherResult = stats.get(hour).get(OTHERS);
 
-        assertEquals(expectedWalkResult,actaulWalkResult );
-        assertEquals(expectedCarResult,actaulCarResult );
-        assertEquals(expectedRideHailResult,actaulRideHailResult );
-        assertEquals(expectedOtherResult,actaulOtherResult);
+        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedRideHailResult, actaulRideHailResult);
+        assertEquals(expectedOtherResult, actaulOtherResult);
 
     }
 
@@ -51,16 +80,15 @@ public class RealizedModeGraphTest {
         int expectedOtherResult = 4;
         int hour = 7;
 
-        Map<Integer, Map<String,Integer>> data1 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode( );
-        int actaulWalkResult = data1.get(hour).get(WALK);
-        int actaulCarResult = data1.get(hour).get(CAR);
-        int actaulRideHailResult = data1.get(hour).get(RIDE_HAIL);
-        int actaulOtherResult = data1.get(hour).get(OTHERS);
+        int actaulWalkResult = stats.get(hour).get(WALK);
+        int actaulCarResult = stats.get(hour).get(CAR);
+        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        int actaulOtherResult = stats.get(hour).get(OTHERS);
 
-        assertEquals(expectedWalkResult,actaulWalkResult );
-        assertEquals(expectedCarResult,actaulCarResult );
-        assertEquals(expectedRideHailResult,actaulRideHailResult );
-        assertEquals(expectedOtherResult,actaulOtherResult);
+        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedRideHailResult, actaulRideHailResult);
+        assertEquals(expectedOtherResult, actaulOtherResult);
 
     }
 
@@ -73,18 +101,15 @@ public class RealizedModeGraphTest {
         int expectedOtherResult = 3;
         int hour = 8;
 
-        Map<Integer, Map<String,Integer>> data2 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode( );
-        int actaulWalkResult = data2.get(hour).get( WALK);
-        int actaulCarResult = data2.get(hour).get( CAR);
-        int actaulRideHailResult = data2.get(hour).get( RIDE_HAIL);
-        int actaulOtherResult = data2.get(hour).get( OTHERS);
+        int actaulWalkResult = stats.get(hour).get(WALK);
+        int actaulCarResult = stats.get(hour).get(CAR);
+        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        int actaulOtherResult = stats.get(hour).get(OTHERS);
 
-        Map<RealizedModeStats.ModePerson,Integer> sets = realizedModeStats.getPersonMode();
-
-        assertEquals(expectedWalkResult,actaulWalkResult );
-        assertEquals(expectedCarResult,actaulCarResult );
-        assertEquals(expectedRideHailResult,actaulRideHailResult );
-        assertEquals(expectedOtherResult,actaulOtherResult);
+        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedRideHailResult, actaulRideHailResult);
+        assertEquals(expectedOtherResult, actaulOtherResult);
 
     }
 
@@ -96,17 +121,15 @@ public class RealizedModeGraphTest {
         int expectedRideHailResult = 3;
         int expectedOtherResult = 4;
 
-        Map<Integer, Map<String,Integer>> data3 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode( );
+        int actaulCarResult = stats.get(9).get(CAR);
+        int actaulRideHailResult = stats.get(9).get(RIDE_HAIL);
+        int actaulOtherResult = stats.get(9).get(OTHERS);
+        int actaulWalkResult = stats.get(10).get(WALK);
 
-        int actaulCarResult = data3.get(9).get( CAR);
-        int actaulRideHailResult = data3.get(9).get( RIDE_HAIL);
-        int actaulOtherResult = data3.get(9).get( OTHERS);
-        int actaulWalkResult = data3.get(10).get( WALK);
-
-        assertEquals(expectedWalkResult,actaulWalkResult );
-        assertEquals(expectedCarResult,actaulCarResult );
-        assertEquals(expectedRideHailResult,actaulRideHailResult );
-        assertEquals(expectedOtherResult,actaulOtherResult);
+        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedRideHailResult, actaulRideHailResult);
+        assertEquals(expectedOtherResult, actaulOtherResult);
 
     }
 
@@ -118,11 +141,10 @@ public class RealizedModeGraphTest {
         int expectedRideHailResult = 3;
         int expectedOtherResult = 4;
 
-        Map<Integer, Map<String, Integer>> data3 = realizedModeStats.getHoursDataCountOccurrenceAgainstMode();
-        int actaulCarResult = data3.get(11).get(CAR);
-        int actaulRideHailResult = data3.get(11).get( RIDE_HAIL);
-        int actaulOtherResult = data3.get(12).get( OTHERS);
-        int actaulWalkResult = data3.get(12).get( WALK);
+        int actaulCarResult = stats.get(11).get(CAR);
+        int actaulRideHailResult = stats.get(11).get(RIDE_HAIL);
+        int actaulOtherResult = stats.get(12).get(OTHERS);
+        int actaulWalkResult = stats.get(12).get(WALK);
 
         assertEquals(expectedWalkResult, actaulWalkResult);
         assertEquals(expectedCarResult, actaulCarResult);
