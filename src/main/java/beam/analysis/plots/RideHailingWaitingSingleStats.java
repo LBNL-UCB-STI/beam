@@ -28,13 +28,38 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
     private static final String fileName = "RideHailWaitingSingleStats";
-    private double numberOfTimeBins;
+    private static double numberOfTimeBins;
     private double lastMaximumTime = 0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
+    private final IStatComputation<Map<Integer, Double>, double[][]> statComputation;
 
-    RideHailingWaitingSingleStats(BeamConfig beamConfig) {
+    public static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
+
+        @Override
+        public double[][] compute(Map<Integer, Double> stat) {
+            List<Integer> hours = new ArrayList<>(stat.keySet());
+            Collections.sort(hours);
+
+            Double _numberOfTimeBins = numberOfTimeBins;
+            int maxHour = _numberOfTimeBins.intValue();
+
+            double[][] data = new double[1][maxHour];
+            for (Integer key : stat.keySet()) {
+
+                if (key >= data[0].length) {
+                    DebugLib.emptyFunctionForSettingBreakPoint();
+                }
+
+                data[0][key] = stat.get(key);
+            }
+            return data;
+        }
+    }
+
+    public RideHailingWaitingSingleStats(BeamConfig beamConfig, IStatComputation<Map<Integer, Double>, double[][]> statComputation) {
+        this.statComputation = statComputation;
 
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
         double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
@@ -55,7 +80,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         if (event instanceof ModeChoiceEvent) {
 
-            String mode = event.getAttributes().get("mode");
+            String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
             if (mode.equalsIgnoreCase("ride_hail")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
@@ -82,23 +107,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-
-        List<Integer> hours = new ArrayList<>(hoursTimesMap.keySet());
-        Collections.sort(hours);
-        //int maxHour = hours.isEmpty() ? 0 : hours.get(hours.size() - 1);
-
-        Double _numberOfTimeBins = this.numberOfTimeBins;
-        int maxHour = _numberOfTimeBins.intValue();
-
-        double[][] data = new double[1][maxHour];
-        for (Integer key : hoursTimesMap.keySet()) {
-
-            if (key >= data[0].length) {
-                DebugLib.emptyFunctionForSettingBreakPoint();
-            }
-
-            data[0][key] = hoursTimesMap.get(key);
-        }
+        double[][] data = statComputation.compute(hoursTimesMap);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
         if (dataset != null)
             createModesFrequencyGraph(dataset, event.getIteration());
