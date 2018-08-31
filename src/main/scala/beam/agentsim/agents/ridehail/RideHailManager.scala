@@ -470,8 +470,7 @@ class RideHailManager(
                   legWithInd._1.copy(
                     asDriver = legWithInd._1.beamLeg.mode == WALK,
                     unbecomeDriverOnCompletion = legWithInd._2 == 2,
-                    beamLeg = legWithInd._1.beamLeg
-                      .copy(startTime = legWithInd._1.beamLeg.startTime + timeToCustomer),
+                    beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
                     cost =
                       if (legWithInd._1.beamLeg == customerTripPlan
                             .legs(1)

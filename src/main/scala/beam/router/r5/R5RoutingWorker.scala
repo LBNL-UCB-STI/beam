@@ -430,7 +430,7 @@ class R5RoutingWorker(
           )
           val secondLeg = updateLegWithCurrentTravelTime(
             leg
-              .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
+              .updateLinks(theLinkIds.takeRight(indexFromEnd))
               .copy(startTime = firstLeg.startTime + firstLeg.duration)
           )
           Vector(firstLeg, secondLeg)
@@ -458,8 +458,13 @@ class R5RoutingWorker(
             startTime >= time.fromTime && startTime <= time.fromTime + 1800
           }
           .map(itinerary => {
+            // Using itinerary start as access leg's startTime
+            val tripStartTime = beamServices.dates.toBaseMidnightSeconds(
+              itinerary.startTime,
+              transportNetwork.transitLayer.routes.size() == 0
+            )
             var legsWithFares = maybeWalkToVehicle
-              .map(x => ArrayBuffer((x, 0.0)))
+              .map(walkLeg => ArrayBuffer((walkLeg.updateStartTime(tripStartTime), 0.0)))
               .getOrElse(ArrayBuffer[(BeamLeg, Double)]())
 
             val access = option.access.get(itinerary.connection.access)
@@ -474,11 +479,6 @@ class R5RoutingWorker(
                 .toVector
               tollCalculator.calcToll(osm)
             } else 0.0
-            // Using itinerary start as access leg's startTime
-            val tripStartTime = beamServices.dates.toBaseMidnightSeconds(
-              itinerary.startTime,
-              transportNetwork.transitLayer.routes.size() == 0
-            )
             val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 
             val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
@@ -500,7 +500,7 @@ class R5RoutingWorker(
             //add a Dummy walk BeamLeg to the end of that trip
             if (isRouteForPerson && access.mode != LegMode.WALK) {
               if (!isTransit)
-                legsWithFares += ((dummyWalk(tripStartTime + access.duration), 0.0))
+                legsWithFares += ((dummyWalk(splitLegs.last.endTime), 0.0))
             }
 
             if (isTransit) {
@@ -577,8 +577,9 @@ class R5RoutingWorker(
             }
             maybeUseVehicleOnEgress.foreach { leg =>
               val departAt = legsWithFares.last._1.endTime
-              legsWithFares += ((leg.copy(startTime = departAt), 0.0))
-              legsWithFares += ((dummyWalk(departAt + leg.duration), 0.0))
+              val updatedLeg = leg.updateStartTime(departAt)
+              legsWithFares += ((updatedLeg, 0.0))
+              legsWithFares += ((dummyWalk(updatedLeg.endTime), 0.0))
             }
             TripWithFares(
               BeamTrip(legsWithFares.map(_._1).toVector, mapLegMode(access.mode)),
