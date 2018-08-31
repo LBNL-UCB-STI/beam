@@ -133,7 +133,7 @@ class BeamRouter(
 
   private val config = services.beamConfig.beam.routing
 
-  if (useLocalWorker) {
+  if (useLocalWorker) { 
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
         services,
