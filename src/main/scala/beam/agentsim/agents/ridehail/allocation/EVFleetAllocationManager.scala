@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager}

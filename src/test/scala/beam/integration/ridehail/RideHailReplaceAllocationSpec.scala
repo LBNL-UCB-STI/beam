@@ -22,7 +22,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.integration.ridehail.allocation.ImmediateDispatchWithOverwrite"
+          "beam.integration.ridehail.allocation.examples.ImmediateDispatchWithOverwrite"
         )
       )
       .withValue("beam.debug.skipOverBadActors", ConfigValueFactory.fromAnyRef(true))

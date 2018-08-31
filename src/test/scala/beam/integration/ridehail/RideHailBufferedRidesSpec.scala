@@ -46,7 +46,7 @@ class RideHailBufferedRidesSpec
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
+          "beam.integration.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
           //"DEFAULT_MANAGER"
         )
       )
@@ -75,7 +75,7 @@ class RideHailBufferedRidesSpec
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+          "beam.integration.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
           //"DEFAULT_MANAGER"
         )
       )
