@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.CsvUtils
+import beam.utils.{FileUtils}
 import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -47,30 +47,36 @@ class ZonalParkingManager(
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
-  for {
-    taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-    parkingType  <- List(Residential, Workplace, Public)
-    pricingModel <- List(Free, FlatFee, Block)
-    chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-    reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
-  } yield {
-    pooledResources.put(
-      StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-      defaultStallValues
-    )
+  def fillInDefaultPooledResources(): Unit = {
+    for {
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Residential, Workplace, Public)
+      pricingModel <- List(Free, FlatFee, Block)
+      chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
+      reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
+    } yield {
+      pooledResources.put(
+        StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
+        defaultStallValues
+      )
+    }
   }
 
-  if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
-    readCsvFile(pathResourceCSV).foreach(f => {
-      pooledResources.update(f._1, f._2)
-    })
-  } else {
-    //Used to generate csv file
-    parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+  def updatePooledResources(): Unit = {
+    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
+      readCsvFile(pathResourceCSV).foreach(f => {
+        pooledResources.update(f._1, f._2)
+      })
+    } else {
+      //Used to generate csv file
+      parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+    }
+    // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
+    pooledResources.put(defaultStallAtrrs, defaultStallValues)
   }
 
-  // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
-  pooledResources.put(defaultStallAtrrs, defaultStallValues)
+  fillInDefaultPooledResources()
+  updatePooledResources()
 
   override def receive: Receive = {
     case RegisterResource(stallId: Id[ParkingStall]) =>
@@ -96,8 +102,8 @@ class ZonalParkingManager(
       )
 
     case inquiry @ DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
-      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
-      val mStalls = mNearestTaz.flatMap {
+      val nearestTaz = findTAZsWithDistances(location, 1000.0).headOption
+      val stalls = nearestTaz.flatMap {
         case (taz, _) =>
           pooledResources.find {
             case (attr, values) =>
@@ -107,12 +113,12 @@ class ZonalParkingManager(
           }
       }
 
-      val mParkingStall = mStalls.flatMap {
+      val parkingStall = stalls.flatMap {
         case (attr, values) =>
           maybeCreateNewStall(attr, location, 0.0, Some(values))
       }
 
-      mParkingStall.foreach { stall =>
+      parkingStall.foreach { stall =>
         resources.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
         pooledResources.update(
@@ -121,7 +127,8 @@ class ZonalParkingManager(
         )
       }
 
-      sender() ! DepotParkingInquiryResponse(mParkingStall)
+      val response = DepotParkingInquiryResponse(parkingStall)
+      sender() ! response
 
     case inquiry @ ParkingInquiry(
           customerId: Id[PersonAgent],
@@ -314,11 +321,11 @@ class ZonalParkingManager(
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = ???
 
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
-    var mapReader: ICsvMapReader = null
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-    try {
-      mapReader =
-        new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+
+    FileUtils.using(
+      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    ) { mapReader =>
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -340,10 +347,6 @@ class ZonalParkingManager(
 
         line = mapReader.read(header: _*)
       }
-
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
     }
     res
   }
@@ -370,10 +373,12 @@ class ZonalParkingManager(
         "pricingModel",
         "chargingType",
         "numStalls",
-        "feeInCents"
+        "feeInCents",
+        "reservedFor"
       ) //, "parkingId"
       val processors = Array[CellProcessor](
         new NotNull(), // Id (must be unique)
+        new NotNull(),
         new NotNull(),
         new NotNull(),
         new NotNull(),
@@ -394,6 +399,7 @@ class ZonalParkingManager(
         tazToWrite.put(header(3), attrs.chargingType.toString)
         tazToWrite.put(header(4), "" + values.numStalls)
         tazToWrite.put(header(5), "" + values.feeInCents)
+        tazToWrite.put(header(6), "" + attrs.reservedFor.toString)
         //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
         mapWriter.write(tazToWrite, header, processors)
       }

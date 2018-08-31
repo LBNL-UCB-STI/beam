@@ -146,7 +146,7 @@ public class DeadHeadingStats implements IGraphStats {
         String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
+        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             Double length = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
@@ -355,7 +355,7 @@ public class DeadHeadingStats implements IGraphStats {
         String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
+        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
         boolean validCase = isValidCase(graphName, _num_passengers);
 
         // Process Event for "tnc_passenger_per_trip.png" graph
@@ -654,8 +654,8 @@ public class DeadHeadingStats implements IGraphStats {
         return legendItemList;
     }
 
-    private Integer getPathTraversalEventNumOfPassengers(Event event) {
-        String num_passengers = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
+    private Integer getPathTraversalEventNumOfPassengers(Map<String, String> eventAttributes) {
+        String num_passengers = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
         Integer _num_passengers = null;
         try {
             _num_passengers = Integer.parseInt(num_passengers);

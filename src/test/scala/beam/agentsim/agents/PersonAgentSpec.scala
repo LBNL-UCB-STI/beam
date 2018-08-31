@@ -96,7 +96,7 @@ class PersonAgentSpec
   val randomSeed: Int = 4771
   val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
-  val beamServices: BeamServices = {
+  val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -110,9 +110,9 @@ class PersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = beamServices
+    override val beamServices: BeamServices = beamSvc
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
@@ -138,7 +138,7 @@ class PersonAgentSpec
 
   val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
@@ -167,7 +167,7 @@ class PersonAgentSpec
       val personAgentRef = TestFSMRef(
         new PersonAgent(
           scheduler,
-          beamServices,
+          beamSvc,
           modeChoiceCalculator,
           networkCoordinator.transportNetwork,
           self,
@@ -217,14 +217,14 @@ class PersonAgentSpec
       scenario.setPopulation(population)
       scenario.setLocked()
       ScenarioUtils.loadScenario(scenario)
-      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
+      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
       )
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -345,7 +345,7 @@ class PersonAgentSpec
         BigDecimal(18.0)
       )
       person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
-      when(beamServices.matsimServices.getScenario).thenReturn(scenario)
+      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
@@ -353,7 +353,7 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -544,7 +544,7 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,

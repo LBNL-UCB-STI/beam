@@ -1,6 +1,7 @@
 package beam.agentsim.scheduler
 
 import java.lang.Double
+import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
@@ -17,7 +18,8 @@ import com.google.common.collect.TreeMultimap
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.collection.JavaConverters._
 
 object BeamAgentScheduler {
 
@@ -68,7 +70,8 @@ object BeamAgentScheduler {
         case 0 =>
           java.lang.Integer.compare(priority, that.priority) match {
             case 0 =>
-              java.lang.Long.compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
+              java.lang.Long
+                .compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
             case c => c
           }
         case c => c
@@ -82,6 +85,21 @@ object BeamAgentScheduler {
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
   }
+
+  object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
+
+    def compare(st1: ScheduledTrigger, st2: ScheduledTrigger): Int =
+      java.lang.Double
+        .compare(st1.triggerWithId.trigger.tick, st2.triggerWithId.trigger.tick) match {
+        case 0 =>
+          java.lang.Integer.compare(st2.priority, st1.priority) match {
+            case 0 =>
+              java.lang.Long.compare(st1.triggerWithId.triggerId, st2.triggerWithId.triggerId)
+            case c => c
+          }
+        case c => c
+      }
+  }
 }
 
 class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWindow: Double)
@@ -92,8 +110,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
 
   private var started = false
 
-  private val triggerQueue: mutable.PriorityQueue[ScheduledTrigger] =
-    new mutable.PriorityQueue[ScheduledTrigger]()
+  private val triggerQueue =
+    new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
   private val awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap
     .create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   private val triggerIdToTick: mutable.Map[Long, Double] =
@@ -109,9 +127,12 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
   private var currentTotalAwaitingResponse = 0L
   private var numberRepeats = 0
 
+  private var startedAt: Deadline = _
+
   // Event stream state and cleanup management
   private var currentIter: Int = -1
-  private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
+  private val eventSubscriberRef =
+    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask =
     if (beamConfig.beam.debug.debugEnabled)
@@ -152,7 +173,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       )
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
-      triggerQueue.enqueue(
+      triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
       triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
@@ -166,6 +187,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       this.startSender = sender()
       this.currentIter = it
       started = true
+      startedAt = Deadline.now
       doSimStep(0.0)
 
     case DoSimStep(newNow: Double) =>
@@ -180,7 +202,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
         scheduleTrigger
       }
       val completionTickOpt = triggerIdToTick.get(triggerId)
-      if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse
+      if (completionTickOpt.isEmpty || !triggerIdToTick
+            .contains(triggerId) || !awaitingResponse
             .containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
@@ -208,7 +231,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     case Monitor =>
       log.debug(
         s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
-          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=$awaitingToString"
+          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${Option(triggerQueue.peek())}\n\tawaitingResponse.head=$awaitingToString"
       )
       awaitingResponse
         .values()
@@ -233,7 +256,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           .forEach({ x =>
             // the check makes sure that slow RideHailManager (repositioning) does not cause kill the rideHailManager actor
             // however the numReps>50 ensures that we eventually
-            if (x.agent.path.name.contains("RideHailingManager") && x.triggerWithId.trigger
+            if (x.agent.path.name
+                  .contains("RideHailingManager") && x.triggerWithId.trigger
                   .isInstanceOf[RideHailAllocationManagerTimeout]) {
               if (numReps == 10) {
                 log.error("RideHailingManager is slow")
@@ -250,7 +274,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           })
 
         if (numAgentsClearedOut > 0) {
-          val reason = s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
+          val reason =
+            s"Cleared out $numAgentsClearedOut stuck agents and proceeding with schedule"
           log.error(reason)
         }
       }
@@ -268,8 +293,12 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
             .keySet()
             .first() + 1 < maxWindow) {
-        while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
-          val scheduledTrigger = this.triggerQueue.dequeue
+        while (!triggerQueue.isEmpty && triggerQueue
+                 .peek()
+                 .triggerWithId
+                 .trigger
+                 .tick <= nowInSeconds) {
+          val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
@@ -282,7 +311,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
               "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
-                10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) / Math
+                10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime
+                  .freeMemory()) / Math
                   .pow(1000, 3)
               ) / 10.0 + "(GB)"
             )
@@ -294,11 +324,14 @@ class BeamAgentScheduler(val beamConfig: BeamConfig, stopTick: Double, val maxWi
     } else {
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
-        log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
+        val duration = Deadline.now - startedAt
+        log.info(
+          s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
+        )
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
-        triggerQueue.dequeueAll.foreach(
+        triggerQueue.asScala.foreach(
           scheduledTrigger =>
             if (!scheduledTrigger.agent.path.toString.contains("rideHailAgent"))
               scheduledTrigger.agent ! Finish

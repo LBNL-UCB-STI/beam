@@ -1,8 +1,9 @@
 package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
-import org.apache.log4j.Logger;
 import org.matsim.core.utils.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.supercsv.io.CsvMapReader;
 import org.supercsv.io.CsvMapWriter;
 import org.supercsv.prefs.CsvPreference;
@@ -20,7 +21,8 @@ import java.util.stream.Collectors;
  */
 public class OperatorDataUtility {
 
-    private static final Logger log = Logger.getLogger(TransitDataDownloader.class);
+    private static final Logger log = LoggerFactory.getLogger(TransitDataDownloader.class);
+
     private String opMapPath;
     private String apiKey;
 
