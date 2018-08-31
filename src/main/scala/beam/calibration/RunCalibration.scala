@@ -46,7 +46,7 @@ object RunCalibration extends App with BeamHelper {
   private implicit val experimentData: SigoptExperimentData =
     SigoptExperimentData(experimentLoc, benchmarkLoc, experimentId, development = false)
 
-  val iterPerNode = Math.ceil(numIters / experimentData.numWorkers).toInt
+  val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers+1)).toInt
 
   if (experimentData.isParallel && experimentData.isMaster) {
     import sys.process._
