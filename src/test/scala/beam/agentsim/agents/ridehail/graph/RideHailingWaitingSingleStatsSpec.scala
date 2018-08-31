@@ -101,7 +101,7 @@ class RideHailingWaitingSingleStatsSpec
 
   "Ride Haling Single Graph Collected Data" must {
 
-    "contains valid rideHailing single stats" in {
+    "contains valid rideHailing single stats" ignore {
       val rideHailingComputation =
         new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation with EventAnalyzer {
 
