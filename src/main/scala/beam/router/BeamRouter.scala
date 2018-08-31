@@ -127,7 +127,7 @@ class BeamRouter(
     clusterOption.foreach(_.unsubscribe(self))
   }
 
-  val tick = "work-pull-tick"
+  val tick = "work-pull-tick" 
 
   val tickTask =
     context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
