@@ -99,7 +99,7 @@ class OtherPersonAgentSpec
     TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val beamServices: BeamServices = {
+  val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
@@ -110,9 +110,9 @@ class OtherPersonAgentSpec
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = beamServices
+    override val beamServices: BeamServices = beamSvc
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
@@ -138,7 +138,7 @@ class OtherPersonAgentSpec
 
   val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
@@ -294,7 +294,7 @@ class OtherPersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,

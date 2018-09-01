@@ -39,7 +39,7 @@ class RideHailPassengersEventsSpec
 
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
-        module(baseConfig, scenario, networkCoordinator.transportNetwork)
+        module(baseConfig, scenario, networkCoordinator)
       )
 
       val beamServices: BeamServices =

@@ -2,13 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{
-  CheckInResource,
-  NotifyResourceIdle,
-  NotifyResourceInUse,
-  RegisterResource
-}
-
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -34,7 +28,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, NONE, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -474,43 +468,40 @@ class PersonAgent(
           (WaitingToDrive, currentTick)
         }
 
-      val theNewVehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-      if (theNewVehicle.driver.isDefined && self != theNewVehicle.driver.get) {
-        stop(
-          Failure(
-            s"person $id tried to drive vehicle ${theNewVehicle.id} but already occupied by driver ${theNewVehicle.driver.get}"
-          )
-        )
-      } else {
-        //      goto(WaitingToDrive) using data.copy(
+      val currentVehicleForNextState =
+        if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+          vehicle.becomeDriver(self) match {
+            case Left(l) =>
+              log.error(
+                "I attempted to become driver of vehicle $id but driver {} already assigned.",
+                vehicle.driver.get
+              )
+              None
+            case Right(r) =>
+              eventsManager.processEvent(
+                new PersonEntersVehicleEvent(
+                  currentTick,
+                  Id.createPersonId(id),
+                  nextLeg.beamVehicleId
+                )
+              )
+              Some(nextLeg.beamVehicleId +: currentVehicle)
+          }
+        } else {
+          Some(currentVehicle)
+        }
+      if (currentVehicleForNextState.isDefined) {
         goto(stateToGo) using data.copy(
           passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle =
-            if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-              theNewVehicle
-                .becomeDriver(self)
-                .fold(
-                  fa =>
-                    stop(
-                      Failure(
-                        "shouldn't be possible to execut this code but just in case this is becomeDriver failure"
-                      )
-                  ),
-                  fb => {
-                    eventsManager.processEvent(
-                      new PersonEntersVehicleEvent(
-                        currentTick,
-                        Id.createPersonId(id),
-                        nextLeg.beamVehicleId
-                      )
-                    )
-                  }
-                )
-              nextLeg.beamVehicleId +: currentVehicle
-            } else {
-              currentVehicle
-            }
+          currentVehicle = currentVehicleForNextState.get
+        )
+      } else {
+        stop(
+          Failure(
+            s"I attempted to become driver of vehicle $id but driver ${nextLeg.beamVehicleId} already assigned."
+          )
         )
       }
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))

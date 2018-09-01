@@ -70,7 +70,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def logPrefix(): String
 
-  def logWithFullPrefix(msg: String): String = {
+  def getPrefix: String = {
     val tickStr = _currentTick match {
       case Some(theTick) =>
         s"Tick:${theTick.toString} "
@@ -83,23 +83,23 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       case None =>
         ""
     }
-    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}$msg"
+    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
   }
 
-  def logInfo(msg: String): Unit = {
-    log.info(s"${logWithFullPrefix(msg)}")
+  def logInfo(msg: => String): Unit = {
+    log.info("{} {}", getPrefix, msg)
   }
 
-  def logWarn(msg: String): Unit = {
-    log.warning(s"${logWithFullPrefix(msg)}")
+  def logWarn(msg: => String): Unit = {
+    log.warning("{} {}", getPrefix, msg)
   }
 
-  def logError(msg: String): Unit = {
-    log.error(s"${logWithFullPrefix(msg)}")
+  def logError(msg: => String): Unit = {
+    log.error("{} {}", getPrefix, msg)
   }
 
-  def logDebug(msg: String): Unit = {
-    log.debug(s"${logWithFullPrefix(msg)}")
+  def logDebug(msg: => String): Unit = {
+    log.debug("{} {}", getPrefix, msg)
   }
 
 }

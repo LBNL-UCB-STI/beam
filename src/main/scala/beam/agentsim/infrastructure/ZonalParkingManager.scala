@@ -326,7 +326,9 @@ class ZonalParkingManager(
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
 
-    FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
+    FileUtils.using(
+      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    ) { mapReader =>
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
