@@ -33,7 +33,7 @@ import scala.language.postfixOps
 class WarmStartRoutingSpec
     extends TestKit(
       ActorSystem(
-        "router-test",
+        "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
           .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))

@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec
-    extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+    extends TestKit(ActorSystem("AbstractSfLightSpec", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
   """)))

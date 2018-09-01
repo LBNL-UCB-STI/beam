@@ -1,40 +1,24 @@
 package beam.agentsim.agents
 
-import java.text.AttributedCharacterIterator.Attribute
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-
 import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  NotifyLegEndTrigger,
-  NotifyLegStartTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{
-  BeamVehicle,
-  ReservationRequest,
-  ReservationResponse,
-  ReserveConfirmInfo
-}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  ScheduleTrigger,
-  SchedulerProps,
-  StartSchedule
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
@@ -58,14 +42,13 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
-
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
-import scala.util.Random
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -73,7 +56,7 @@ import scala.util.Random
 class PersonAgentSpec
     extends TestKit(
       ActorSystem(
-        "testsystem",
+        "PersonAgentSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
