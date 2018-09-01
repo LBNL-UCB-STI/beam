@@ -36,7 +36,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     mct.scaledTime + mct.cost
   }
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
@@ -94,7 +94,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
-    val modeCostTimeTransfer = altsToModeCostTimeTransfers(Seq(alternative)).head
+    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative)).head
     utilityOf(
       modeCostTimeTransfer.mode,
       modeCostTimeTransfer.cost,
@@ -104,8 +104,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def altsToModeCostTimeTransfers(
-    alternatives: Seq[EmbodiedBeamTrip]
-  ): Seq[ModeCostTimeTransfer] = {
+    alternatives: IndexedSeq[EmbodiedBeamTrip]
+  ): IndexedSeq[ModeCostTimeTransfer] = {
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
@@ -122,13 +122,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
           bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL_TRANSIT =>
-          (altAndIdx._1.legs
+          (altAndIdx._1.legs.view
             .filter(_.beamLeg.mode.isTransit)
             .map(_.cost)
             .sum + transitFareDefaults(
             altAndIdx._2
           )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-          (altAndIdx._1.legs
+          (altAndIdx._1.legs.view
             .filter(_.isRideHail)
             .map(_.cost)
             .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +

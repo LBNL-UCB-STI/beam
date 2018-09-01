@@ -2,13 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{
-  CheckInResource,
-  NotifyResourceIdle,
-  NotifyResourceInUse,
-  RegisterResource
-}
-
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -34,7 +28,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, NONE, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -279,8 +273,9 @@ class PersonAgent(
   }
 
   when(WaitingForDeparture) {
+
     /**
-     * Callback from [[ChoosesMode]]
+      * Callback from [[ChoosesMode]]
      **/
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
@@ -438,18 +433,18 @@ class PersonAgent(
   }
 
   /**
-   * processNextLegOrStartActivity
-   *
-   * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
-   * now complete. There are four outcomes possible:
-   *
-   * 1 There are more legs in the trip and the [[PersonAgent]] is the driver => goto [[WaitingToDrive]] and schedule
-   * [[StartLegTrigger]]
-   * 2 There are more legs in the trip but the [[PersonAgent]] is a passenger => goto [[Waiting]] and schedule nothing
-   * further (the driver will initiate the start of the leg)
-   * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
-   * of activity
-   * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
+    * processNextLegOrStartActivity
+    *
+    * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
+    * now complete. There are four outcomes possible:
+    *
+    * 1 There are more legs in the trip and the [[PersonAgent]] is the driver => goto [[WaitingToDrive]] and schedule
+    * [[StartLegTrigger]]
+    * 2 There are more legs in the trip but the [[PersonAgent]] is a passenger => goto [[Waiting]] and schedule nothing
+    * further (the driver will initiate the start of the leg)
+    * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
+    * of activity
+    * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
    **/
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
@@ -473,35 +468,42 @@ class PersonAgent(
           (WaitingToDrive, currentTick)
         }
 
-      //      goto(WaitingToDrive) using data.copy(
-      goto(stateToGo) using data.copy(
-        passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
-        currentLegPassengerScheduleIndex = 0,
-        currentVehicle =
-          if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-            vehicle
-              .becomeDriver(self)
-              .fold(
-                fa =>
-                  throw new RuntimeException(
-                    s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned."
-                ),
-                fb => {
-                  eventsManager.processEvent(
-                    new PersonEntersVehicleEvent(
-                      currentTick,
-                      Id.createPersonId(id),
-                      nextLeg.beamVehicleId
-                    )
-                  )
-                }
+      val currentVehicleForNextState =
+        if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+          vehicle.becomeDriver(self) match {
+            case Left(l) =>
+              log.error(
+                "I attempted to become driver of vehicle $id but driver {} already assigned.",
+                vehicle.driver.get
               )
-            nextLeg.beamVehicleId +: currentVehicle
-          } else {
-            currentVehicle
+              None
+            case Right(r) =>
+              eventsManager.processEvent(
+                new PersonEntersVehicleEvent(
+                  currentTick,
+                  Id.createPersonId(id),
+                  nextLeg.beamVehicleId
+                )
+              )
+              Some(nextLeg.beamVehicleId +: currentVehicle)
           }
-      )
+        } else {
+          Some(currentVehicle)
+        }
+      if (currentVehicleForNextState.isDefined) {
+        goto(stateToGo) using data.copy(
+          passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle = currentVehicleForNextState.get
+        )
+      } else {
+        stop(
+          Failure(
+            s"I attempted to become driver of vehicle $id but driver ${nextLeg.beamVehicleId} already assigned."
+          )
+        )
+      }
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
