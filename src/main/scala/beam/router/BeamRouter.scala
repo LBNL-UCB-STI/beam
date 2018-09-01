@@ -4,34 +4,6 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
-import scala.collection.mutable
-
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Success
 import akka.actor.{
   Actor,
@@ -55,10 +27,10 @@ import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, TransitInitializer}
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
-import beam.router.r5.R5RoutingWorker
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
@@ -77,8 +49,7 @@ class BeamRouter(
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  useLocalWorker: Boolean = true
+  tollCalculator: TollCalculator
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -104,7 +75,8 @@ class BeamRouter(
   // TODO Fix me!
   val servicePath = "/user/statsServiceProxy"
 
-  val clusterOption = scala.util.Try { Cluster(context.system) }.toOption
+  val clusterOption =
+    if (services.beamConfig.beam.cluster.enabled) Some(Cluster(context.system)) else None
 
   val servicePathElements = servicePath match {
     case RelativeActorPath(elements) => elements
@@ -136,7 +108,7 @@ class BeamRouter(
 
   private val config = services.beamConfig.beam.routing
 
-  if (useLocalWorker) {
+  if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
         services,

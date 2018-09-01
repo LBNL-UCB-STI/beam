@@ -6,30 +6,6 @@ import java.util
 import java.util.concurrent.Executors
 import java.util.UUID
 
-import com.conveyal.r5.api.ProfileResponse
-import com.conveyal.r5.api.util._
-import com.conveyal.r5.profile._
-import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
-import com.google.common.cache.{CacheBuilder, CacheLoader}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
-
-import java.time.temporal.ChronoUnit
-import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
-import java.util
-import java.util.concurrent.Executors
-import java.util.{Collections, UUID}
-
 import akka.actor.Status.Success
 import akka.actor._
 import akka.pattern._
@@ -49,6 +25,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
+import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.{Modes, RoutingModel}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -60,8 +37,12 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
+import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
+import org.matsim.vehicles.{Vehicle, Vehicles}
 import com.google.inject.Injector
 import com.typesafe.config.Config
 import kamon.Kamon
@@ -71,7 +52,6 @@ import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap

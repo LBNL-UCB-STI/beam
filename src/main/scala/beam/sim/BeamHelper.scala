@@ -85,11 +85,21 @@ trait BeamHelper extends LazyLogging {
       .text(
         "Comma separated list of initial addresses used for the rest of the cluster to bootstrap"
       )
+    opt[Boolean]("use-local-worker")
+      .action((value, args) => args.copy(useLocalWorker = Some(value)))
+      .text(
+        "Boolean determining whether to use a local worker. " +
+        "If cluster is NOT enabled this defaults to true and cannot be false. " +
+        "If cluster is specified then this defaults to false and must be explicitly set to true. " +
+        "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
+      )
 
     checkConfig(
       args =>
         if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
           failure("If using the cluster then node-host, node-port, and seed-address are required")
+        else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
+          failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
         else success
     )
   }
@@ -113,6 +123,27 @@ trait BeamHelper extends LazyLogging {
         )
       )
     }).getOrElse(config)
+  }
+
+  private def embedSelectArgumentsIntoConfig(
+    parsedArgs: Arguments,
+    config: TypesafeConfig
+  ): TypesafeConfig = {
+    config.withFallback(
+      ConfigFactory.parseMap(
+        (
+          Map(
+            "beam.cluster.enabled" -> parsedArgs.useCluster,
+            "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
+              if (parsedArgs.useCluster) false else true
+            )
+          ) ++ {
+            if (parsedArgs.useCluster) Map("beam.cluster.clusterType" -> parsedArgs.clusterType.get)
+            else Map.empty[String, Any]
+          }
+        ).asJava
+      )
+    )
   }
 
   def module(
@@ -196,39 +227,37 @@ trait BeamHelper extends LazyLogging {
     )
     val configLocation = parsedArgs.configLocation.get
 
-    val config = (
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
-    ).resolve()
+    }).resolve()
 
     parsedArgs.clusterType match {
-      case Some(Master) => runClusterMasterUsing(config)
-      case Some(Worker) => runClusterWorkerUsing(config)
-      case _            => runBeamWithConfig(config)
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ => {
+        val (_, outputDirectory) = runBeamWithConfig(config)
+        val props = new Properties()
+        props.setProperty("commitHash", LoggingUtil.getCommitHash)
+        props.setProperty("configFile", configLocation)
+        val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
+        props.store(out, "Simulation out put props.")
+        val beamConfig = BeamConfig(config)
+        if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+              .equalsIgnoreCase("ModeChoiceLCCM")) {
+          Files.copy(
+            Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+            Paths.get(
+              outputDirectory,
+              Paths
+                .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+                .getFileName
+                .toString
+            )
+          )
+        }
+        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
+      }
     }
-
-    val (_, outputDirectory) = runBeamWithConfig(config)
-
-    val props = new Properties()
-    props.setProperty("commitHash", LoggingUtil.getCommitHash)
-    props.setProperty("configFile", configLocation)
-    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation out put props.")
-    val beamConfig = BeamConfig(config)
-    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-          .equalsIgnoreCase("ModeChoiceLCCM")) {
-      Files.copy(
-        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
-        Paths.get(
-          outputDirectory,
-          Paths
-            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
-            .getFileName
-            .toString
-        )
-      )
-    }
-    Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
   }
 
   def runClusterWorkerUsing(config: TypesafeConfig) = {
@@ -286,8 +315,6 @@ trait BeamHelper extends LazyLogging {
       logger.info("Exiting BEAM")
     })
   }
-
-  def runClusterMasterUsing(config: TypesafeConfig) = runBeamWithConfig(config)
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val beamConfig = BeamConfig(config)
@@ -385,7 +412,8 @@ case class Arguments(
   clusterType: Option[ClusterType] = None,
   nodeHost: Option[String] = None,
   nodePort: Option[String] = None,
-  seedAddress: Option[String] = None
+  seedAddress: Option[String] = None,
+  useLocalWorker: Option[Boolean] = None
 ) {
   val useCluster = clusterType.isDefined
 }
