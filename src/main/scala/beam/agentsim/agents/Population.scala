@@ -177,7 +177,7 @@ class Population(
 }
 
 object Population {
-  val defaultVehicleRange = 5e3
+  val defaultVehicleRange = 500e3
   val refuelRateLimitInWatts = None
 
   case object InitParkingVehicles
