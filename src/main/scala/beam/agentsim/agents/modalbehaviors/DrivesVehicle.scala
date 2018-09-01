@@ -84,7 +84,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .drop(data.currentLegPassengerScheduleIndex)
             .headOption match {
             case Some(currentLeg) =>
-              beamServices
+              val fuelConsumed = beamServices
                 .vehicles(currentVehicleUnderControl)
                 .useFuel(currentLeg.travelPath.distanceInM)
 
@@ -131,6 +131,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   beamServices.vehicles(currentVehicleUnderControl).getType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   currentLeg,
+                  fuelConsumed,
                   beamServices
                     .vehicles(currentVehicleUnderControl)
                     .fuelLevelInJoules
@@ -263,6 +264,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 )
 
               val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+
+              val fuelConsumed = theVehicle.useFuel(updatedBeamLeg.travelPath.distanceInM)
+
               nextNotifyVehicleResourceIdle = Some(
                 NotifyVehicleResourceIdle(
                   currentVehicleUnderControl,
@@ -294,6 +298,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   beamServices.vehicles(currentVehicleUnderControl).getType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   updatedBeamLeg,
+                  fuelConsumed,
                   beamServices
                     .vehicles(currentVehicleUnderControl)
                     .fuelLevelInJoules
