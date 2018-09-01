@@ -105,6 +105,8 @@ class OtherPersonAgentSpec
     when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
+    // TODO Is it right to return defaultTazTreeMap?
+    when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
 
