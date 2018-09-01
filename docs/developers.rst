@@ -350,8 +350,8 @@ Use ``mutable`` buffer instead of ``immutable var``:
    buffer += 1
    buffer += 2
 
-Don’t create temporary collections, use ``view``:
-*************************************************
+Don’t create temporary collections, use `view`_:
+************************************************
 
 ::
 
@@ -363,11 +363,12 @@ Don’t create temporary collections, use ``view``:
    // After
    seq.view.map(x => x + 2).filter(x => x % 2 == 0).sum
 
-Don’t emulate ``collectFirst``:
-*******************************
+Don’t emulate ``collectFirst`` and ``collect``:
+***********************************************
 
 ::
 
+   // collectFirst
    // Get first number >= 4
    val seq: Seq[Int] = Seq(1, 2, 10, 20)
    val predicate: Int => Boolean = (x: Int)  => { x >= 4 }
@@ -378,11 +379,7 @@ Don’t emulate ``collectFirst``:
    // After
    seq.collectFirst { case num if predicate(num) => num }
 
-Don’t emulate ``collect``:
-**************************
-
-::
-
+   // collect
    // Get first char of string, if it's longer than 3
    val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
    val predicate: String => Boolean = (s: String)  => { s.size > 3 }
@@ -412,6 +409,16 @@ Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
        case (s, idx) if predicate(idx) => s
    }
 
+   // Use destructuring bindings to extract values from tuple
+   val tuple = ("Hello", 5)
+
+   // Before
+   val str = tuple._1
+   val len = tuple._2
+
+   // After
+   val (str, len) = tuple
+
 Great article about `Scala Collection tips and tricks`_, must read
 ******************************************************************
 
@@ -431,6 +438,7 @@ replacement arguments:
    // After
    log.debug("Hello: {}", name)
 
+.. _view:  https://www.scala-lang.org/blog/2017/11/28/view-based-collections.html
 .. _Scala Collection tips and tricks: https://pavelfatin.com/scala-collections-tips-and-tricks/#sequences-rewriting
 .. _it for free: https://github.com/lightbend/scala-logging#scala-logging-
 .. _string interpolation: https://docs.scala-lang.org/overviews/core/string-interpolation.html
