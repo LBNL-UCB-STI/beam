@@ -14,7 +14,8 @@ class StuckFinderHelper[K] {
   private object Comparator extends Comparator[InternalValueWithTime[K]] {
 
     def compare(o1: InternalValueWithTime[K], o2: InternalValueWithTime[K]): Int = {
-      o1.time.compare(o2.time)
+      // We could do `o1.time.compare(o2.time)`, but it will cause boxing
+      java.lang.Long.compare(o1.time, o2.time)
     }
   }
 

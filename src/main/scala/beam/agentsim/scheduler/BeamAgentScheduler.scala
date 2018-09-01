@@ -222,15 +222,19 @@ class BeamAgentScheduler(
         .stream()
         .filter(trigger => trigger.agent == actor)
         .forEach(trigger => {
+          // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
+          // We will do it a bit later when `CompletionNotice` will be received
           self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
           log.error("Clearing trigger because agent died: " + trigger)
         })
 
     case Monitor =>
-      log.debug(
-        s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
-          .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${Option(triggerQueue.peek())}\n\tawaitingResponse.head=$awaitingToString"
-      )
+      if (log.isDebugEnabled) {
+        log.debug(
+          s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
+            .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${Option(triggerQueue.peek())}\n\tawaitingResponse.head=$awaitingToString"
+        )
+      }
       awaitingResponse
         .values()
         .forEach(x => log.debug("awaitingResponse:" + x.toString))
