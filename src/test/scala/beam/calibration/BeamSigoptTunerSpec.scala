@@ -2,7 +2,7 @@ package beam.calibration
 
 import java.io.File
 
-import beam.experiment.ExperimentGenerator
+import beam.experiment.{ExperimentDef, ExperimentGenerator}
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
@@ -68,6 +68,7 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
         ExperimentGenerator.loadExperimentDefs(beamExperimentFile),
         beamExperimentFile,
         TEST_BEAM_BENCHMARK_DATA_LOC,
+        "None",
         development = true
       )
     } match {
