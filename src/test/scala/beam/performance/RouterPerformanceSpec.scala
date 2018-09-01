@@ -57,10 +57,12 @@ import scala.language.postfixOps
 
 @Ignore
 class RouterPerformanceSpec
-    extends TestKit(ActorSystem("RouterPerformanceSpec", ConfigFactory.parseString("""
+    extends TestKit(
+      ActorSystem("RouterPerformanceSpec", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
-  """)))
+  """))
+    )
     with WordSpecLike
     with Matchers
     with Inside

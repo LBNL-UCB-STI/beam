@@ -32,10 +32,12 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec
-    extends TestKit(ActorSystem("AbstractSfLightSpec", ConfigFactory.parseString("""
+    extends TestKit(
+      ActorSystem("AbstractSfLightSpec", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
-  """)))
+  """))
+    )
     with WordSpecLike
     with Matchers
     with ImplicitSender

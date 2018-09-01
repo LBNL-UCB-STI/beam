@@ -36,7 +36,9 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
-    extends TestKit(ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf")))
+    extends TestKit(
+      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf"))
+    )
     with WordSpecLike
     with Matchers
     with ImplicitSender
