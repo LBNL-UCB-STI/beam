@@ -90,9 +90,13 @@ class BeamVehicle(
   }
 
   def useFuel(distanceInMeters: Double): Unit = fuelLevelInJoules foreach { fLevel =>
-    fuelLevelInJoules = Some(
+    val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
+    if(fLevel < energyConsumed){
+      logger.error("Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",id, distanceInMeters,fLevel/powerTrain.estimateConsumptionInJoules(1))
+    }
+    fuelLevelInJoules = Some(Math.max(
       fLevel - powerTrain
-        .estimateConsumptionInJoules(distanceInMeters)
+        .estimateConsumptionInJoules(distanceInMeters), 0.0)
     )
   }
 

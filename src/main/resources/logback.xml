@@ -69,9 +69,9 @@
         <!--<appender-ref ref="STDOUT"/>-->
     <!--</Logger>-->
 
-    <!--<Logger name="beam.agentsim.agents.ridehail.TNCIterationsStatsCollector" level="error" additivity="false">-->
-        <!--<appender-ref ref="STDOUT"/>-->
-    <!--</Logger>-->
+    <Logger name="beam.agentsim.agents.ridehail.RideHailModifyPassengerScheduleManager" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
 
     <Logger name="beam.utils.DebugActorWithTimer" level="error" additivity="false">
         <appender-ref ref="STDOUT"/>

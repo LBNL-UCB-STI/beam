@@ -164,7 +164,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId,newTriggers)
     case Event(
-    TriggerWithId(EndRefuelTrigger(sessionStart, tick, energyInJoules), triggerId),
+    TriggerWithId(EndRefuelTrigger(tick,sessionStart,energyInJoules), triggerId),
     data
     ) =>
       holdTickAndTriggerId(tick,triggerId)
@@ -176,7 +176,7 @@ class RideHailAgent(
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
-              None,
+              Some(SpaceTime(theVehicle.stall.get.location,tick.toLong)),
               data.passengerSchedule,
               theVehicle.getState(),
               _currentTriggerId
@@ -196,6 +196,9 @@ class RideHailAgent(
 //          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
+          if(sessionDuration<0){
+            val i = 0
+          }
           stay() replying CompletionNotice(
             triggerId,
             Vector(

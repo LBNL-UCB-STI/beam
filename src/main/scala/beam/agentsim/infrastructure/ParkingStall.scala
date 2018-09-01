@@ -88,16 +88,19 @@ object ParkingStall {
       val sessionLength = Math.min(sessionLengthLimiter, chargerType match {
           case NoCharger => 0L
           case chType if chType == Level1 || chType == Level2 =>
-            Math.round((energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)))
+            Math.round((energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0)
           case chType if chType == DCFast || chType == UltraFast =>
             if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
               0L
             } else {
-              Math.round((energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)))
+              Math.round((energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0)
             }
         }
       )
-      val sessionEnergyInJoules = sessionLength.toDouble * Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3.6e6
+      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3.6e6
+      if(sessionLength<0){
+        val i = 0
+      }
       (sessionLength, sessionEnergyInJoules)
     }
   }

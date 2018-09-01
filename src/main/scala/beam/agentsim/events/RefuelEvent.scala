@@ -19,7 +19,7 @@ class RefuelEvent(tick: Double, stall: ParkingStall, energyInJoules: Double, ses
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
-  override def getEventType: String = ParkEventAttrs.EVENT_TYPE
+  override def getEventType: String = RefuelEventAttrs.EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
     if(attributes.isEmpty){
