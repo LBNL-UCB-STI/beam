@@ -3,6 +3,7 @@ package beam.agentsim.agents.rideHail.allocation
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager, RideHailRequest}
+import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -12,6 +13,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   val dummyDriverId = Id.create("NA", classOf[Vehicle])
   val routeReqToDriverMap = scala.collection.mutable.Map[Int, Id[Vehicle]]()
   val requestToExcludedDrivers = scala.collection.mutable.Map[Int, Set[Id[Vehicle]]]()
+  val repositioningLowWaitingTimes = new RepositioningLowWaitingTimes(rideHailManager)
 
   override def proposeVehicleAllocation(
     vehicleAllocationRequest: VehicleAllocationRequest
@@ -138,4 +140,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
     )
   }
 
+  /*
+   * Finally, we delgate repositioning to the repositioning manager
+   */
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+    repositioningLowWaitingTimes.repositionVehicles(tick)
+  }
 }
