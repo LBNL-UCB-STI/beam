@@ -419,5 +419,9 @@ case class Arguments(
 }
 
 sealed trait ClusterType
-case object Master extends ClusterType
-case object Worker extends ClusterType
+case object Master extends ClusterType {
+  override def toString() = "master"
+}
+case object Worker extends ClusterType {
+  override def toString() = "worker"
+}
