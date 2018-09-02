@@ -2,9 +2,9 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, CAR, NONE, RIDE_HAIL}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 
 /**
   * Enumerates the names of recognized [[BeamVehicle]]s.
@@ -29,89 +29,104 @@ case class BeamVehicleType(val vehicleTypeId: String,
                            rechargeLevel3RateLimitInWatts: Double,
                            vehicleCategory: String){
 
-  /**
-    * Assign a new id based on the personAgent
-    *
-    * @param personId : The [[Id]] of the [[beam.agentsim.agents.PersonAgent]]
-    * @return the id
-    */
-  def createId(personId: Id[Person]): Id[Vehicle] = {
-    Id.create(vehicleTypeId + "-" + personId.toString, classOf[Vehicle])
-  }
+//  /**
+//    * Assign a new id based on the personAgent
+//    *
+//    * @param personId : The [[Id]] of the [[beam.agentsim.agents.PersonAgent]]
+//    * @return the id
+//    */
+//  def createId(personId: Id[Person]): Id[Vehicle] = {
+//    Id.create(vehicleTypeId + "-" + personId.toString, classOf[Vehicle])
+//  }
 
-  /**
-    * Is the given [[Id]] a [[BeamVehicle]] of type [[BeamVehicleType.vehicleTypeId]]?
-    *
-    * @param id : The [[Id]] to test
-    */
-  def isVehicleType(id: Id[_ <: Vehicle]): Boolean = {
-    id.toString.startsWith(vehicleTypeId)
-  }
+//  /**
+//    * Is the given [[Id]] a [[BeamVehicle]] of type [[BeamVehicleType.vehicleTypeId]]?
+//    *
+//    * @param id : The [[Id]] to test
+//    */
+//  def isVehicleType(id: Id[_ <: Vehicle]): Boolean = {
+//    id.toString.startsWith(vehicleTypeId)
+//  }
 
-  /**
-    * Easily convert to a Matsim-based [[VehicleType]]
-    */
-  lazy val MatsimVehicleType: VehicleType =
-    VehicleUtils.getFactory.createVehicleType(
-      Id.create(this.getClass.getName, classOf[VehicleType])
-    )
+//  /**
+//    * Easily convert to a Matsim-based [[VehicleType]]
+//    */
+//  lazy val MatsimVehicleType: VehicleType =
+//    VehicleUtils.getFactory.createVehicleType(
+//      Id.create(this.getClass.getName, classOf[VehicleType])
+//    )
 
-  /**
-    * Polymorphic utility function to create the proper [[Vehicle]] for this [[BeamVehicleType]] given the id.
-    *
-    * Will pattern match on the type to ensure that the correct methods are internally .
-    *
-    * @param id The [[Id]]
-    * @tparam T Can be Matsim [[Person]] or [[Vehicle]]
-    * @return a properly constructed and identified Matsim [[Vehicle]].
-    */
-  def createMatsimVehicle[T](id: Id[T]): Vehicle = {
-    id match {
-      case personId: Id[Person] =>
-        VehicleUtils.getFactory.createVehicle(createId(personId), MatsimVehicleType)
-      case vehicleId: Id[Vehicle] =>
-        VehicleUtils.getFactory.createVehicle(vehicleId, MatsimVehicleType)
-    }
-  }
-
-  def toMatsimVehicleType: VehicleType = ???
-
+//  /**
+//    * Polymorphic utility function to create the proper [[Vehicle]] for this [[BeamVehicleType]] given the id.
+//    *
+//    * Will pattern match on the type to ensure that the correct methods are internally .
+//    *
+//    * @param id The [[Id]]
+//    * @tparam T Can be Matsim [[Person]] or [[Vehicle]]
+//    * @return a properly constructed and identified Matsim [[Vehicle]].
+//    */
+//  def createMatsimVehicle[T](id: Id[T]): Vehicle = {
+//    id match {
+//      case personId: Id[Person] =>
+//        VehicleUtils.getFactory.createVehicle(createId(personId), MatsimVehicleType)
+//      case vehicleId: Id[Vehicle] =>
+//        VehicleUtils.getFactory.createVehicle(vehicleId, MatsimVehicleType)
+//    }
+//  }
 }
 
 object BeamVehicleType {
-  def getBicycleType(): BeamVehicleType = ??? //TODO
 
-  def getHumanBodyVehicle(): BeamVehicleType = {
-    ??? //TODO
-  }
+  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    "BIKE-TYPE-DEFAULT",
+    0,0,0,null,0,0,null,0,0,null,0,null,0,0,"BIKE"
+  )
 
-  def getCarVehicle(): BeamVehicleType = ???
+  val defaultHumanBodyBeamVehicleType: BeamVehicleType =
+    BeamVehicleType(
+      "BODY-TYPE-DEFAULT",
+      0,0,0,null,0,0,null,0,0,null,0,null,0,0,"BODY"
+    )
 
-  def getTransitVehicle(): BeamVehicleType = ???
+  //TODO
+  val defaultTransitBeamVehicleType: BeamVehicleType =
+    BeamVehicleType(
+      "TRANSIT-TYPE-DEFAULT",
+      0,0,0,null,0,0,null,0,0,null,0,null,0,0,"TRANSIT"
+    )
 
-  def getRidehailVehicle(): BeamVehicleType = ???
+  val defaultRidehailBeamVehicleType : BeamVehicleType =
+    BeamVehicleType(
+      "RIDEHAIL-TYPE-DEFAULT",
+      0,0,0,null,0,0,null,0,0,null,0,null,0,0,"RIDE_HAIL"
+    )
 
-  def createId(personId: Id[Person]): Id[Vehicle] = ???
+  val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    "CAR-TYPE-DEFAULT",
+    0,0,0,null,0,0,null,0,0,null,0,null,0,0,"CAR"
+  )
 
-  def createMatsimVehicle[T](id: Id[T]): Vehicle = ???
+  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    beamVehicleId.toString.startsWith("body")
 
-  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
+  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+  beamVehicleId.toString.startsWith("rideHailVehicle")
 
-  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
-
-  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean = ???
+  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    beamVehicleId.toString.startsWith("bike")
 
   lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
 
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
-    ???
-    //          beamVehicle.beamVehicleType match {
-    //          case BicycleVehicle => BIKE
-    //          case CarVehicle     => CAR
-    //        }
+    beamVehicle.beamVehicleType.vehicleCategory match {
+      //TODO complete list
+      case "BIKE" => BIKE
+      case "RIDE_HAIL" => RIDE_HAIL
+      case "CAR" => CAR
+      case "CAR" => CAR
+      case _ => NONE
+    }
   }
-
-  //TODO's in BeamVehicleUtils
 }
 
 case class FuelType(fuelTypeId: String, priceInDollarsPerMJoule: Double)

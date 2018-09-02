@@ -187,12 +187,12 @@ object Population {
 
     // Add bikes
     if (beamServices.beamConfig.beam.agentsim.agents.vehicles.bicycles.useBikes) {
-      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario)
+      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario, beamServices)
       bikeFactory.bicyclePrepareForSim()
     }
     houseHoldVehicles
       .map({ id =>
-        makeHouseholdVehicle(beamServices.matsimServices.getScenario.getVehicles, id) match {
+        makeHouseholdVehicle(beamServices.privateVehicles, id) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
         }
       })

@@ -167,10 +167,10 @@ object HouseholdActor {
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
           .map( id => vehicles(id) )
-          .count(_.getType.vehicleCategory.toLowerCase.contains("car")), //TODO will vehicle category contain car?
+          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")), //TODO will vehicle category contain car?
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
-          .count(_.getType.vehicleCategory.toLowerCase.contains("bike"))
+          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("bike"))
       )
     }
   }
@@ -216,7 +216,7 @@ object HouseholdActor {
       //let's put here human body vehicle too, it should be clean up on each iteration
       val personId = person.getId
 
-      val bodyVehicleIdFromPerson = BeamVehicle.createId(personId) //createId(person.getId) //FIXME
+      val bodyVehicleIdFromPerson = BeamVehicle.createId(personId, Some("body"))
 //      val matsimBodyVehicle =
 //        VehicleUtils.getFactory
 //          .createVehicle(bodyVehicleIdFromPerson, ??? /*HumanBodyVehicle.MatsimVehicleType*/) //FIXME
@@ -272,7 +272,7 @@ object HouseholdActor {
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
-        BeamVehicleType.getHumanBodyVehicle(),
+        BeamVehicleType.defaultHumanBodyBeamVehicleType,
         None
       )
       newBodyVehicle.registerResource(personRef)
@@ -290,8 +290,8 @@ object HouseholdActor {
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
-    val _vehicles: Vector[Id[Vehicle]] =
-      vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+    val _vehicles: Vector[Id[BeamVehicle]] =
+      vehicles.keys.toVector//.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
@@ -319,8 +319,8 @@ object HouseholdActor {
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    private val _vehicleToStreetVehicle: mutable.Map[Id[Vehicle], StreetVehicle] =
-      mutable.Map[Id[Vehicle], StreetVehicle]()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] =
+      mutable.Map[Id[BeamVehicle], StreetVehicle]()
 
     // Initial vehicle assignments.
     initializeHouseholdVehicles()
@@ -330,10 +330,10 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyVehicleResourceIdle(vehId: Id[Vehicle], whenWhere, passengerSchedule, fuelLevel) =>
+      case NotifyVehicleResourceIdle(vehId: Id[BeamVehicle], whenWhere, passengerSchedule, fuelLevel) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
-      case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
+      case NotifyResourceInUse(vehId: Id[BeamVehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
       case CheckInResource(vehicleId: Id[Vehicle], _) =>

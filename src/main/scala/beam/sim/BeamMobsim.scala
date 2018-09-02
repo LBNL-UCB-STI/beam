@@ -290,33 +290,44 @@ class BeamMobsim @Inject()(
 
               val rideHailName = s"rideHailAgent-${person.getId}"
 
-              val rideHailVehicleId =
-                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+              val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
+//                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
-              //TODO
-              val fuelConsumptionInJoules = BeamVehicleType.getRidehailVehicle().primaryFuelConsumptionInJoule
+              val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+              val ridehailBeamVehicleType = beamServices
+                .vehicleTypes
+                .get(ridehailBeamVehicleTypeId)
+                .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
 
-              val rideHailVehicle: Vehicle =
-                VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
               val rideHailAgentPersonId: Id[RideHailAgent] =
                 Id.create(rideHailName, classOf[RideHailAgent])
-              val information =
-                Option(rideHailVehicle.getType.getEngineInformation)
-              val vehicleAttribute =
-                Option(scenario.getVehicles.getVehicleAttributes)
-              val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-                information
-                  .map(_.getGasConsumption)
-                  .getOrElse(Powertrain.AverageMilesPerGallon)
-              )
+
+
+//              val rideHailVehicle: Vehicle =
+//                VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
+//              val information =
+//                Option(rideHailVehicle.getType.getEngineInformation)
+              //TODO how to get vehicle attributes now ?
+//              val vehicleAttribute =
+//                Option(scenario.getVehicles.getVehicleAttributes)
+//              val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
+//                information
+//                  .map(_.getGasConsumption)
+//                  .getOrElse(Powertrain.AverageMilesPerGallon)
+//              )
+
+              val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+                .map(new Powertrain(_))
+                .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
               val rideHailBeamVehicle = new BeamVehicle(
                 rideHailVehicleId,
-                powerTrain,
+                powertrain,
 //                rideHailVehicle,
-                vehicleAttribute,
-                BeamVehicleType.getCarVehicle(),
+                None, //TODO
+                ridehailBeamVehicleType,
                 Some(1.0)
-//                Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules)
+//                Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules) //TODO
               )
               beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
               rideHailBeamVehicle.registerResource(rideHailManager)
@@ -452,7 +463,7 @@ class BeamMobsim @Inject()(
         private def cleanupVehicle(): Unit = {
           // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
           scenario.getPopulation.getPersons.keySet().forEach { personId =>
-            val bodyVehicleId = BeamVehicleType.createId(personId)
+            val bodyVehicleId = BeamVehicle.createId(personId, Some("Body"))
             beamServices.vehicles -= bodyVehicleId
           }
         }

@@ -62,7 +62,7 @@ class RideHailAgentSpec
     }
   })
 
-  private val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   val services: BeamServices = {
@@ -159,7 +159,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.getCarVehicle(), None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -224,7 +224,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), /*vehicle*/ None, BeamVehicleType.getCarVehicle(), None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), /*vehicle*/ None, BeamVehicleType.defaultCarBeamVehicleType, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -280,7 +280,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), /*vehicle,*/ None, BeamVehicleType.getCarVehicle(), None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), /*vehicle,*/ None, BeamVehicleType.defaultCarBeamVehicleType, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 

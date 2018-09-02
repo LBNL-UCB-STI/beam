@@ -100,7 +100,7 @@ class RouterPerformanceSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
+    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 

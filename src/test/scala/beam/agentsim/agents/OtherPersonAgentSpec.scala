@@ -78,8 +78,8 @@ class OtherPersonAgentSpec
 
   val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
-  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
-    TrieMap[Id[Vehicle], BeamVehicle]()
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
+    TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   val personRefs: TrieMap[Id[Person], ActorRef] =
     TrieMap[Id[Person], ActorRef]()
@@ -143,7 +143,7 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
 //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        BeamVehicleType.getCarVehicle(),
+        BeamVehicleType.defaultCarBeamVehicleType,
         None
 //        None
       )
@@ -151,7 +151,7 @@ class OtherPersonAgentSpec
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.getCarVehicle(),
+        BeamVehicleType.defaultCarBeamVehicleType,
         None
 //        None
       )

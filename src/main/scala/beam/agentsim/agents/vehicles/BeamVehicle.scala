@@ -26,20 +26,18 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
-  val vehicleId: Id[BeamVehicle],
+  val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-//  val matSimVehicle: Vehicle,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
   var fuelLevel: Option[Double]
-//  ,val fuelCapacityInJoules: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
   /**
     * Identifier for this vehicle
     */
-  val id: Id[BeamVehicle] = vehicleId //TODO vehicleId
+//  val id: Id[BeamVehicle] = vehicleId
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -50,10 +48,6 @@ class BeamVehicle(
   var driver: Option[ActorRef] = None
 
   var stall: Option[ParkingStall] = None
-
-//  def getType: VehicleType = matSimVehicle.getType
-
-  def getType: BeamVehicleType = beamVehicleType
 
   override def getId: Id[BeamVehicle] = id
 

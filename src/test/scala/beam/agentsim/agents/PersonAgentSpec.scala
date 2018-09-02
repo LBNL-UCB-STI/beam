@@ -75,7 +75,7 @@ class PersonAgentSpec
   val config = BeamConfig(system.settings.config)
 
   val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val randomSeed: Int = 4771
@@ -292,7 +292,7 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.getCarVehicle(), None)
+      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.defaultCarBeamVehicleType, None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val matsimConfig = ConfigUtils.createConfig()
@@ -414,7 +414,7 @@ class PersonAgentSpec
         Id.createVehicleId("my_bus"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.getCarVehicle(),
+        BeamVehicleType.defaultCarBeamVehicleType,
         None
 //        None
       )
@@ -422,7 +422,7 @@ class PersonAgentSpec
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.getCarVehicle(),
+        BeamVehicleType.defaultCarBeamVehicleType,
         None
 //        None
       )

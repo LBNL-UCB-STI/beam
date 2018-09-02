@@ -116,7 +116,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new PathTraversalEvent(
                   tick,
                   currentVehicleUnderControl,
-                  beamServices.vehicles(currentVehicleUnderControl).getType,
+                  beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   currentLeg,
                   beamServices
@@ -283,7 +283,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new PathTraversalEvent(
                   stopTick,
                   currentVehicleUnderControl,
-                  beamServices.vehicles(currentVehicleUnderControl).getType,
+                  beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   updatedBeamLeg,
                   beamServices
@@ -517,7 +517,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     vehicle: BeamVehicle
   ) = {
 //    val vehicleCap = vehicle.getType
-    val fullCap = vehicle.getType.seatingCapacity + vehicle.getType.standingRoomCapacity
+    val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
     }
