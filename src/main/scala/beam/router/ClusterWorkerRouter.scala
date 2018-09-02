@@ -106,7 +106,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       override protected def injector: Injector = throw new Exception("???")
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
       override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
-      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap = ???
+      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap = beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
       override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
     }
