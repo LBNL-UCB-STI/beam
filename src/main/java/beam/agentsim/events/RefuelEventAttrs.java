@@ -4,7 +4,7 @@ public interface RefuelEventAttrs {
 
     String EVENT_TYPE= "RefuelEvent";
     String ATTRIBUTE_VEHICLE_ID = "vehicle";
-    String ATTRIBUTE_ENERGY_DELIVERED = "energy_delivered_in_joules";
+    String ATTRIBUTE_ENERGY_DELIVERED = "fuel";
     String ATTRIBUTE_SESSION_DURATION = "session_duration";
     String ATTRIBUTE_COST = "cost";
     String ATTRIBUTE_LOCATION = "location";
