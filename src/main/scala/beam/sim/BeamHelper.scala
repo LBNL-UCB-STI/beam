@@ -291,7 +291,7 @@ trait BeamHelper extends LazyLogging {
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
-    val system = ActorSystem("ClusterWorkerSystem", clusterConfig)
+    val system = ActorSystem("ClusterSystem", clusterConfig)
     system.actorOf(
       ClusterSingletonManager.props(
         singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
