@@ -104,7 +104,7 @@ case class WorkerParameters(
   transitVehicles: Vehicles
 )
 
-class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
+class R5RoutingWorker(workerParamsOrConfig: Wrapper)
     extends Actor
     with ActorLogging
     with MetricsSupport {
@@ -117,8 +117,8 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
     tollCalculator,
     transitVehicles
   ) = workerParamsOrConfig match {
-    case Left(workerParams) => workerParams
-    case Right(config)      => buildWorkerParamsFrom(config)
+    case Wrapper(Some(workerParams), _) => workerParams
+    case Wrapper(_, Some(config))       => buildWorkerParamsFrom(config)
   }
 
   def buildWorkerParamsFrom(config: Config): WorkerParameters = {
@@ -1234,6 +1234,8 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
 
 }
 
+case class Wrapper(workerParams: Option[WorkerParameters], config: Option[Config])
+
 object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
@@ -1247,20 +1249,23 @@ object R5RoutingWorker {
   ) =
     Props(
       new R5RoutingWorker(
-        Left(
-          new WorkerParameters(
-            beamServices,
-            transportNetwork,
-            network,
-            fareCalculator,
-            tollCalculator,
-            transitVehicles
-          )
+        Wrapper(
+          Some(
+            new WorkerParameters(
+              beamServices,
+              transportNetwork,
+              network,
+              fareCalculator,
+              tollCalculator,
+              transitVehicles
+            )
+          ),
+          None
         )
       )
     )
 
-  def props(config: Config) = Props(new R5RoutingWorker(Right(config)))
+  def props(config: Config) = Props(new R5RoutingWorker(Wrapper(None, Some(config))))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
   case class R5Request(
