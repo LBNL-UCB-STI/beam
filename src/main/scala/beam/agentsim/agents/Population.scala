@@ -158,7 +158,7 @@ class Population(
               ) //TODO personSelectedPlan.getType is null
 
               def receive = {
-                case ParkingInquiryResponse(stall,_) =>
+                case ParkingInquiryResponse(stall, _) =>
                   vehicle._2.useParkingStall(stall)
                   context.stop(self)
                 //TODO deal with timeouts and errors

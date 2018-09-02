@@ -10,20 +10,25 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 
-class RefuelEvent(tick: Double, stall: ParkingStall, energyInJoules: Double, sessionDuration: Double, vehId: Id[Vehicle])
-    extends Event(tick)
+class RefuelEvent(
+  tick: Double,
+  stall: ParkingStall,
+  energyInJoules: Double,
+  sessionDuration: Double,
+  vehId: Id[Vehicle]
+) extends Event(tick)
     with RefuelEventAttrs
     with HasPersonId {
 
-  val attributes: scala.collection.mutable.Map[String,String]  = scala.collection.mutable.Map()
+  val attributes: scala.collection.mutable.Map[String, String] = scala.collection.mutable.Map()
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
   override def getEventType: String = RefuelEventAttrs.EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
-    if(attributes.isEmpty){
-      super.getAttributes.asScala.foreach{case(key,value) => attributes.put(key,value)}
+    if (attributes.isEmpty) {
+      super.getAttributes.asScala.foreach { case (key, value) => attributes.put(key, value) }
       attributes.put(RefuelEventAttrs.ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
       attributes.put(RefuelEventAttrs.ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
       attributes.put(RefuelEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
@@ -39,4 +44,3 @@ class RefuelEvent(tick: Double, stall: ParkingStall, energyInJoules: Double, ses
 }
 
 object RefuelEvent extends RefuelEventAttrs
-

@@ -7,15 +7,15 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class EVFleetAllocationManager(val rideHailManager: RideHailManager)
-  extends RideHailResourceAllocationManager(rideHailManager) {
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
   val dummyDriverId = Id.create("NA", classOf[Vehicle])
   val routeReqToDriverMap = scala.collection.mutable.Map[Int, Id[Vehicle]]()
   val requestToExcludedDrivers = scala.collection.mutable.Map[Int, Set[Id[Vehicle]]]()
 
   override def proposeVehicleAllocation(
-                                         vehicleAllocationRequest: VehicleAllocationRequest
-                                       ): VehicleAllocationResponse = {
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): VehicleAllocationResponse = {
     val reqId = vehicleAllocationRequest.request.requestId
 
     // Update local storage of computed routes by driver
@@ -57,10 +57,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         val routingResponses = routeResponsesByDriver.get(agentLocation.vehicleId)
 
         if (rideHailManager
-          .getVehicleState(agentLocation.vehicleId)
-          .remainingRangeInM < routingResponses.get
-          .map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
-          .sum) {
+              .getVehicleState(agentLocation.vehicleId)
+              .remainingRangeInM < routingResponses.get
+              .map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
+              .sum) {
           requestToExcludedDrivers.put(
             reqId,
             requestToExcludedDrivers.get(reqId).get + agentLocation.vehicleId
@@ -97,9 +97,9 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   }
 
   def findNearestByETAConsideringRange(
-                                        request: RideHailRequest,
-                                        excludeTheseDrivers: Set[Id[Vehicle]] = Set()
-                                      ) = {
+    request: RideHailRequest,
+    excludeTheseDrivers: Set[Id[Vehicle]] = Set()
+  ) = {
     val set1 = rideHailManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         request.pickUpLocation,
@@ -113,15 +113,14 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
 //        .getVehicleState(rhEta.agentLocation.vehicleId)
 //        .remainingRangeInM.toString)
 //      logger.error(rhEta.distance.toString)
-        rideHailManager
-          .getVehicleState(rhEta.agentLocation.vehicleId)
-          .remainingRangeInM >= rhEta.distance * 1.26
-      }
+      rideHailManager
+        .getVehicleState(rhEta.agentLocation.vehicleId)
+        .remainingRangeInM >= rhEta.distance * 1.26
+    }
 //    logger.error(set1.toString())
 //    logger.error(set2.toString())
 //    logger.error(set3.toString())
-      set3
-      .headOption
+    set3.headOption
       .map(_.agentLocation)
   }
 

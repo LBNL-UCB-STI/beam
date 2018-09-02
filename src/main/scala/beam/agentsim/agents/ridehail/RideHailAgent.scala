@@ -6,7 +6,12 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  EndLegTrigger,
+  EndRefuelTrigger,
+  StartLegTrigger,
+  StartRefuelTrigger
+}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
@@ -162,21 +167,23 @@ class RideHailAgent(
           _
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(triggerId,newTriggers)
+      handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
     case Event(
-    TriggerWithId(EndRefuelTrigger(tick,sessionStart,energyInJoules), triggerId),
-    data
-    ) =>
-      holdTickAndTriggerId(tick,triggerId)
+        TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+        data
+        ) =>
+      holdTickAndTriggerId(tick, triggerId)
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
           theVehicle.addFuel(energyInJoules)
-          eventsManager.processEvent(new RefuelEvent(tick,theVehicle.stall.get,energyInJoules,tick-sessionStart,theVehicle.id))
+          eventsManager.processEvent(
+            new RefuelEvent(tick, theVehicle.stall.get, energyInJoules, tick - sessionStart, theVehicle.id)
+          )
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
-              Some(SpaceTime(theVehicle.stall.get.location,tick.toLong)),
+              Some(SpaceTime(theVehicle.stall.get.location, tick.toLong)),
               data.passengerSchedule,
               theVehicle.getState(),
               _currentTriggerId
@@ -185,9 +192,7 @@ class RideHailAgent(
           stay()
         case None =>
           log.debug("currentVehicleUnderControl not found")
-          stay() replying CompletionNotice(
-            triggerId,
-            Vector())
+          stay() replying CompletionNotice(triggerId, Vector())
       }
     case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       data.currentVehicle.headOption match {
@@ -196,7 +201,7 @@ class RideHailAgent(
 //          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
-          if(sessionDuration<0){
+          if (sessionDuration < 0) {
             val i = 0
           }
           stay() replying CompletionNotice(
@@ -306,16 +311,24 @@ class RideHailAgent(
 
   }
 
-  def handleNotifyVehicleResourceIdleReply(receivedtriggerId: Option[Long], newTriggers: Seq[ScheduleTrigger]): State = {
+  def handleNotifyVehicleResourceIdleReply(
+    receivedtriggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+  ): State = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
         if (receivedtriggerId.isEmpty || triggerId != receivedtriggerId.get) {
-          log.error("RHA {}: local triggerId {} does not match the id received from RHM {}", id, triggerId, receivedtriggerId)
+          log.error(
+            "RHA {}: local triggerId {} does not match the id received from RHM {}",
+            id,
+            triggerId,
+            receivedtriggerId
+          )
         }
         scheduler ! CompletionNotice(triggerId, newTriggers)
       case None =>
-        log.error("RHA {}: was expecting to release a triggerId but None found",id)
+        log.error("RHA {}: was expecting to release a triggerId but None found", id)
     }
     stay()
   }

@@ -16,7 +16,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
-import beam.router.Modes.{BeamMode, isOnStreetTransit}
+import beam.router.Modes.{isOnStreetTransit, BeamMode}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator

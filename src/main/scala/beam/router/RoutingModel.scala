@@ -4,16 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHail
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -118,7 +109,11 @@ object RoutingModel {
     def updateStartTime(newStartTime: Long): BeamLeg = {
       val newTravelPath = this.travelPath.updateStartTime(newStartTime)
       this
-        .copy(startTime = newStartTime, duration = newTravelPath.endPoint.time - newStartTime, travelPath = newTravelPath)
+        .copy(
+          startTime = newStartTime,
+          duration = newTravelPath.endPoint.time - newStartTime,
+          travelPath = newTravelPath
+        )
 
     }
 

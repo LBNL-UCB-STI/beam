@@ -82,8 +82,7 @@ trait ChoosesParking extends {
         ) //nextLeg.travelPath.endPoint.loc
         val cost = stall.cost
         val energyCharge: Double = 0.0 //TODO
-        val timeCost
-          : BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
         val score = calculateScore(distance, cost, energyCharge, timeCost)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
@@ -99,7 +98,7 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
   }
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall,_), data) =>
+    case Event(ParkingInquiryResponse(stall, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =

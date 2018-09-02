@@ -93,17 +93,21 @@ class BeamVehicle(
     fuelLevelInJoules match {
       case Some(fLevel) =>
         val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
-        if(fLevel < energyConsumed){
-          logger.error("Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",id, distanceInMeters,fLevel/powerTrain.estimateConsumptionInJoules(1))
+        if (fLevel < energyConsumed) {
+          logger.error(
+            "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
+            id,
+            distanceInMeters,
+            fLevel / powerTrain.estimateConsumptionInJoules(1)
+          )
         }
-        fuelLevelInJoules = Some(Math.max(
-          fLevel - energyConsumed, 0.0)
-        )
+        fuelLevelInJoules = Some(Math.max(fLevel - energyConsumed, 0.0))
         energyConsumed
       case None =>
         0.0
     }
   }
+
   def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>
     fuelLevelInJoules = Some(fLevel + fuelInJoules)
   }
@@ -115,12 +119,17 @@ class BeamVehicle(
   def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
     stall match {
       case Some(theStall) =>
-        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(theStall.attributes.chargingType,fuelLevelInJoules.get,fuelCapacityInJoules.get,refuelRateLimitInJoulesPerSecond, None)
+        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
+          theStall.attributes.chargingType,
+          fuelLevelInJoules.get,
+          fuelCapacityInJoules.get,
+          refuelRateLimitInJoulesPerSecond,
+          None
+        )
       case None =>
         (0, 0.0) // if we are not parked, no refueling can occur
     }
   }
-
 
   def getState(): BeamVehicleState =
     BeamVehicleState(

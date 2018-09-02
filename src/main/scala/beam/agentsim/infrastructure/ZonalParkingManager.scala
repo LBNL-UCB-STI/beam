@@ -170,17 +170,20 @@ class ZonalParkingManager(
         None
       }
 
-      respondWithStall(maybeDominantSpot match {
-        case Some(stall) =>
-          stall
-        case None =>
-          chargingPreference match {
-            case NoNeed =>
-              selectPublicStall(inquiry, 500.0)
-            case _ =>
-              selectStallWithCharger(inquiry, 500.0)
-          }
-      }, inquiry.requestId)
+      respondWithStall(
+        maybeDominantSpot match {
+          case Some(stall) =>
+            stall
+          case None =>
+            chargingPreference match {
+              case NoNeed =>
+                selectPublicStall(inquiry, 500.0)
+              case _ =>
+                selectStallWithCharger(inquiry, 500.0)
+            }
+        },
+        inquiry.requestId
+      )
   }
 
   private def maybeCreateNewStall(
@@ -367,8 +370,7 @@ class ZonalParkingManager(
   ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter =
-        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
+      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
 
       val header = Array[String](
         "taz",

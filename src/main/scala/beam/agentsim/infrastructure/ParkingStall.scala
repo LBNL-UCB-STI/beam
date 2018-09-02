@@ -56,15 +56,14 @@ object ParkingStall {
 
   object ChargingType {
 
-
     def fromString(s: String): ChargingType = {
       s match {
         case "NoCharger" => NoCharger
-        case "Level1" => Level1
-        case "Level2" => Level2
-        case "DCFast" => DCFast
+        case "Level1"    => Level1
+        case "Level2"    => Level2
+        case "DCFast"    => DCFast
         case "UltraFast" => UltraFast
-        case _ => throw new RuntimeException("Invalid case")
+        case _           => throw new RuntimeException("Invalid case")
       }
     }
 
@@ -82,23 +81,40 @@ object ParkingStall {
       }
     }
 
-    def calculateChargingSessionLengthAndEnergyInJoules(chargerType: ChargingType, currentEnergyLevelInJoule: Double, energyCapacityInJoule: Double, vehicleChargingLimit: Option[Double], sessionDurationLimit: Option[Long]): (Long, Double) = {
+    def calculateChargingSessionLengthAndEnergyInJoules(
+      chargerType: ChargingType,
+      currentEnergyLevelInJoule: Double,
+      energyCapacityInJoule: Double,
+      vehicleChargingLimit: Option[Double],
+      sessionDurationLimit: Option[Long]
+    ): (Long, Double) = {
       val vehicleChargingLimitActual = vehicleChargingLimit.getOrElse(Double.MaxValue)
       val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
-      val sessionLength = Math.min(sessionLengthLimiter, chargerType match {
+      val sessionLength = Math.min(
+        sessionLengthLimiter,
+        chargerType match {
           case NoCharger => 0L
           case chType if chType == Level1 || chType == Level2 =>
-            Math.round((energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0)
+            Math.round(
+              (energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math
+                .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+            )
           case chType if chType == DCFast || chType == UltraFast =>
             if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
               0L
             } else {
-              Math.round((energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0)
+              Math.round(
+                (energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math
+                  .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+              )
             }
         }
       )
-      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3.6e6
-      if(sessionLength<0){
+      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
+        vehicleChargingLimitActual,
+        getChargerPowerInKW(chargerType)
+      ) * 3.6e6
+      if (sessionLength < 0) {
         val i = 0
       }
       (sessionLength, sessionEnergyInJoules)

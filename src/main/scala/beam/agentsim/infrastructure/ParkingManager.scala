@@ -26,11 +26,15 @@ object ParkingManager {
     arrivalTime: Long,
     parkingDuration: Double,
     reservedFor: ReservedParkingType = ParkingStall.Any
-  ){
+  ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
 
-  case class DepotParkingInquiry(vehicleId: Id[Vehicle], customerLocationUtm: Location, reservedFor: ReservedParkingType){
+  case class DepotParkingInquiry(
+    vehicleId: Id[Vehicle],
+    customerLocationUtm: Location,
+    reservedFor: ReservedParkingType
+  ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
   case class DepotParkingInquiryResponse(maybeStall: Option[ParkingStall], requestId: Int)

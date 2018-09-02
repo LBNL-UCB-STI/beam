@@ -22,7 +22,11 @@ object BeamVehicleUtils {
     )
   }
 
-  def makeCar(matsimVehicle: Vehicle, vehicleRangeInMeters: Double, refuelRateLimitInWatts: Option[Double]): BeamVehicle = {
+  def makeCar(
+    matsimVehicle: Vehicle,
+    vehicleRangeInMeters: Double,
+    refuelRateLimitInWatts: Option[Double]
+  ): BeamVehicle = {
     val engineInformation = Option(matsimVehicle.getType.getEngineInformation)
 
     val powerTrain = engineInformation match {

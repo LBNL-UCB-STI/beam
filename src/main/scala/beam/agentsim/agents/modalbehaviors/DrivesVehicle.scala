@@ -37,19 +37,16 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Double) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle])
-      extends Trigger
+  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle])
-      extends Trigger
+  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Double)
 
   case class AddFuel(fuelInJoules: Double)
 
   case class StartRefuelTrigger(tick: Double) extends Trigger
-  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double)
-      extends Trigger
+  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
   case object GetBeamVehicleState
 
@@ -394,7 +391,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.WaitingToDrive.NotifyVehicleResourceIdleReply): {}", ev)
 
       if (triggerId != _currentTriggerId) {
-        log.error("Driver {}: local triggerId {} does not match the id received from resource manager {}", id, _currentTriggerId, triggerId)
+        log.error(
+          "Driver {}: local triggerId {} does not match the id received from resource manager {}",
+          id,
+          _currentTriggerId,
+          triggerId
+        )
       }
 
       _currentTriggerId match {

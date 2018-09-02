@@ -12,10 +12,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.rideHail.{
-  MoveOutOfServiceVehicleToDepotParking,
-  OutOfServiceVehicleManager
-}
+import beam.agentsim.agents.rideHail.{MoveOutOfServiceVehicleToDepotParking, OutOfServiceVehicleManager}
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
@@ -29,10 +26,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{
-  DepotParkingInquiry,
-  DepotParkingInquiryResponse
-}
+import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -292,7 +286,7 @@ class RideHailManager(
     collection.concurrent.TrieMap[String, RideHailResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
   private val parkingInquiryCache = collection.concurrent.TrieMap[Int, RideHailAgentLocation]()
-  private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle],ParkingStall]()
+  private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
 
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
@@ -751,7 +745,7 @@ class RideHailManager(
             val passengerSchedule = PassengerSchedule().addLegs(
               itin.toBeamTrip.legs
             )
-            pendingAgentsSentToPark.put(agentLocation.vehicleId,stall)
+            pendingAgentsSentToPark.put(agentLocation.vehicleId, stall)
             self ! MoveOutOfServiceVehicleToDepotParking(
               passengerSchedule,
               itin.legs.head.beamLeg.startTime,

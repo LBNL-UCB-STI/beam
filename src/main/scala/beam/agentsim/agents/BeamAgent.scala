@@ -46,7 +46,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
           )
         case _ =>
       }
-      log.error("State: {} Event: {}",currentState,event.toString)
+      log.error("State: {} Event: {}", currentState, event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
   }
