@@ -4,9 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.ridehail.RideHailManager.DebugRideHailManagerDuringExecution
 import beam.agentsim.scheduler.BeamAgentScheduler.Monitor
 
-class DebugActorWithTimer(val rideHailManager: ActorRef, val scheduler: ActorRef)
-    extends Actor
-    with ActorLogging {
+class DebugActorWithTimer(val rideHailManager: ActorRef, val scheduler: ActorRef) extends Actor with ActorLogging {
 
   def receive: PartialFunction[Any, Unit] = {
     case Tick =>

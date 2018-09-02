@@ -288,8 +288,7 @@ case class TNCIterationStats(
     }
 
     priorityQueue = priorityQueue.filter(
-      vehicleLocationScores =>
-        vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles
+      vehicleLocationScores => vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles
     )
     /*
 
@@ -406,8 +405,7 @@ case class TNCIterationStats(
 
     head
       .filter(
-        vehicleLocationScores =>
-          vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles
+        vehicleLocationScores => vehicleLocationScores.score >= thresholdForMinimumNumberOfIdlingVehicles
       )
       .map(_.rideHailAgentLocation)
       .toVector

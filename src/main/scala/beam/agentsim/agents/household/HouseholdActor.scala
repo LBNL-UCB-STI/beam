@@ -8,10 +8,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
-  createId,
-  powerTrainForHumanBody
-}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
