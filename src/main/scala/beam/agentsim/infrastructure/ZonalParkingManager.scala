@@ -50,12 +50,26 @@ class ZonalParkingManager(
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
   def fillInDefaultPooledResources(): Unit = {
+    // First do general parking and charging for personal vehicles
     for {
       taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Residential, Workplace, Public)
       pricingModel <- List(Free, FlatFee, Block)
       chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-      reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
+      reservedFor  <- List(ParkingStall.Any)
+    } yield {
+      pooledResources.put(
+        StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
+        defaultStallValues
+      )
+    }
+    // Now do parking/charging for ride hail fleet
+    for {
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Workplace)
+      pricingModel <- List(Free)
+      chargingType <- List(Level2, DCFast, UltraFast)
+      reservedFor  <- List(ParkingStall.RideHailManager)
     } yield {
       pooledResources.put(
         StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
@@ -104,20 +118,29 @@ class ZonalParkingManager(
       )
 
     case inquiry @ DepotParkingInquiry(vehicleId: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
-      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
-      val mStalls = mNearestTaz.flatMap {
+      val tazsWithDists = findTAZsWithDistances(location, 1000.0)
+      val foundStalls = tazsWithDists.find{
         case (taz, _) =>
-          pooledResources.find {
+          pooledResources.find{
             case (attr, values) =>
               attr.tazId.equals(taz.tazId) &&
               attr.reservedFor.equals(reservedFor) &&
               values.numStalls > 0
-          }
-      }
+          }.isDefined
+      }.map{ case (taz,_) =>
+        pooledResources.filter{
+          case (attr, values) =>
+            attr.tazId.equals(taz.tazId) &&
+              attr.reservedFor.equals(reservedFor) &&
+              values.numStalls > 0
+        }
+      }.get
 
-      val maybeParkingStall = mStalls.flatMap {
-        case (attr, values) =>
-          maybeCreateNewStall(attr, location, 0.0, Some(values))
+      val maybeParkingAttribs = foundStalls.keys.toVector.sortBy{
+        attribs => ChargingType.getChargerPowerInKW(attribs.chargingType)
+      }.reverse.headOption
+      val maybeParkingStall = maybeParkingAttribs.flatMap{attrib =>
+        maybeCreateNewStall(attrib, location, 0.0, foundStalls.get(attrib))
       }
 
       maybeParkingStall.foreach { stall =>
