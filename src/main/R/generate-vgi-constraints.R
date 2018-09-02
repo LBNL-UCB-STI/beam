@@ -6,9 +6,9 @@ source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-function
 
 # Get person attributes and vehicle types and join
 
-peeps <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/person-attributes-from-reg-with-spatial-group.csv'))
-vehs <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/vehicle-types-bigger-batteries-1.5x.csv'))
-plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-plug-types.csv'))
+peeps <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/person-attributes-from-reg-with-spatial-group.csv'))
+vehs <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/vehicle-types-bigger-batteries-1.5x.csv'))
+plug.types <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-plug-types.csv'))
 peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
 peeps[,veh.type:='BEV']
 peeps[vehicleClassName=='PHEV',veh.type:='PHEV']
@@ -96,21 +96,21 @@ for(scen in scens){
 
     # categorize each charger into Home, Work, Public
     if(length(grep('morework-200',scen))>0){
-      sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-200pct.csv',stringsAsFactors=F))
+      sites  <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-200pct.csv',stringsAsFactors=F))
     }else if(length(grep('morework-2x',scen))>0){
-      sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-100pct.csv',stringsAsFactors=F))
+      sites  <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-100pct.csv',stringsAsFactors=F))
     }else if(length(grep('morework-50',scen))>0){
-      sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-50pct.csv',stringsAsFactors=F))
+      sites  <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-more-work-50pct.csv',stringsAsFactors=F))
     }else if(length(grep('morework-4x',scen))>0){
       sites  <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-sites-cp-more-work-300pct.csv',stringsAsFactors=F))
     }else if(length(grep('morework-8x',scen))>0){
       sites  <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-sites-cp-more-work-700pct.csv',stringsAsFactors=F))
     }else{
-      sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
+      sites  <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
     }
     sites[,siteType:='Public']
     sites[policyID==7,siteType:='Work']
-    #points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-points-cp-revised-2017-07.csv',stringsAsFactors=F))
+    #points <- data.table(read.csv('/Users/critter/odrive/GoogleDriveUCB/beam-core/model-inputs/calibration-v2-old/charging-points-cp-revised-2017-07.csv',stringsAsFactors=F))
     #points <- join.on(points,sites,'siteID','id','policyID')
 
     ev[,site:=as.numeric(site)]
@@ -310,12 +310,12 @@ for(scen in scens){
   #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=final.type))+geom_bar(stat='identity')+facet_grid(final.type~scenario,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
   # Load CP data and create scaling factors for turning BEAM workday output into a full week of constraints
-  load(pp('/Users/critter/GoogleDriveUCB/beam-core/data/chargepoint/cp.Rdata'))
+  load(pp('/Users/critter/odrive/GoogleDriveUCB/beam-core/data/chargepoint/cp.Rdata'))
   cp[category=='Workplace',type:='Work']
   cp[type=='Commercial',type:='Public']
   wdays <- c('Sun'=1,'Mon'=2,'Tus'=3,'Wed'=4,'Thu'=5,'Fri'=6,'Sat'=7)
   cp[,start.wday:=factor(names(wdays[start.wday]),levels=names(wdays))]
-  cp.hr <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw),wday=start.wday[1]),by=c('hour.of.week','type')]
+  cp.hr <- cp[,list(kw=sum(kw),n.sessions=length(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw),n.sessions=mean(n.sessions),wday=start.wday[1]),by=c('hour.of.week','type')]
   ggplot(cp.hr,aes(x=hour.of.week%%24,y=kw,colour=factor(wday)))+geom_line(lwd=1.5)+facet_wrap(~type,scales='free_y')+labs(title="ChargePoint Average Load",x="Hour",y="Load (kW)",colour="Day of Week")
   cp.day <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw)),by=c('start.wday','type')]
   cp.day.norm <- cp.day[,list(norm.load= kw/mean(kw[!start.wday%in%c('Sat','Sun')]),wday=start.wday),by='type']
@@ -422,7 +422,7 @@ for(scen in scens){
   scenarios <- load.scenarios()
   scenarios <- scenarios[veh.type.split=='6040']
 
-  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v11'
+  results.dir.base <- '/Users/critter/odrive/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v11'
   make.dir(results.dir.base)
   make.dir(pp(results.dir.base,'/',scen))
   the.utility <- scenarios$Electric.Utility[3]
@@ -503,7 +503,7 @@ if(F){
   ## Go through and splice together data sets from differen TOU scenarios
   #scenarios <- load.scenarios()
 
-  #results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2025-tou-v4'
+  #results.dir.base <- '/Users/critter/odrive/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2025-tou-v4'
 
   #scen.base <- 'morework-100pct'
   #for(scen.base in c('morework-2x')){
