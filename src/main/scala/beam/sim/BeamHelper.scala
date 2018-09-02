@@ -39,6 +39,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
@@ -310,10 +311,10 @@ trait BeamHelper extends LazyLogging {
     system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    system.whenTerminated.map(_ => {
+    Await.ready(system.whenTerminated.map(_ => {
       if (isMetricsEnable) Kamon.shutdown()
       logger.info("Exiting BEAM")
-    })
+    }), scala.concurrent.duration.Duration.Inf)
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
