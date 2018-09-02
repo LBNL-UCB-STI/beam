@@ -1,41 +1,25 @@
 package beam.sim
 
+import collection.JavaConverters._
 import java.awt.Color
 import java.lang.Double
-import java.util.Random
+import java.util
+import java.util.{Collections, Random}
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  Props,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{
-  ParkingInquiry,
-  ParkingInquiryResponse,
-  ParkingStockAttributes
-}
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
 import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -208,7 +192,6 @@ class BeamMobsim @Inject()(
           scenario.getPopulation.getPersons
             .values()
             .stream()
-            .limit(numRideHailAgents)
         )
 
         val rand: Random =
@@ -249,11 +232,14 @@ class BeamMobsim @Inject()(
           )
         }
 
-        scenario.getPopulation.getPersons
-          .values()
-          .stream()
-          .limit(numRideHailAgents)
-          .forEach {
+        // TODO: refactor following 5 lines!
+        val populationList=new util.LinkedList()[Person]
+        populationList.addAll(scenario.getPopulation.getPersons.values())
+        Collections.shuffle(populationList,rand)
+        val scalaPopulationList=asScalaBuffer(populationList)
+
+        scalaPopulationList.take(numRideHailAgents.toInt).foreach
+           {
             person =>
               val personInitialLocation: Coord =
                 person.getSelectedPlan.getPlanElements
