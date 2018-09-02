@@ -69,6 +69,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       workerRouter.forward(other)
   }
 
+  @transient
   lazy val workerParameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
