@@ -158,6 +158,10 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
+        if(beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters * 0.8){
+          log.error("Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop")
+        }
+
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
           debugActorWithTimerCancellable = prepareMemoryLoggingTimerActor(

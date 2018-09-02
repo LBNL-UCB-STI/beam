@@ -176,6 +176,7 @@ class RideHailAgent(
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          log.debug("Ending refuel session for {}",theVehicle.id)
           theVehicle.addFuel(energyInJoules)
           eventsManager.processEvent(
             new RefuelEvent(tick, theVehicle.stall.get, energyInJoules, tick - sessionStart, theVehicle.id)
@@ -326,6 +327,7 @@ class RideHailAgent(
             receivedtriggerId
           )
         }
+        log.debug("RHA {}: completing trigger and scheduling {}", id, newTriggers)
         scheduler ! CompletionNotice(triggerId, newTriggers)
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
