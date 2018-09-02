@@ -40,7 +40,10 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   log.info("TEST")
 
   val workerRouter = try {
-    context.actorOf(R5RoutingWorker.props(config), name = "workerRouter")
+    context.actorOf(
+      FromConfig.props(Props(classOf[R5RoutingWorker], config)),
+      name = "workerRouter"
+    )
   } catch {
     case x => log.info(x.toString); throw x
   }
