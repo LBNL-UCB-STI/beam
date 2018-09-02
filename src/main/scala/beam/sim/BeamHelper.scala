@@ -139,7 +139,8 @@ trait BeamHelper extends LazyLogging {
               if (parsedArgs.useCluster) false else true
             )
           ) ++ {
-            if (parsedArgs.useCluster) Map("beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString)
+            if (parsedArgs.useCluster)
+              Map("beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString)
             else Map.empty[String, Any]
           }
         ).asJava

@@ -41,12 +41,13 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
     FromConfig.props(
       Props(
         classOf[R5RoutingWorker],
-        workerParameters.beamServices,
+        config
+        /*workerParameters.beamServices,
         workerParameters.transportNetwork,
         workerParameters.network,
         workerParameters.fareCalculator,
         workerParameters.tollCalculator,
-        workerParameters.transitVehicles
+        workerParameters.transitVehicles*/
       )
     ),
     name = "workerRouter"
@@ -68,7 +69,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       log.debug("{} received {}", getNameAndHashCode, other)
       workerRouter.forward(other)
   }
-
+  /*
   @transient
   lazy val workerParameters = {
     val beamConfig = BeamConfig(config)
@@ -122,7 +123,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
       tollCalculator,
       scenario.getTransitVehicles
     )
-  }
+  }*/
 }
 case class WorkerParameters(
   beamServices: BeamServices,
