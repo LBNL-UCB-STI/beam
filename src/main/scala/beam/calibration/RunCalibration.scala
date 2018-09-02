@@ -78,7 +78,7 @@ object RunCalibration extends App with BeamHelper {
           (NUM_ITERATIONS_TAG, numIters)
         case Array("--experiment_id", experimentId: String) =>
           val trimmedExpId = experimentId.trim
-          if (trimmedExpId == "None") { (EXPERIMENT_ID_TAG, trimmedExpId) } else {
+          if (trimmedExpId != "None") { (EXPERIMENT_ID_TAG, trimmedExpId) } else {
             (EXPERIMENT_ID_TAG, NEW_EXPERIMENT_FLAG)
           }
         case arg @ _ =>
