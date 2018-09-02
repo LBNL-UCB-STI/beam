@@ -37,21 +37,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   // This router is used both with lookup and deploy of routees. If you
   // have a router with only lookup of routees you can use Props.empty
   // instead of Props[StatsWorker.class].
-  val workerRouter = context.actorOf(
-    FromConfig.props(
-      Props(
-        classOf[R5RoutingWorker],
-        config
-        /*workerParameters.beamServices,
-        workerParameters.transportNetwork,
-        workerParameters.network,
-        workerParameters.fareCalculator,
-        workerParameters.tollCalculator,
-        workerParameters.transitVehicles*/
-      )
-    ),
-    name = "workerRouter"
-  )
+  val workerRouter = context.actorOf(R5RoutingWorker.props(config), name = "workerRouter")
   def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"
   log.info("{} inited. workerRouter => {}", getNameAndHashCode, workerRouter)
 

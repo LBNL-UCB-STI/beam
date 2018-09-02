@@ -60,6 +60,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.util.{Either, Left, Right}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.routing.{Broadcast, FromConfig}
@@ -103,104 +104,75 @@ case class WorkerParameters(
   transitVehicles: Vehicles
 )
 
-class R5RoutingWorker(
-  val beamServices: BeamServices,
-  val transportNetwork: TransportNetwork,
-  val network: Network,
-  val fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  transitVehicles: Vehicles
-) extends Actor
+class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
+    extends Actor
     with ActorLogging
     with MetricsSupport {
 
-  def this(config: Config) {
-    this(
-      beamServices = {
-        new BeamServices {
-          override lazy val controler: ControlerI = ???
-          override var beamConfig: BeamConfig = BeamConfig(config)
-          override lazy val registry: ActorRef = throw new Exception("???")
-          override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
-          override var modeChoiceCalculatorFactory
-            : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
-          override val dates: DateUtils = DateUtils(
-            ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-            ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-          )
-          override var beamRouter: ActorRef = null
-          override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
-          override val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
-            TrieMap[Id[Vehicle], BeamVehicle]()
-          override def startNewIteration: Unit = throw new Exception("???")
-          override protected def injector: Injector = throw new Exception("???")
-          override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-          override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
-          override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
-            beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-          override def matsimServices: org.matsim.core.controler.MatsimServices = ???
-          override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
-        }
-      },
-      transportNetwork = {
-        val beamConfig = BeamConfig(config)
-        val outputDirectory = FileUtils.getConfigOutputFile(
-          beamConfig.beam.outputs.baseOutputDirectory,
-          beamConfig.beam.agentsim.simulationName,
-          beamConfig.beam.outputs.addTimestampToOutputDirectory
-        )
-        val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-        matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-        ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-        LoggingUtil.createFileLogger(outputDirectory)
-        matsimConfig.controler.setOutputDirectory(outputDirectory)
-        matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-        val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-        val networkCoordinator = new NetworkCoordinator(beamConfig)
-        networkCoordinator.loadNetwork()
-        scenario.setNetwork(networkCoordinator.network)
-        networkCoordinator.transportNetwork
-      },
-      network = {
-        val beamConfig = BeamConfig(config)
-        val outputDirectory = FileUtils.getConfigOutputFile(
-          beamConfig.beam.outputs.baseOutputDirectory,
-          beamConfig.beam.agentsim.simulationName,
-          beamConfig.beam.outputs.addTimestampToOutputDirectory
-        )
-        val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-        matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-        ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-        LoggingUtil.createFileLogger(outputDirectory)
-        matsimConfig.controler.setOutputDirectory(outputDirectory)
-        matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-        val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-        val networkCoordinator = new NetworkCoordinator(beamConfig)
-        networkCoordinator.loadNetwork()
-        scenario.setNetwork(networkCoordinator.network)
-        networkCoordinator.network
-      },
-      fareCalculator = new FareCalculator(BeamConfig(config).beam.routing.r5.directory),
-      tollCalculator = new TollCalculator(BeamConfig(config).beam.routing.r5.directory),
-      transitVehicles = {
-        val beamConfig = BeamConfig(config)
-        val outputDirectory = FileUtils.getConfigOutputFile(
-          beamConfig.beam.outputs.baseOutputDirectory,
-          beamConfig.beam.agentsim.simulationName,
-          beamConfig.beam.outputs.addTimestampToOutputDirectory
-        )
-        val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-        matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-        ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-        LoggingUtil.createFileLogger(outputDirectory)
-        matsimConfig.controler.setOutputDirectory(outputDirectory)
-        matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-        val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-        val networkCoordinator = new NetworkCoordinator(beamConfig)
-        networkCoordinator.loadNetwork()
-        scenario.setNetwork(networkCoordinator.network)
-        scenario.getTransitVehicles
-      }
+  val WorkerParameters(
+    beamServices,
+    transportNetwork,
+    network,
+    fareCalculator,
+    tollCalculator,
+    transitVehicles
+  ) = workerParamsOrConfig match {
+    case Left(workerParams) => workerParams
+    case Right(config)      => buildWorkerParamsFrom(config)
+  }
+
+  def buildWorkerParamsFrom(config: Config): WorkerParameters = {
+    val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+    LoggingUtil.createFileLogger(outputDirectory)
+    matsimConfig.controler.setOutputDirectory(outputDirectory)
+    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator.loadNetwork()
+    scenario.setNetwork(networkCoordinator.network)
+    val network = networkCoordinator.network
+    val transportNetwork = networkCoordinator.transportNetwork
+    val beamServices: BeamServices = new BeamServices {
+      override lazy val controler: ControlerI = ???
+      override var beamConfig: BeamConfig = BeamConfig(config)
+      override lazy val registry: ActorRef = throw new Exception("???")
+      override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+      override var modeChoiceCalculatorFactory
+        : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+      override val dates: DateUtils = DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+      override var beamRouter: ActorRef = null
+      override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+      override val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+      override def startNewIteration: Unit = throw new Exception("???")
+      override protected def injector: Injector = throw new Exception("???")
+      override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
+      override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
+      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
+        beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+      override def matsimServices: org.matsim.core.controler.MatsimServices = ???
+      override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
+    }
+
+    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+    WorkerParameters(
+      beamServices,
+      transportNetwork,
+      network,
+      fareCalculator,
+      tollCalculator,
+      scenario.getTransitVehicles
     )
   }
 
@@ -1275,14 +1247,20 @@ object R5RoutingWorker {
   ) =
     Props(
       new R5RoutingWorker(
-        beamServices,
-        transportNetwork,
-        network,
-        fareCalculator,
-        tollCalculator,
-        transitVehicles
+        Left(
+          new WorkerParameters(
+            beamServices,
+            transportNetwork,
+            network,
+            fareCalculator,
+            tollCalculator,
+            transitVehicles
+          )
+        )
       )
     )
+
+  def props(config: Config) = Props(new R5RoutingWorker(Right(config)))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
   case class R5Request(
