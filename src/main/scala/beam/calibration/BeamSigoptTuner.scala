@@ -23,7 +23,7 @@ case class SigoptExperimentData(
   benchmarkFileLoc: String,
   experimentId: String,
   development: Boolean = false
-) extends LazyLogging{
+) extends LazyLogging {
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -45,15 +45,15 @@ case class SigoptExperimentData(
 
   val experiment: Experiment =
     fetchExperiment(experimentId) match {
-      case Some(e) => {
+      case Some(experiment) => {
         logger.info(s"Retrieved the existing experiment with experiement id $experimentId")
-        e
+        experiment
       }
       case None => {
-        val e: Experiment = createExperiment(experimentDef)
+        val experiment: Experiment = createExperiment(experimentDef)
         logger.info("New Experiment created with experimentId [" + e.getId + "]")
         System.exit(0)
-        e
+        experiment
       }
     }
 
