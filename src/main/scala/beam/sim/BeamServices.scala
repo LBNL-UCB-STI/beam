@@ -157,11 +157,11 @@ object BeamServices {
       val lengthInMeter = line.get("lengthInMeter").toDouble
       val primaryFuelTypeId = line.get("primaryFuelType")
       val primaryFuelType = fuelTypeMap.get(Id.create(primaryFuelTypeId, classOf[FuelType])).get
-      val primaryFuelConsumptionInJoule = line.get("primaryFuelConsumptionInJoule").toDouble
+      val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").toDouble
       val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
       val secondaryFuelTypeId = line.get("secondaryFuelType")
       val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType])).get
-      val secondaryFuelConsumptionInJoule = line.get("secondaryFuelConsumptionInJoule").toDouble
+      val secondaryFuelConsumptionInJoule = line.get("secondaryFuelConsumptionInJoulePerMeter").toDouble
       val secondaryFuelCapacityInJoule = line.get("secondaryFuelCapacityInJoule").toDouble
       val automationLevel = line.get("automationLevel")
       val maxVelocity = line.get("maxVelocity").toDouble
@@ -176,7 +176,7 @@ object BeamServices {
         standingRoomCapacity,
         lengthInMeter,
         primaryFuelType,
-        primaryFuelConsumptionInJoule,
+        primaryFuelConsumptionInJoulePerMeter,
         primaryFuelCapacityInJoule,
         secondaryFuelType,
         secondaryFuelConsumptionInJoule,
