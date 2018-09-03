@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse, ParkingStockAttributes}
@@ -50,8 +50,7 @@ class ZonalParkingManagerSpec
     theServices
   }
 
-  val beamRouterProbe = TestProbe()
-  val parkingStockAttributes = ParkingStockAttributes(1)
+
 
   describe(
     "Depot parking in ZonalParkingManager should return parking stalls according to reservedFor field"
@@ -67,13 +66,10 @@ class ZonalParkingManagerSpec
         )
       )
 
-      val zonalParkingManagerProps = Props(
-        new ZonalParkingManager(beamServices(config), beamRouterProbe.ref, parkingStockAttributes) {
-          override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
-        }
-      )
+      val services = beamServices(config)
 
-      val zonalParkingManager = TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
+      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+
       val location = new Coord(170572.95810126758, 2108.0402919341077)
       val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
 
@@ -98,13 +94,7 @@ class ZonalParkingManagerSpec
         )
       )
 
-      val zonalParkingManagerProps = Props(
-        new ZonalParkingManager(beamServices(config), beamRouterProbe.ref, parkingStockAttributes) {
-          override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
-        }
-      )
-
-      val zonalParkingManager = TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
+      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(beamServices(config))
       val location = new Coord(170572.95810126758, 2108.0402919341077)
       val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
 
@@ -119,4 +109,27 @@ class ZonalParkingManagerSpec
     }
   }
 
+}
+
+object ZonalParkingManagerSpec {
+  def mockZonalParkingManager(beamServices: BeamServices, routerOpt: Option[ActorRef] = None, stockAttributesOpt: Option[ParkingStockAttributes] = None)(implicit system: ActorSystem): ActorRef = {
+    val beamRouterProbe = routerOpt match {
+      case Some(router) =>
+        router
+      case None =>
+        TestProbe().ref
+    }
+    val parkingStockAttributes = stockAttributesOpt match{
+      case Some(stockAttrib) =>
+        stockAttrib
+      case None =>
+        ParkingStockAttributes(1)
+    }
+    val zonalParkingManagerProps = Props(
+      new ZonalParkingManager(beamServices, beamRouterProbe, parkingStockAttributes) {
+        override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
+      }
+    )
+    TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
+  }
 }

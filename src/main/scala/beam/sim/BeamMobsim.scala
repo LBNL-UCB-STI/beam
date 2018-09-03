@@ -311,6 +311,7 @@ class BeamMobsim @Inject()(
                 scheduler,
                 transportNetwork,
                 eventsManager,
+                parkingManager,
                 rideHailAgentPersonId,
                 rideHailBeamVehicle,
                 rideInitialLocation
@@ -343,7 +344,7 @@ class BeamMobsim @Inject()(
         log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized $numRideHailAgents ride hailing agents")
 
-        Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
+        Await.result(beamServices.beamRouter ? InitTransit(scheduler,parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0)
           new BeamWarmStart(beamServices).init()

@@ -128,19 +128,17 @@ object ParkingStall {
 
   /*
    *  Flat fee means one price is paid independent of time
-   *  Block means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
+   *  Block (not yet implemented) means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
    *
    *  Use block price even if price is a simple hourly price.
    */
   sealed trait PricingModel
-  case object Free extends PricingModel
   case object FlatFee extends PricingModel
   case object Block extends PricingModel
 
   object PricingModel {
 
     def fromString(s: String): PricingModel = s match {
-      case "Free"    => Free
       case "FlatFee" => FlatFee
       case "Block"   => Block
     }

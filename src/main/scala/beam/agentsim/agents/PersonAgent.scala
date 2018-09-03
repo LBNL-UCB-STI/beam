@@ -415,7 +415,7 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(_, _, currentLeg :: theRestOfCurrentTrip, _, _, _, _, _, _)
         ) =>
-      log.debug(theRestOfCurrentTrip.toString())
+      log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(restOfCurrentTrip = theRestOfCurrentTrip)
   }
 
@@ -454,6 +454,10 @@ class PersonAgent(
 
       val (stateToGo, currentTick) =
         if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
+          log.debug("ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",legsToInclude)
+          if(legsToInclude.map(_.beamLeg.duration).sum==0){
+            val ii=0
+          }
           (ReleasingParkingSpot, _currentTick.get)
         } else {
           val (currentTick, _) = releaseTickAndTriggerId()
@@ -484,8 +488,12 @@ class PersonAgent(
           Some(currentVehicle)
         }
       if (currentVehicleForNextState.isDefined) {
+        val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+        if(legsToInclude.map(_.beamLeg.duration).sum==0){
+          val iii=0
+        }
         goto(stateToGo) using data.copy(
-          passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
+          passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
           currentVehicle = currentVehicleForNextState.get
         )

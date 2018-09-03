@@ -2,8 +2,8 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterResource}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
@@ -16,12 +16,9 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  ScheduleTrigger,
-  SchedulerProps,
-  StartSchedule
-}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.{ZonalParkingManager, ZonalParkingManagerSpec}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
@@ -81,6 +78,7 @@ class RideHailAgentSpec
     when(theServices.geo).thenReturn(geo)
     theServices
   }
+  val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
   case class TestTrigger(tick: Double) extends Trigger
 
@@ -181,6 +179,7 @@ class RideHailAgentSpec
           beamVehicle,
           new Coord(0.0, 0.0),
           eventsManager,
+          zonalParkingManager,
           services,
           networkCoordinator.transportNetwork
         )
@@ -250,6 +249,7 @@ class RideHailAgentSpec
           beamVehicle,
           new Coord(0.0, 0.0),
           eventsManager,
+          zonalParkingManager,
           services,
           networkCoordinator.transportNetwork
         )
@@ -308,6 +308,7 @@ class RideHailAgentSpec
           beamVehicle,
           new Coord(0.0, 0.0),
           eventsManager,
+          zonalParkingManager,
           services,
           networkCoordinator.transportNetwork
         )

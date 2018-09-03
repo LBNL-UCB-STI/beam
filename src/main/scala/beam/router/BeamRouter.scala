@@ -61,8 +61,8 @@ class BeamRouter(
   private var numStopsNotFound = 0
 
   override def receive: PartialFunction[Any, Unit] = {
-    case InitTransit(scheduler) =>
-      val transitSchedule = initTransit(scheduler)
+    case InitTransit(scheduler,parkingManager) =>
+      val transitSchedule = initTransit(scheduler, parkingManager)
       metricsPrinter ! Subscribe("histogram", "**")
       routerWorker ! TransitInited(transitSchedule)
       sender ! Success("success")
@@ -92,7 +92,7 @@ class BeamRouter(
    * be used to decide what type of vehicle to assign
    *
    */
-  private def initTransit(scheduler: ActorRef) = {
+  private def initTransit(scheduler: ActorRef, parkingManager: ActorRef) = {
     def createTransitVehicle(
       transitVehId: Id[Vehicle],
       route: RouteInfo,
@@ -144,6 +144,7 @@ class BeamRouter(
             services,
             transportNetwork,
             eventsManager,
+            parkingManager,
             transitDriverId,
             vehicle,
             legs
@@ -424,7 +425,7 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class InitTransit(scheduler: ActorRef)
+  case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef)
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 

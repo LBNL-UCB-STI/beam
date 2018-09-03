@@ -59,23 +59,21 @@ class ParkingSpec
     events
   }
 
-  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
-    runAndCollectForIterations(parkingScenario, 1).head
-  }
-
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+      .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept", ConfigValueFactory.fromAnyRef(-3.0))
+      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept", ConfigValueFactory.fromAnyRef(0.0))
       .withValue(
         "beam.agentsim.taz.parking",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-$parkingScenario.csv")
+        ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
-      )
-//      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(50))
       .withValue(
         "beam.outputs.events.overrideWritingLevels",
         ConfigValueFactory.fromAnyRef(

@@ -54,7 +54,7 @@ class ZonalParkingManager(
     for {
       taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Residential, Workplace, Public)
-      pricingModel <- List(Free, FlatFee, Block)
+      pricingModel <- List(FlatFee, Block)
       chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
       reservedFor  <- List(ParkingStall.Any)
     } yield {
@@ -67,7 +67,7 @@ class ZonalParkingManager(
     for {
       taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Workplace)
-      pricingModel <- List(Free)
+      pricingModel <- List(FlatFee)
       chargingType <- List(Level2, DCFast, UltraFast)
       reservedFor  <- List(ParkingStall.RideHailManager)
     } yield {
@@ -119,7 +119,7 @@ class ZonalParkingManager(
 
     case inquiry @ DepotParkingInquiry(vehicleId: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
       val tazsWithDists = findTAZsWithDistances(location, 1000.0)
-      val foundStalls = tazsWithDists.find{
+      val maybeFoundStalls = tazsWithDists.find{
         case (taz, _) =>
           pooledResources.find{
             case (attr, values) =>
@@ -134,13 +134,15 @@ class ZonalParkingManager(
               attr.reservedFor.equals(reservedFor) &&
               values.numStalls > 0
         }
-      }.get
+      }
 
-      val maybeParkingAttribs = foundStalls.keys.toVector.sortBy{
-        attribs => ChargingType.getChargerPowerInKW(attribs.chargingType)
-      }.reverse.headOption
+      val maybeParkingAttribs = maybeFoundStalls.flatMap {
+        _.keys.toVector.sortBy {
+          attribs => ChargingType.getChargerPowerInKW(attribs.chargingType)
+        }.reverse.headOption
+      }
       val maybeParkingStall = maybeParkingAttribs.flatMap{attrib =>
-        maybeCreateNewStall(attrib, location, 0.0, foundStalls.get(attrib))
+        maybeCreateNewStall(attrib, location, 0.0, maybeFoundStalls.get.get(attrib))
       }
 
       maybeParkingStall.foreach { stall =>
@@ -181,7 +183,7 @@ class ZonalParkingManager(
           StallAttributes(
             nearbyTazsWithDistances.head._1.tazId,
             preferredType,
-            Free,
+            FlatFee,
             NoCharger,
             reservedFor
           ),
@@ -264,7 +266,6 @@ class ZonalParkingManager(
     parkingDuration: Double
   ): Double = {
     attrib.pricingModel match {
-      case Free    => 0.0
       case FlatFee => feeInCents.toDouble / 100.0
       case Block   => parkingDuration / 3600.0 * (feeInCents.toDouble / 100.0)
     }
@@ -273,7 +274,7 @@ class ZonalParkingManager(
   def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
     val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destinationUtm, searchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
-      Vector(Free, FlatFee, Block).flatMap { pricingModel =>
+      Vector(FlatFee, Block).flatMap { pricingModel =>
         val attrib =
           StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger, ParkingStall.Any)
         val stallValues = pooledResources(attrib)

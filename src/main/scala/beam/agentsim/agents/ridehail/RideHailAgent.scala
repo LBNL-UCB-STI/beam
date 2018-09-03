@@ -35,6 +35,7 @@ object RideHailAgent {
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
     eventsManager: EventsManager,
+    parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
     vehicle: BeamVehicle,
     location: Coord
@@ -46,6 +47,7 @@ object RideHailAgent {
         vehicle,
         location,
         eventsManager,
+        parkingManager,
         services,
         transportNetwork
       )
@@ -117,6 +119,7 @@ class RideHailAgent(
   vehicle: BeamVehicle,
   initialLocation: Coord,
   val eventsManager: EventsManager,
+  val parkingManager: ActorRef,
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork
 ) extends BeamAgent[RideHailAgentData]

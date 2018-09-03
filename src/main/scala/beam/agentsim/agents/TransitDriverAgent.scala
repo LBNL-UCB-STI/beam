@@ -28,6 +28,7 @@ object TransitDriverAgent {
     services: BeamServices,
     transportNetwork: TransportNetwork,
     eventsManager: EventsManager,
+    parkingManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg]
@@ -38,6 +39,7 @@ object TransitDriverAgent {
         services,
         transportNetwork,
         eventsManager,
+        parkingManager,
         transitDriverId,
         vehicle,
         legs
@@ -79,6 +81,7 @@ class TransitDriverAgent(
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
   val eventsManager: EventsManager,
+  val parkingManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
   val vehicle: BeamVehicle,
   val legs: Seq[BeamLeg]

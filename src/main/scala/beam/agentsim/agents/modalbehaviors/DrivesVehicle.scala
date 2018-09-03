@@ -1,8 +1,8 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
-import akka.actor.Stash
-import beam.agentsim.Resource.NotifyResourceIdle
+import akka.actor.{ActorRef, Stash}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
@@ -14,10 +14,11 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
@@ -61,6 +62,7 @@ object DrivesVehicle {
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
 
   protected val transportNetwork: TransportNetwork
+  protected val parkingManager: ActorRef
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
@@ -164,8 +166,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           //Throwing parkEvent after last PathTraversal
           val vehId = data.currentVehicle.head
-          val stall = beamServices.vehicles(data.currentVehicle.head).stall
-          stall.foreach { stall =>
+          val theVehicle = beamServices.vehicles(data.currentVehicle.head)
+            theVehicle.reservedStall.foreach { stall =>
+              theVehicle.useParkingStall(stall)
             val nextLeg =
               data.passengerSchedule.schedule.keys.view
                 .drop(data.currentLegPassengerScheduleIndex)
@@ -175,6 +178,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
           }
+          theVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         self ! PassengerScheduleEmptyMessage(
@@ -341,6 +345,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   when(WaitingToDrive) {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
+
+      if(newLeg.mode== CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0){
+        val stop= 0
+      }
+      // Un-Park if necessary, this should only happen with RideHailAgents
+      data.currentVehicle.headOption match {
+        case Some(currentVehicleUnderControl) =>
+          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+          theVehicle.stall.foreach { theStall =>
+              parkingManager ! CheckInResource(theStall.id, None)
+          }
+          theVehicle.unsetParkingStall()
+      }
       val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
         .schedule(newLeg)
         .riders
@@ -445,6 +462,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .to(req.arriveAt)
         .keys
         .toSeq
+      if(legs.toVector.map(_.duration).sum == 0){
+        val stop= 0
+      }
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
       val triggersToSchedule = legsInThePast
