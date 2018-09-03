@@ -333,15 +333,15 @@ class R5RoutingWorker(workerParams: WorkerParameters)
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
-    try{
-    val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
-    leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-  } catch {
-    case x =>
-      log.error(
-        s"Error updating leg with current travel time - $linksTimesAndDistances - ${leg.travelPath.linkIds} - ${leg.startTime} - ${toR5StreetMode(leg.mode)} - ${transportNetwork.streetLayer}"
-      ); throw x
-  }
+    try {
+      val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
+      leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    } catch {
+      case x =>
+        log.error(
+          s"Error updating leg with current travel time - $linksTimesAndDistances - ${leg.travelPath.linkIds} - ${leg.startTime} - ${toR5StreetMode(leg.mode)} - ${transportNetwork.streetLayer}"
+        ); throw x
+    }
   }
 
   def lengthOfLink(linkId: Int): Double = {
@@ -646,8 +646,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
             Vector(firstLeg, secondLeg)
           } catch {
             case x => {
-              log.error(s"Split leg for parking - $theLinkIds - $indexFromEnd - $indexFromBeg")
-              log.error(s"More info - ${firstLeg.startTime} - ${firstLeg.duration}")
+              log.error(s"Split leg for parking - $theLinkIds - $indexFromEnd - ${theLinkIds.length - indexFromEnd}")
               throw x
             }
           }
