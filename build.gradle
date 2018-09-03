@@ -579,6 +579,24 @@ task execute(type:JavaExec) {
     }
 }
 
+jar {
+    manifest {
+        attributes(
+                'Built-By'       : System.properties['user.name'],
+                'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
+                'Created-By'     : "Gradle ${gradle.gradleVersion}",
+                'Build-Jdk'      : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+                'Build-OS'       : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
+                'Specification-Title' : "Java Advanced Imaging Image I/O Tools",
+                'Specification-Version': "1.1",
+                'Specification-Vendor': "Sun Microsystems, Inc.",
+                'Implementation-Title': "com.sun.media.imageio",
+                'Implementation-Version': "1.1",
+                'Implementation-Vendor': "Sun Microsystems, Inc."
+        )
+    }
+}
+
 shadowJar {
     transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
         resource = 'reference.conf'
