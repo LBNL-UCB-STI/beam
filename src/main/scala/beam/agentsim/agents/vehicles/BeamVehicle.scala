@@ -94,7 +94,7 @@ class BeamVehicle(
       case Some(fLevel) =>
         val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
         if (fLevel < energyConsumed) {
-          logger.error(
+          logger.warn(
             "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
             id,
             distanceInMeters,
