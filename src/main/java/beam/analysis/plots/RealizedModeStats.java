@@ -89,7 +89,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
-        hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
+        hourModeFrequency.values().stream().filter(x -> x!=null).flatMap(x -> x.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
@@ -201,16 +201,18 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         Map<String, Integer> totalModeChoice = new HashMap<>();
         for (Integer hour : hours) {
             Map<String, Integer> iterationHourData = hourModeFrequency.get(hour);
-            Set<String> iterationModes = iterationHourData.keySet();
-            for (String iterationMode : iterationModes) {
-                Integer freq = iterationHourData.get(iterationMode);
-                Integer iterationFrequency = totalModeChoice.get(iterationMode);
-                if (iterationFrequency == null) {
-                    totalModeChoice.put(iterationMode, freq);
-                } else {
-                    totalModeChoice.put(iterationMode, freq + iterationFrequency);
-                }
+            if(iterationHourData!=null) {
+                Set<String> iterationModes = iterationHourData.keySet();
+                for (String iterationMode : iterationModes) {
+                    Integer freq = iterationHourData.get(iterationMode);
+                    Integer iterationFrequency = totalModeChoice.get(iterationMode);
+                    if (iterationFrequency == null) {
+                        totalModeChoice.put(iterationMode, freq);
+                    } else {
+                        totalModeChoice.put(iterationMode, freq + iterationFrequency);
+                    }
 
+                }
             }
         }
         iterationTypeSet.add("it." + iteration);
@@ -242,7 +244,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Set<String> modes = new TreeSet<>();
         Map<String, Integer> modeCountBucket = new HashMap<>();
-        hourModeFrequency.keySet().forEach(hour -> hourModeFrequency.get(hour).keySet().
+        hourModeFrequency.keySet().stream().filter(hour -> hourModeFrequency.get(hour)!=null).forEach(hour -> hourModeFrequency.get(hour).keySet().
                 forEach(mode -> {
                     Integer count = modeCountBucket.get(mode);
                     Map<String, Integer> modeFrequency = hourModeFrequency.get(hour);
