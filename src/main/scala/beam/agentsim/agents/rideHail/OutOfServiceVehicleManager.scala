@@ -1,4 +1,4 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
