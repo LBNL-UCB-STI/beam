@@ -136,6 +136,10 @@ public class PathTraversalEvent extends Event {
         return attr;
     }
 
+    public String getVehicleId() {
+        return this.vehicleId;
+    }
+
     @Override
     public String getEventType() {
         return EVENT_TYPE;

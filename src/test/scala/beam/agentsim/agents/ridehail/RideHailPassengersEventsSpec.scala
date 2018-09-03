@@ -58,7 +58,7 @@ class RideHailPassengersEventsSpec
 
         override def handleEvent(event: Event): Unit = {
           event match {
-            case traversalEvent: PathTraversalEvent =>
+            case traversalEvent: PathTraversalEvent if traversalEvent.getVehicleId.startsWith("rideHail") =>
               val id = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
               val numPass =
                 traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
