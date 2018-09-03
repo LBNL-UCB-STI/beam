@@ -353,10 +353,16 @@ class RideHailManager(
               )
             } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
               // not enough range to make trip
-              log.debug("Not enough range: {}", vehicleId)
-              outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
-              putOutOfService(rideHailAgentLocation)
-              findRefuelStationAndSendVehicle(rideHailAgentLocation)
+
+              if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
+                putOutOfService(rideHailAgentLocation)
+                sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
+              } else {
+                log.debug("Not enough range: {}", vehicleId)
+                outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
+                putOutOfService(rideHailAgentLocation)
+                findRefuelStationAndSendVehicle(rideHailAgentLocation)
+              }
             } else {
               log.debug("Making available: {}", vehicleId)
               makeAvailable(rideHailAgentLocation)
@@ -1133,7 +1139,8 @@ class RideHailManager(
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
-            lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
+            lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
+              .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
           findDriverAndSendRoutingRequests(request)
         } else {
           handleReservation(request, travelProposal)

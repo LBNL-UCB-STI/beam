@@ -216,7 +216,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         tick
       )
 
-    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+    case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {

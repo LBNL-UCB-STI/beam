@@ -168,15 +168,16 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
-    case Event(
-        TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
-        data
+    case ev @ Event(
+          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+          data
         ) =>
+      log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-          log.debug("Ending refuel session for {}",theVehicle.id)
+          log.debug("Ending refuel session for {}", theVehicle.id)
           theVehicle.addFuel(energyInJoules)
           eventsManager.processEvent(
             new RefuelEvent(tick, theVehicle.stall.get, energyInJoules, tick - sessionStart, theVehicle.id)
@@ -195,7 +196,8 @@ class RideHailAgent(
           log.debug("currentVehicleUnderControl not found")
           stay() replying CompletionNotice(triggerId, Vector())
       }
-    case Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
+    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
+      log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)

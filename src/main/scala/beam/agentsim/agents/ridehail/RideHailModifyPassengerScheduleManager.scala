@@ -56,7 +56,11 @@ class RideHailModifyPassengerScheduleManager(
     interruptIdToModifyPassengerScheduleStatus.get(interruptId)
   }
 
-  private def getWithVehicleIds(
+  def vehicleHasMoreThanOneOngoingRequests(vehicleId: Id[Vehicle]): Boolean = {
+    getWithVehicleIds(vehicleId).size > 1
+  }
+
+  def getWithVehicleIds(
     vehicleId: Id[Vehicle]
   ): mutable.ListBuffer[RideHailModifyPassengerScheduleStatus] = {
     if (!vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)) {
