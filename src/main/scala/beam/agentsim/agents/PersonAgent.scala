@@ -474,7 +474,8 @@ class PersonAgent(
           vehicle.becomeDriver(self) match {
             case Left(l) =>
               log.error(
-                "I attempted to become driver of vehicle $id but driver {} already assigned.",
+                "I attempted to become driver of vehicle {} but driver {} already assigned.",
+                id,
                 vehicle.driver.get
               )
               None
