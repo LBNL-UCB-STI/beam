@@ -26,11 +26,10 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     // just go with closest request
     rideHailManager
-      .getClosestIdleVehiclesWithinRadius(
+      .getClosestIdleRideHailAgent(
         vehicleAllocationRequest.request.pickUpLocation,
         rideHailManager.radiusInMeters
-      )
-      .headOption match {
+      ) match {
       case Some(agentLocation) =>
         VehicleAllocation(agentLocation, None)
       case None =>
