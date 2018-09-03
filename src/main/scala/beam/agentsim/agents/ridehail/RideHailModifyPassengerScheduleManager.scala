@@ -324,7 +324,7 @@ class RideHailModifyPassengerScheduleManager(
       val vehicles = getWithVehicleIds(vehicleId)
       if (vehicles.size > 2 && ignoreErrorPrint) {
         log.error(
-          s"more rideHailVehicle interruptions in process than should be possible: $vehicleId -> further errors surpressed (debug later if this is still relevant)"
+          s"more rideHailVehicle interruptions in process than should be possible: $vehicleId -> further errors supressed (debug later if this is still relevant)"
         )
         ignoreErrorPrint = false
       }
