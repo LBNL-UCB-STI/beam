@@ -1,7 +1,6 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager}
+import beam.agentsim.agents.ridehail.RideHailManager
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
