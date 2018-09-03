@@ -56,8 +56,8 @@ class RideHailModifyPassengerScheduleManager(
     interruptIdToModifyPassengerScheduleStatus.get(interruptId)
   }
 
-  def vehicleHasOngoingRequests(vehicleId: Id[Vehicle]): Boolean = {
-    getWithVehicleIds(vehicleId).size > 0
+  def vehicleHasMoreThanOneOngoingRequests(vehicleId: Id[Vehicle]): Boolean = {
+    getWithVehicleIds(vehicleId).size > 1
   }
 
   def getWithVehicleIds(

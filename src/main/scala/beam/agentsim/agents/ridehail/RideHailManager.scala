@@ -354,7 +354,7 @@ class RideHailManager(
             } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
               // not enough range to make trip
 
-              if (modifyPassengerScheduleManager.vehicleHasOngoingRequests(vehicleId)) {
+              if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
                 putOutOfService(rideHailAgentLocation)
                 sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
               } else {
