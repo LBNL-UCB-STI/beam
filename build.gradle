@@ -18,6 +18,9 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+
     }
 }
 
@@ -25,6 +28,8 @@ plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
+    id 'com.palantir.docker' version '0.20.1'
+
 }
 
 //ext {
@@ -39,6 +44,8 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'com.palantir.docker'
 
 group = 'beam'
 version = '0.6.0'
@@ -239,6 +246,8 @@ dependencies {
 //    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
+    compile group: 'com.lightbend.akka.discovery', name: "akka-discovery-kubernetes-api_${scalaBinaryVersion}", version: '0.17.0'
+    compile group: 'com.lightbend.akka.management', name: "akka-management-cluster-bootstrap_${scalaBinaryVersion}", version: '0.17.0'
 //    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     // TEST Akka //
@@ -569,3 +578,17 @@ task execute(type:JavaExec) {
         }
     }
 }
+
+shadowJar {
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
+        resource = 'reference.conf'
+    }
+    mergeServiceFiles()
+}
+
+//docker {
+//    dependsOn build
+//    name "${project.group}/${bootJar.baseName}"
+//    files bootJar.archivePath
+//    buildArgs(['JAR_FILE': "${bootJar.archiveName}"])
+//}
