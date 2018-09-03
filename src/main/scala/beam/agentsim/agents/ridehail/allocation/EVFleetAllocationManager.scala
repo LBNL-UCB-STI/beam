@@ -1,7 +1,7 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.allocation._
+
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
