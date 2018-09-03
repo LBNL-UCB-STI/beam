@@ -198,7 +198,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
   var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
-    "Num of avaiable processors: {}. Will use: {}",
+    "Num of available processors: {}. Will use: {}",
     Runtime.getRuntime().availableProcessors(),
     numOfThreads
   )
