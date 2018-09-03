@@ -624,7 +624,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
           )
           Vector(firstLeg, secondLeg)
         } else {
-          val indexFromEnd = Math.min(
+          val indexFromEndTemp = Math.min(
             theLinkIds.reverse
               .map(lengthOfLink(_))
               .scanLeft(0.0)(_ + _)
@@ -633,6 +633,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
               ),
             theLinkIds.length - 1
           )
+          val indexFromEnd = if(indexFromEndTemp >= 0) indexFromEndTemp else theLinkIds.length - 1
           try {
             val indexFromBeg = theLinkIds.length - indexFromEnd
             val firstLeg = updateLegWithCurrentTravelTime(
@@ -646,7 +647,9 @@ class R5RoutingWorker(workerParams: WorkerParameters)
             Vector(firstLeg, secondLeg)
           } catch {
             case x => {
-              log.error(s"Split leg for parking - $theLinkIds - $indexFromEnd - ${theLinkIds.length - indexFromEnd}")
+              log.error(
+                s"Split leg for parking - $theLinkIds - $indexFromEnd - ${theLinkIds.length - indexFromEnd}"
+              )
               log.error(s"More ${theLinkIds.reverse.map(lengthOfLink(_))}")
               throw x
             }
