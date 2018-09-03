@@ -80,25 +80,35 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
+
     public void processStats(Event event) {
-        processRealizedMode(event);
+        try {
+            processRealizedMode(event);
+        }catch (NullPointerException npe){
+            log.error("null point exception occurance due to " , npe);
+        }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
 
-        Map<String, String> tags = new HashMap<>();
-        tags.put("stats-type", "aggregated-mode-choice");
-        hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
-                .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
+        try {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("stats-type", "aggregated-mode-choice");
+            hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                    .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
-        updateRealizedModeChoiceInIteration(event.getIteration());
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            updateRealizedModeChoiceInIteration(event.getIteration());
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+            if (modesFrequencyDataset != null)
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
+        }catch (NullPointerException npe){
+            log.error("null point exception occurance due to " , npe);
+        }
         writeToCSV(event);
+
     }
 
     @Override
@@ -188,11 +198,11 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                             hourMode.put(mode, frequency);
                         }
                     }
+                    hourModeFrequency.put(hour, hourData);
                 }
 
             }
         }
-        hourModeFrequency.put(hour, hourData);
     }
 
     //    accumulating data for each iteration
