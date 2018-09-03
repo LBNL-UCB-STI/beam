@@ -32,7 +32,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
   StartSchedule
 }
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
@@ -68,7 +67,7 @@ import scala.concurrent.Await
 class OtherPersonAgentSpec
     extends TestKit(
       ActorSystem(
-        "testsystem",
+        "OtherPersonAgentSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -106,6 +105,8 @@ class OtherPersonAgentSpec
     when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
+    // TODO Is it right to return defaultTazTreeMap?
+    when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
 
