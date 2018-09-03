@@ -647,6 +647,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
           } catch {
             case x => {
               log.error(s"Split leg for parking - $theLinkIds - $indexFromEnd - ${theLinkIds.length - indexFromEnd}")
+              log.error(s"More ${theLinkIds.reverse.map(lengthOfLink(_))}")
               throw x
             }
           }
