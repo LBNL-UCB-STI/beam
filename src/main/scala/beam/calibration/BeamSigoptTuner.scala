@@ -45,16 +45,14 @@ case class SigoptExperimentData(
 
   val experiment: Experiment =
     fetchExperiment(experimentId) match {
-      case Some(experiment) => {
-        logger.info(s"Retrieved the existing experiment with experiement id $experimentId")
-        experiment
-      }
-      case None => {
-        val experiment: Experiment = createExperiment(experimentDef)
-        logger.info("New Experiment created with experimentId [" + experiment.getId + "]")
+      case Some(foundExperiment) =>
+        logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
+        foundExperiment
+      case None =>
+        val createdExperiment: Experiment = createExperiment(experimentDef)
+        logger.info("New Experiment created with experimentId [" + createdExperiment.getId + "]")
         System.exit(0)
-        experiment
-      }
+        createdExperiment
     }
 
 }

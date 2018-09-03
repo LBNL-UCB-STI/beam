@@ -2,14 +2,18 @@ package beam.calibration
 
 import java.nio.file.{Path, Paths}
 
-import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
-import beam.sim.BeamHelper
-import beam.utils.reflection.ReflectionUtils
-import com.sigopt.model.{BestAssignments, Observation, Suggestion}
-import com.sigopt.net.APIMethodCaller
+import scala.collection.{mutable, JavaConverters}
+
+import org.matsim.core.config.{Config => MatsimConfig}
+
+import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 
-import scala.collection.{mutable, JavaConverters}
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
+import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
+import beam.calibration.impl.example.{CountsObjectiveFunction, ModeChoiceObjectiveFunction}
+import beam.sim.BeamHelper
+import beam.utils.reflection.ReflectionUtils
 
 object ObjectiveFunctionClassBuilder extends ReflectionUtils {
   override def packageName: String = "beam.calibration"
@@ -19,24 +23,11 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 
   import beam.utils.ProfilingUtils.timed
 
+  val objectiveFunctionClassName: String =
+    {experimentData.baseConfig.getString("beam.calibration.objectiveFunction")}
+
+
   def runExperiment(numberOfIterations: Int): Unit = {
-
-    val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
-
-    val objectiveFunctionClassName =
-      s"${ObjectiveFunctionClassBuilder.packageName}${experimentData.baseConfig.atKey("beam.calibration.objectiveFunction")}"
-
-    val objectiveFunction: ObjectiveFunction = ObjectiveFunctionClassBuilder
-      .concreteClassesOfType[ObjectiveFunction]
-      .collect {
-        case clazz
-            if ObjectiveFunctionClassBuilder.isExtends(
-              clazz,
-              classOf[FileBasedObjectiveFunction]
-            ) =>
-          clazz.getConstructor(classOf[String]).newInstance(benchmarkData.toString)
-      }
-      .head
 
     logger.info(
       s"Starting BEAM SigOpt optimization for ${experimentData.experiment.getName} with ID ${experimentData.experiment.getId}\n"
@@ -48,14 +39,14 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
       val suggestion = experimentData.experiment.suggestions.create.call
       logger.info(logExpHelper(s"Received new suggestion (ID: ${suggestion.getId})."))
 
-      val modedConfig = createConfigBasedOnSuggestion(suggestion)
+      val modedConfig: Config = createConfigBasedOnSuggestion(suggestion)
       logger.info(
         logExpHelper(
           s"Created new config based on suggestion ${suggestion.getId}, starting BEAM..."
         )
       )
 
-      val ((matsimConfig, outputDir), execTimeInMillis) = timed {
+      val ((matsimConfig, _), execTimeInMillis) = timed {
         runBeamWithConfig(modedConfig.resolve())
       }
 
@@ -65,9 +56,13 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
         )
       )
 
+
+
+      val x = getRunValue(matsimConfig)
+
       val obs = new Observation.Builder()
         .suggestion(suggestion.getId)
-        .value(objectiveFunction.evaluateFromRun(outputDir))
+        .value(x)
         .build()
 
       logger.info(logExpHelper(s"Uploading new observation (value: ${obs.getValue})."))
@@ -80,6 +75,20 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 //    val bestAssignments: BestAssignments =
 //      experimentData.experiment.bestAssignments().fetch().call()
 
+  }
+
+  def getRunValue(runConfig: MatsimConfig): Double = {
+    if (objectiveFunctionClassName.equals("CountsObjectiveFunction")) {
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+       .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt"))
+      CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
+    }
+      else{
+      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+        val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
+        .evaluateFromRun(outpath.toAbsolutePath.toString)
+      }
   }
 
   def createConfigBasedOnSuggestion(
@@ -97,8 +106,7 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
     JavaConverters
       .iterableAsScalaIterable(assignments.entrySet())
       .seq
-      .map { e =>
-        e.getKey -> e.getValue
+      .map { e => e.getKey -> e.getValue
       }
       .toMap
 
@@ -106,10 +114,6 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 
     val runDirectory = experimentData.projectRoot.relativize(
       Paths.get(experimentBaseDir.toString, "experiments", experimentName, "suggestions")
-    )
-
-    val beamConfPath = experimentData.projectRoot.relativize(
-      Paths.get(runDirectory.toString, "beam.conf").toAbsolutePath
     )
 
     val beamOutputDir: Path = experimentData.projectRoot.relativize(

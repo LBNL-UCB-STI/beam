@@ -46,11 +46,11 @@ object RunCalibration extends App with BeamHelper {
   private implicit val experimentData: SigoptExperimentData =
     SigoptExperimentData(experimentLoc, benchmarkLoc, experimentId, development = false)
 
-  val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers+1)).toInt
+  val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers + 1)).toInt
 
   if (experimentData.isParallel && experimentData.isMaster) {
     import sys.process._
-    val gradlewEnding = if(SystemUtils.IS_OS_WINDOWS){".bat"}else{".sh"}
+    val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
 
     (1 to experimentData.numWorkers).foreach({ _ =>
       val execString:String =
@@ -60,7 +60,6 @@ object RunCalibration extends App with BeamHelper {
     })
   }
 
-  // Runs calibration
   val experimentRunner: ExperimentRunner = ExperimentRunner()
   experimentRunner.runExperiment(numIters)
 

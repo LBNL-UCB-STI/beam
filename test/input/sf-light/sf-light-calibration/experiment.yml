@@ -3,9 +3,9 @@
 # Header
 
 header:
-    title: SF-Light-Calibration-5k
+    title: SF-Light-Calibration-0.5k
     author: BEAM Developers
-    beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
+    beamTemplateConfPath: test/input/sf-light/sf-light-1k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
     params:
