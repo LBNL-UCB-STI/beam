@@ -1,46 +1,26 @@
 package beam.sim
 
-import collection.JavaConverters._
 import java.awt.Color
 import java.lang.Double
-import java.util
-import java.util.{Collections, Random}
+import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  Props,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{
-  ParkingInquiry,
-  ParkingInquiryResponse,
-  ParkingStockAttributes
-}
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
@@ -58,6 +38,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
@@ -250,14 +231,8 @@ class BeamMobsim @Inject()(
           )
         }
 
-        // TODO: refactor following 5 lines!
-        val populationList: util.LinkedList[Person] = new util.LinkedList()
-        populationList.addAll(scenario.getPopulation.getPersons.values())
-        Collections.shuffle(populationList, rand)
-        val scalaPopulationList = asScalaBuffer(populationList)
-
-        scalaPopulationList.take(numRideHailAgents.toInt).foreach {
-          person =>
+        val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
+        persons.view.take(numRideHailAgents.toInt).foreach { person =>
             val personInitialLocation: Coord =
               person.getSelectedPlan.getPlanElements
                 .iterator()
