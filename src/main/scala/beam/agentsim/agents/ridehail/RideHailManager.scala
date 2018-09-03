@@ -12,7 +12,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.rideHail.{MoveOutOfServiceVehicleToDepotParking, OutOfServiceVehicleManager}
+import beam.agentsim.agents.ridehail.{MoveOutOfServiceVehicleToDepotParking, OutOfServiceVehicleManager}
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
@@ -521,15 +521,18 @@ class RideHailManager(
           triggersToSchedule,
           vehicleId
         ) =>
-
       if (pendingAgentsSentToPark.contains(vehicleId)) {
-        log.debug("modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck)
+        log.debug(
+          "modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck
+        )
         outOfServiceVehicleManager.handleModifyPassengerScheduleAck(vehicleId, triggersToSchedule)
       } else {
 
         requestIdOpt match {
           case None =>
-            log.debug("modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager: " + modifyPassengerScheduleAck)
+            log.debug(
+              "modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager: " + modifyPassengerScheduleAck
+            )
             modifyPassengerScheduleManager
               .modifyPassengerScheduleAckReceivedForRepositioning(
                 triggersToSchedule
@@ -672,20 +675,21 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      // TODO: send following to a new case, which handles it
-      // -> code for sending message could be prepared in modifyPassengerScheduleManager
-      // e.g. create case class
-      log.debug(
-        "RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: {}",
-        vehicleId
-      )
-      modifyPassengerScheduleManager.repositionVehicle(
-        passengerSchedule,
-        tick,
-        vehicleId,
-        rideHailAgent
-      )
-    //repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
+      if (getIdleVehicles.contains(vehicleId)) {
+        log.debug(
+          "RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: {}",
+          vehicleId
+        )
+        modifyPassengerScheduleManager.repositionVehicle(
+          passengerSchedule,
+          tick,
+          vehicleId,
+          rideHailAgent
+        )
+      } else {
+        modifyPassengerScheduleManager
+          .modifyPassengerScheduleAckReceivedForRepositioning(Vector())
+      }
 
     case InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
