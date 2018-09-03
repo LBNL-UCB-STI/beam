@@ -16,7 +16,7 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
     super.beforeAll()
     Sigopt.clientToken = Option { System.getenv("SIGOPT_DEV_API_TOKEN") }.getOrElse(
       throw new APIConnectionError(
-        "Correct developer client token must be present in environment as SIGOPT_DEV_API Token"
+        "Correct developer client token must be present in environment as SIGOPT_DEV_API Token "
       )
     )
   }
