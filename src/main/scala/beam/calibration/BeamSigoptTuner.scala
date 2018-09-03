@@ -2,6 +2,7 @@ package beam.calibration
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
+
 import Bounded._
 import beam.utils.OptionalUtils.JavaOptionals._
 import beam.experiment._
@@ -10,10 +11,11 @@ import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
 import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.collection.JavaConverters
 import scala.util.Try
-
 import beam.calibration.BeamSigoptTuner._
+import com.typesafe.scalalogging.LazyLogging
 
 case class SigoptExperimentData(
   experimentDef: ExperimentDef,
@@ -21,7 +23,7 @@ case class SigoptExperimentData(
   benchmarkFileLoc: String,
   experimentId: String,
   development: Boolean = false
-) {
+) extends LazyLogging {
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -42,7 +44,18 @@ case class SigoptExperimentData(
   val isMaster: Boolean = experimentId == "None"
 
   val experiment: Experiment =
-    fetchExperiment(experimentId).getOrElse(createExperiment(experimentDef))
+    fetchExperiment(experimentId) match {
+      case Some(experiment) => {
+        logger.info(s"Retrieved the existing experiment with experiement id $experimentId")
+        experiment
+      }
+      case None => {
+        val experiment: Experiment = createExperiment(experimentDef)
+        logger.info("New Experiment created with experimentId [" + e.getId + "]")
+        System.exit(0)
+        experiment
+      }
+    }
 
 }
 
