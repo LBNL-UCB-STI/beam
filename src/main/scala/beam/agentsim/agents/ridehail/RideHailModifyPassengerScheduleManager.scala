@@ -253,7 +253,12 @@ class RideHailModifyPassengerScheduleManager(
         log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
       }
       resourcesNotCheckedIn_onlyForDebugging.foreach { x =>
-        log.debug("resource not checked in: {}-> getWithVehicleIds({}): {}",  x.toString, getWithVehicleIds(x).size, getWithVehicleIds(x))
+        log.debug(
+          "resource not checked in: {}-> getWithVehicleIds({}): {}",
+          x.toString,
+          getWithVehicleIds(x).size,
+          getWithVehicleIds(x)
+        )
       }
       interruptIdToModifyPassengerScheduleStatus.foreach { x =>
         log.debug("interruptId: {} -> {}", x._1, x._2)
@@ -263,7 +268,11 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
-    log.debug("RepositioningTimeout({}) - START repositioning waive - triggerId({})", tick, triggerId)
+    log.debug(
+      "RepositioningTimeout({}) - START repositioning waive - triggerId({})",
+      tick,
+      triggerId
+    )
     printState()
     assert(
       (vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2
@@ -281,8 +290,10 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
-    log.debug("sending ACK to scheduler for next repositionTimeout ({})",
-      nextCompleteNoticeRideHailAllocationTimeout.id)
+    log.debug(
+      "sending ACK to scheduler for next repositionTimeout ({})",
+      nextCompleteNoticeRideHailAllocationTimeout.id
+    )
 
     val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.newTriggers
       .filter(x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout])
