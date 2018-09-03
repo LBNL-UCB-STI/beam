@@ -521,19 +521,21 @@ class RideHailManager(
           triggersToSchedule,
           vehicleId
         ) =>
-      log.debug("modifyPassengerScheduleAck received: " + modifyPassengerScheduleAck)
 
       if (pendingAgentsSentToPark.contains(vehicleId)) {
+        log.debug("modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck)
         outOfServiceVehicleManager.handleModifyPassengerScheduleAck(vehicleId, triggersToSchedule)
       } else {
 
         requestIdOpt match {
           case None =>
+            log.debug("modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager: " + modifyPassengerScheduleAck)
             modifyPassengerScheduleManager
               .modifyPassengerScheduleAckReceivedForRepositioning(
                 triggersToSchedule
               )
           case Some(requestId) =>
+            log.debug("modifyPassengerScheduleAck received, completing reservation: " + modifyPassengerScheduleAck)
             completeReservation(requestId, triggersToSchedule)
         }
       }
