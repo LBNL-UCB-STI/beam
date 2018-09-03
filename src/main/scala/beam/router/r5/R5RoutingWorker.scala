@@ -633,16 +633,24 @@ class R5RoutingWorker(workerParams: WorkerParameters)
               ),
             theLinkIds.length - 1
           )
-          val indexFromBeg = theLinkIds.length - indexFromEnd
-          val firstLeg = updateLegWithCurrentTravelTime(
-            leg.updateLinks(theLinkIds.take(indexFromBeg))
-          )
-          val secondLeg = updateLegWithCurrentTravelTime(
-            leg
-              .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
-              .copy(startTime = firstLeg.startTime + firstLeg.duration)
-          )
-          Vector(firstLeg, secondLeg)
+          try {
+            val indexFromBeg = theLinkIds.length - indexFromEnd
+            val firstLeg = updateLegWithCurrentTravelTime(
+              leg.updateLinks(theLinkIds.take(indexFromBeg))
+            )
+            val secondLeg = updateLegWithCurrentTravelTime(
+              leg
+                .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
+                .copy(startTime = firstLeg.startTime + firstLeg.duration)
+            )
+            Vector(firstLeg, secondLeg)
+          } catch {
+            case x => {
+              log.error(s"Split leg for parking - $theLinkIds - $indexFromEnd - $indexFromBeg")
+              log.error(s"More info - ${firstLeg.startTime} - ${firstLeg.duration}")
+              throw x
+            }
+          }
         }
       }
 
