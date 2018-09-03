@@ -624,7 +624,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
           )
           Vector(firstLeg, secondLeg)
         } else {
-          val indexFromEnd = Math.min('
+          val indexFromEnd = Math.min(
           Math.max(
             theLinkIds.reverse
               .map(lengthOfLink(_))
