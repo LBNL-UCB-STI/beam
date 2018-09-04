@@ -1,17 +1,14 @@
 package beam.calibration.impl.example
-import java.nio.file.Paths
-
 import scala.io.Source
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
+import beam.calibration.api.ObjectiveFunction
 import beam.utils.FileUtils.using
 
 object CountsObjectiveFunction extends ObjectiveFunction {
 
   override def evaluateFromRun(runDataPath: String): Double = {
     val counts = getStatsFromFile(runDataPath)
-    counts.map { case (_, sCd) => sCd.map { _.normalizedError }.sum / sCd.size }.sum / counts.size
+    -(counts.map { case (_, sCd) => sCd.map { _.normalizedError }.sum / sCd.size }.sum / counts.size)
   }
 
   def getStatsFromFile(fileLoc: String): Map[String, Seq[CountData]] = {

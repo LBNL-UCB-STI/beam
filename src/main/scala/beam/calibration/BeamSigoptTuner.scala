@@ -47,6 +47,9 @@ case class SigoptExperimentData(
     fetchExperiment(experimentId) match {
       case Some(foundExperiment) =>
         logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
+        if(isParallel){
+          Experiment.update(foundExperiment.getId).data(s"{\"parallel_bandwidth\":$numWorkers}").call()
+        }
         foundExperiment
       case None =>
         val createdExperiment: Experiment = createExperiment(experimentDef)
@@ -120,14 +123,9 @@ object BeamSigoptTuner {
     val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
-    Experiment.create
-      .data(
-        new Experiment.Builder()
-          .name(experimentId)
-          .parameters(parameters)
-          .build
-      )
-      .call
+    val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
+    val expCall = Experiment.create.data(experiment).addPathComponent("parallel_bandwidth",experimentDef.header.numWorkers)
+    expCall.call()
   }
 
   def loadExperimentDef(experimentFileLoc: File): ExperimentDef = {
