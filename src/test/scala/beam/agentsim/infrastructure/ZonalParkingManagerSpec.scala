@@ -55,7 +55,7 @@ class ZonalParkingManagerSpec
   describe(
     "Depot parking in ZonalParkingManager should return parking stalls according to reservedFor field"
   ) {
-    it("should return only rideHailManager stalls when all parking are reservedFor RideHailManager") { //none parking stalls if all parking are reserved for RideHailManager and inquiry reserved field is Any
+    ignore("should return only rideHailManager stalls when all parking are reservedFor RideHailManager") { //none parking stalls if all parking are reserved for RideHailManager and inquiry reserved field is Any
 
       val config = BeamConfig(
         system.settings.config.withValue(
@@ -83,7 +83,7 @@ class ZonalParkingManagerSpec
       }
     }
 
-    it("should return some stalls when all parking are reservedFor Any") {
+    ignore("should return some stalls when all parking are reservedFor Any") {
 
       val config = BeamConfig(
         system.settings.config.withValue(
