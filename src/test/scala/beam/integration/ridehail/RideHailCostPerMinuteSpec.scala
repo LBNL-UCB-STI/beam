@@ -24,7 +24,7 @@ class RideHailCostPerMinuteSpec
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+                RideHailTestHelper.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
               .withValue(

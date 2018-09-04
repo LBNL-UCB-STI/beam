@@ -39,4 +39,9 @@ object RideHailTestHelper {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     matsimConfig
   }
+
+  val KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS =
+    "beam.agentsim.agents.modalBehaviors.modeChoiceClass"
+
+  val KEY_DEFAULT_COST_PER_MILE = "beam.agentsim.agents.rideHail.defaultCostPerMile"
 }
