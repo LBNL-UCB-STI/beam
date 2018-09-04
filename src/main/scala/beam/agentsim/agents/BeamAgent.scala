@@ -20,7 +20,7 @@ object BeamAgent {
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason)
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
 
 }
 
@@ -48,7 +48,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       }
       log.error("State: {} Event: {}", currentState, event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
   }
 
   def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {

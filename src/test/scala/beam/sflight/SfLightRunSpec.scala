@@ -84,8 +84,8 @@ class SfLightRunSpec
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
       val conf = baseConf
-        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("verbose"))
-        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("yes"))
+        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
+        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))
         .resolve()
       val (_, output) = runBeamWithConfig(conf)
 

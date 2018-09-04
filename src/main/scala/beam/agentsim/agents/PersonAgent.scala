@@ -477,7 +477,7 @@ class PersonAgent(
               )
               None
             case NewDriverAlreadyControllingVehicle =>
-              log.warning("I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",vehicle.id, id)
+              log.debug("I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",vehicle.id, id)
               Some(currentVehicle)
             case BecomeDriverOfVehicleSuccess =>
               eventsManager.processEvent(
