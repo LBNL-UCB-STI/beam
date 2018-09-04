@@ -21,6 +21,17 @@ import org.apache.commons.lang.SystemUtils
   */
 object RunCalibration extends App with BeamHelper {
 
+  // requirement:
+  // - we need local run
+  // - we need to deploy runs
+  // - we need to be able to create new experiment id
+  // - we need to pass existing experiment id to local and remote runs we start
+  // - allow to specify the suggestionId for a run
+
+  // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token)
+
+  // - provide a objective function with is a combination of modes and counts
+
   // Private Constants //
   private val EXPERIMENTS_TAG = "experiments"
   private val BENCHMARK_EXPERIMENTS_TAG = "benchmark"
@@ -53,7 +64,7 @@ object RunCalibration extends App with BeamHelper {
     val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
 
     (1 to experimentData.numWorkers).foreach({ _ =>
-      val execString:String =
+      val execString: String =
         s"""./gradlew$gradlewEnding :deploy -PrunName=${experimentData.experimentDef.header.title} -PinstanceType=t2.large -PmaxRAM=128g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode']""""
       println(execString)
       execString.!
