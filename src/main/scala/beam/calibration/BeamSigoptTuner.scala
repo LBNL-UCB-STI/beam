@@ -48,7 +48,7 @@ case class SigoptExperimentData(
       case Some(foundExperiment) =>
         logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
         if(isParallel){
-          Experiment.update(foundExperiment.getId).data(s"{\"parallel_bandwidth\":$numWorkers}").call()
+          Experiment.update(foundExperiment.getId).data(s"""{"parallel_bandwidth":$numWorkers}""").call()
         }
         foundExperiment
       case None =>
