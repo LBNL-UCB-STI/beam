@@ -76,6 +76,7 @@ class BeamRouter(
         ),
         Nil
       )
+      
       routerWorker.forward(msg)
     case other =>
       routerWorker.forward(other)
