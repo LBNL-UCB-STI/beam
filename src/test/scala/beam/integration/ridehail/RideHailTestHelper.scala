@@ -1,6 +1,7 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
+import beam.integration.TestConstants
 import beam.sim.config.MatSimBeamConfigBuilder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
@@ -18,7 +19,7 @@ object RideHailTestHelper {
         )
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+        TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
         ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
       )
       .withValue(
@@ -39,9 +40,6 @@ object RideHailTestHelper {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     matsimConfig
   }
-
-  val KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS =
-    "beam.agentsim.agents.modalBehaviors.modeChoiceClass"
 
   val KEY_DEFAULT_COST_PER_MILE = "beam.agentsim.agents.rideHail.defaultCostPerMile"
 

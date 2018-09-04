@@ -26,7 +26,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
     "run to completion" taggedAs (Periodic, ExcludeRegular) in {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
         )
         .withValue(

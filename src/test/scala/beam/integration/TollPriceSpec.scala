@@ -18,7 +18,7 @@ class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with Inte
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
                 ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
               )
               .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(tc))

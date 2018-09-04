@@ -1,6 +1,6 @@
 package beam.integration.ridehail
 
-import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConstants}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
@@ -14,7 +14,7 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
         new StartWithCustomConfig(
           baseConfig
             .withValue(
-              RideHailTestHelper.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
               ConfigValueFactory.fromAnyRef(RideHailTestHelper.AGENT_MODE_CHOICE_MULTINOMIAL_LOGIC)
             )
             .withValue(
