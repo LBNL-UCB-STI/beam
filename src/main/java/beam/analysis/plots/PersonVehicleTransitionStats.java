@@ -15,6 +15,8 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.io.UncheckedIOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
@@ -34,11 +36,16 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private static final String fileName = "tripHistogram";
     private final int binSize = 300;
     private final int nofBins = 30 * 3600 / binSize + 1;
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
 
     @Override
     public void processStats(Event event) {
-        processPersonVehicleTransition(event);
+        try {
+            processPersonVehicleTransition(event);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     @Override
@@ -50,13 +57,17 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
-        for (String mode : onRoutes.keySet()) {
-            if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
-                continue;
-            }
+    public void createGraph(IterationEndsEvent event) throws IOException {
+        try {
+            for (String mode : onRoutes.keySet()) {
+                if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
+                    continue;
+                }
 
-            writeGraphic(event.getIteration(), mode);
+                writeGraphic(event.getIteration(), mode);
+            }
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
         }
     }
 
@@ -67,7 +78,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     }
 
 
-    private void processPersonVehicleTransition(Event event) {
+    private void processPersonVehicleTransition(Event event) throws Exception {
         int index = getBinIndex(event.getTime());
         if (event.getEventType() == PersonEntersVehicleEvent.EVENT_TYPE) {
 
@@ -168,7 +179,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     }
 
-    JFreeChart getGraphic(String mode, int iteration) {
+    JFreeChart getGraphic(String mode, int iteration) throws IOException {
 
         final XYSeriesCollection xyData = new XYSeriesCollection();
         final XYSeries enterSeries = new XYSeries("Enter", false, true);
@@ -235,7 +246,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         return chart;
     }
 
-    public void writeGraphic(Integer iteration, String mode) {
+    public void writeGraphic(Integer iteration, String mode) throws IOException {
         try {
 
             String filename = fileName + "_" + mode + ".png";

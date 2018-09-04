@@ -14,6 +14,8 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -129,6 +131,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private int timeBinSize = 3600;
     private static int numberOfTimeBins = 30;
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                 BeamConfig beamConfig){
@@ -156,61 +159,69 @@ public class RideHailWaitingStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
 
-        Map<String, String> eventAttributes = event.getAttributes();
-        if (event instanceof ModeChoiceEvent) {
-            String mode = eventAttributes.get("mode");
-            if (mode.equalsIgnoreCase("ride_hail")) {
+        try {
+            Map<String, String> eventAttributes = event.getAttributes();
+            if (event instanceof ModeChoiceEvent) {
+                String mode = eventAttributes.get("mode");
+                if (mode.equalsIgnoreCase("ride_hail")) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-                Id<Person> personId = modeChoiceEvent.getPersonId();
-                rideHailWaiting.put(personId.toString(), event);
+                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                    Id<Person> personId = modeChoiceEvent.getPersonId();
+                    rideHailWaiting.put(personId.toString(), event);
+                }
+            } else if (event instanceof PersonEntersVehicleEvent) {
+
+                PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
+                Id<Person> personId = personEntersVehicleEvent.getPersonId();
+                String _personId = personId.toString();
+
+                if (rideHailWaiting.containsKey(personId.toString())) {
+
+                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
+                    double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
+                    processRideHailWaitingTimes(modeChoiceEvent, difference);
+
+                    // Building the RideHailWaitingIndividualStat List
+                    String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
+                    String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+
+                    RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
+                    rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
+                    rideHailWaitingIndividualStat.personId = __personId;
+                    rideHailWaitingIndividualStat.vehicleId = __vehicleId;
+                    rideHailWaitingIndividualStat.waitingTime = difference;
+                    rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
+
+
+                    // Remove the personId from the list of ModeChoiceEvent
+                    rideHailWaiting.remove(_personId);
+                }
             }
-        } else if (event instanceof PersonEntersVehicleEvent) {
-
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
-            Id<Person> personId = personEntersVehicleEvent.getPersonId();
-            String _personId = personId.toString();
-
-            if (rideHailWaiting.containsKey(personId.toString())) {
-
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
-                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
-                processRideHailWaitingTimes(modeChoiceEvent, difference);
-
-                // Building the RideHailWaitingIndividualStat List
-                String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
-                String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-
-                RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
-                rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
-                rideHailWaitingIndividualStat.personId = __personId;
-                rideHailWaitingIndividualStat.vehicleId = __vehicleId;
-                rideHailWaitingIndividualStat.waitingTime = difference;
-                rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
-
-
-                // Remove the personId from the list of ModeChoiceEvent
-                rideHailWaiting.remove(_personId);
-            }
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
         }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
-        if (model == null)
-            model = new RideHailDistanceRowModel();
-        model.setRideHailWaitingTimeSum(this.waitTimeSum);
-        model.setTotalRideHailCount(this.rideHailCount);
-        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-        List<Double> listOfBounds = getCategories();
-        Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
-        if (modesFrequencyDataset != null)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        try {
+            RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+            if (model == null)
+                model = new RideHailDistanceRowModel();
+            model.setRideHailWaitingTimeSum(this.waitTimeSum);
+            model.setTotalRideHailCount(this.rideHailCount);
+            GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+            List<Double> listOfBounds = getCategories();
+            Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
+            if (modesFrequencyDataset != null)
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
-        writeToCSV(event.getIteration(), data.getFirst());
-        writeRideHailWaitingIndividualStatCSV(event.getIteration());
+            writeToCSV(event.getIteration(), data.getFirst());
+            writeRideHailWaitingIndividualStatCSV(event.getIteration());
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
@@ -236,7 +247,7 @@ public class RideHailWaitingStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " ,e);
         }
     }
 
@@ -245,7 +256,7 @@ public class RideHailWaitingStats implements IGraphStats {
         throw new IOException("Not implemented");
     }
 
-    private void processRideHailWaitingTimes(Event event, double waitingTime) {
+    private void processRideHailWaitingTimes(Event event, double waitingTime) throws Exception {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
         //waitingTime = waitingTime/60;
@@ -264,7 +275,7 @@ public class RideHailWaitingStats implements IGraphStats {
         hoursTimesMap.put(hour, timeList);
     }
 
-    private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
+    private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) throws Exception{
         CategoryDataset categoryDataset = null;
         if (dataset != null)
             categoryDataset = DatasetUtilities.createCategoryDataset("Time ", "", dataset);
@@ -314,7 +325,7 @@ public class RideHailWaitingStats implements IGraphStats {
             out.flush();
             out.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " , e);
         } finally {
             if (out != null) {
                 out.close();

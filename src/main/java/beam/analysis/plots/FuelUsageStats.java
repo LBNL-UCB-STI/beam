@@ -11,6 +11,9 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scalaz.Alpha;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -23,6 +26,7 @@ public class FuelUsageStats implements IGraphStats {
     private static final String fileName = "energy_use.png";
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
@@ -62,19 +66,28 @@ public class FuelUsageStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        processFuelUsage(event);
+        try {
+            processFuelUsage(event);
+        }catch (Exception e) {
+            log.error("Exception occurs due to " , e);
+        }
+
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
-        createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
-        createFuelCSV(hourModeFuelage, event.getIteration());
+        try {
+            CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
+            createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+            createFuelCSV(hourModeFuelage, event.getIteration());
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
+    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
 
     }
 
@@ -84,7 +97,7 @@ public class FuelUsageStats implements IGraphStats {
         modesFuel.clear();
     }
 
-    private CategoryDataset buildModesFuelageGraphDataset() {
+    private CategoryDataset buildModesFuelageGraphDataset() throws Exception{
         double[][] dataset = compute();
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
@@ -93,7 +106,7 @@ public class FuelUsageStats implements IGraphStats {
         return statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
     }
 
-    private void processFuelUsage(Event event) {
+    private void processFuelUsage(Event event) throws Exception{
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, String> eventAttributes = event.getAttributes();
         String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
@@ -126,7 +139,7 @@ public class FuelUsageStats implements IGraphStats {
                 hourModeFuelage.put(hour, hourData);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Exception occurs due to " , e);
         }
     }
 
@@ -192,7 +205,7 @@ public class FuelUsageStats implements IGraphStats {
             csvWriter.closeFile();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " , e);
         }
     }
 }
