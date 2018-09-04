@@ -56,7 +56,6 @@ class ChangeModeForTour(
       )
     )
   )
-
   private val drivingCostConfig =
     beamServices.beamConfig.beam.agentsim.agents.drivingCost
   private val rideHailConfig =

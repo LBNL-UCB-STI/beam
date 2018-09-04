@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
+import akka.event.LoggingAdapter
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -26,7 +27,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 import scala.util.Try
 
@@ -88,88 +89,94 @@ class Population(
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
-    // Have to wait for households to create people so they can send their first trigger to the scheduler
-    val houseHoldsInitialized =
-      Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
-        //TODO a good example where projection should accompany the data
-        if (scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString, "homecoordx") == null) {
-          log.error(
-            s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+    try {
+      // Have to wait for households to create people so they can send their first trigger to the scheduler
+      val houseHoldsInitialized =
+        Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
+          //TODO a good example where projection should accompany the data
+          if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString, "homecoordx") == null) {
+            log.error(
+              s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+            )
+          }
+          if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+            log.error(
+              s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
+            )
+          }
+          val homeCoord = new Coord(
+            scenario.getHouseholds.getHouseholdAttributes
+              .getAttribute(household.getId.toString, "homecoordx")
+              .asInstanceOf[Double],
+            scenario.getHouseholds.getHouseholdAttributes
+              .getAttribute(household.getId.toString, "homecoordy")
+              .asInstanceOf[Double]
           )
-        }
-        if (scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
-          log.error(
-            s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
+
+          val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+            Population.getVehiclesFromHousehold(household, beamServices)
+
+          houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
+
+          val householdActor = context.actorOf(
+            HouseholdActor.props(
+              beamServices,
+              beamServices.modeChoiceCalculatorFactory,
+              scheduler,
+              transportNetwork,
+              router,
+              rideHailManager,
+              parkingManager,
+              eventsManager,
+              scenario.getPopulation,
+              household.getId,
+              household,
+              houseHoldVehicles,
+              homeCoord
+            ),
+            household.getId.toString
           )
-        }
-        val homeCoord = new Coord(
-          scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx")
-            .asInstanceOf[Double],
-          scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordy")
-            .asInstanceOf[Double]
-        )
 
-        var houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-          Population.getVehiclesFromHousehold(household, beamServices)
+          houseHoldVehicles.values.foreach { veh =>
+            veh.manager = Some(householdActor)
+          }
 
-        houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
+          houseHoldVehicles.foreach {
+            vehicle =>
+              val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
+                parkingManager ! ParkingInquiry(
+                  Id.createPersonId("atHome"),
+                  homeCoord,
+                  homeCoord,
+                  "home",
+                  0,
+                  NoNeed,
+                  0,
+                  0
+                ) //TODO personSelectedPlan.getType is null
 
-        val householdActor = context.actorOf(
-          HouseholdActor.props(
-            beamServices,
-            beamServices.modeChoiceCalculatorFactory,
-            scheduler,
-            transportNetwork,
-            router,
-            rideHailManager,
-            parkingManager,
-            eventsManager,
-            scenario.getPopulation,
-            household.getId,
-            household,
-            houseHoldVehicles,
-            homeCoord
-          ),
-          household.getId.toString
-        )
+                def receive = {
+                  case ParkingInquiryResponse(stall) =>
+                    vehicle._2.useParkingStall(stall)
+                    context.stop(self)
+                  //TODO deal with timeouts and errors
+                }
+              }))
+              initParkingVeh :+= initParkingVehicle
+          }
 
-        houseHoldVehicles.values.foreach { veh =>
-          veh.manager = Some(householdActor)
-        }
-
-        houseHoldVehicles.foreach {
-          vehicle =>
-            val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
-              parkingManager ! ParkingInquiry(
-                Id.createPersonId("atHome"),
-                homeCoord,
-                homeCoord,
-                "home",
-                0,
-                NoNeed,
-                0,
-                0
-              ) //TODO personSelectedPlan.getType is null
-
-              def receive = {
-                case ParkingInquiryResponse(stall) =>
-                  vehicle._2.useParkingStall(stall)
-                  context.stop(self)
-                //TODO deal with timeouts and errors
-              }
-            }))
-            initParkingVeh :+= initParkingVehicle
-        }
-
-        context.watch(householdActor)
-        householdActor ? Identify(0)
-      })
-    Await.result(houseHoldsInitialized, timeout.duration)
-    log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
+          context.watch(householdActor)
+          householdActor ? Identify(0)
+        })
+      Await.result(houseHoldsInitialized, timeout.duration)
+      log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
+    } catch {
+      case e: Exception =>
+        log.error(e, "Error initializing houseHolds")
+        throw e
+    }
   }
 
 }
@@ -194,6 +201,7 @@ object Population {
       .map({ id =>
         makeHouseholdVehicle(beamServices.privateVehicles, id) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
+          case Left(e) => throw e
         }
       })
       .toMap

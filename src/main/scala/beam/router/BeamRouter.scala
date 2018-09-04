@@ -146,7 +146,7 @@ class BeamRouter(
           // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
           //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
 
-          val beamVehicleId = BeamVehicle.createId(transitVehId, Some(mode.toString))
+          val beamVehicleId = BeamVehicle.createId(transitVehId)//, Some(mode.toString)
 
           val vehicle: BeamVehicle = new BeamVehicle(
             beamVehicleId,

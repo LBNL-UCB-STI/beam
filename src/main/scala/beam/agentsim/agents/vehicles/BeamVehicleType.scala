@@ -29,6 +29,10 @@ case class BeamVehicleType(val vehicleTypeId: String,
                            rechargeLevel3RateLimitInWatts: Double,
                            vehicleCategory: String){
 
+  def getCost(distance: Double): Double = {
+    primaryFuelType.priceInDollarsPerMJoule * primaryFuelConsumptionInJoule * distance
+  }
+
 //  /**
 //    * Assign a new id based on the personAgent
 //    *
@@ -79,13 +83,13 @@ object BeamVehicleType {
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "BIKE-TYPE-DEFAULT",
-    0,0,0,null,0,0,null,0,0,null,0,null,0,0,"BIKE"
+    0,0,0,null,0,0,null,0,0,null,0,null,0,0,"bicycle"
   )
 
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
       "BODY-TYPE-DEFAULT",
-      0,0,0,null,0,0,null,0,0,null,0,null,0,0,"BODY"
+      0,0,0,null,0,0,null,0,0,null,0,null,0,0,"Human"
     )
 
   //TODO

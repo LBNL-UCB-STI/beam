@@ -122,10 +122,10 @@ object BeamServices {
 
   def readVehiclesFile(filePath: String,
                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicle], BeamVehicle] = {
-    val prefix = "private"
+//    val prefix = "private"
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
       val vehicleIdString = line.get("vehicleId")
-      val vehicleId = Id.create(prefix + vehicleIdString, classOf[BeamVehicle])
+      val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
       val vehicleTypeIdString = line.get("vehicleTypeId")
       val vehicleType = vehiclesTypeMap.get(Id.create(vehicleTypeIdString, classOf[BeamVehicleType])).get

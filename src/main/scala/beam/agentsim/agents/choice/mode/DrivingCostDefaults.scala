@@ -24,19 +24,15 @@ object DrivingCostDefaults {
           val vehicle =
             beamServices.vehicles(alt.legs.filter(_.beamLeg.mode == CAR).head.beamVehicleId)
 
-          val joulesPerMeter: Double = ???
-          val distance: Double = ???
-          val litersPerMeter: Double = ??? //TODO convert fuelCapacityInJoule to litersPerMeter ?
-//            if (vehicle == null || vehicle.getType == null || vehicle.getType.getEngineInformation == null) {
-//              drivingCostConfig.defaultLitersPerMeter
-//            } else {
-//              vehicle.getType.getEngineInformation.getGasConsumption
-//            }
-          val cost = alt.legs
+          val distance = alt.legs
             .map(_.beamLeg.travelPath.distanceInM)
-            .sum * litersPerMeter / LITERS_PER_GALLON * drivingCostConfig.defaultPricePerGallon // 3.78 liters per gallon and 3.115 $/gal in CA: http://www.californiagasprices.com/Prices_Nationally.aspx
+            .sum
 
-            //TODO come up with new formula: distance * joulesPerMeter / drivingCostConfig.dolarPerJoule
+          val cost = if(null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
+            (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+          } else {
+            0 //TODO
+          }
           BigDecimal(cost)
         case _ =>
           BigDecimal(0)

@@ -63,7 +63,7 @@ object BeamVehicleUtils {
       beamVehicles
         .get(id)
         .toRight(
-          new IllegalArgumentException("Invalid vehicle id")
+          new IllegalArgumentException(s"Invalid vehicle id $id")
         )
 //      Right(makeCar(beamVehicles, id))
     }
