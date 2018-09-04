@@ -167,7 +167,7 @@ object HouseholdActor {
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
           .map( id => vehicles(id) )
-          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")), //TODO will vehicle category contain car?
+          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
           .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("bike"))
@@ -217,9 +217,6 @@ object HouseholdActor {
       val personId = person.getId
 
       val bodyVehicleIdFromPerson = BeamVehicle.createId(personId, Some("body"))
-//      val matsimBodyVehicle =
-//        VehicleUtils.getFactory
-//          .createVehicle(bodyVehicleIdFromPerson, ??? /*HumanBodyVehicle.MatsimVehicleType*/) //FIXME
 
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
@@ -440,10 +437,6 @@ object HouseholdActor {
 
           // Should never reserve for person who doesn't have mode available to them
           val mode = BeamVehicleType.getMode(vehicles(vehicleId))
-//            vehicles(vehicleId).beamVehicleType match {
-//            case CarVehicle     => CAR
-//            case BicycleVehicle => BIKE
-//          }
 
           if (isModeAvailableForPerson(person, vehicleId, mode)) {
             _reservedForPerson += (memberId -> vehicleId)
@@ -458,11 +451,6 @@ object HouseholdActor {
       for { veh <- _vehicles } yield {
         //TODO following mode should match exhaustively
         val mode = BeamVehicleType.getMode(vehicles(veh))
-
-//          vehicles(veh).beamVehicleType match {
-//          case BicycleVehicle => BIKE
-//          case CarVehicle     => CAR
-//        }
 
         _vehicleToStreetVehicle +=
           (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))

@@ -12,14 +12,6 @@ object BeamVehicleUtils {
 
   def makeBicycle(id: Id[Vehicle]): BeamVehicle = {
     //FIXME: Every person gets a Bicycle (for now, 5/2018)
-//    new BeamVehicle(
-//      BicycleVehicle.powerTrainForBicycle,
-//      BicycleVehicle.createMatsimVehicle(id),
-//      None,
-//      BicycleVehicle,
-//      None,
-//      None
-//    )
 
     val bvt = BeamVehicleType.defaultBicycleBeamVehicleType
     val beamVehicleId = BeamVehicle.createId(id, Some("bike"))
@@ -35,22 +27,6 @@ object BeamVehicleUtils {
     )
   }
 
-  //TODO not used
-//  def makeCar(beamVehicles: Vehicles, id: Id[Vehicle]): BeamVehicle = {
-//    val matsimVehicle = JavaConverters.mapAsScalaMap(beamVehicles.getVehicles)(id)
-//
-//    val information = Option(matsimVehicle.getType.getEngineInformation)
-//
-//    val vehicleAttribute = Option(beamVehicles.getVehicleAttributes)
-//
-//    val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-//      information
-//        .map(_.getGasConsumption)
-//        .getOrElse(Powertrain.AverageMilesPerGallon)
-//    )
-//    new BeamVehicle(id, powerTrain, vehicleAttribute, BeamVehicleType.getCarVehicle(), None)
-//  }
-
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
                             beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
@@ -65,7 +41,6 @@ object BeamVehicleUtils {
         .toRight(
           new IllegalArgumentException(s"Invalid vehicle id $id")
         )
-//      Right(makeCar(beamVehicles, id))
     }
   }
 

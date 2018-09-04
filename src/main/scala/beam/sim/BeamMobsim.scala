@@ -291,7 +291,7 @@ class BeamMobsim @Inject()(
               val rideHailName = s"rideHailAgent-${person.getId}"
 
               val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
-//                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+              //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
               val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
               val ridehailBeamVehicleType = beamServices
@@ -302,20 +302,6 @@ class BeamMobsim @Inject()(
               val rideHailAgentPersonId: Id[RideHailAgent] =
                 Id.create(rideHailName, classOf[RideHailAgent])
 
-
-//              val rideHailVehicle: Vehicle =
-//                VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
-//              val information =
-//                Option(rideHailVehicle.getType.getEngineInformation)
-              //TODO how to get vehicle attributes now ?
-//              val vehicleAttribute =
-//                Option(scenario.getVehicles.getVehicleAttributes)
-//              val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-//                information
-//                  .map(_.getGasConsumption)
-//                  .getOrElse(Powertrain.AverageMilesPerGallon)
-//              )
-
               val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
                 .map(new Powertrain(_))
                 .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
@@ -323,11 +309,9 @@ class BeamMobsim @Inject()(
               val rideHailBeamVehicle = new BeamVehicle(
                 rideHailVehicleId,
                 powertrain,
-//                rideHailVehicle,
-                None, //TODO
+                None,
                 ridehailBeamVehicleType,
                 Some(1.0)
-//                Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules) //TODO
               )
               beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
               rideHailBeamVehicle.registerResource(rideHailManager)

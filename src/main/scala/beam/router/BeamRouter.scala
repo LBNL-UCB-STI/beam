@@ -120,31 +120,13 @@ class BeamRouter(
         Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[BeamVehicleType])
 
       val vehicleType = getVehicleType(vehicleTypeId, mode)
-//        if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
-//          transitVehicles.getVehicleTypes.get(vehicleTypeId)
-//        } else {
-//          log.debug(
-//            "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-//            vehicleTypeId.toString
-//          )
-//          transitVehicles.getVehicleTypes.get(
-//            Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType])
-//          )
-//        }
 
       mode match {
         case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
 
-//          val matSimTransitVehicle =
-//            VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
-//          matSimTransitVehicle.getType.setDescription(mode.value)
-
           val powertrain = Option(vehicleType.primaryFuelConsumptionInJoule)
               .map(new Powertrain(_))
               .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-          //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
-          // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-          //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
 
           val beamVehicleId = BeamVehicle.createId(transitVehId)//, Some(mode.toString)
 

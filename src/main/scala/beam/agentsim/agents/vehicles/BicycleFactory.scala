@@ -40,7 +40,6 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
 
     householdMembers.foreach { id: Id[Person] =>
 
-      //TODO will I need to update how to get bike vehicle ?
       val bicycleId: Id[BeamVehicle] = BeamVehicle.createId(id, Some("bike"))
       household.getVehicleIds.add(bicycleId)
 
