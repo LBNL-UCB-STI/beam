@@ -124,7 +124,7 @@ object BeamSigoptTuner {
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
     val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
-    val expCall = Experiment.create.data(experiment).addPathComponent("parallel_bandwidth",experimentDef.header.numWorkers)
+    val expCall = Experiment.create.data(experiment)
     expCall.call()
   }
 
