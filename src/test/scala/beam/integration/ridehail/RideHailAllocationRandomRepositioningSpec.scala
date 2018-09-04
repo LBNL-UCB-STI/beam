@@ -39,6 +39,7 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
         }
       }
     )
+
     val controller = injector.getInstance(classOf[BeamServices]).controler
     controller.run()
 
