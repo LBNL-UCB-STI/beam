@@ -3,9 +3,9 @@
 # Header
 
 header:
-    title: SF-Light-Calibration-0.5k
+    title: SF-Light-Calibration-5
     author: BEAM Developers
-    beamTemplateConfPath: test/input/sf-light/sf-light-1k.conf
+    beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
     params:
@@ -91,3 +91,13 @@ factors:
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -4.0
+
+  - title: countsFactor
+    levels:
+    - name: Low
+      params:
+        matsim.modules.counts.countsScaleFactor: 0.0
+    - name: High
+      params:
+        matsim.modules.counts.countsScaleFactor: 100.0
+
