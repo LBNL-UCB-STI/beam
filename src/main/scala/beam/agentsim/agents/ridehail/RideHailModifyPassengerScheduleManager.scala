@@ -56,7 +56,11 @@ class RideHailModifyPassengerScheduleManager(
     interruptIdToModifyPassengerScheduleStatus.get(interruptId)
   }
 
-  private def getWithVehicleIds(
+  def vehicleHasMoreThanOneOngoingRequests(vehicleId: Id[Vehicle]): Boolean = {
+    getWithVehicleIds(vehicleId).size > 1
+  }
+
+  def getWithVehicleIds(
     vehicleId: Id[Vehicle]
   ): mutable.ListBuffer[RideHailModifyPassengerScheduleStatus] = {
     if (!vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)) {
@@ -88,11 +92,18 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     resourcesNotCheckedIn_onlyForDebugging += passengerScheduleStatus.vehicleId
     passengerScheduleStatus.status = InterruptMessageStatus.INTERRUPT_SENT
-    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
+//    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     sendMessage(
       passengerScheduleStatus.rideHailAgent,
       Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick)
     )
+  }
+
+  private def printVehicleVariables(status: RideHailModifyPassengerScheduleStatus): Unit = {
+//    log.debug("vehicleId status - vehicleId(" + status.vehicleId + ")")
+//    log.debug("vehicleIdToModifyPassengerScheduleStatus: " + status.vehicleId + ")")
+    vehicleIdToModifyPassengerScheduleStatus.get(status.vehicleId)
+    val resourcesNotCheckedIn = mutable.Set[Id[Vehicle]]()
   }
 
   private def sendModifyPassengerScheduleMessage(
@@ -103,7 +114,7 @@ class RideHailModifyPassengerScheduleManager(
       if (stopDriving) {
         sendMessage(selected.rideHailAgent, StopDriving(selected.tick))
       }
-      log.debug("sendModifyPassengerScheduleMessage: " + selectedForModifyPassengerSchedule)
+//      log.debug("sendModifyPassengerScheduleMessage: " + selectedForModifyPassengerSchedule)
       resourcesNotCheckedIn_onlyForDebugging += selected.vehicleId
       sendMessage(selected.rideHailAgent, selected.modifyPassengerSchedule)
       sendMessage(selected.rideHailAgent, Resume())
@@ -113,7 +124,7 @@ class RideHailModifyPassengerScheduleManager(
 
   private def sendMessage(rideHailAgent: ActorRef, message: Any): Unit = {
     rideHailAgent.tell(message, rideHailManager)
-    log.debug("sendMessages:" + message.toString)
+//    log.debug("sendMessages:" + message.toString)
   }
 
   private def isInterruptWhileDriving(
@@ -129,17 +140,17 @@ class RideHailModifyPassengerScheduleManager(
     vehicleId: Id[Vehicle],
     tick: Double
   ): Unit = {
-    log.debug(
-      "RideHailModifyPassengerScheduleManager.handleInterrupt: " + interruptType.getSimpleName + " -> " + vehicleId + "; tick(" + tick + ");interruptedPassengerSchedule:" + interruptedPassengerSchedule
-    )
+//    log.debug(
+//      "RideHailModifyPassengerScheduleManager.handleInterrupt: " + interruptType.getSimpleName + " -> " + vehicleId + "; tick(" + tick + ");interruptedPassengerSchedule:" + interruptedPassengerSchedule
+//    )
     interruptIdToModifyPassengerScheduleStatus.get(interruptId) match {
       case Some(modifyPassengerScheduleStatus) =>
         assert(vehicleId == modifyPassengerScheduleStatus.vehicleId)
         assert(tick == modifyPassengerScheduleStatus.tick)
 
-        log.debug(
-          "RideHailModifyPassengerScheduleManager.handleInterrupt: " + modifyPassengerScheduleStatus.toString
-        )
+//        log.debug(
+//          "RideHailModifyPassengerScheduleManager.handleInterrupt: " + modifyPassengerScheduleStatus.toString
+//        )
         var reservationModifyPassengerScheduleStatus =
           mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
 
@@ -191,7 +202,7 @@ class RideHailModifyPassengerScheduleManager(
               sendMessage(modifyPassengerScheduleStatus.rideHailAgent, Resume())
             }
 
-            log.debug("removing due to overwrite by reserve:" + modifyPassengerScheduleStatus)
+//            log.debug("removing due to overwrite by reserve:" + modifyPassengerScheduleStatus)
           } else {
             // process reservation interrupt confirmation
             val reservationStatus = reservationModifyPassengerScheduleStatus.head
@@ -222,42 +233,44 @@ class RideHailModifyPassengerScheduleManager(
           "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId(" + interruptId + "),interruptType(" + interruptType + "),interruptedPassengerSchedule(" + interruptedPassengerSchedule + "),vehicleId(" + vehicleId + "),tick(" + tick + ")"
         )
         //log.debug(getWithVehicleIds(vehicleId).toString())
-        printState()
+//        printState()
         DebugLib.stopSystemAndReportInconsistency()
     }
   }
 
   def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {
-    log.debug(
-      "RideHailAllocationManagerTimeout.setNumberOfRepositioningsToProcess to: " + awaitAcks
-    )
+//    log.debug(
+//      "RideHailAllocationManagerTimeout.setNumberOfRepositioningsToProcess to: " + awaitAcks
+//    )
     numberOfOutStandingmodifyPassengerScheduleAckForRepositioning = awaitAcks
   }
 
   def printState(): Unit = {
-    log.debug("printState START")
-    vehicleIdToModifyPassengerScheduleStatus.foreach(
-      x => log.debug("vehicleIdModify:" + x._1 + " -> " + x._2)
-    )
-    resourcesNotCheckedIn_onlyForDebugging.foreach(
-      x =>
+    if (log.isDebugEnabled) {
+      log.debug("printState START")
+      vehicleIdToModifyPassengerScheduleStatus.foreach { x =>
+        log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
+      }
+      resourcesNotCheckedIn_onlyForDebugging.foreach { x =>
         log.debug(
-          "resource not checked in:" + x.toString + "-> getWithVehicleIds(" + getWithVehicleIds(x).size + "):" + getWithVehicleIds(
-            x
-          )
-      )
-    )
-    interruptIdToModifyPassengerScheduleStatus.foreach(
-      x => log.debug("interruptId:" + x._1 + " -> " + x._2)
-    )
-    log.debug("printState END")
+          "resource not checked in: {}-> getWithVehicleIds({}): {}",
+          x.toString,
+          getWithVehicleIds(x).size,
+          getWithVehicleIds(x)
+        )
+      }
+      interruptIdToModifyPassengerScheduleStatus.foreach { x =>
+        log.debug("interruptId: {} -> {}", x._1, x._2)
+      }
+      log.debug("printState END")
+    }
   }
 
   def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
-    log.debug(
-      "RepositioningTimeout(" + tick + ") - START repositioning waive - triggerId(" + triggerId + ")"
-    )
-    printState()
+//    log.debug(
+//      "RepositioningTimeout(" + tick + ") - START repositioning waive - triggerId(" + triggerId + ")"
+//    )
+////    printState()
     assert(
       (vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2
         .filter(x => x.size != 0))
@@ -275,7 +288,8 @@ class RideHailModifyPassengerScheduleManager(
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
     log.debug(
-      "sending ACK to scheduler for next repositionTimeout (" + nextCompleteNoticeRideHailAllocationTimeout.id + ")"
+      "sending ACK to scheduler for next repositionTimeout ({})",
+      nextCompleteNoticeRideHailAllocationTimeout.id
     )
 
     val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.newTriggers
@@ -294,7 +308,7 @@ class RideHailModifyPassengerScheduleManager(
     }
 
     scheduler ! nextCompleteNoticeRideHailAllocationTimeout
-    printState()
+//    printState()
   }
 
   var ignoreErrorPrint = true
@@ -315,7 +329,7 @@ class RideHailModifyPassengerScheduleManager(
       val vehicles = getWithVehicleIds(vehicleId)
       if (vehicles.size > 2 && ignoreErrorPrint) {
         log.error(
-          s"more rideHailVehicle interruptions in process than should be possible: $vehicleId -> further errors surpressed (debug later if this is still relevant)"
+          s"more rideHailVehicle interruptions in process than should be possible: $vehicleId -> further errors supressed (debug later if this is still relevant)"
         )
         ignoreErrorPrint = false
       }
@@ -457,12 +471,12 @@ class RideHailModifyPassengerScheduleManager(
       case Some(passengerSchedule) =>
         var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
         var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
-        log.debug(
-          "BEFORE checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
-          rideHailModifyPassengerScheduleStatusSet.size,
-          rideHailModifyPassengerScheduleStatusSet,
-          passengerSchedule
-        )
+//        log.debug(
+//          "BEFORE checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
+//          rideHailModifyPassengerScheduleStatusSet.size,
+//          rideHailModifyPassengerScheduleStatusSet,
+//          passengerSchedule
+//        )
         val listSizeAtStart = rideHailModifyPassengerScheduleStatusSet.size
 
         rideHailModifyPassengerScheduleStatusSet.foreach { status =>
@@ -526,15 +540,15 @@ class RideHailModifyPassengerScheduleManager(
           DebugLib.emptyFunctionForSettingBreakPoint()
         }
 
-        log.debug(
-          "AFTER checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
-          rideHailModifyPassengerScheduleStatusSet.size,
-          rideHailModifyPassengerScheduleStatusSet,
-          passengerSchedule
-        )
+//        log.debug(
+//          "AFTER checkin.removeWithVehicleId({}):{}, passengerSchedule: {}",
+//          rideHailModifyPassengerScheduleStatusSet.size,
+//          rideHailModifyPassengerScheduleStatusSet,
+//          passengerSchedule
+//        )
 
       case None =>
-        log.debug("checkin: {} with empty passenger schedule", vehicleId)
+//        log.debug("checkin: {} with empty passenger schedule", vehicleId)
     }
   }
 }

@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
-
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -15,13 +14,14 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, NONE, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -322,7 +322,7 @@ class PersonAgent(
     case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(ReservationResponse(_, Left(firstErrorResponse), _), data: BasePersonData) =>
-      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
+      logDebug(s"replanning because ${firstErrorResponse.errorCode}")
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick, triggerId)
@@ -330,7 +330,7 @@ class PersonAgent(
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(RideHailResponse(_, _, Some(error), _), data: BasePersonData) =>
-      logWarn(s"replanning because ${error.errorCode}")
+      logDebug(s"replanning because ${error.errorCode}")
       val (tick, triggerId) = releaseTickAndTriggerId()
       eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
       holdTickAndTriggerId(tick, triggerId)
@@ -416,7 +416,7 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(_, _, currentLeg :: theRestOfCurrentTrip, _, _, _, _, _, _)
         ) =>
-      log.debug(theRestOfCurrentTrip.toString())
+      log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(restOfCurrentTrip = theRestOfCurrentTrip)
   }
 
@@ -455,48 +455,58 @@ class PersonAgent(
 
       val (stateToGo, currentTick) =
         if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
+          log.debug("ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",legsToInclude)
+          if(legsToInclude.map(_.beamLeg.duration).sum==0){
+            val ii=0
+          }
           (ReleasingParkingSpot, _currentTick.get)
         } else {
           val (currentTick, _) = releaseTickAndTriggerId()
           (WaitingToDrive, currentTick)
         }
 
-      val theNewVehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-      if (theNewVehicle.driver.isDefined && self != theNewVehicle.driver.get) {
-        stop(
-          Failure(
-            s"person $id tried to drive vehicle ${theNewVehicle.id} but already occupied by driver ${theNewVehicle.driver.get}"
-          )
+      val currentVehicleForNextState =
+        if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+          vehicle.becomeDriver(self) match {
+            case DriverAlreadyAssigned(currentDriver) =>
+              log.error(
+                "I attempted to become driver of vehicle {} but driver {} already assigned.",
+                vehicle.id,
+                currentDriver
+              )
+              None
+            case NewDriverAlreadyControllingVehicle =>
+              log.debug("I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",vehicle.id, id)
+              Some(currentVehicle)
+            case BecomeDriverOfVehicleSuccess =>
+              eventsManager.processEvent(
+                new PersonEntersVehicleEvent(
+                  currentTick,
+                  Id.createPersonId(id),
+                  nextLeg.beamVehicleId
+                )
+              )
+              Some(nextLeg.beamVehicleId +: currentVehicle)
+          }
+        } else {
+          Some(currentVehicle)
+        }
+      if (currentVehicleForNextState.isDefined) {
+        val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+        if(legsToInclude.map(_.beamLeg.duration).sum==0){
+          val iii=0
+        }
+        goto(stateToGo) using data.copy(
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle = currentVehicleForNextState.get
         )
       } else {
-        //      goto(WaitingToDrive) using data.copy(
-        goto(stateToGo) using data.copy(
-          passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
-          currentLegPassengerScheduleIndex = 0,
-          currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            theNewVehicle
-              .becomeDriver(self)
-              .fold(
-                fa =>
-                  stop(
-                    Failure(
-                      "shouldn't be possible to execut this code but just in case this is becomeDriver failure"
-                    )
-                ),
-                fb => {
-                  eventsManager.processEvent(
-                    new PersonEntersVehicleEvent(
-                      currentTick,
-                      Id.createPersonId(id),
-                      nextLeg.beamVehicleId
-                    )
-                  )
-                }
-              )
-            nextLeg.beamVehicleId +: currentVehicle
-          } else {
-            currentVehicle
-          }
+        stop(
+          Failure(
+            s"I attempted to become driver of vehicle $id but driver ${nextLeg.beamVehicleId} already assigned."
+          )
         )
       }
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
@@ -647,7 +657,7 @@ class PersonAgent(
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyVehicleResourceIdle, _) =>
+    case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

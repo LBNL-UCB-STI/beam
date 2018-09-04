@@ -58,7 +58,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator.transportNetwork))
+            install(module(config, scenario, networkCoordinator))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
@@ -80,8 +80,8 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
       val conf = baseConf
-        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("verbose"))
-        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("yes"))
+        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
+        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))
         .resolve()
       val (_, output) = runBeamWithConfig(conf)
 

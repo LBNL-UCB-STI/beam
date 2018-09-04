@@ -34,6 +34,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
           case _: ReplanningEvent =>
+            // FIXME? If this happens often, maybe we can optimize it:
+            // trips is list buffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -71,6 +73,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
               .mapValues(
                 modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
               )
+              .toArray
+              .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+
             log.debug(vectorOfUtilities.toString())
             person.getSelectedPlan.getAttributes
               .putAttribute("scores", MapStringDouble(vectorOfUtilities))
@@ -82,6 +87,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
                 person
                   .getPlans()
                   .asScala
+                  .view
                   .map(
                     plan =>
                       plan.getAttributes

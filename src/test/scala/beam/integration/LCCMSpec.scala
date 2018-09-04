@@ -38,7 +38,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator.transportNetwork))
+          install(module(config, scenario, networkCoordinator))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

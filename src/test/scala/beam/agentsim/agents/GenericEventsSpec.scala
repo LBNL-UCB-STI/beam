@@ -33,7 +33,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(baseConfig, scenario, networkCoordinator.transportNetwork)
+      module(baseConfig, scenario, networkCoordinator)
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])
