@@ -1,21 +1,18 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.allocation.EVFleetAllocationManager
-import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.agents.ridehail.RideHailManager.{
   BufferedRideHailRequestsTimeout,
-  RideHailAgentLocation,
-  RoutingResponses
+  RideHailAgentLocation
 }
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
-import beam.router.RoutingModel.BeamTime
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
+import org.matsim.api.core.v01.population.Person
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
     extends LazyLogging {
@@ -29,11 +26,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   ): VehicleAllocationResponse = {
     // closest request
     rideHailManager
-      .getClosestIdleVehiclesWithinRadius(
+      .getClosestIdleRideHailAgent(
         vehicleAllocationRequest.request.pickUpLocation,
         rideHailManager.radiusInMeters
-      )
-      .headOption match {
+      ) match {
       case Some(agentLocation) =>
         VehicleAllocation(agentLocation, None)
       case None =>
@@ -52,7 +48,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
     // TODO: refactor to BufferedRideHailRequests?
     val timerTrigger = BufferedRideHailRequestsTimeout(
-      tick + 1 // TODO: replace with new config variable
+      tick + 10 // TODO: replace with new config variable
     )
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
     Vector(timerMessage)
@@ -87,6 +83,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     logger.trace("default implementation repositionVehicles executed")
     Vector()
   }
+
+  def setBufferedRideHailRequests(bufferedRideHailRequests: BufferedRideHailRequests): Unit = {}
 
   /*
   This method is called whenever a reservation is sucessfully completed. Overwrite this method if you need to process this info further.
@@ -152,11 +150,3 @@ case class VehicleAllocationRequest(
   request: RideHailRequest,
   routingResponses: List[RoutingResponse]
 )
-
-//requestType: RideHailRequestType,
-//customer: VehiclePersonId,
-//pickUpLocation: Location,
-//departAt: BeamTime,
-//destination: Location
-
-// TODO (RW): mention to CS that cost removed from VehicleAllocationResult, as not needed to be returned (RHM default implementation calculates it already)
