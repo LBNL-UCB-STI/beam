@@ -16,7 +16,7 @@ class RideHailNumDriversSpec
     with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing numDriversAsFractionOfPopulation value" must {
-    "create more entries for mode choice rideHail as value decreases due to within trip replanning" in {
+    "create more entries for mode choice rideHail as value decreases due to within trip replanning" ignore {
       val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
       val modeChoice = numDriversAsFractionOfPopulation.map(
         tc =>
