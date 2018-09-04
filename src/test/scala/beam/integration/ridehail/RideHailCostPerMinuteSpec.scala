@@ -25,7 +25,7 @@ class RideHailCostPerMinuteSpec
                 ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
               )
               .withValue(
-                "beam.agentsim.agents.rideHail.defaultCostPerMinute",
+                RideHailTestHelper.KEY_RIDEHAIL_DEFAULT_COST_PER_MILE,
                 ConfigValueFactory.fromAnyRef(tc)
               )
           ).groupedCount
