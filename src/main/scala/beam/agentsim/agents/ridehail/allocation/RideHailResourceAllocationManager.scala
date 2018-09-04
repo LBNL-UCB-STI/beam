@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.rideHail.allocation.{EVFleetAllocationManager, ImmediateDispatchWithOverwrite}
+import beam.agentsim.agents.rideHail.allocation.{EVFleetAllocationManager}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.agents.ridehail.RideHailManager.{
   BufferedRideHailRequestsTimeout,
