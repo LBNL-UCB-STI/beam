@@ -22,11 +22,7 @@ class RideHailCostPerMinuteSpec
             baseConfig
               .withValue(
                 TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-<<<<<<< HEAD
                 ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
-=======
-                ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
->>>>>>> Replaced magic string with constant
               )
               .withValue(
                 RideHailTestHelper.KEY_RIDEHAIL_DEFAULT_COST_PER_MILE,
