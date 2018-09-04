@@ -6,13 +6,9 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  EndLegTrigger,
-  EndRefuelTrigger,
-  StartLegTrigger,
-  StartRefuelTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -135,27 +131,23 @@ class RideHailAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle
-        .becomeDriver(self)
-        .fold(
-          _ =>
+        .becomeDriver(self) match {
+          case DriverAlreadyAssigned(currentDriver) =>
             stop(
               Failure(
                 s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
                 s"but driver ${vehicle.driver.get} already assigned."
               )
-          ),
-          _ => {
-            vehicle
-              .checkInResource(Some(SpaceTime(initialLocation, tick.toLong)), context.dispatcher)
+            )
+          case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
+            vehicle.checkInResource(Some(SpaceTime(initialLocation, tick.toLong)), context.dispatcher)
             eventsManager.processEvent(
               new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
             )
-            eventsManager
-              .processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+            eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
             goto(Idle) replying CompletionNotice(triggerId) using data
               .copy(currentVehicle = Vector(vehicle.id))
-          }
-        )
+      }
   }
 
   when(Idle) {

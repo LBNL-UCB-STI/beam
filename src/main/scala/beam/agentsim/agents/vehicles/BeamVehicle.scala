@@ -74,12 +74,14 @@ class BeamVehicle(
     */
   def becomeDriver(
     newDriverRef: ActorRef
-  ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
-    if (driver.isEmpty) {
-      driver = Option(newDriverRef)
-      Right(BecomeDriverOfVehicleSuccessAck)
+  ): BecomeDriverResponse = {
+    if (driver.isEmpty){
+      driver = Some(newDriverRef)
+      BecomeDriverOfVehicleSuccess
+    }else if(driver.get == newDriverRef){
+      NewDriverAlreadyControllingVehicle
     } else {
-      Left(DriverAlreadyAssigned(id, driver.get))
+      DriverAlreadyAssigned(driver.get)
     }
   }
 

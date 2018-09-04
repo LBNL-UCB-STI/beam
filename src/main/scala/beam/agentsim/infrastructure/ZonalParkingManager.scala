@@ -178,20 +178,25 @@ class ZonalParkingManager(
       /*
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */
-      val maybeDominantSpot = if (chargingPreference == NoNeed) {
-        maybeCreateNewStall(
-          StallAttributes(
-            nearbyTazsWithDistances.head._1.tazId,
-            preferredType,
-            FlatFee,
-            NoCharger,
-            reservedFor
-          ),
-          destinationUtm,
-          0.0,
-          None
-        )
-      } else {
+      val maybeFoundStall = pooledResources.find{
+        case (attr, values) =>
+          attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
+          attr.parkingType == preferredType &&
+          attr.reservedFor.equals(reservedFor) &&
+          values.numStalls > 0 &&
+          values.feeInCents == 0
+      }
+      val maybeDominantSpot = maybeFoundStall match {
+        case Some(foundStall) if chargingPreference == NoNeed =>
+          maybeCreateNewStall(
+            StallAttributes(nearbyTazsWithDistances.head._1.tazId, preferredType, foundStall._1.pricingModel,
+              NoCharger, reservedFor
+            ),
+            destinationUtm,
+            0.0,
+            Some(foundStall._2)
+          )
+        case _ =>
         None
       }
 

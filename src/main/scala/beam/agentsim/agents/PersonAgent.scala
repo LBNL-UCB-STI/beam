@@ -14,6 +14,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -468,13 +469,17 @@ class PersonAgent(
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
           vehicle.becomeDriver(self) match {
-            case Left(l) =>
+            case DriverAlreadyAssigned(currentDriver) =>
               log.error(
-                "I attempted to become driver of vehicle $id but driver {} already assigned.",
-                vehicle.driver.get
+                "I attempted to become driver of vehicle {} but driver {} already assigned.",
+                vehicle.id,
+                currentDriver
               )
               None
-            case Right(r) =>
+            case NewDriverAlreadyControllingVehicle =>
+              log.warning("I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",vehicle.id, id)
+              Some(currentVehicle)
+            case BecomeDriverOfVehicleSuccess =>
               eventsManager.processEvent(
                 new PersonEntersVehicleEvent(
                   currentTick,
