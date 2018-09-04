@@ -5,10 +5,6 @@ import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
 
-/**
-  * Created by fdariasm on 29/08/2017
-  *
-  */
 class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing numDriversAsFractionOfPopulation value" must {
@@ -39,6 +35,7 @@ class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper 
 
       modeChoiceWithHighFraction should be < modeChoiceWithLowFraction
 
+      isOrdered(tc)((a, b) => a <= b) shouldBe true
     }
   }
 
