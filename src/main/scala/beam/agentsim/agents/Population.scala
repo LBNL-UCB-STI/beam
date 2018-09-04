@@ -52,7 +52,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var initParkingVeh: Seq[ActorRef] = Nil
+  var initParkingVeh = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -70,7 +70,7 @@ class Population(
     case Finish =>
       context.children.foreach(_ ! Finish)
       initParkingVeh.foreach(context.stop(_))
-      initParkingVeh = Nil
+      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
@@ -88,6 +88,8 @@ class Population(
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+
     // Have to wait for households to create people so they can send their first trigger to the scheduler
     val houseHoldsInitialized =
       Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
