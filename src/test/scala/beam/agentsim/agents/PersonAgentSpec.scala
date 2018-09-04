@@ -524,6 +524,7 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(beamConfig, stopTick = 1000000.0, maxWindow = 10.0)
       )
+      
       val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       scenario.setPopulation(population)
       scenario.setLocked()
