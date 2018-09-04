@@ -21,7 +21,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 class ZonalParkingManagerSpec
     extends TestKit(
       ActorSystem(
-        "testsystem",
+        "ZonalParkingManagerSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -109,6 +109,9 @@ class ZonalParkingManagerSpec
     }
   }
 
+  override def afterAll: Unit = {
+    shutdown()
+  }
 }
 
 object ZonalParkingManagerSpec {
