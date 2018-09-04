@@ -15,8 +15,8 @@ class RideHailNumDriversSpec
     with BeamHelper
     with IntegrationSpecCommon {
 
-  "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
-    "create less entries for mode choice rideHail as value increases" in {
+  "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing numDriversAsFractionOfPopulation value" must {
+    "create more entries for mode choice rideHail as value decreases due to within trip replanning" in {
       val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
       val modeChoice = numDriversAsFractionOfPopulation.map(
         tc =>
@@ -38,16 +38,11 @@ class RideHailNumDriversSpec
         .filter(_.isDefined)
         .map(_.get)
 
-      //      val z1 = tc.drop(1)
-      //      val z2 = tc.dropRight(1)
-      //      val zip = z2 zip z1
+      val modeChoiceWithLowFraction = tc.head
+      val modeChoiceWithHighFraction = tc.last
 
-      //      println(tc)
-      //      println(z1)
-      //      println(z2)
-      //      println(zip)
+      modeChoiceWithHighFraction should be < modeChoiceWithLowFraction
 
-      isOrdered(tc)((a, b) => a <= b) shouldBe true
     }
   }
 
