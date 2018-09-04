@@ -176,6 +176,98 @@ The ExperimentGenerator will create a sub-folder next to experiment.yml named `r
 
 Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
 
+Calibration
+-----------
+
+This section describes calibrating BEAM simulation outputs to achieve real-world targets (e.g., volumetric traffic
+counts, mode splits, transit boarding/alighting, etc.). A large number of parameters affect simulation behavior in
+complex ways such that grid-search tuning methods would be extremely time-consuming. Instead, BEAM uses SigOpt_,
+which uses Bayesian optimization to rapidly tune scenarios as well as analyze the sensitivity of target metrics to
+parameters.
+
+Optimization-based Calibration Principles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+At a high level, the SigOpt service seeks to find the *optimal value*, :math:`p^*` of an *objective*,
+:math:`f_0: \mathbb{R}^n\rightarrow\mathbb{R}`, which is a function of a vector of *decision variables*
+:math:`x\in\mathbb{R}^n` subject to *constraints*, :math:`f_i: \mathbb{R}^n\rightarrow\mathbb{R}, i=1,\ldots,m`.
+
+In our calibration problem, :math:`p^*` represents the value of a *metric* representing an aggregate measure of some
+deviation of simulated values from real-world values. Decision variables are hyperparameters defined in the `.conf`
+file used to configure a BEAM simulation. The constraints in this problem are the bounds within which it is believed
+that the SigOpt optimization algorithm should search. The calibration problem is solved by selecting values of the
+hyperparameters that minimize the output of the objective function.
+
+Operationally, for each calibration attempt, BEAM creates an `Experiment` using specified `Parameter` variables,
+their `Bounds`s, and the number of workers (applicable only when using parallel calibration execution, see `Parallel Runs`_)
+using the SigOpt API. The experiment is assigned a unique ID and then receives a `Suggestion` from the SigOpt API,
+which assigns a value for each `Parameter`. Once the simulation has completed, the metric (an implementation of the
+`beam.calibration.api.ObjectiveFunction` interface) is evaluated,providing an `Observation` to the SigOpt API. This
+completes one iteration of the calibration cycle. At the start of the next iteration new `Suggestion` is
+returned by SigOpt and the simulation is re-run with the new parameter values. This process continues
+for the number of iterations specified in a command-line argument.
+(Note that this is a different type of iteration from the number of iterations of a run of BEAM itself.
+ Users may wish to run BEAM for several iterations of the co-evolutionary plan modification loop prior to
+ evaluating the metric).
+
+SigOpt Setup
+^^^^^^^^^^^^
+
+Complete the following steps in order to prepare your simulation scenarios for calibration with SigOpt:
+
+1. `Sign up`_ for a SigOpt account (note that students and academic researchers may be able to take
+advantage of `educational pricing`_ options).
+
+2. `Log-in`_ to the SigOpt web interface.
+
+3. Under the `API Tokens`_ menu, retrieve the **API Token** and **Development Token** add the tokens as
+environmental variables in your execution environment with the keys `SIGOPT_API_TOKEN` and `SIGOPT_DEV_API_TOKEN`.
+
+
+Configuration
+^^^^^^^^^^^^^
+
+Configuring a BEAM scenario for calibration proceeds in much the same way as it does for an experiment using the
+`Experiment Manager`_. In fact, with some minor adjustments, the `YAML` text file used to define experiments
+has the same general structure as the one used to specify tuning hyperparameters and ranges for calibration.
+
+The major exceptions are the following:
+
+* Factors may have only a single numeric parameter, which may (at the moment) only take two levels (High and Low).
+These act as bounds on the values that SigOpt will try for a particular decision variable.
+
+* The level of parallelism is controlled by a new parameter in the header called `numberOfWorkers`. Setting its value
+above 1 permits running calibrations in parallel in response to multiple concurrent open `Suggestions`.
+
+One must also select the appropriate implementation of the `ObjectiveFunction` interface in the `.conf` file
+pointed to in the `YAML`, which implicitly defines the metric and input files.
+Several example implementations are provided such as `ModeChoiceObjectiveFunction`. This implementation
+compares modes used at the output of the simulation with benchmark values. To optimize this objective, it is necessary
+to have a set of comparison benchmark values, which are placed in the same directory as other calibration files.
+
+
+Execution
+^^^^^^^^^
+
+Execution of a calibration experiment requires running the `beam.calibration.RunCalibration` class using the
+following arguments:
+
+--benchmark     Location of the benchmark file (note that separators in Windows paths must be escaped using double `\\`)
+
+--num_iters     Number of iterations for which to run experiment.
+
+--experiment_id     If an `experimentID` has already been defined, add it here to continue an experiment or put
+"None" to start a new experiment.
+
+
+
+.. _SigOpt: http://sigopt.com
+.. _Sign up: http://sigopt.com/pricing
+.. _educational pricing: http://sigopt.com/edu
+.. _Log-in: http://app.sigopt.com/login
+.. _API Tokens: http://app.sigopt.com/tokens/info
+
+
+
 Converting a MATSim Scenario to Run with BEAM
 ---------------------------------------------
 
