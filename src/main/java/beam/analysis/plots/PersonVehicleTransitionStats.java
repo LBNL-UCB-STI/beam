@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
@@ -32,8 +33,13 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap();
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
-    private final int binSize = 300;
-    private final int nofBins = 30 * 3600 / binSize + 1;
+    private  int binSize = 0;
+    private  int nofBins = 0;
+
+    PersonVehicleTransitionStats(BeamConfig beamConfig){
+        binSize = beamConfig.beam().outputs().stats().binSize();
+        nofBins = 30 * 3600 / binSize + 1;
+    }
 
 
     @Override
@@ -210,7 +216,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
         final JFreeChart chart = ChartFactory.createXYLineChart(
                 "Trip Histogram, " + mode + ", it." + iteration,
-                "time", "# persons",
+                "timeBinSize=3600 sec", "# persons",
                 xyData,
                 PlotOrientation.VERTICAL,
                 true,   // legend
@@ -223,7 +229,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         plot.getRangeAxis().setStandardTickUnits(NumberAxis.createIntegerTickUnits());
         final CategoryAxis axis1 = new CategoryAxis("sec");
         axis1.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 7));
-        plot.setDomainAxis(new NumberAxis("time"));
+        plot.setDomainAxis(new NumberAxis("timeBinSize=3600 sec"));
 
         plot.getRenderer().setSeriesStroke(0, new BasicStroke(2.0f));
         plot.getRenderer().setSeriesStroke(1, new BasicStroke(2.0f));
