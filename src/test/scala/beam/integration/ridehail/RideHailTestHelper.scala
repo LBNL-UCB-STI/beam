@@ -45,5 +45,4 @@ object RideHailTestHelper {
 
   val KEY_RIDEHAIL_DEFAULT_COST_PER_MILE = "beam.agentsim.agents.rideHail.defaultCostPerMinute"
 
-  val AGENT_MODE_CHOICE_MULTINOMIAL_LOGIC = "ModeChoiceMultinomialLogit"
 }

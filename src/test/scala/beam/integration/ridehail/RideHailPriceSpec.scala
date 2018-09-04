@@ -16,7 +16,7 @@ class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with 
             baseConfig
               .withValue(
                 TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-                ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
               )
               .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount

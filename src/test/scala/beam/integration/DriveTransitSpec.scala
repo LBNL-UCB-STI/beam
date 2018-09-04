@@ -27,7 +27,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue(
           TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
           "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
