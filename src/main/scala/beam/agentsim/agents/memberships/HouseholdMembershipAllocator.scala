@@ -32,8 +32,7 @@ case class HouseholdMembershipAllocator(
       .toMap
   }
 
-  private val vehicleAllocationsByRank
-    : TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
+  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
     TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
   def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {

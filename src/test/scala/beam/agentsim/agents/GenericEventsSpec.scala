@@ -10,11 +10,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
-trait GenericEventsSpec
-    extends WordSpecLike
-    with IntegrationSpecCommon
-    with BeamHelper
-    with BeforeAndAfterAll {
+trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with BeamHelper with BeforeAndAfterAll {
 
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _

@@ -31,16 +31,10 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class AbstractSfLightSpec
-    extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
-  """)))
-    with WordSpecLike
-    with Matchers
-    with ImplicitSender
-    with MockitoSugar
-    with BeforeAndAfterAll {
+  """))) with WordSpecLike with Matchers with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
   var geo: GeoUtils = _

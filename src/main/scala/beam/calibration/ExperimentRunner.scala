@@ -23,9 +23,7 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 
   import beam.utils.ProfilingUtils.timed
 
-  val objectiveFunctionClassName: String =
-    {experimentData.baseConfig.getString("beam.calibration.objectiveFunction")}
-
+  val objectiveFunctionClassName: String = { experimentData.baseConfig.getString("beam.calibration.objectiveFunction") }
 
   def runExperiment(numberOfIterations: Int): Unit = {
 
@@ -56,8 +54,6 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
         )
       )
 
-
-
       val x = getRunValue(matsimConfig)
 
       val obs = new Observation.Builder()
@@ -79,16 +75,17 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 
   def getRunValue(runConfig: MatsimConfig): Double = {
     if (objectiveFunctionClassName.equals("CountsObjectiveFunction")) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-       .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt"))
+      val outpath = Paths.get(
+        GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+          .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+      )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
-    }
-      else{
+    } else {
       val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
-        val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString)
-      }
+    }
   }
 
   def createConfigBasedOnSuggestion(
@@ -106,7 +103,8 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
     JavaConverters
       .iterableAsScalaIterable(assignments.entrySet())
       .seq
-      .map { e => e.getKey -> e.getValue
+      .map { e =>
+        e.getKey -> e.getValue
       }
       .toMap
 

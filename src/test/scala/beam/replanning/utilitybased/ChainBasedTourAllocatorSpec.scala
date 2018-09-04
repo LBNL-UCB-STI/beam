@@ -19,12 +19,7 @@ import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
 import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
-class ChainBasedTourAllocatorSpec
-    extends FlatSpec
-    with Matchers
-    with BeamHelper
-    with MockitoSugar
-    with GivenWhenThen {
+class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen {
 
   val MODE = "Car"
 
@@ -228,10 +223,9 @@ class ChainBasedTourAllocatorSpec
       highRankSubtour,
       highRankPlan
     )
-    val highRankLegs = JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap {
-      trip =>
-        JavaConverters
-          .collectionAsScalaIterable(trip.getLegsOnly)
+    val highRankLegs = JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap { trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
     }
     val highRankModes = highRankLegs.map(leg => leg.getMode)
 

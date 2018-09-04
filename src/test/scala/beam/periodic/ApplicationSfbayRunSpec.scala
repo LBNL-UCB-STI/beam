@@ -8,11 +8,7 @@ import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
 
-class ApplicationSfbayRunSpec
-    extends WordSpecLike
-    with Matchers
-    with BeforeAndAfterAllConfigMap
-    with BeamHelper {
+class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"

@@ -6,14 +6,7 @@ import beam.utils.gis.Plans2Shapefile
 import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plansampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
-import com.vividsolutions.jts.geom.{
-  Coordinate,
-  Envelope,
-  Geometry,
-  GeometryCollection,
-  GeometryFactory,
-  Point
-}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
 import org.geotools.geometry.jts.JTS

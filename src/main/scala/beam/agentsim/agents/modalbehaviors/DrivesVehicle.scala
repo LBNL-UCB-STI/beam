@@ -35,11 +35,9 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Double) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle])
-      extends Trigger
+  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle])
-      extends Trigger
+  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Double)
 

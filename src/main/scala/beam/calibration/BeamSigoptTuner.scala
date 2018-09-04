@@ -47,7 +47,7 @@ case class SigoptExperimentData(
     fetchExperiment(experimentId) match {
       case Some(foundExperiment) =>
         logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
-        if(isParallel){
+        if (isParallel) {
           Experiment.update(foundExperiment.getId).data(s"""{"parallel_bandwidth":$numWorkers}""").call()
         }
         foundExperiment
@@ -109,8 +109,7 @@ object BeamSigoptTuner {
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
       .filter(
-        (experiment: Experiment) =>
-          experiment.getId == experimentId & experiment.getDevelopment == development
+        (experiment: Experiment) => experiment.getId == experimentId & experiment.getDevelopment == development
       )
       .findFirst
     optExperiment.toOption

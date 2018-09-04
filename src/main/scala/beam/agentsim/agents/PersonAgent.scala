@@ -2,23 +2,14 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{
-  CheckInResource,
-  NotifyResourceIdle,
-  NotifyResourceInUse,
-  RegisterResource
-}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  NotifyLegEndTrigger,
-  NotifyLegStartTrigger,
-  StartLegTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
@@ -26,11 +17,7 @@ import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
@@ -486,31 +473,30 @@ class PersonAgent(
         goto(stateToGo) using data.copy(
           passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle =
-            if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-              theNewVehicle
-                .becomeDriver(self)
-                .fold(
-                  fa =>
-                    stop(
-                      Failure(
-                        "shouldn't be possible to execut this code but just in case this is becomeDriver failure"
-                      )
-                  ),
-                  fb => {
-                    eventsManager.processEvent(
-                      new PersonEntersVehicleEvent(
-                        currentTick,
-                        Id.createPersonId(id),
-                        nextLeg.beamVehicleId
-                      )
+          currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+            theNewVehicle
+              .becomeDriver(self)
+              .fold(
+                fa =>
+                  stop(
+                    Failure(
+                      "shouldn't be possible to execut this code but just in case this is becomeDriver failure"
                     )
-                  }
-                )
-              nextLeg.beamVehicleId +: currentVehicle
-            } else {
-              currentVehicle
-            }
+                ),
+                fb => {
+                  eventsManager.processEvent(
+                    new PersonEntersVehicleEvent(
+                      currentTick,
+                      Id.createPersonId(id),
+                      nextLeg.beamVehicleId
+                    )
+                  )
+                }
+              )
+            nextLeg.beamVehicleId +: currentVehicle
+          } else {
+            currentVehicle
+          }
         )
       }
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))

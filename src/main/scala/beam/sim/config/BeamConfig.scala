@@ -112,10 +112,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
-                  bike_intercept =
-                    if (c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
-                  car_intercept =
-                    if (c.hasPathOrNull("car_intercept")) c.getDouble("car_intercept") else 0.0,
+                  bike_intercept = if (c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
+                  car_intercept = if (c.hasPathOrNull("car_intercept")) c.getDouble("car_intercept") else 0.0,
                   cost = if (c.hasPathOrNull("cost")) c.getDouble("cost") else -1.0,
                   drive_transit_intercept =
                     if (c.hasPathOrNull("drive_transit_intercept"))
@@ -130,8 +128,7 @@ object BeamConfig {
                     else 0.0,
                   time = if (c.hasPathOrNull("time")) c.getDouble("time") else -0.0047,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
-                  walk_intercept =
-                    if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
+                  walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
                     if (c.hasPathOrNull("walk_transit_intercept"))
                       c.getDouble("walk_transit_intercept")
@@ -237,8 +234,7 @@ object BeamConfig {
                     allowIncreasingRadiusIfDemandInRadiusLow = !c.hasPathOrNull(
                       "allowIncreasingRadiusIfDemandInRadiusLow"
                     ) || c.getBoolean("allowIncreasingRadiusIfDemandInRadiusLow"),
-                    demandWeight =
-                      if (c.hasPathOrNull("demandWeight")) c.getDouble("demandWeight") else 4.0,
+                    demandWeight = if (c.hasPathOrNull("demandWeight")) c.getDouble("demandWeight") else 4.0,
                     distanceWeight =
                       if (c.hasPathOrNull("distanceWeight")) c.getDouble("distanceWeight")
                       else 0.01,
@@ -287,21 +283,18 @@ object BeamConfig {
             ): BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager(
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT_MANAGER",
-                randomRepositioning =
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RandomRepositioning(
-                    if (c.hasPathOrNull("randomRepositioning")) c.getConfig("randomRepositioning")
-                    else com.typesafe.config.ConfigFactory.parseString("randomRepositioning{}")
+                randomRepositioning = BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RandomRepositioning(
+                  if (c.hasPathOrNull("randomRepositioning")) c.getConfig("randomRepositioning")
+                  else com.typesafe.config.ConfigFactory.parseString("randomRepositioning{}")
+                ),
+                repositionLowWaitingTimes = BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
+                  .RepositionLowWaitingTimes(
+                    if (c.hasPathOrNull("repositionLowWaitingTimes"))
+                      c.getConfig("repositionLowWaitingTimes")
+                    else
+                      com.typesafe.config.ConfigFactory.parseString("repositionLowWaitingTimes{}")
                   ),
-                repositionLowWaitingTimes =
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
-                    .RepositionLowWaitingTimes(
-                      if (c.hasPathOrNull("repositionLowWaitingTimes"))
-                        c.getConfig("repositionLowWaitingTimes")
-                      else
-                        com.typesafe.config.ConfigFactory.parseString("repositionLowWaitingTimes{}")
-                    ),
-                timeoutInSeconds =
-                  if (c.hasPathOrNull("timeoutInSeconds")) c.getInt("timeoutInSeconds") else 120
+                timeoutInSeconds = if (c.hasPathOrNull("timeoutInSeconds")) c.getInt("timeoutInSeconds") else 120
               )
             }
           }
@@ -322,8 +315,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.InitialLocation.Home = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.InitialLocation.Home(
-                  radiusInMeters =
-                    if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 10000
+                  radiusInMeters = if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 10000
                 )
               }
             }
@@ -368,8 +360,7 @@ object BeamConfig {
               c: com.typesafe.config.Config
             ): BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager(
-                radiusInMeters =
-                  if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 5000
+                radiusInMeters = if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 5000
               )
             }
           }
@@ -390,8 +381,7 @@ object BeamConfig {
                 minimumSurgeLevel =
                   if (c.hasPathOrNull("minimumSurgeLevel")) c.getDouble("minimumSurgeLevel")
                   else 0.1,
-                numberOfCategories =
-                  if (c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
+                numberOfCategories = if (c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
                 priceAdjustmentStrategy =
                   if (c.hasPathOrNull("priceAdjustmentStrategy"))
                     c.getString("priceAdjustmentStrategy")
@@ -541,11 +531,9 @@ object BeamConfig {
             fuelCapacityInJoules =
               if (c.hasPathOrNull("fuelCapacityInJoules")) c.getDouble("fuelCapacityInJoules")
               else 86400000,
-            rideHailPrice =
-              if (c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
+            rideHailPrice = if (c.hasPathOrNull("rideHailPrice")) c.getDouble("rideHailPrice") else 1.0,
             tollPrice = if (c.hasPathOrNull("tollPrice")) c.getDouble("tollPrice") else 1.0,
-            transitCapacity =
-              if (c.hasPathOrNull("transitCapacity")) c.getDouble("transitCapacity") else 1.0,
+            transitCapacity = if (c.hasPathOrNull("transitCapacity")) c.getDouble("transitCapacity") else 1.0,
             transitPrice = if (c.hasPathOrNull("transitPrice")) c.getDouble("transitPrice") else 1.0
           )
         }
@@ -558,8 +546,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
           ),
           numAgents = if (c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
-          simulationName =
-            if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz")
             else com.typesafe.config.ConfigFactory.parseString("taz{}")
@@ -638,8 +625,7 @@ object BeamConfig {
             if (c.hasPathOrNull("memoryConsumptionDisplayTimeoutInSec"))
               c.getInt("memoryConsumptionDisplayTimeoutInSec")
             else 0,
-          secondsToWaitForSkip =
-            if (c.hasPathOrNull("secondsToWaitForSkip")) c.getInt("secondsToWaitForSkip") else 10,
+          secondsToWaitForSkip = if (c.hasPathOrNull("secondsToWaitForSkip")) c.getInt("secondsToWaitForSkip") else 10,
           skipOverBadActors = c.hasPathOrNull("skipOverBadActors") && c.getBoolean(
             "skipOverBadActors"
           )
@@ -687,8 +673,7 @@ object BeamConfig {
             explodeIntoFiles = c.hasPathOrNull("explodeIntoFiles") && c.getBoolean(
               "explodeIntoFiles"
             ),
-            fileOutputFormats =
-              if (c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv",
+            fileOutputFormats = if (c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv",
             overrideWritingLevels =
               if (c.hasPathOrNull("overrideWritingLevels")) c.getString("overrideWritingLevels")
               else
@@ -725,10 +710,8 @@ object BeamConfig {
             if (c.hasPathOrNull("stats")) c.getConfig("stats")
             else com.typesafe.config.ConfigFactory.parseString("stats{}")
           ),
-          writeEventsInterval =
-            if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writePlansInterval =
-            if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
+          writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
         )
       }
     }
@@ -768,28 +751,25 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim = {
           BeamConfig.Beam.Physsim.Jdeqsim(
-            agentSimPhysSimInterfaceDebugger =
-              BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger(
-                if (c.hasPathOrNull("agentSimPhysSimInterfaceDebugger"))
-                  c.getConfig("agentSimPhysSimInterfaceDebugger")
-                else
-                  com.typesafe.config.ConfigFactory
-                    .parseString("agentSimPhysSimInterfaceDebugger{}")
-              )
+            agentSimPhysSimInterfaceDebugger = BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger(
+              if (c.hasPathOrNull("agentSimPhysSimInterfaceDebugger"))
+                c.getConfig("agentSimPhysSimInterfaceDebugger")
+              else
+                com.typesafe.config.ConfigFactory
+                  .parseString("agentSimPhysSimInterfaceDebugger{}")
+            )
           )
         }
       }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim = {
         BeamConfig.Beam.Physsim(
-          flowCapacityFactor =
-            if (c.hasPathOrNull("flowCapacityFactor")) c.getDouble("flowCapacityFactor") else 1.0,
+          flowCapacityFactor = if (c.hasPathOrNull("flowCapacityFactor")) c.getDouble("flowCapacityFactor") else 1.0,
           jdeqsim = BeamConfig.Beam.Physsim.Jdeqsim(
             if (c.hasPathOrNull("jdeqsim")) c.getConfig("jdeqsim")
             else com.typesafe.config.ConfigFactory.parseString("jdeqsim{}")
           ),
-          linkStatsBinSize =
-            if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
+          linkStatsBinSize = if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
           linkStatsWriteInterval =
             if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval")
             else 1,
@@ -797,13 +777,11 @@ object BeamConfig {
           storageCapacityFactor =
             if (c.hasPathOrNull("storageCapacityFactor")) c.getDouble("storageCapacityFactor")
             else 1.0,
-          writeEventsInterval =
-            if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 0,
+          writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 0,
           writeMATSimNetwork = c.hasPathOrNull("writeMATSimNetwork") && c.getBoolean(
             "writeMATSimNetwork"
           ),
-          writePlansInterval =
-            if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
         )
       }
     }
@@ -830,8 +808,7 @@ object BeamConfig {
             operatorsFile =
               if (c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile")
               else "src/main/resources/GTFSOperators.csv",
-            outputDir =
-              if (c.hasPathOrNull("outputDir")) c.getString("outputDir") else "output/gtfs"
+            outputDir = if (c.hasPathOrNull("outputDir")) c.getString("outputDir") else "output/gtfs"
           )
         }
       }
@@ -863,8 +840,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
-            departureWindow =
-              if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
+            departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory =
               if (c.hasPathOrNull("directory")) c.getString("directory")
               else "/test/input/beamville/r5",
@@ -872,8 +848,7 @@ object BeamConfig {
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
             ),
-            numberOfSamples =
-              if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
+            numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
             osmFile =
               if (c.hasPathOrNull("osmFile")) c.getString("osmFile")
               else "/test/input/beamville/r5/beamville.osm.pbf",
@@ -913,8 +888,7 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Spatial = {
         BeamConfig.Beam.Spatial(
-          boundingBoxBuffer =
-            if (c.hasPathOrNull("boundingBoxBuffer")) c.getInt("boundingBoxBuffer") else 5000,
+          boundingBoxBuffer = if (c.hasPathOrNull("boundingBoxBuffer")) c.getInt("boundingBoxBuffer") else 5000,
           localCRS = if (c.hasPathOrNull("localCRS")) c.getString("localCRS") else "epsg:32631"
         )
       }
@@ -1030,10 +1004,8 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Controler = {
           BeamConfig.Matsim.Modules.Controler(
-            eventsFileFormat =
-              if (c.hasPathOrNull("eventsFileFormat")) c.getString("eventsFileFormat") else "xml",
-            firstIteration =
-              if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
+            eventsFileFormat = if (c.hasPathOrNull("eventsFileFormat")) c.getString("eventsFileFormat") else "xml",
+            firstIteration = if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
             lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
             mobsim = if (c.hasPathOrNull("mobsim")) c.getString("mobsim") else "metasim",
             outputDirectory =
@@ -1065,12 +1037,9 @@ object BeamConfig {
             countsScaleFactor =
               if (c.hasPathOrNull("countsScaleFactor")) c.getDouble("countsScaleFactor")
               else 10.355,
-            inputCountsFile =
-              if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile") else "",
-            outputformat =
-              if (c.hasPathOrNull("outputformat")) c.getString("outputformat") else "all",
-            writeCountsInterval =
-              if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 0
+            inputCountsFile = if (c.hasPathOrNull("inputCountsFile")) c.getString("inputCountsFile") else "",
+            outputformat = if (c.hasPathOrNull("outputformat")) c.getString("outputformat") else "all",
+            writeCountsInterval = if (c.hasPathOrNull("writeCountsInterval")) c.getInt("writeCountsInterval") else 0
           )
         }
       }
@@ -1143,8 +1112,7 @@ object BeamConfig {
             estimatedNumberOfEvents =
               if (c.hasPathOrNull("estimatedNumberOfEvents")) c.getInt("estimatedNumberOfEvents")
               else 1000000000,
-            numberOfThreads =
-              if (c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
+            numberOfThreads = if (c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
             oneThreadPerHandler = c.hasPathOrNull("oneThreadPerHandler") && c.getBoolean(
               "oneThreadPerHandler"
             ),
@@ -1182,8 +1150,7 @@ object BeamConfig {
             c: com.typesafe.config.Config
           ): BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm = {
             BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(
-              activityType =
-                if (c.hasPathOrNull("activityType")) c.getString("activityType") else "Home",
+              activityType = if (c.hasPathOrNull("activityType")) c.getString("activityType") else "Home",
               priority = if (c.hasPathOrNull("priority")) c.getInt("priority") else 1,
               scoringThisActivityAtAll = !c.hasPathOrNull("scoringThisActivityAtAll") || c
                 .getBoolean("scoringThisActivityAtAll"),
@@ -1279,8 +1246,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Qsim = {
           BeamConfig.Matsim.Modules.Qsim(
             endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
-            snapshotperiod =
-              if (c.hasPathOrNull("snapshotperiod")) c.getString("snapshotperiod") else "00:00:00",
+            snapshotperiod = if (c.hasPathOrNull("snapshotperiod")) c.getString("snapshotperiod") else "00:00:00",
             startTime = if (c.hasPathOrNull("startTime")) c.getString("startTime") else "00:00:00"
           )
         }
@@ -1305,8 +1271,7 @@ object BeamConfig {
               if (c.hasPathOrNull("ModuleProbability_3")) c.getDouble("ModuleProbability_3")
               else 0.1,
             Module_1 = if (c.hasPathOrNull("Module_1")) c.getString("Module_1") else "BestScore",
-            Module_3 =
-              if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "TimeAllocationMutator",
+            Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "TimeAllocationMutator",
             maxAgentPlanMemorySize =
               if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize")
               else 5
@@ -1324,8 +1289,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Transit = {
           BeamConfig.Matsim.Modules.Transit(
-            transitModes =
-              if (c.hasPathOrNull("transitModes")) c.getString("transitModes") else "pt",
+            transitModes = if (c.hasPathOrNull("transitModes")) c.getString("transitModes") else "pt",
             useTransit = c.hasPathOrNull("useTransit") && c.getBoolean("useTransit"),
             vehiclesFile =
               if (c.hasPathOrNull("vehiclesFile")) c.getString("vehiclesFile")

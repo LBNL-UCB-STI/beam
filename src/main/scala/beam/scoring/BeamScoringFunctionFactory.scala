@@ -16,8 +16,7 @@ import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
-    extends ScoringFunctionFactory {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
 
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
@@ -70,8 +69,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
               )
             log.debug(vectorOfUtilities.toString())
             person.getSelectedPlan.getAttributes

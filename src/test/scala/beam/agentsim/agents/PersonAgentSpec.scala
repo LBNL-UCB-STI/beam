@@ -9,29 +9,16 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProb
 import akka.util.Timeout
 
 import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  NotifyLegEndTrigger,
-  NotifyLegStartTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{
-  BeamVehicle,
-  ReservationRequest,
-  ReservationResponse,
-  ReserveConfirmInfo
-}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  ScheduleTrigger,
-  SchedulerProps,
-  StartSchedule
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes

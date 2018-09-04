@@ -9,17 +9,7 @@ import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
 import akka.actor.Status.Success
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  Props,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -33,11 +23,7 @@ import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSu
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{
-  ParkingInquiry,
-  ParkingInquiryResponse,
-  ParkingStockAttributes
-}
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
 import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -174,8 +160,7 @@ class BeamMobsim @Inject()(
         context.watch(parkingManager)
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
-          debugActorWithTimerActorRef =
-            context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
+          debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
           debugActorWithTimerCancellable = prepareMemoryLoggingTimerActor(
             beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec,
             context.system,

@@ -46,8 +46,7 @@ object ShapeUtils {
 
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter =
-        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
+      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y", "area")

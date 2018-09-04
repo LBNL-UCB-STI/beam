@@ -16,8 +16,7 @@ import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
 import beam.utils.FileUtils.using
 
-class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
-    extends ObjectiveFunction {
+class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends ObjectiveFunction {
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 

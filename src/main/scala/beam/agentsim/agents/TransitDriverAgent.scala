@@ -3,21 +3,12 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{
-  DrivingData,
-  PassengerScheduleEmpty,
-  VehicleStack,
-  WaitingToDrive
-}
+import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.BeamServices

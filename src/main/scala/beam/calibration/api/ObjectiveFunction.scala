@@ -7,7 +7,6 @@ trait ObjectiveFunction {
   def evaluateFromRun(runDataPath: String): Double
 }
 
-
 object FileBasedObjectiveFunction {
 
   //TODO: Generalize and move to CSVUtils
