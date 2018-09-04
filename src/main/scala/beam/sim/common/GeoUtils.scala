@@ -126,6 +126,10 @@ object GeoUtils {
     }
   }
 
+  def distFormula(coord1: Coord, coord2: Coord) = {
+    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
+  }
+
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
     val earthRadius = 6371000

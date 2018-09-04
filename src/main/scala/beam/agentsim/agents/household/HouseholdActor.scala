@@ -8,10 +8,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{
-  createId,
-  powerTrainForHumanBody
-}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -269,8 +266,8 @@ object HouseholdActor {
       val newBodyVehicle = new BeamVehicle(
         powerTrainForHumanBody,
         matsimBodyVehicle,
-        None,
         HumanBodyVehicle,
+        None,
         None,
         None
       )
@@ -329,8 +326,14 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyVehicleResourceIdle(vehId: Id[Vehicle], whenWhere, passengerSchedule, fuelLevel) =>
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+      case NotifyVehicleResourceIdle(
+          vehId: Id[Vehicle],
+          whenWhere,
+          passengerSchedule,
+          fuelLevel,
+          None
+          ) =>
+        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
 
       case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))

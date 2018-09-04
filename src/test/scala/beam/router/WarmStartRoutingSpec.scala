@@ -6,6 +6,7 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.integration.IntegrationSpecCommon
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.CAR
 import beam.router.gtfs.FareCalculator
@@ -47,6 +48,7 @@ class WarmStartRoutingSpec
     with WordSpecLike
     with Matchers
     with ImplicitSender
+    with IntegrationSpecCommon
     with MockitoSugar
     with BeforeAndAfterAll {
 
@@ -55,7 +57,15 @@ class WarmStartRoutingSpec
   var services: BeamServices = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(system.settings.config)
+    val config = baseConfig
+      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
+      .withValue(
+        "beam.warmStart.path",
+        ConfigValueFactory
+          .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+      )
+    val beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
     services = mock[BeamServices]

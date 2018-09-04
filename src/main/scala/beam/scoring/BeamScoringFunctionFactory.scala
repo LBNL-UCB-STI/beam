@@ -16,8 +16,7 @@ import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
-    extends ScoringFunctionFactory {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
 
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
@@ -72,8 +71,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
               )
               .toArray
               .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
