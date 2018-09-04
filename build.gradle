@@ -604,9 +604,10 @@ shadowJar {
     mergeServiceFiles()
 }
 
-//docker {
-//    dependsOn build
-//    name "${project.group}/${bootJar.baseName}"
-//    files bootJar.archivePath
-//    buildArgs(['JAR_FILE': "${bootJar.archiveName}"])
-//}
+docker {
+    dependsOn shadowJar
+    name "${shadowJar.baseName}/${shadowJar.baseName}"
+    files shadowJar.archivePath
+//    copySpec.from("test").into("/root")
+    buildArgs(['JAR_FILE': "${shadowJar.archiveName}", 'TEST': "test"])
+}
