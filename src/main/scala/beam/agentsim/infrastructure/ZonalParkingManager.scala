@@ -175,6 +175,10 @@ class ZonalParkingManager(
         case _                                   => Public
       }
 
+      if(inquiry.parkingDuration > 0){
+        val jjj=0
+      }
+
       /*
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */

@@ -188,7 +188,7 @@ trait ChoosesParking extends {
         logDebug(s"no CAR leg returned by router, walking car there instead")
         responses._1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
       } else {
-        responses._1.itineraries.filter(_.tripClassifier == CAR).head.legs.head
+        responses._1.itineraries.filter(_.tripClassifier == CAR).head.legs(1)
       }
       // Update start time of the second leg
       var leg2 = responses._2.itineraries.head.legs.head
