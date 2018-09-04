@@ -100,10 +100,11 @@ class RideHailPassengersEventsSpec
             case enterEvent: PersonEntersVehicleEvent
                 if !enterEvent.getPersonId.toString.contains("Agent") =>
               val id = enterEvent.getVehicleId.toString
-              events.get(id) shouldBe None
+//              events.get(id) shouldBe None
               events.put(id, 1)
             case leavesEvent: PersonLeavesVehicleEvent =>
               val id = leavesEvent.getVehicleId.toString
+//              events.contains(id) shouldBe true
               events.remove(id)
             case _ =>
           }
