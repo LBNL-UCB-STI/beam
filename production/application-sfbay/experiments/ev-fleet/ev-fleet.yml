@@ -1,0 +1,41 @@
+---
+
+# Header
+
+header:
+    title: EV-Fleet
+    author: Colin
+    beamTemplateConfPath: production/application-sfbay/ev-fleet.conf
+    params:
+      ### ---- run template env variables ---####
+      EXPERIMENT_MAX_RAM: 140g
+      S3_OUTPUT_PATH_SUFFIX: "2018-09"
+      DROP_OUTPUT_ONCOMPLETE: "true"
+
+# Default Params
+
+defaultParams:
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.025
+    beam.agentsim.agents.rideHail.vehicleRangeInMeters: 112500.0
+
+# Factors
+
+factors:
+  - title: vehicleRange
+    levels:
+    - name: Low
+      params:
+        beam.agentsim.tuning.transitCapacity: 112500
+    - name: High
+      params:
+        beam.agentsim.tuning.transitCapacity: 225000
+
+  - title: ridehailNumber
+    levels:
+    - name: Low
+      params:
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.025
+    - name: High
+      params:
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.05
