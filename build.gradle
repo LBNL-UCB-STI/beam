@@ -608,6 +608,11 @@ docker {
     dependsOn shadowJar
     name "${shadowJar.baseName}/${shadowJar.baseName}"
     files shadowJar.archivePath
-//    copySpec.from("test").into("/root")
-    buildArgs(['JAR_FILE': "${shadowJar.archiveName}", 'TEST': "test"])
+    copySpec.with {
+        from('test') {
+            include '**'
+            into 'test'
+        }
+    }
+    buildArgs(['JAR_FILE': "${shadowJar.archiveName}"])
 }
