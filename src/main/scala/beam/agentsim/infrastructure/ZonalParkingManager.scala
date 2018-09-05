@@ -4,7 +4,7 @@ import java.io.FileWriter
 import java.nio.file.{Files, Paths}
 import java.util
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.{FileUtils}
+import beam.utils.FileUtils
 import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -30,7 +30,7 @@ class ZonalParkingManager(
   val beamRouter: ActorRef,
   parkingStockAttributes: ParkingStockAttributes
 ) extends ParkingManager(parkingStockAttributes)
-    with HasServices {
+    with HasServices with ActorLogging{
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
     collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
@@ -48,17 +48,25 @@ class ZonalParkingManager(
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
   def fillInDefaultPooledResources(): Unit = {
-    for {
-      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-      parkingType  <- List(Residential, Workplace, Public)
-      pricingModel <- List(Free, FlatFee, Block)
-      chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-      reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
-    } yield {
-      pooledResources.put(
-        StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-        defaultStallValues
-      )
+    try{
+      for {
+        taz          <- beamServices
+                        .tazTreeMap
+                        .tazQuadTree
+                        .values()
+                        .asScala
+        parkingType  <- List(Residential, Workplace, Public)
+        pricingModel <- List(Free, FlatFee, Block)
+        chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
+        reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
+      } yield {
+        pooledResources.put(
+          StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
+          defaultStallValues
+        )
+      }
+    } catch {
+      case e: Exception =>  log.error(s"Error in fillInDefaultPooledResources", e)
     }
   }
 
