@@ -16,6 +16,9 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.io.UncheckedIOException;
+import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
@@ -25,7 +28,6 @@ import java.util.List;
 
 public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport {
 
-
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail","car", "others"));
 
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
@@ -33,12 +35,18 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap();
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
-    private  int binSize = 0;
-    private  int nofBins = 0;
+    private static final String xAxisLabel = "timeBinSize=3600 sec";
+    private int binSize;
+    private int numOfBins;
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     PersonVehicleTransitionStats(BeamConfig beamConfig){
         binSize = beamConfig.beam().outputs().stats().binSize();
-        nofBins = 30 * 3600 / binSize + 1;
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        Double _endTime = Time.parseTime(endTime);
+        Double _numOfTimeBins = _endTime / binSize;
+        _numOfTimeBins = Math.floor(_numOfTimeBins);
+        numOfBins = _numOfTimeBins.intValue() + 1;
     }
 
 
@@ -89,7 +97,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 }
             }
 
-            String unitVehicle = "";
+            String unitVehicle;
             try {
                 Integer.parseInt(vehicleId);
                 unitVehicle = "car";
@@ -186,7 +194,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> enterKeys = personEnter.keySet();
             for (Integer key : enterKeys) {
                 enterSeries.add(key, personEnter.get(key));
-                //enterSeries.add(key + 0.1, 0);
             }
         }
 
@@ -196,7 +203,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> exitKeys = personExit.keySet();
             for (Integer key : exitKeys) {
                 exitSeries.add(key, personExit.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -206,7 +212,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> indexKeys = indexCount.keySet();
             for (Integer key : indexKeys) {
                 onRouteSeries.add(key, indexCount.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -216,7 +221,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
         final JFreeChart chart = ChartFactory.createXYLineChart(
                 "Trip Histogram, " + mode + ", it." + iteration,
-                "timeBinSize=3600 sec", "# persons",
+                xAxisLabel, "# persons",
                 xyData,
                 PlotOrientation.VERTICAL,
                 true,   // legend
@@ -229,7 +234,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         plot.getRangeAxis().setStandardTickUnits(NumberAxis.createIntegerTickUnits());
         final CategoryAxis axis1 = new CategoryAxis("sec");
         axis1.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 7));
-        plot.setDomainAxis(new NumberAxis("timeBinSize=3600 sec"));
+        plot.setDomainAxis(new NumberAxis(xAxisLabel));
 
         plot.getRenderer().setSeriesStroke(0, new BasicStroke(2.0f));
         plot.getRenderer().setSeriesStroke(1, new BasicStroke(2.0f));
@@ -258,8 +263,8 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     private int getBinIndex(final double time) {
         int bin = (int) (time / this.binSize);
-        if (bin >= this.nofBins) {
-            return this.nofBins;
+        if (bin >= this.numOfBins) {
+            return this.numOfBins;
         }
         return bin;
     }
