@@ -45,8 +45,7 @@ object BeamAgentScheduler {
 
   case object SkipOverBadActors extends SchedulerMessage
 
-  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0)
-      extends SchedulerMessage {
+  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
 
     def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
       CompletionNotice(triggerId, scheduleTriggers)

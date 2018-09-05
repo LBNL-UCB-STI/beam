@@ -103,8 +103,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
   "Person Travel Time Graph Collected Data" must {
 
     "contains valid travel time stats" in {
-      val travelTimeComputation = new PersonTravelTimeStats.PersonTravelTimeComputation
-      with EventAnalyzer {
+      val travelTimeComputation = new PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer {
 
         private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
 

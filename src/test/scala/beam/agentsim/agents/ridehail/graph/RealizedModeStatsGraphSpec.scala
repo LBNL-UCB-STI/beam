@@ -2,10 +2,7 @@ package beam.agentsim.agents.ridehail.graph
 import java.util
 import java.util.concurrent.CopyOnWriteArrayList
 
-import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{
-  RealizedModeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{RealizedModeStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeStats}
 import beam.integration.IntegrationSpecCommon
