@@ -42,8 +42,8 @@ class ParkingSpec
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+        TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+        ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
@@ -265,6 +265,7 @@ class ParkingSpec
         PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
         "walk".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
       }
+
       val defaultPathTraversalEvents = defaultEvents.head.filter(filterPathTraversalForWalk)
 
       val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0) {
