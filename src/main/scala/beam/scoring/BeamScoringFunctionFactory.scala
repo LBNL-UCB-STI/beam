@@ -7,11 +7,10 @@ import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEve
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
-
-import org.slf4j.LoggerFactory
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

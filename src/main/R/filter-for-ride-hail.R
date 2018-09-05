@@ -1,6 +1,6 @@
 # fitler outputs for ride hailing summary and analysis
 
-out.scen <- 'EVFleet__2018-09-04_21-44-31'
+out.scen <- 'EVFleet__2018-09-05_13-13-58'
 
 load(pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/0.events.Rdata"))
 
@@ -77,3 +77,9 @@ write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/I
 
 # find a veh that recharges
 both[vehicle%in%u(both[type=='Charge']$vehicle),.N,by='vehicle']
+
+
+
+# Why San Jose sparse?
+
+pop <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/population.csv.gz', row.names=NULL))
