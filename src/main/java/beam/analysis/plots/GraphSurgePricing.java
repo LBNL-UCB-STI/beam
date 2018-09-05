@@ -74,7 +74,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
         try {
-
             tazDataset.clear();
             transformedBins.clear();
             revenueDataSet = new double[numberOfTimeBins];
@@ -90,7 +89,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
             this.createGraphs();
-
             // for next iteration
             this.surgePricingManager.updateSurgePriceLevels();
         }catch (Exception e) {
@@ -160,7 +158,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager) throws Exception{
+    private void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager){
 
         scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
         Iterator mapIter = surgePriceBinsMap.keysIterator();
@@ -190,7 +188,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processBin(int binNumber, SurgePriceBin surgePriceBin) throws Exception {
+    private void processBin(int binNumber, SurgePriceBin surgePriceBin){
 
         double revenue = surgePriceBin.currentIterationRevenue();
         revenueDataSet[binNumber] += revenue;

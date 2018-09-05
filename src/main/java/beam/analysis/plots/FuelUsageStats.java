@@ -66,28 +66,20 @@ public class FuelUsageStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        try {
-            processFuelUsage(event);
-        }catch (Exception e) {
-            log.error("Exception occurs due to " , e);
-        }
-
+        processFuelUsage(event);
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        try {
-            CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
-            createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
-            createFuelCSV(hourModeFuelage, event.getIteration());
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
+
+        CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
+        createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+        createFuelCSV(hourModeFuelage, event.getIteration());
     }
 
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+    public void createGraph(IterationEndsEvent event, String graphType){
 
     }
 
@@ -97,7 +89,7 @@ public class FuelUsageStats implements IGraphStats {
         modesFuel.clear();
     }
 
-    private CategoryDataset buildModesFuelageGraphDataset() throws Exception{
+    private CategoryDataset buildModesFuelageGraphDataset(){
         double[][] dataset = compute();
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
@@ -106,7 +98,7 @@ public class FuelUsageStats implements IGraphStats {
         return statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
     }
 
-    private void processFuelUsage(Event event) throws Exception{
+    private void processFuelUsage(Event event){
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, String> eventAttributes = event.getAttributes();
         String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
@@ -139,7 +131,7 @@ public class FuelUsageStats implements IGraphStats {
                 hourModeFuelage.put(hour, hourData);
             }
         } catch (Exception e) {
-            log.error("Exception occurs due to " , e);
+            e.printStackTrace();
         }
     }
 
@@ -166,7 +158,6 @@ public class FuelUsageStats implements IGraphStats {
         List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
 
         int maxHour = hours.get(hours.size() - 1);
-        //double[][] dataset = new double[modesFuel.size()][maxHour + 1];
 
         try {
 

@@ -79,30 +79,23 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     @Override
     public void processStats(Event event) {
-        try {
-            processModeChoice(event);
-        }catch (Exception e){
-            log.error("Exception occurs due to " ,e);
-        }
+        processModeChoice(event);
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        try {
-            Map<String, String> tags = new HashMap<>();
-            tags.put("stats-type", "aggregated-mode-choice");
-            hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
-                    .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
-            updateModeChoiceInIteration(event.getIteration());
-            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-            if (modesFrequencyDataset != null)
-                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
-            createModeChosenCSV(hourModeFrequency, event.getIteration());
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
+        Map<String, String> tags = new HashMap<>();
+        tags.put("stats-type", "aggregated-mode-choice");
+        hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
+
+        updateModeChoiceInIteration(event.getIteration());
+        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+        if (modesFrequencyDataset != null)
+            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        createModeChosenCSV(hourModeFrequency, event.getIteration());
     }
 
     @Override
@@ -120,7 +113,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
     }
 
-    private void processModeChoice(Event event) throws Exception {
+    private void processModeChoice(Event event){
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
         Map<String, String> tags = new HashMap<>();
@@ -141,7 +134,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     //    accumulating data for each iteration
-    public void updateModeChoiceInIteration(Integer iteration) throws Exception{
+    public void updateModeChoiceInIteration(Integer iteration){
         Set<Integer> hours = hourModeFrequency.keySet();
         Map<String, Integer> totalModeChoice = new HashMap<>();
         for (Integer hour : hours) {
@@ -163,7 +156,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     }
 
-    private CategoryDataset buildModesFrequencyDatasetForGraph() throws Exception{
+    private CategoryDataset buildModesFrequencyDatasetForGraph(){
         CategoryDataset categoryDataset = null;
         double[][] dataset = compute();
         if (dataset != null)
@@ -250,7 +243,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
 
 //    dataset for root graph
-    private CategoryDataset buildModeChoiceDatasetForGraph() throws Exception {
+    private CategoryDataset buildModeChoiceDatasetForGraph(){
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, modesChosen));;
 
@@ -286,7 +279,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     // csv for root modeChoice.png
-    private void writeToRootCSV() throws IOException {
+    private void writeToRootCSV(){
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
 

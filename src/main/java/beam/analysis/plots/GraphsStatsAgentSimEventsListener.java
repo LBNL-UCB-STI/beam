@@ -12,6 +12,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,9 +46,9 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
     private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
     private IGraphStats rideHailWaitingStats;
-    //private IGraphStats generalStats = new RideHailStats();
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
@@ -91,7 +93,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personTravelTimeStats.resetStats();
         personVehicleTransitionStats.resetStats();
         rideHailWaitingStats.resetStats();
-        //generalStats.resetStats();
         rideHailingWaitingSingleStats.resetStats();
         realizedModeStats.resetStats();
     }
@@ -124,20 +125,21 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-        modeChoseStats.createGraph(event);
-        fuelUsageStats.createGraph(event);
-
-        rideHailWaitingStats.createGraph(event);
-        rideHailingWaitingSingleStats.createGraph(event);
-
-
-        deadHeadingStats.createGraph(event, "TNC0");
-        deadHeadingStats.createGraph(event, "");
-        personTravelTimeStats.createGraph(event);
-        personVehicleTransitionStats.createGraph(event);
-
-        realizedModeStats.createGraph(event);
-        //generalStats.createGraph(event);
+        try {
+            modeChoseStats.createGraph(event);
+            fuelUsageStats.createGraph(event);
+            rideHailWaitingStats.createGraph(event);
+            rideHailingWaitingSingleStats.createGraph(event);
+            deadHeadingStats.createGraph(event, "TNC0");
+            deadHeadingStats.createGraph(event, "");
+            personTravelTimeStats.createGraph(event);
+            personVehicleTransitionStats.createGraph(event);
+            realizedModeStats.createGraph(event);
+        }catch (IOException ex){
+            throw ex;
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception{

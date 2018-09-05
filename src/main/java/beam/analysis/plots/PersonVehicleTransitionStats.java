@@ -27,7 +27,7 @@ import java.util.List;
 public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport {
 
 
-    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail","car", "others"));
+    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail", "car", "others"));
 
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
@@ -41,11 +41,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     @Override
     public void processStats(Event event) {
-        try {
-            processPersonVehicleTransition(event);
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
+        processPersonVehicleTransition(event);
     }
 
     @Override
@@ -57,17 +53,12 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) throws IOException {
-        try {
-            for (String mode : onRoutes.keySet()) {
-                if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
-                    continue;
-                }
-
-                writeGraphic(event.getIteration(), mode);
+    public void createGraph(IterationEndsEvent event) throws IOException{
+        for (String mode : onRoutes.keySet()) {
+            if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
+                continue;
             }
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
+            writeGraphic(event.getIteration(), mode);
         }
     }
 
@@ -78,7 +69,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     }
 
 
-    private void processPersonVehicleTransition(Event event) throws Exception {
+    private void processPersonVehicleTransition(Event event) {
         int index = getBinIndex(event.getTime());
         if (event.getEventType() == PersonEntersVehicleEvent.EVENT_TYPE) {
 
@@ -98,8 +89,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             try {
                 Integer.parseInt(vehicleId);
                 unitVehicle = "car";
-            }
-            catch (NumberFormatException e){
+            } catch (NumberFormatException e) {
                 unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
             }
 
@@ -179,7 +169,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     }
 
-    JFreeChart getGraphic(String mode, int iteration) throws IOException {
+    JFreeChart getGraphic(String mode, int iteration) {
 
         final XYSeriesCollection xyData = new XYSeriesCollection();
         final XYSeries enterSeries = new XYSeries("Enter", false, true);
@@ -191,7 +181,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> enterKeys = personEnter.keySet();
             for (Integer key : enterKeys) {
                 enterSeries.add(key, personEnter.get(key));
-                //enterSeries.add(key + 0.1, 0);
             }
         }
 
@@ -201,7 +190,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> exitKeys = personExit.keySet();
             for (Integer key : exitKeys) {
                 exitSeries.add(key, personExit.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -211,7 +199,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> indexKeys = indexCount.keySet();
             for (Integer key : indexKeys) {
                 onRouteSeries.add(key, indexCount.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -246,7 +233,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         return chart;
     }
 
-    public void writeGraphic(Integer iteration, String mode) throws IOException {
+    public void writeGraphic(Integer iteration, String mode){
         try {
 
             String filename = fileName + "_" + mode + ".png";

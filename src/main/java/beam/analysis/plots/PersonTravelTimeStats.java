@@ -71,39 +71,33 @@ public class PersonTravelTimeStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        try {
-            if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE))
-                processPersonDepartureEvent(event);
-            else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE))
-                processPersonArrivalEvent(event);
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
+        if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE))
+            processPersonDepartureEvent(event);
+        else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE))
+            processPersonArrivalEvent(event);
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        try {
-            Tuple<List<String>, double[][]> data = compute();
-            List<String> modes = data.getFirst();
-            double[][] dataSets = data.getSecond();
-            for (int i = 0; i < modes.size(); i++) {
-                double[][] singleDataSet = new double[1][dataSets[i].length];
-                singleDataSet[0] = dataSets[i];
-                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
-                createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
-            }
-            createCSV(dataSets, event.getIteration());
-        }catch (Exception e){
-            log.error("Exception occurs due to " + e);
+
+        Tuple<List<String>, double[][]> data = compute();
+        List<String> modes = data.getFirst();
+        double[][] dataSets = data.getSecond();
+        for (int i = 0; i < modes.size(); i++) {
+            double[][] singleDataSet = new double[1][dataSets[i].length];
+            singleDataSet[0] = dataSets[i];
+            CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
+            createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
         }
+        createCSV(dataSets, event.getIteration());
+
     }
 
     Tuple<List<String>, double[][]> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
     }
 
-    private void createCSV(double[][] dataSets, int iteration) throws Exception {
+    private void createCSV(double[][] dataSets, int iteration) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "average_travel_times.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
@@ -146,7 +140,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         hourlyPersonTravelTimes.clear();
     }
 
-    private void processPersonArrivalEvent(Event event) throws Exception{
+    private void processPersonArrivalEvent(Event event){
         String mode = ((PersonArrivalEvent) event).getLegMode();
 
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
@@ -180,7 +174,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         }
     }
 
-    private void processPersonDepartureEvent(Event event) throws  Exception{
+    private void processPersonDepartureEvent(Event event){
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
         String mode = personDepartureEvent.getLegMode();
@@ -203,7 +197,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) throws Exception {
+    private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset){
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }

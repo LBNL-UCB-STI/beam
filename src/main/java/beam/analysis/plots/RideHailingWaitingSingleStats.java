@@ -82,49 +82,42 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
 
-        try {
-            if (event instanceof ModeChoiceEvent) {
+        if (event instanceof ModeChoiceEvent) {
 
-                String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
-                if (mode.equalsIgnoreCase("ride_hail")) {
+            String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+            if (mode.equalsIgnoreCase("ride_hail")) {
 
-                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-                    Id<Person> personId = modeChoiceEvent.getPersonId();
-                    rideHailWaiting.put(personId.toString(), event);
-                }
-            } else if (event instanceof PersonEntersVehicleEvent) {
-
-                PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
-                Id<Person> personId = personEntersVehicleEvent.getPersonId();
-                String _personId = personId.toString();
-
-                if (rideHailWaiting.containsKey(personId.toString())) {
-
-                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
-                    double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
-                    processRideHailingWaitingTimes(modeChoiceEvent, difference);
-
-                    // Remove the personId from the list of ModeChoiceEvent
-                    rideHailWaiting.remove(_personId);
-                }
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                Id<Person> personId = modeChoiceEvent.getPersonId();
+                rideHailWaiting.put(personId.toString(), event);
             }
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
+        } else if (event instanceof PersonEntersVehicleEvent) {
+
+            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
+            Id<Person> personId = personEntersVehicleEvent.getPersonId();
+            String _personId = personId.toString();
+
+            if (rideHailWaiting.containsKey(personId.toString())) {
+
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
+                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
+                processRideHailingWaitingTimes(modeChoiceEvent, difference);
+
+                // Remove the personId from the list of ModeChoiceEvent
+                rideHailWaiting.remove(_personId);
+            }
         }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        try {
-            double[][] data = statComputation.compute(hoursTimesMap);
-            CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
-            if (dataset != null)
-                createModesFrequencyGraph(dataset, event.getIteration());
 
-            writeToCSV(event.getIteration(), hoursTimesMap);
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
+        double[][] data = statComputation.compute(hoursTimesMap);
+        CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
+        if (dataset != null)
+            createModesFrequencyGraph(dataset, event.getIteration());
+
+        writeToCSV(event.getIteration(), hoursTimesMap);
     }
 
     @Override
@@ -133,7 +126,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-    private void processRideHailingWaitingTimes(Event event, double waitingTime) throws Exception {
+    private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
         //waitingTime = waitingTime / 60;

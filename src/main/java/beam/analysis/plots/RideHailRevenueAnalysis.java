@@ -66,12 +66,9 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     }
 
     private void createGraph(ArrayBuffer<?> data) throws IOException {
-        try {
+
             DefaultCategoryDataset dataSet = createDataset(data);
             drawRideHailRevenueGraph(dataSet);
-        }catch (Exception e){
-            log.error("Exception occurs due to " , e);
-        }
     }
 
     private void drawRideHailRevenueGraph(DefaultCategoryDataset dataSet) throws IOException {
@@ -91,7 +88,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         }
     }
 
-    private DefaultCategoryDataset createDataset(ArrayBuffer<?> data) throws Exception {
+    private DefaultCategoryDataset createDataset(ArrayBuffer<?> data){
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
