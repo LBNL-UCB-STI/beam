@@ -18,7 +18,7 @@ class ErrorListener() extends Actor with ActorLogging {
   private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
   override def receive: Receive = {
-    case event @ BeamAgent.TerminatedPrematurelyEvent(_, _) =>
+    case event @ BeamAgent.TerminatedPrematurelyEvent(_, _, _) =>
       terminatedPrematurelyEvents ::= event
       if (terminatedPrematurelyEvents.size >= nextCounter) {
         nextCounter *= 2
@@ -47,14 +47,10 @@ class ErrorListener() extends Actor with ActorLogging {
   }
 
   def formatErrorReasons(): String = {
-    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = -1
+    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = event.tick.map(tick => Math.round(tick / 3600.0).toInt).getOrElse(-1)
 
     val msgCounts = terminatedPrematurelyEvents
-      .groupBy(
-        event =>
-          event.reason.toString
-            .substring(0, Math.min(event.reason.toString.length - 1, 65))
-      )
+      .groupBy(event => "ALL")
       .mapValues(
         eventsPerReason =>
           eventsPerReason
@@ -64,7 +60,7 @@ class ErrorListener() extends Actor with ActorLogging {
     msgCounts
       .map {
         case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy(_._1)
+          val sortedCounts = cntByHour.toSeq.sortBy{case (hr, cnt) => hr}
           s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
             .map { case (_, cnt)                             => cnt.toString }
             .mkString("\t")}"

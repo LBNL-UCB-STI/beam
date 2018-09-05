@@ -1,14 +1,6 @@
 package beam.sim.akkaguice
 
-import akka.actor.{
-  ActorRef,
-  ActorSystem,
-  ExtendedActorSystem,
-  Extension,
-  ExtensionId,
-  ExtensionIdProvider,
-  Props
-}
+import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
 import com.google.inject.Injector
 
 /**

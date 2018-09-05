@@ -18,7 +18,9 @@ import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
 class BeamAgentSchedulerSpec
-    extends TestKit(ActorSystem("beam-actor-system", testConfig("test/input/beamville/beam.conf")))
+    extends TestKit(
+      ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf"))
+    )
     with FunSpecLike
     with BeforeAndAfterAll
     with MustMatchers
@@ -108,8 +110,7 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(tick: Double) extends Trigger
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef)
-      extends BeamAgent[MyData] {
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 
     override def logPrefix(): String = "TestBeamAgent"

@@ -51,8 +51,7 @@ object BeamAgentScheduler {
 
   case object SkipOverBadActors extends SchedulerMessage
 
-  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0)
-      extends SchedulerMessage {
+  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
 
     def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
       CompletionNotice(triggerId, scheduleTriggers)
@@ -138,6 +137,8 @@ class BeamAgentScheduler(
   private var currentTotalAwaitingResponse = 0L
   private var numberRepeats = 0
 
+  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
+
   private var startedAt: Deadline = _
 
   // Event stream state and cleanup management
@@ -203,10 +204,13 @@ class BeamAgentScheduler(
             .containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
+        val trigger = triggerIdToScheduledTrigger(triggerId)
+        awaitingResponse.remove(completionTickOpt.get, trigger)
         val st = triggerIdToScheduledTrigger(triggerId)
         awaitingResponse.remove(completionTickOpt.get, st)
         stuckFinder.removeByKey(st)
         triggerIdToScheduledTrigger -= triggerId
+        triggerMeasurer.resolved(trigger.triggerWithId)
       }
       triggerIdToTick -= triggerId
       if (started) doSimStep(nowInSeconds)
@@ -302,6 +306,7 @@ class BeamAgentScheduler(
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
+          triggerMeasurer.sent(triggerWithId)
           scheduledTrigger.agent ! triggerWithId
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
@@ -327,6 +332,7 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
+        log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.

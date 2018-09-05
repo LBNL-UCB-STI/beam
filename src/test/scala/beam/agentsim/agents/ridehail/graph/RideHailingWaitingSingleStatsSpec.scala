@@ -94,10 +94,7 @@ object RideHailingWaitingSingleStatsSpec {
   }
 }
 
-class RideHailingWaitingSingleStatsSpec
-    extends WordSpecLike
-    with Matchers
-    with IntegrationSpecCommon {
+class RideHailingWaitingSingleStatsSpec extends WordSpecLike with Matchers with IntegrationSpecCommon {
 
   "Ride Haling Single Graph Collected Data" must {
 
