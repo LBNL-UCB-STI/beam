@@ -18,9 +18,10 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, WALK}
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import tscfg.model.DURATION
 
 import scala.concurrent.Future
@@ -205,22 +206,23 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
+      if(data.currentTrip.get.tripClassifier == DRIVE_TRANSIT){
+        val i = 0
+      }
+
       //        val newPersonData = data.restOfCurrentTrip.copy()
 
-//      val currVehicle = beamServices.vehicles(data.currentVehicle.head)
-//      currVehicle.stall
-//        .foreach { stall =>
-//          val distance =
-//            beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
-//          eventsManager.processEvent(new ParkEvent(tick, stall, distance, data.currentVehicle.head))
-//        }
+      val currVehicle = beamServices.vehicles(data.currentVehicle.head)
 
-//      val newVehicle = if (leg1.beamLeg.mode == CAR) {
-//        data.currentVehicle
-//      } else {
-//        currVehicle.unsetDriver()
-//        data.currentVehicle.drop(1)
-//      }
+      val newVehicle = if (leg1.beamLeg.mode == CAR) {
+        data.currentVehicle
+      } else {
+        currVehicle.unsetDriver()
+        eventsManager.processEvent(
+          new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
+        )
+        data.currentVehicle.drop(1)
+      }
 
       scheduler ! CompletionNotice(
         triggerId,
@@ -236,7 +238,8 @@ trait ChoosesParking extends {
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
-        currentLegPassengerScheduleIndex = 0
+        currentLegPassengerScheduleIndex = 0,
+        currentVehicle = newVehicle
       )
   }
 
