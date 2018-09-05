@@ -160,20 +160,22 @@ class BeamRouter(
         }
       f.pipeTo(sender)
     case msg: UpdateTravelTime =>
-      metricsPrinter ! Print(
-        Seq(
-          "cache-router-time",
-          "noncache-router-time",
-          "noncache-transit-router-time",
-          "noncache-nontransit-router-time"
-        ),
-        Nil
-      )
-      remoteNodes.foreach(address => {
-        val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
-        remoteWorker.forward(msg)
-      })
-      localNodes.foreach(_.forward(msg))
+      if(!services.beamConfig.beam.cluster.enabled) {
+        metricsPrinter ! Print(
+          Seq(
+            "cache-router-time",
+            "noncache-router-time",
+            "noncache-transit-router-time",
+            "noncache-nontransit-router-time"
+          ),
+          Nil
+        )
+        remoteNodes.foreach(address => {
+          val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
+          remoteWorker.forward(msg)
+        })
+        localNodes.foreach(_.forward(msg))
+      }
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case state: CurrentClusterState =>
