@@ -35,7 +35,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap();
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
-    private static final String xAxisLabel = "timeBinSize=3600 sec";
+    private static final String xAxisLabel = "time (binSize=<?> sec)";
     private int binSize;
     private int numOfBins;
     private Logger log = LoggerFactory.getLogger(this.getClass());
@@ -221,7 +221,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
         final JFreeChart chart = ChartFactory.createXYLineChart(
                 "Trip Histogram, " + mode + ", it." + iteration,
-                xAxisLabel, "# persons",
+                xAxisLabel.replace("<?>", String.valueOf(binSize)), "# persons",
                 xyData,
                 PlotOrientation.VERTICAL,
                 true,   // legend
@@ -234,7 +234,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         plot.getRangeAxis().setStandardTickUnits(NumberAxis.createIntegerTickUnits());
         final CategoryAxis axis1 = new CategoryAxis("sec");
         axis1.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 7));
-        plot.setDomainAxis(new NumberAxis(xAxisLabel));
+        plot.setDomainAxis(new NumberAxis(xAxisLabel.replace("<?>",String.valueOf(binSize))));
 
         plot.getRenderer().setSeriesStroke(0, new BasicStroke(2.0f));
         plot.getRenderer().setSeriesStroke(1, new BasicStroke(2.0f));
