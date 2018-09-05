@@ -3,10 +3,7 @@ package beam.agentsim.agents.ridehail.graph
 import java.util
 import java.util.concurrent.CopyOnWriteArrayList
 
-import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{
-  ModeChosenStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{ModeChosenStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
 import beam.integration.IntegrationSpecCommon

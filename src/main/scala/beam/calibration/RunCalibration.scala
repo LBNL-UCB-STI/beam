@@ -22,24 +22,12 @@ import org.apache.commons.lang.SystemUtils
   */
 object RunCalibration extends App with BeamHelper {
 
-  // - separate util for id creation
-
-  // - if no experiment Id provided, create id and continue with work
-
-  // - is runType="localRun" | "remoteDeploy"
-
-  // - afterwards: include run parameters in yml file
-
-  //
-
   // requirement:
-  // - we need to be able to create new experiment id
   // - we need local run
-  // - we need to deploy runs (input: experiment id)
-  // => distinguish between local and remote runs
-  // - how to solve crashed runs (You have exceeded the maximum number of open suggestions for this plan).
-  // => delete suggestion or reuse same suggestionid
-  // can we add host name to suggestion value?
+  // - we need to deploy runs
+  // - we need to be able to create new experiment id
+  // - we need to pass existing experiment id to local and remote runs we start
+  // - allow to specify the suggestionId for a run
 
   // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token)
 
