@@ -9,6 +9,8 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -35,6 +37,7 @@ public class DeadHeadingStats implements IGraphStats {
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -60,22 +63,30 @@ public class DeadHeadingStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        processDeadHeading(event);
+        try {
+            processDeadHeading(event);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
+    public void createGraph(IterationEndsEvent event) throws IOException {
     }
 
     @Override
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-        if (graphType.equalsIgnoreCase("TNC0")) {
+        try {
+            if (graphType.equalsIgnoreCase("TNC0")) {
 
-            processDeadHeadingDistanceRemainingRepositionings();
-            createDeadHeadingDistanceGraph(event);
-        } else {
-            processDeadHeadingPassengerPerTripRemainingRepositionings();
-            createDeadHeadingPassengerPerTripGraph(event, graphType);
+                processDeadHeadingDistanceRemainingRepositionings();
+                createDeadHeadingDistanceGraph(event);
+            } else {
+                processDeadHeadingPassengerPerTripRemainingRepositionings();
+                createDeadHeadingPassengerPerTripGraph(event, graphType);
+            }
+        }catch (Exception e) {
+            log.error("Exception occurs due to " , e);
         }
     }
 
@@ -93,16 +104,19 @@ public class DeadHeadingStats implements IGraphStats {
 
     // Deadheading Distance Graph
 
-    private void processDeadHeading(Event event) {
+    private void processDeadHeading(Event event) throws Exception {
+        try {
+            // Process Event for "tnc_passenger_per_trip.png" graph
+            processEventForTncDeadheadingDistanceGraph(event);
 
-        // Process Event for "tnc_passenger_per_trip.png" graph
-        processEventForTncDeadheadingDistanceGraph(event);
-
-        // Process Event for "tnc_deadheading_distance.png" graph
-        processEventForTncPassengerPerTripGraph(event);
+            // Process Event for "tnc_deadheading_distance.png" graph
+            processEventForTncPassengerPerTripGraph(event);
+        }catch (Exception e) {
+            log.error("Exception occurs due to " , e);
+        }
     }
 
-    private void processDeadHeadingDistanceRemainingRepositionings() {
+    private void processDeadHeadingDistanceRemainingRepositionings() throws Exception{
 
         Set<String> vehicleIds = vehicleEvents.keySet();
 
@@ -139,7 +153,7 @@ public class DeadHeadingStats implements IGraphStats {
         vehicleEvents.clear();
     }
 
-    private void processEventForTncDeadheadingDistanceGraph(Event event) {
+    private void processEventForTncDeadheadingDistanceGraph(Event event) throws Exception{
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, String> attributes = event.getAttributes();
@@ -214,7 +228,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) {
+    private void updateDeadHeadingTNCMap(double length, int hour, Integer _num_passengers) throws Exception {
         Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
 
         if (hourData == null) {
@@ -247,7 +261,7 @@ public class DeadHeadingStats implements IGraphStats {
         writeRideHailStatsCSV(event);
     }
 
-    private void updateRideHailStatsModel(IterationEndsEvent event) {
+    private void updateRideHailStatsModel(IterationEndsEvent event) throws IOException {
         RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.getOrDefault(event.getIteration(), new RideHailDistanceRowModel());
 
         model.setPassengerVkt(passengerVkt);
@@ -255,7 +269,6 @@ public class DeadHeadingStats implements IGraphStats {
         model.setRepositioningVkt(repositioningVkt);
         model.setReservationCount(reservationCount);
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-
 
     }
 
@@ -307,11 +320,15 @@ public class DeadHeadingStats implements IGraphStats {
     }
 
     private void createDeadHeadingGraphTnc0(CategoryDataset dataSet, int iterationNumber, String graphName) throws IOException {
-        createGraph(dataSet, iterationNumber, graphName, deadHeadingTNC0XAxisTitle, deadHeadingTNC0YAxisTitle);
+        try {
+            createGraph(dataSet, iterationNumber, graphName, deadHeadingTNC0XAxisTitle, deadHeadingTNC0YAxisTitle);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     // Deadheading Passenger Per Trip Graph
-    private void processDeadHeadingPassengerPerTripRemainingRepositionings() {
+    private void processDeadHeadingPassengerPerTripRemainingRepositionings() throws Exception{
 
         Set<String> vehicleIds = vehicleEventsCache.keySet();
 
@@ -349,7 +366,7 @@ public class DeadHeadingStats implements IGraphStats {
         vehicleEventsCache.clear();
     }
 
-    private void processEventForTncPassengerPerTripGraph(Event event) {
+    private void processEventForTncPassengerPerTripGraph(Event event) throws Exception {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, String> attributes = event.getAttributes();
         String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
@@ -421,7 +438,7 @@ public class DeadHeadingStats implements IGraphStats {
         }
     }
 
-    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers) {
+    private void updateNumPassengerInDeadHeadingsMap(int hour, String graphName, Integer _num_passengers) throws Exception {
 
         Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
         Map<Integer, Integer> hourData = null;
@@ -581,8 +598,8 @@ public class DeadHeadingStats implements IGraphStats {
 
                                 repositioningVkt += vkt;
                             } else {
-
                                 passengerVkt += vkt;
+
                             }
                         } else {
                             vkt = 0d;
@@ -598,7 +615,7 @@ public class DeadHeadingStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated  " , e);
         }
     }
 
@@ -738,7 +755,7 @@ public class DeadHeadingStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            System.out.println("CSV generation failed." + e);
+            log.error("CSV generation failed " , e);
         }
     }
 

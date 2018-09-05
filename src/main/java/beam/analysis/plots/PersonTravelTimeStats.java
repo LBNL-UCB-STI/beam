@@ -11,6 +11,8 @@ import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -25,6 +27,7 @@ public class PersonTravelTimeStats implements IGraphStats {
     private static final String yAxisTitle = "Average Travel Time [min]";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
@@ -68,31 +71,39 @@ public class PersonTravelTimeStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE))
-            processPersonDepartureEvent(event);
-        else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE))
-            processPersonArrivalEvent(event);
+        try {
+            if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE))
+                processPersonDepartureEvent(event);
+            else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE))
+                processPersonArrivalEvent(event);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        Tuple<List<String>, double[][]> data = compute();
-        List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond();
-        for (int i = 0; i < modes.size(); i++) {
-            double[][] singleDataSet = new double[1][dataSets[i].length];
-            singleDataSet[0] = dataSets[i];
-            CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
-            createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
+        try {
+            Tuple<List<String>, double[][]> data = compute();
+            List<String> modes = data.getFirst();
+            double[][] dataSets = data.getSecond();
+            for (int i = 0; i < modes.size(); i++) {
+                double[][] singleDataSet = new double[1][dataSets[i].length];
+                singleDataSet[0] = dataSets[i];
+                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
+                createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
+            }
+            createCSV(dataSets, event.getIteration());
+        }catch (Exception e){
+            log.error("Exception occurs due to " + e);
         }
-        createCSV(dataSets, event.getIteration());
     }
 
     Tuple<List<String>, double[][]> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
     }
 
-    private void createCSV(double[][] dataSets, int iteration) {
+    private void createCSV(double[][] dataSets, int iteration) throws Exception {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "average_travel_times.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
@@ -116,7 +127,7 @@ public class PersonTravelTimeStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Exception occurs due to ", e);
         }
     }
 
@@ -135,7 +146,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         hourlyPersonTravelTimes.clear();
     }
 
-    private void processPersonArrivalEvent(Event event) {
+    private void processPersonArrivalEvent(Event event) throws Exception{
         String mode = ((PersonArrivalEvent) event).getLegMode();
 
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
@@ -169,7 +180,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         }
     }
 
-    private void processPersonDepartureEvent(Event event) {
+    private void processPersonDepartureEvent(Event event) throws  Exception{
         PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
         String mode = personDepartureEvent.getLegMode();
@@ -192,7 +203,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
+    private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) throws Exception {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }

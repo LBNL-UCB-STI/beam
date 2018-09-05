@@ -73,28 +73,32 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
+        try {
 
-        tazDataset.clear();
-        transformedBins.clear();
-        revenueDataSet = new double[numberOfTimeBins];
+            tazDataset.clear();
+            transformedBins.clear();
+            revenueDataSet = new double[numberOfTimeBins];
 
-        final int iNo = event.getIteration();
+            final int iNo = event.getIteration();
 
-        OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
+            OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
 
-        graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
-        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
-        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
-        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
+            graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
+            surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
+            surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+            revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
+            revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
-        this.createGraphs();
+            this.createGraphs();
 
-        // for next iteration
-        this.surgePricingManager.updateSurgePriceLevels();
+            // for next iteration
+            this.surgePricingManager.updateSurgePriceLevels();
+        }catch (Exception e) {
+            log.error("Exception occurs due to " , e);
+        }
     }
 
-    private void createGraphs() {
+    private void createGraphs() throws Exception {
 
         processSurgePriceBinsMap(surgePricingManager);
 
@@ -156,7 +160,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager) {
+    private void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager) throws Exception{
 
         scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
         Iterator mapIter = surgePriceBinsMap.keysIterator();
@@ -186,7 +190,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processBin(int binNumber, SurgePriceBin surgePriceBin) {
+    private void processBin(int binNumber, SurgePriceBin surgePriceBin) throws Exception {
 
         double revenue = surgePriceBin.currentIterationRevenue();
         revenueDataSet[binNumber] += revenue;
@@ -344,7 +348,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         return dataset;
     }
 
-    private void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize) {
+    private void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize) throws IOException{
 
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
         List<String> _categoriesKeys = new ArrayList<>(categoriesKeys);
@@ -361,11 +365,11 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Exception occurs due to " , e);
         }
     }
 
-    private void drawRevenueGraph(double[] data) {
+    private void drawRevenueGraph(double[] data) throws  IOException{
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
@@ -383,7 +387,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, revenueGraphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Exception occurs due to " , e);
         }
     }
 
@@ -432,7 +436,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " , e);
         }
     }
 
@@ -459,7 +463,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " , e);
         }
     }
 
@@ -481,7 +485,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " , e);
         }
     }
 
@@ -538,7 +542,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            log.error("Exception occurs due to " , ioe);
         }
     }
 }

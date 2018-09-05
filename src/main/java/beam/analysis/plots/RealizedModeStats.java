@@ -80,29 +80,37 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     @Override
-    public void processStats(Event event) {
-        processRealizedMode(event);
+
+    public void processStats(Event event)  {
+        try {
+            processRealizedMode(event);
+        }catch (Exception e){
+            log.error("Exception occurance due to " , e);
+        }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
 
-        Map<String, String> tags = new HashMap<>();
-        tags.put("stats-type", "aggregated-mode-choice");
-        hourModeFrequency.values().stream().flatMap(x -> x.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
-                .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
+        try {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("stats-type", "aggregated-mode-choice");
+            hourModeFrequency.values().stream().filter(x->x!=null).flatMap(x -> x.entrySet().stream())
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
+                    .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
-        updateRealizedModeChoiceInIteration(event.getIteration());
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
-
-        writeToCSV(event);
+            updateRealizedModeChoiceInIteration(event.getIteration());
+            CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+            if (modesFrequencyDataset != null)
+                createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            writeToCSV(event);
+        }catch (Exception e){
+            log.error("Exception occurance due to " , e);
+        }
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
+    public void createGraph(IterationEndsEvent event, String graphTsype) {
 
     }
 
@@ -115,7 +123,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
-    private void processRealizedMode(Event event) {
+    private void processRealizedMode(Event event) throws  Exception{
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Map<String, String> eventAttributes = event.getAttributes();
@@ -188,15 +196,15 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                             hourMode.put(mode, frequency);
                         }
                     }
+                    hourModeFrequency.put(hour, hourData);
                 }
 
             }
         }
-        hourModeFrequency.put(hour, hourData);
     }
 
     //    accumulating data for each iteration
-    public void updateRealizedModeChoiceInIteration(Integer iteration) {
+    public void updateRealizedModeChoiceInIteration(Integer iteration) throws Exception {
         Set<Integer> hours = hourModeFrequency.keySet();
         Map<String, Integer> totalModeChoice = new HashMap<>();
         for (Integer hour : hours) {
@@ -218,7 +226,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
     }
 
-    private CategoryDataset buildModesFrequencyDatasetForGraph() {
+    private CategoryDataset buildModesFrequencyDatasetForGraph() throws Exception {
         CategoryDataset categoryDataset = null;
         double[][] dataset = buildModesFrequencyDataset();
         if (dataset != null)
@@ -274,7 +282,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
 
     // dataset for root graph
-    private CategoryDataset buildRealizedModeChoiceDatasetForGraph() {
+    private CategoryDataset buildRealizedModeChoiceDatasetForGraph() throws Exception {
         CategoryDataset categoryDataset = null;
         double[][] dataset = buildTotalRealizedModeChoiceDataset();
 

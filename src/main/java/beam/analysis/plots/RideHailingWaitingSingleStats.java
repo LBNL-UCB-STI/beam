@@ -12,6 +12,8 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -34,6 +36,8 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
     private final IStatComputation<Map<Integer, Double>, double[][]> statComputation;
+
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     public static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
 
@@ -78,41 +82,49 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     @Override
     public void processStats(Event event) {
 
-        if (event instanceof ModeChoiceEvent) {
+        try {
+            if (event instanceof ModeChoiceEvent) {
 
-            String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
-            if (mode.equalsIgnoreCase("ride_hail")) {
+                String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+                if (mode.equalsIgnoreCase("ride_hail")) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-                Id<Person> personId = modeChoiceEvent.getPersonId();
-                rideHailWaiting.put(personId.toString(), event);
+                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                    Id<Person> personId = modeChoiceEvent.getPersonId();
+                    rideHailWaiting.put(personId.toString(), event);
+                }
+            } else if (event instanceof PersonEntersVehicleEvent) {
+
+                PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
+                Id<Person> personId = personEntersVehicleEvent.getPersonId();
+                String _personId = personId.toString();
+
+                if (rideHailWaiting.containsKey(personId.toString())) {
+
+                    ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
+                    double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
+                    processRideHailingWaitingTimes(modeChoiceEvent, difference);
+
+                    // Remove the personId from the list of ModeChoiceEvent
+                    rideHailWaiting.remove(_personId);
+                }
             }
-        } else if (event instanceof PersonEntersVehicleEvent) {
-
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
-            Id<Person> personId = personEntersVehicleEvent.getPersonId();
-            String _personId = personId.toString();
-
-            if (rideHailWaiting.containsKey(personId.toString())) {
-
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
-                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
-                processRideHailingWaitingTimes(modeChoiceEvent, difference);
-
-                // Remove the personId from the list of ModeChoiceEvent
-                rideHailWaiting.remove(_personId);
-            }
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
         }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        double[][] data = statComputation.compute(hoursTimesMap);
-        CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
-        if (dataset != null)
-            createModesFrequencyGraph(dataset, event.getIteration());
+        try {
+            double[][] data = statComputation.compute(hoursTimesMap);
+            CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
+            if (dataset != null)
+                createModesFrequencyGraph(dataset, event.getIteration());
 
-        writeToCSV(event.getIteration(), hoursTimesMap);
+            writeToCSV(event.getIteration(), hoursTimesMap);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     @Override
@@ -121,7 +133,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     }
 
 
-    private void processRideHailingWaitingTimes(Event event, double waitingTime) {
+    private void processRideHailingWaitingTimes(Event event, double waitingTime) throws Exception {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
         //waitingTime = waitingTime / 60;
@@ -169,7 +181,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
             }
             out.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("CSV not generated " + e);
         }
     }
 
