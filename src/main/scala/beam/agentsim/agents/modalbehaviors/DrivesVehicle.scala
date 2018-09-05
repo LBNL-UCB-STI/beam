@@ -167,8 +167,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           //Throwing parkEvent after last PathTraversal
           val vehId = data.currentVehicle.head
           val theVehicle = beamServices.vehicles(data.currentVehicle.head)
-            theVehicle.reservedStall.foreach { stall =>
-              theVehicle.useParkingStall(stall)
+          theVehicle.reservedStall.foreach { stall =>
+            theVehicle.useParkingStall(stall)
             val nextLeg =
               data.passengerSchedule.schedule.keys.view
                 .drop(data.currentLegPassengerScheduleIndex)
@@ -346,12 +346,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
 
-      if(newLeg.mode== CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0){
-        val stop= 0
+      if (newLeg.mode == CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0) {
+        val stop = 0
       }
-      if(data.currentVehicle.isEmpty){
-        stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle",newLeg))
-      }else {
+      if (data.currentVehicle.isEmpty) {
+        stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
+      } else {
         // Un-Park if necessary, this should only happen with RideHailAgents
         data.currentVehicle.headOption match {
           case Some(currentVehicleUnderControl) =>
@@ -467,8 +467,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .to(req.arriveAt)
         .keys
         .toSeq
-      if(legs.toVector.map(_.duration).sum == 0){
-        val stop= 0
+      if (legs.toVector.map(_.duration).sum == 0) {
+        val stop = 0
       }
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
