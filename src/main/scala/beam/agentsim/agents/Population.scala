@@ -27,7 +27,6 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 import scala.util.Try
@@ -90,6 +89,7 @@ class Population(
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
+
     // Have to wait for households to create people so they can send their first trigger to the scheduler
     val houseHoldsInitialized =
       Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
@@ -158,7 +158,7 @@ class Population(
               ) //TODO personSelectedPlan.getType is null
 
               def receive = {
-                case ParkingInquiryResponse(stall) =>
+                case ParkingInquiryResponse(stall, _) =>
                   vehicle._2.useParkingStall(stall)
                   context.stop(self)
                 //TODO deal with timeouts and errors
@@ -177,6 +177,8 @@ class Population(
 }
 
 object Population {
+  val defaultVehicleRange = 500e3
+  val refuelRateLimitInWatts = None
 
   case object InitParkingVehicles
 
@@ -194,7 +196,12 @@ object Population {
     }
     houseHoldVehicles
       .map({ id =>
-        makeHouseholdVehicle(beamServices.matsimServices.getScenario.getVehicles, id) match {
+        makeHouseholdVehicle(
+          beamServices.matsimServices.getScenario.getVehicles,
+          id,
+          defaultVehicleRange,
+          refuelRateLimitInWatts
+        ) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
         }
       })

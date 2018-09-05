@@ -66,8 +66,7 @@ object MatsimConversionTool extends App {
   ) = {
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter =
-        new CsvMapWriter(new FileWriter(outputFilePath), CsvPreference.STANDARD_PREFERENCE)
+      mapWriter = new CsvMapWriter(new FileWriter(outputFilePath), CsvPreference.STANDARD_PREFERENCE)
 
       val processors = ShapeUtils.getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")

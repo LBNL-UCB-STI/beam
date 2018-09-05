@@ -1,4 +1,28 @@
 @startuml
-Driver -> Router: RoutingRequest
-Router --> Actor: RoutingResponse
+rnote over DrivesVehicle: Driving
+Scheduler->DrivesVehicle:EndLegTrigger
+rnote over DrivesVehicle: Idle
+rnote over RideHailAgent: Idle
+RideHailAgent->RideHailManager:NotifyVehicleResourceIdle
+RideHailManager->ParkingManager:DepotParkingInquiry
+ParkingManager->RideHailManager:DepotParkingInquiryResponse
+RideHailManager-> Router: RoutingRequest
+Router->RideHailManager: RoutingResponse
+RideHailManager->RideHailManager: MoveOutOfServiceVehicleToDepotParking
+RideHailManager->OutOfServiceManager: initiateMovementToParkingDepot
+OutOfServiceManager->RideHailAgent: Interrupt
+rnote over RideHailAgent: IdleInterrupted
+RideHailAgent->OutOfServiceManager: InterruptedWhileIdle
+OutOfServiceManager->RideHailAgent: ModifyPassengerSchedule
+rnote over RideHailAgent: WaitingToDriveInterrupted
+RideHailAgent->OutOfServiceManager: ModifyPassengerScheduleAck
+rnote over DrivesVehicle: WaitingToDriveInterrupted
+OutOfServiceManager->DrivesVehicle: Resume
+rnote over DrivesVehicle: WaitingToDrive
+OutOfServiceManager->DrivesVehicle: NotifyVehicleResourceIdleReply
+DrivesVehicle->Scheduler: Completion
+Scheduler->DrivesVehicle:StartLegTrigger
+rnote over DrivesVehicle: Driving
+
+
 @enduml

@@ -3,6 +3,8 @@ package beam.calibration
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
+import Bounded._
+import beam.utils.OptionalUtils.JavaOptionals._
 import beam.experiment._
 import com.google.common.collect.Lists
 import com.sigopt.Sigopt
@@ -11,13 +13,17 @@ import com.sigopt.model._
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.collection.JavaConverters
+import scala.util.Try
+import beam.calibration.BeamSigoptTuner._
+import com.typesafe.scalalogging.LazyLogging
 
 case class SigoptExperimentData(
   experimentDef: ExperimentDef,
   experimentPath: File,
   benchmarkFileLoc: String,
+  experimentId: String,
   development: Boolean = false
-) {
+) extends LazyLogging {
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -30,9 +36,27 @@ case class SigoptExperimentData(
   val baseConfig: Config =
     ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
 
-  val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef, development)
+  // Always default to single JVM if incorrect entry
+  val numWorkers: Int = Try { experimentDef.header.numWorkers.toInt }.getOrElse(1)
 
-  val isParallel: Boolean = experimentDef.header.isParallel
+  val isParallel: Boolean = numWorkers > 1
+
+  val isMaster: Boolean = experimentId == "None"
+
+  val experiment: Experiment =
+    fetchExperiment(experimentId) match {
+      case Some(foundExperiment) =>
+        logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
+        if (isParallel) {
+          Experiment.update(foundExperiment.getId).data(s"""{"parallel_bandwidth":$numWorkers}""").call()
+        }
+        foundExperiment
+      case None =>
+        val createdExperiment: Experiment = createExperiment(experimentDef)
+        logger.info("New Experiment created with experimentId [" + createdExperiment.getId + "]")
+        System.exit(0)
+        createdExperiment
+    }
 
 }
 
@@ -41,6 +65,7 @@ object SigoptExperimentData {
   def apply(
     experimentLoc: String,
     benchmarkFileLoc: String,
+    experimentId: String,
     development: Boolean
   ): SigoptExperimentData = {
 
@@ -50,10 +75,13 @@ object SigoptExperimentData {
       throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
     }
 
+    // If experiment ID is missing, create one
+
     SigoptExperimentData(
-      BeamSigoptTuner.loadExperimentDef(experimentPath.toFile),
+      loadExperimentDef(experimentPath.toFile),
       experimentPath.toFile,
       benchmarkFileLoc,
+      experimentId,
       development
     )
   }
@@ -61,7 +89,7 @@ object SigoptExperimentData {
 
 object BeamSigoptTuner {
 
-  import Bounded._
+  val client = new Client(Sigopt.clientToken)
 
   // Fields //
 
@@ -73,34 +101,30 @@ object BeamSigoptTuner {
     * @throws SigoptException If the experiment cannot be created, this exception is thrown.
     */
   @throws[SigoptException]
-  def createOrFetchExperiment(
-    experimentDef: ExperimentDef,
+  def fetchExperiment(
+    experimentId: String,
     development: Boolean = false
-  ): Experiment = {
-    val client = new Client(Sigopt.clientToken)
-    val header = experimentDef.getHeader
-    val experimentId = header.getTitle
+  ): Option[Experiment] = {
+
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
       .filter(
-        (experiment: Experiment) =>
-          experiment.getName == experimentId & experiment.getDevelopment == development
+        (experiment: Experiment) => experiment.getId == experimentId & experiment.getDevelopment == development
       )
       .findFirst
-    optExperiment.orElse(createExperiment(experimentDef))
+    optExperiment.toOption
   }
 
   @throws[SigoptException]
-  private def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
+  def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
     val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
-    Experiment.create
-      .data(new Experiment.Builder().name(experimentId).parameters(parameters).build)
-      .call
-
+    val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
+    val expCall = Experiment.create.data(experiment)
+    expCall.call()
   }
 
   def loadExperimentDef(experimentFileLoc: File): ExperimentDef = {

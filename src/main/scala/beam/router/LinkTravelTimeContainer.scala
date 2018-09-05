@@ -10,9 +10,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
-class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int)
-    extends TravelTime
-    with LazyLogging {
+class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int) extends TravelTime with LazyLogging {
 
   private var linkTravelTimeMap: Map[Id[Link], Map[Int, Double]] = Map()
 
