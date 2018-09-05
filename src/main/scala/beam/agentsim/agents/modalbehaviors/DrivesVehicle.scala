@@ -349,6 +349,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       if(newLeg.mode== CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0){
         val stop= 0
       }
+      if(data.currentVehicle.isEmpty){
+        stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle",newLeg))
+      }
       // Un-Park if necessary, this should only happen with RideHailAgents
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
