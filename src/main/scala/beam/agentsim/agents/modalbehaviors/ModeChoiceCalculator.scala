@@ -35,10 +35,8 @@ trait ModeChoiceCalculator extends HasServices {
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
-      DefaultVot ->
-      (try {
-        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-      } catch { case _: NullPointerException => 18.0 })
+      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
   /**
@@ -73,14 +71,14 @@ trait ModeChoiceCalculator extends HasServices {
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
     )
 
-  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
-    val votType = matchMode2Vot(beamMode)
-    if (!votType.equals(DefaultVot))
-      Some(valuesOfTime += votType -> value)
-    else {
-      None
-    }
-  }
+//  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
+//    val votType = matchMode2Vot(beamMode)
+//    if (!votType.equals(DefaultVot))
+//      Some(valuesOfTime += votType -> value)
+//    else {
+//      None
+//    }
+//  }
 
   def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
     time / 3600 * getVot(beamMode)

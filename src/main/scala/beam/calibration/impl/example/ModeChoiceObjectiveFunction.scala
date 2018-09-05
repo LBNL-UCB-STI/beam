@@ -12,27 +12,23 @@ import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
 
 import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
-import beam.calibration.api.FileBasedObjectiveFunction
+import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
 import beam.utils.FileUtils.using
 
-class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
-    extends FileBasedObjectiveFunction(benchmarkDataFileLoc) {
+class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends ObjectiveFunction {
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 
-  override def evaluateFromRun(runDataFileDir: String): Double = {
+  override def evaluateFromRun(runDataFileLoc: String): Double = {
 
     val benchmarkData = if (benchmarkDataFileLoc.contains("http://")) {
-      getStatsFromMTC(new URI(runDataFileDir))
+      getStatsFromMTC(new URI(runDataFileLoc))
     } else {
       getStatsFromFile(benchmarkDataFileLoc)
     }
-    val statsFile =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv")
-    val runData =
-      getStatsFromFile(Paths.get(statsFile).toAbsolutePath.toString, isBenchmark = false)
-    compareStats(benchmarkData, runData)
+
+    compareStats(benchmarkData, getStatsFromFile(runDataFileLoc))
   }
 
   /**
@@ -42,7 +38,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     * @param runData       output values of mode shares given current suggestion.
     * @return the '''negative''' RMSPE value (since we '''maximize''' the objective).
     */
-  override def compareStats(
+  def compareStats(
     benchmarkData: Map[String, Double],
     runData: Map[String, Double]
   ): Double = {
@@ -58,10 +54,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String)
     res
   }
 
-  override def getStatsFromFile(
-    fileLoc: String,
-    isBenchmark: Boolean = true
-  ): Map[String, Double] = {
+  def getStatsFromFile(fileLoc: String): Map[String, Double] = {
     val lines = Source.fromFile(fileLoc).getLines().toArray
     val header = lines.head.split(",").tail
     val lastIter = lines.reverse.head.split(",").tail.map(_.toDouble)

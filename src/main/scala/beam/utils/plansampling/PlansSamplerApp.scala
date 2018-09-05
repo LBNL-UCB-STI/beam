@@ -30,11 +30,12 @@ import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.matsim.households.Income.IncomePeriod.year
+
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
-
 import scala.collection.mutable.ListBuffer
-import scala.collection.{immutable, JavaConverters}
+import scala.collection.{immutable, mutable, AbstractSeq, JavaConverters}
+import scala.collection.generic.CanBuildFrom
 import scala.util.Random
 
 case class SynthHousehold(
@@ -236,7 +237,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     import scala.collection.JavaConverters._
     val targetCRS = CRS.decode(wgsConverter.targetCRS)
     val transform = CRS.findMathTransform(sourceCRS, targetCRS, false)
-    var outGeoms = new util.ArrayList[Geometry]()
+    val outGeoms = new util.ArrayList[Geometry]()
     // Get the polygons and add them to the output list
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
@@ -266,7 +267,8 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     // Get the shapefile Envelope
     val aoi = geometryUnionFromShapefile(aoiShapeFileLoc, sourceCRS)
     // loop through all activities and check if each is in the bounds
-    for (person <- pop) {
+
+    for (person <- pop.par) {
       val pplan = person.getPlans.get(0) // First and only plan
       val activities = PopulationUtils.getActivities(pplan, null)
 
@@ -274,10 +276,8 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
       var allIn = true
       activities.forEach(act => {
         val coord = act.getCoord
-        val gF = new GeometryFactory()
-        val vsCoord = Array(new Coordinate(coord.getX, coord.getY))
-        val point =
-          new Point(gF.getCoordinateSequenceFactory.create(vsCoord), gF)
+        val point: Point =
+          MGC.xy2Point(coord.getX, coord.getY)
         if (!aoi.contains(point)) {
           allIn = false
         }
@@ -399,11 +399,9 @@ object PlansSampler {
     val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
       .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
 
-    Random
-      .shuffle(synthHouseholds)
+    synthHouseholds
       .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
       .take(sampleNumber)
-
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -429,7 +427,7 @@ object PlansSampler {
         .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
         .head
     newVehicles.addVehicleType(carVehicleType)
-    synthHouseholds foreach (sh => {
+    synthHouseholds.foreach(sh => {
       val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
         numPersons * 2
@@ -451,6 +449,7 @@ object PlansSampler {
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
 
       counter.incCounter()
+
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
       (0 to sh.vehicles).foreach(x => {
@@ -462,6 +461,10 @@ object PlansSampler {
       })
 
       var homePlan: Option[Plan] = None
+
+      var ranks: immutable.Seq[Int] = 0 to sh.individuals.length
+      ranks = Random.shuffle(ranks)
+
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
@@ -469,7 +472,7 @@ object PlansSampler {
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
         newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(numPersons))
+          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
@@ -541,6 +544,13 @@ object PlansSampler {
   * [5] Number of persons to sample (e.g., 1k, 5k, etc.)
   * [6] Output directory
   * [7] Target CRS
+  *
+  * Run from directly from CLI with, for example:
+  *
+  * $> gradle :execute -PmainClass=beam.utils.plansampling.PlansSamplerApp
+  * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
+  * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
+  * 'production/application-sfbay/vehicles.xml.gz', '413187', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler

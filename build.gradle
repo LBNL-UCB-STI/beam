@@ -254,7 +254,7 @@ scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
-compileScala.dependsOn(scalafmtAll)
+//compileScala.dependsOn(scalafmtAll)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -515,7 +515,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx130g"] + logGC
+applicationDefaultJvmArgs = ["-Xmx200g"] + logGC
 println(applicationDefaultJvmArgs)
 
 run {

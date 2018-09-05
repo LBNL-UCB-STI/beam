@@ -243,7 +243,7 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(RIDE_HAIL) =>
-          responsePlaceholders = makeResponsePlaceholders(withRideHail = true)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
@@ -291,7 +291,7 @@ trait ChoosesMode {
           val egressSegment = driveTransitTrip.get.legs.view
             .dropWhile(!_.beamLeg.mode.isMassTransit)
             .dropWhile(_.beamLeg.mode.isMassTransit)
-            .map(_.beamLeg)
+            .map(_.beamLeg).headOption
           //TODO replace hard code number here with parameter
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
@@ -301,7 +301,7 @@ trait ChoosesMode {
             }
           val egressId =
             if (egressSegment.map(_.travelPath.distanceInM).sum > 0) {
-              makeRideHailRequestFromBeamLeg(egressSegment)
+              makeRideHailRequestFromBeamLeg(egressSegment.toVector)
             } else {
               None
             }
