@@ -22,6 +22,16 @@ import org.apache.commons.lang.SystemUtils
   */
 object RunCalibration extends App with BeamHelper {
 
+  // - separate util for id creation
+
+  // - if no experiment Id provided, create id and continue with work
+
+  // - is runType="localRun" | "remoteDeploy"
+
+  // - afterwards: include run parameters in yml file
+
+  //
+
   // requirement:
   // - we need to be able to create new experiment id
   // - we need local run
