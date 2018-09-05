@@ -2,6 +2,7 @@ package beam.calibration
 
 import java.io.PrintWriter
 
+import beam.calibration.utils.SigOptApiToken
 import beam.sim.BeamHelper
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
@@ -22,11 +23,13 @@ import org.apache.commons.lang.SystemUtils
 object RunCalibration extends App with BeamHelper {
 
   // requirement:
-  // - we need local run
-  // - we need to deploy runs
   // - we need to be able to create new experiment id
-  // - we need to pass existing experiment id to local and remote runs we start
-  // - allow to specify the suggestionId for a run
+  // - we need local run
+  // - we need to deploy runs (input: experiment id)
+  // => distinguish between local and remote runs
+  // - how to solve crashed runs (You have exceeded the maximum number of open suggestions for this plan).
+  // => delete suggestion or reuse same suggestionid
+  // can we add host name to suggestion value?
 
   // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token)
 
@@ -43,11 +46,7 @@ object RunCalibration extends App with BeamHelper {
   val argsMap = parseArgs(args)
 
   // Store CLI inputs as private members
-  Sigopt.clientToken = Option { System.getenv("SIGOPT_API_TOKEN") }.getOrElse(
-    throw new APIConnectionError(
-      "Correct developer client token must be present in environment as SIGOPT_DEV_API Token"
-    )
-  )
+  Sigopt.clientToken = SigOptApiToken.getClientAPIToken
   private val experimentLoc: String = argsMap(EXPERIMENTS_TAG)
   private val benchmarkLoc: String = argsMap(BENCHMARK_EXPERIMENTS_TAG)
   private val numIters: Int = argsMap(NUM_ITERATIONS_TAG).toInt
