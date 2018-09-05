@@ -11,9 +11,7 @@ import kamon.metric.instrument.CollectionContext
 import kamon.metric.instrument.Time.{Milliseconds, Nanoseconds}
 import kamon.metric.{Entity, EntitySnapshot}
 
-class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String])
-    extends Actor
-    with LazyLogging {
+class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) extends Actor with LazyLogging {
   var iterationNumber = 0
   var metricStore: Map[Entity, EntitySnapshot] = null
 

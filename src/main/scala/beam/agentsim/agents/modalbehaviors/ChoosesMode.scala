@@ -6,10 +6,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusResponse,
-  ReleaseVehicleReservation
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -246,7 +243,7 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(RIDE_HAIL) =>
-          responsePlaceholders = makeResponsePlaceholders(withRideHail = true)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
@@ -294,7 +291,7 @@ trait ChoosesMode {
           val egressSegment = driveTransitTrip.get.legs.view
             .dropWhile(!_.beamLeg.mode.isMassTransit)
             .dropWhile(_.beamLeg.mode.isMassTransit)
-            .map(_.beamLeg)
+            .map(_.beamLeg).headOption
           //TODO replace hard code number here with parameter
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
@@ -304,7 +301,7 @@ trait ChoosesMode {
             }
           val egressId =
             if (egressSegment.map(_.travelPath.distanceInM).sum > 0) {
-              makeRideHailRequestFromBeamLeg(egressSegment)
+              makeRideHailRequestFromBeamLeg(egressSegment.toVector)
             } else {
               None
             }
@@ -326,10 +323,8 @@ trait ChoosesMode {
         } else {
           choosesModeData.copy(
             rideHail2TransitRoutingResponse = Some(EmbodiedBeamTrip.empty),
-            rideHail2TransitAccessResult =
-              Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
-            rideHail2TransitEgressResult =
-              Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
+            rideHail2TransitAccessResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
+            rideHail2TransitEgressResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
           )
         }
       stay() using newPersonData
@@ -464,8 +459,7 @@ trait ChoosesMode {
               combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
             case _ =>
               combinedItinerariesForChoice.filter(
-                trip =>
-                  trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
+                trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
               )
           }
         case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
@@ -609,8 +603,7 @@ trait ChoosesMode {
         restOfCurrentTrip = chosenTrip.legs.toList,
         currentTourMode = data.personData.currentTourMode
           .orElse(Some(chosenTrip.tripClassifier)),
-        currentTourPersonalVehicle =
-          data.personData.currentTourPersonalVehicle.orElse(personalVehicleUsed)
+        currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehicleUsed)
       )
   }
 }
@@ -647,8 +640,7 @@ object ChoosesMode {
       currentLegPassengerScheduleIndex: Int
     ): DrivingData =
       copy(
-        personData =
-          personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+        personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
       )
     override def hasParkingBehaviors: Boolean = true
   }

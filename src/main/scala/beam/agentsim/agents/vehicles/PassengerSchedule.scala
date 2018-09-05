@@ -48,6 +48,8 @@ object BeamLegOrdering extends Ordering[BeamLeg] {
     if (compare1 != 0) return compare1
     val compare2 = java.lang.Long.compare(a.duration, b.duration)
     if (compare2 != 0) return compare2
+    val compare3 = a.travelPath == b.travelPath
+    if (!compare3) return 1
     0
   }
 }

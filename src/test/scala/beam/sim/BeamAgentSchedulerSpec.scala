@@ -90,8 +90,7 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(tick: Double) extends Trigger
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef)
-      extends BeamAgent[MyData] {
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 
     override def logPrefix(): String = "TestBeamAgent"
