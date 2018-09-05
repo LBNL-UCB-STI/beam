@@ -214,7 +214,7 @@ trait ChoosesParking extends {
 
       val currVehicle = beamServices.vehicles(data.currentVehicle.head)
 
-      val newVehicle = if (leg1.beamLeg.mode == CAR) {
+      val newVehicle = if (leg1.beamLeg.mode == CAR || currVehicle.id == bodyId) {
         data.currentVehicle
       } else {
         currVehicle.unsetDriver()
