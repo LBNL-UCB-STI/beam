@@ -5,16 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -160,7 +151,7 @@ class BeamRouter(
         }
       f.pipeTo(sender)
     case msg: UpdateTravelTime =>
-      if(!services.beamConfig.beam.cluster.enabled) {
+      if (!services.beamConfig.beam.cluster.enabled) {
         metricsPrinter ! Print(
           Seq(
             "cache-router-time",

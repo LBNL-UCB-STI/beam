@@ -598,8 +598,7 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Cluster = {
         BeamConfig.Beam.Cluster(
-          clusterType =
-            if (c.hasPathOrNull("clusterType")) Some(c.getString("clusterType")) else None,
+          clusterType = if (c.hasPathOrNull("clusterType")) Some(c.getString("clusterType")) else None,
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
         )
       }
@@ -1025,10 +1024,8 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Conversion.ShapeConfig = {
           BeamConfig.Matsim.Conversion.ShapeConfig(
-            shapeFile =
-              if (c.hasPathOrNull("shapeFile")) c.getString("shapeFile") else "tz46_d00.shp",
-            tazIdFieldName =
-              if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "TZ46_D00_I"
+            shapeFile = if (c.hasPathOrNull("shapeFile")) c.getString("shapeFile") else "tz46_d00.shp",
+            tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "TZ46_D00_I"
           )
         }
       }

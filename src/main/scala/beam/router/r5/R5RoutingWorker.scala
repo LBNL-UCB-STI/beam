@@ -104,10 +104,7 @@ case class WorkerParameters(
   transitVehicles: Vehicles
 )
 
-class R5RoutingWorker(workerParams: WorkerParameters)
-    extends Actor
-    with ActorLogging
-    with MetricsSupport {
+class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
 
   def this(config: Config) {
     this(workerParams = {
@@ -134,8 +131,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
         override var beamConfig: BeamConfig = BeamConfig(config)
         override lazy val registry: ActorRef = throw new Exception("???")
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
-        override var modeChoiceCalculatorFactory
-          : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+        override var modeChoiceCalculatorFactory: HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
@@ -273,7 +269,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
       eventualResponse pipeTo sender
       askForMoreWork
     case UpdateTravelTime(travelTime) =>
-      if(!beamServices.beamConfig.beam.cluster.enabled) {
+      if (!beamServices.beamConfig.beam.cluster.enabled) {
         log.info(s"{} UpdateTravelTime", getNameAndHashCode)
         maybeTravelTime = Some(travelTime)
         cache.invalidateAll()
