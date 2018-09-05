@@ -516,7 +516,7 @@ def getCurrentTimestamp = {
             .format(Instant.now())
 }
 
-def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log", "-XX:+HeapDumpOnOutOfMemoryError"]
+def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
