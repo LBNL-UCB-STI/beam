@@ -104,7 +104,7 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
       val modeWeight = meanToCountsWeightRatio / (1 + meanToCountsWeightRatio)
       val countsWeight = 1 - modeWeight
 
-      (countsWeight * countsObjVal + modeWeight * modesObjVal)
+      -(countsWeight * Math.abs(countsObjVal) + modeWeight * Math.abs(modesObjVal))
     } else {
       logger.error("objectiveFunctionClassName not set")
       Double.NegativeInfinity
