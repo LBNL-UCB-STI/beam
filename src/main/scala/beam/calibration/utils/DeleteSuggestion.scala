@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters._
 
-object DeleteSuggestion extends LazyLogging {
+object DeleteSuggestion extends LazyLogging{
   val deleteSuggestionId: String = "21226774"
 
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
@@ -30,12 +30,12 @@ object DeleteSuggestion extends LazyLogging {
     }
   }
 
-  def deleteSuggestions(experimentId: String, suggestions: List[String]) = {
+  def deleteSuggestions(experimentId: String, suggestions: List[String]) ={
 
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) => {
-        suggestions.foreach { suggestionId =>
-          {
+        suggestions.foreach{
+          suggestionId => {
 
             _experiment.suggestions().delete(suggestionId).call()
           }
@@ -51,10 +51,11 @@ object DeleteSuggestion extends LazyLogging {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) => {
 
-        if (_experiment.suggestions().list().call().getData.size() > 0)
-          _experiment.suggestions().list().call().getData.forEach { d =>
-            println(d)
-          } else
+        if(_experiment.suggestions().list().call().getData.size() > 0)
+          _experiment.suggestions().list().call().getData.forEach{
+            d => println(d)
+          }
+        else
           logger.info(s"Experiement with id $experimentId has no suggestion")
       }
       case None => {
@@ -65,13 +66,15 @@ object DeleteSuggestion extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
 
-    val experimentId = "51962"
-    val suggestionId = "21226774";
+    val experimentId = "52024"
+    val suggestionId = "21233364";
+
 
     listSuggestions(experimentId)
 
-    //deleteSuggestion(experimentId, suggestionId)
+    deleteSuggestion(experimentId, suggestionId)
 
-    //listSuggestions(experimentId)
+    listSuggestions(experimentId)
   }
 }
+
