@@ -234,7 +234,8 @@ class RideHailModifyPassengerScheduleManager(
         )
         //log.debug(getWithVehicleIds(vehicleId).toString())
 //        printState()
-        DebugLib.stopSystemAndReportInconsistency()
+        modifyPassengerScheduleAckReceivedForRepositioning(Vector())
+      //DebugLib.stopSystemAndReportInconsistency()
     }
   }
 
