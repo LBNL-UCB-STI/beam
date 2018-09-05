@@ -28,7 +28,7 @@ import java.util.List;
 
 public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport {
 
-    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail","car", "others"));
+    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail" , "others"));
 
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
@@ -69,7 +69,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
                 continue;
             }
-
             writeGraphic(event.getIteration(), mode);
         }
     }
@@ -148,7 +147,14 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 return;
             }
 
-            String unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            String unitVehicle;
+            try {
+                Integer.parseInt(vehicleId);
+                unitVehicle = "car";
+            }
+            catch (NumberFormatException e){
+                unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            }
 
             Integer count = modePerson.get(unitVehicle);
             if (count != null) {
