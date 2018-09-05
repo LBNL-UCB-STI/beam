@@ -159,8 +159,7 @@ object TollCalculator {
 
   case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
 
-  case class DateRange(override val dType: String, override val on: String, till: String)
-      extends ChargeDate
+  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
 
   object ChargeDate {
     private val months =
