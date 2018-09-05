@@ -160,8 +160,10 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        if(beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters * 0.8){
-          log.error("Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop")
+        if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters * 0.8) {
+          log.error(
+            "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+          )
         }
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
@@ -345,7 +347,7 @@ class BeamMobsim @Inject()(
         log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized $numRideHailAgents ride hailing agents")
 
-        Await.result(beamServices.beamRouter ? InitTransit(scheduler,parkingManager), timeout.duration)
+        Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0)
           new BeamWarmStart(beamServices).init()
