@@ -169,7 +169,7 @@ object ExperimentGenerator extends App {
      */
     experiment.header.modeChoiceTemplate.toString match {
       case "" =>
-        // Do nothing since modeChoieParams wasn't specified in experiment.yaml file
+        // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""
       case uri =>
         if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {

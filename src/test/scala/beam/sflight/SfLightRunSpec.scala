@@ -20,11 +20,7 @@ import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecL
   * Created by colinsheppard
   */
 
-class SfLightRunSpec
-    extends WordSpecLike
-    with Matchers
-    with BeamHelper
-    with BeforeAndAfterAllConfigMap {
+class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
@@ -84,8 +80,8 @@ class SfLightRunSpec
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
       val conf = baseConf
-        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("verbose"))
-        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("yes"))
+        .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
+        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))
         .resolve()
       val (_, output) = runBeamWithConfig(conf)
 

@@ -4,16 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHail
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -115,9 +106,16 @@ object RoutingModel {
     def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
       this.copy(travelPath = this.travelPath.copy(newLinks))
 
-    def updateStartTime(newStartTime: Long): BeamLeg =
+    def updateStartTime(newStartTime: Long): BeamLeg = {
+      val newTravelPath = this.travelPath.updateStartTime(newStartTime)
       this
-        .copy(startTime = newStartTime, travelPath = this.travelPath.updateStartTime(newStartTime))
+        .copy(
+          startTime = newStartTime,
+          duration = newTravelPath.endPoint.time - newStartTime,
+          travelPath = newTravelPath
+        )
+
+    }
 
     override def toString: String =
       s"BeamLeg($mode @ $startTime,dur:$duration,path: ${travelPath.toShortString})"
@@ -126,7 +124,7 @@ object RoutingModel {
   object BeamLeg {
 
     def dummyWalk(startTime: Long): BeamLeg =
-      new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+      (new BeamLeg(0L, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))).updateStartTime(startTime)
   }
 
   case class EmbodiedBeamLeg(
@@ -138,8 +136,6 @@ object RoutingModel {
     unbecomeDriverOnCompletion: Boolean
   ) {
 
-    val isHumanBodyVehicle: Boolean =
-      HumanBodyVehicle.isVehicleType(beamVehicleId)
     val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
   }
 

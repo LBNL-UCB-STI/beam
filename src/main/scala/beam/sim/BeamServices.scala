@@ -3,12 +3,9 @@ package beam.sim
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -18,7 +15,6 @@ import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
 import beam.utils.DateUtils
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import glokka.Registry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
@@ -36,8 +32,6 @@ import scala.util.Try
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
-
-  val registry: ActorRef
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -57,9 +51,6 @@ trait BeamServices extends ActorInject {
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-
-  val registry: ActorRef =
-    Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 

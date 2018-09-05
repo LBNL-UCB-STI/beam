@@ -84,7 +84,7 @@ class TollCalculator(val directory: String) extends LazyLogging {
   def calcToll(osmIds: Vector[Long]): Double = {
     if (osmIds.length > maxOsmIdsLen) {
       maxOsmIdsLen = osmIds.length
-      logger.info("Max OsmIDS encountered: {}", maxOsmIdsLen)
+      logger.debug("Max OsmIDS encountered: {}", maxOsmIdsLen)
     }
     // TODO: Do we need faster lookup like hashset
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
@@ -159,8 +159,7 @@ object TollCalculator {
 
   case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
 
-  case class DateRange(override val dType: String, override val on: String, till: String)
-      extends ChargeDate
+  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
 
   object ChargeDate {
     private val months =
