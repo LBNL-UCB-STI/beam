@@ -104,10 +104,75 @@ case class WorkerParameters(
   transitVehicles: Vehicles
 )
 
-class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
+class R5RoutingWorker(workerParams: WorkerParameters)
     extends Actor
     with ActorLogging
     with MetricsSupport {
+
+  def this(config: Config) {
+    this(workerParams = {
+      val beamConfig = BeamConfig(config)
+      val outputDirectory = FileUtils.getConfigOutputFile(
+        beamConfig.beam.outputs.baseOutputDirectory,
+        beamConfig.beam.agentsim.simulationName,
+        beamConfig.beam.outputs.addTimestampToOutputDirectory
+      )
+      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+      LoggingUtil.createFileLogger(outputDirectory)
+      matsimConfig.controler.setOutputDirectory(outputDirectory)
+      matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      networkCoordinator.loadNetwork()
+      scenario.setNetwork(networkCoordinator.network)
+      val network = networkCoordinator.network
+      val transportNetwork = networkCoordinator.transportNetwork
+      val beamServices: BeamServices = new BeamServices {
+        override lazy val controler: ControlerI = ???
+        override var beamConfig: BeamConfig = BeamConfig(config)
+        override lazy val registry: ActorRef = throw new Exception("???")
+        override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+        override var modeChoiceCalculatorFactory
+          : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+        override val dates: DateUtils = DateUtils(
+          ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+          ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+        )
+        override var beamRouter: ActorRef = null
+        override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+        override val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
+          TrieMap[Id[Vehicle], BeamVehicle]()
+
+        override def startNewIteration: Unit = throw new Exception("???")
+
+        override protected def injector: Injector = throw new Exception("???")
+
+        override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
+
+        override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
+
+        override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
+          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+        override def matsimServices: org.matsim.core.controler.MatsimServices = ???
+
+        override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
+      }
+
+      val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+      val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+      WorkerParameters(
+        beamServices,
+        transportNetwork,
+        network,
+        fareCalculator,
+        tollCalculator,
+        scenario.getTransitVehicles
+      )
+    })
+  }
 
   val WorkerParameters(
     beamServices,
@@ -116,65 +181,7 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
     fareCalculator,
     tollCalculator,
     transitVehicles
-  ) = workerParamsOrConfig match {
-    case Left(workerParams) => workerParams
-    case Right(config)      => buildWorkerParamsFrom(config)
-  }
-
-  def buildWorkerParamsFrom(config: Config): WorkerParameters = {
-    val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-    LoggingUtil.createFileLogger(outputDirectory)
-    matsimConfig.controler.setOutputDirectory(outputDirectory)
-    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    scenario.setNetwork(networkCoordinator.network)
-    val network = networkCoordinator.network
-    val transportNetwork = networkCoordinator.transportNetwork
-    val beamServices: BeamServices = new BeamServices {
-      override lazy val controler: ControlerI = ???
-      override var beamConfig: BeamConfig = BeamConfig(config)
-      override lazy val registry: ActorRef = throw new Exception("???")
-      override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
-      override var modeChoiceCalculatorFactory
-        : HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
-      override val dates: DateUtils = DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-      override var beamRouter: ActorRef = null
-      override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
-      override val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-      override def startNewIteration: Unit = throw new Exception("???")
-      override protected def injector: Injector = throw new Exception("???")
-      override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-      override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
-      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
-        beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-      override def matsimServices: org.matsim.core.controler.MatsimServices = ???
-      override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
-    }
-
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
-    WorkerParameters(
-      beamServices,
-      transportNetwork,
-      network,
-      fareCalculator,
-      tollCalculator,
-      scenario.getTransitVehicles
-    )
-  }
+  ) = workerParams
 
   private val distanceThresholdToIgnoreWalking =
     beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
@@ -191,7 +198,7 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
   var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
-    "Num of avaiable processors: {}. Will use: {}",
+    "Num of available processors: {}. Will use: {}",
     Runtime.getRuntime().availableProcessors(),
     numOfThreads
   )
@@ -266,9 +273,11 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
       eventualResponse pipeTo sender
       askForMoreWork
     case UpdateTravelTime(travelTime) =>
-      log.info(s"{} UpdateTravelTime", getNameAndHashCode)
-      maybeTravelTime = Some(travelTime)
-      cache.invalidateAll()
+      if(!beamServices.beamConfig.beam.cluster.enabled) {
+        log.info(s"{} UpdateTravelTime", getNameAndHashCode)
+        maybeTravelTime = Some(travelTime)
+        cache.invalidateAll()
+      }
       askForMoreWork
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
@@ -326,8 +335,15 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
-    val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
-    leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    try {
+      val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
+      leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
+    } catch {
+      case x =>
+        log.error(
+          s"Error updating leg with current travel time - $linksTimesAndDistances - ${leg.travelPath.linkIds} - ${leg.startTime} - ${toR5StreetMode(leg.mode)} - ${transportNetwork.streetLayer}"
+        ); throw x
+    }
   }
 
   def lengthOfLink(linkId: Int): Double = {
@@ -611,24 +627,37 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
           Vector(firstLeg, secondLeg)
         } else {
           val indexFromEnd = Math.min(
-            theLinkIds.reverse
-              .map(lengthOfLink(_))
-              .scanLeft(0.0)(_ + _)
-              .indexWhere(
-                _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-              ),
+            Math.max(
+              theLinkIds.reverse
+                .map(lengthOfLink(_))
+                .scanLeft(0.0)(_ + _)
+                .indexWhere(
+                  _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+                ),
+              0
+            ),
             theLinkIds.length - 1
           )
-          val indexFromBeg = theLinkIds.length - indexFromEnd
-          val firstLeg = updateLegWithCurrentTravelTime(
-            leg.updateLinks(theLinkIds.take(indexFromBeg))
-          )
-          val secondLeg = updateLegWithCurrentTravelTime(
-            leg
-              .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
-              .copy(startTime = firstLeg.startTime + firstLeg.duration)
-          )
-          Vector(firstLeg, secondLeg)
+          try {
+            val indexFromBeg = theLinkIds.length - indexFromEnd
+            val firstLeg = updateLegWithCurrentTravelTime(
+              leg.updateLinks(theLinkIds.take(indexFromBeg))
+            )
+            val secondLeg = updateLegWithCurrentTravelTime(
+              leg
+                .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
+                .copy(startTime = firstLeg.startTime + firstLeg.duration)
+            )
+            Vector(firstLeg, secondLeg)
+          } catch {
+            case x => {
+              log.error(
+                s"Split leg for parking - $theLinkIds - $indexFromEnd - ${theLinkIds.length - indexFromEnd}"
+              )
+              log.error(s"More ${theLinkIds.reverse.map(lengthOfLink(_))}")
+              throw x
+            }
+          }
         }
       }
 
@@ -1234,6 +1263,8 @@ class R5RoutingWorker(workerParamsOrConfig: Either[WorkerParameters, Config])
 
 }
 
+case class Wrapper(workerParams: Option[WorkerParameters], config: Option[Config])
+
 object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
@@ -1247,20 +1278,16 @@ object R5RoutingWorker {
   ) =
     Props(
       new R5RoutingWorker(
-        Left(
-          new WorkerParameters(
-            beamServices,
-            transportNetwork,
-            network,
-            fareCalculator,
-            tollCalculator,
-            transitVehicles
-          )
+        new WorkerParameters(
+          beamServices,
+          transportNetwork,
+          network,
+          fareCalculator,
+          tollCalculator,
+          transitVehicles
         )
       )
     )
-
-  def props(config: Config) = Props(new R5RoutingWorker(Right(config)))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
   case class R5Request(

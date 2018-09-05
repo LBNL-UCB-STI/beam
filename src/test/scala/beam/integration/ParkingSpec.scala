@@ -10,20 +10,10 @@ import org.matsim.core.events.handler.BasicEventHandler
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import beam.agentsim.events.{
-  LeavingParkingEventAttrs,
-  ModeChoiceEvent,
-  ParkEventAttrs,
-  PathTraversalEvent
-}
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import java.io.File
 
-import beam.agentsim.events.{
-  LeavingParkingEventAttrs,
-  ModeChoiceEvent,
-  ParkEventAttrs,
-  PathTraversalEvent
-}
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils

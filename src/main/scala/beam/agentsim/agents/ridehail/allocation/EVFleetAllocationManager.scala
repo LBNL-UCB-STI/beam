@@ -33,11 +33,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       case None =>
         // go with closest
         rideHailManager
-          .getClosestIdleVehiclesWithinRadius(
+          .getClosestIdleRideHailAgent(
             vehicleAllocationRequest.request.pickUpLocation,
             rideHailManager.radiusInMeters
           )
-          .headOption
       case _ =>
         agentLocationOpt
     }

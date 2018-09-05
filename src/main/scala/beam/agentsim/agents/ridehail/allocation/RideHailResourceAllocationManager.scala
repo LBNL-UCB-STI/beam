@@ -1,10 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  RideHailAgentLocation
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -12,8 +9,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
-    extends LazyLogging {
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
     rideHailManager.scheduler
@@ -24,11 +20,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   ): VehicleAllocationResponse = {
     // closest request
     rideHailManager
-      .getClosestIdleVehiclesWithinRadius(
+      .getClosestIdleRideHailAgent(
         vehicleAllocationRequest.request.pickUpLocation,
         rideHailManager.radiusInMeters
-      )
-      .headOption match {
+      ) match {
       case Some(agentLocation) =>
         VehicleAllocation(agentLocation, None)
       case None =>

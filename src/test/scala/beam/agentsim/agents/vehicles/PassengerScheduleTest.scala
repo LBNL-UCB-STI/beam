@@ -15,7 +15,7 @@ import org.scalatest.{FunSpecLike, Matchers, _}
   *
   */
 class PassengerScheduleTest
-    extends TestKit(ActorSystem("testSystem"))
+    extends TestKit(ActorSystem("PassengerScheduleTest"))
     with FunSpecLike
     with BeforeAndAfterAll
     with Matchers

@@ -292,30 +292,36 @@ trait BeamHelper extends LazyLogging {
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
-    val system = ActorSystem("ClusterSystem", clusterConfig)
-    system.actorOf(
-      ClusterSingletonManager.props(
-        singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
-        terminationMessage = PoisonPill,
-        settings = ClusterSingletonManagerSettings(system).withRole("compute")
-      ),
-      name = "statsService"
-    )
-    system.actorOf(
-      ClusterSingletonProxy.props(
-        singletonManagerPath = "/user/statsService",
-        settings = ClusterSingletonProxySettings(system).withRole("compute")
-      ),
-      name = "statsServiceProxy"
-    )
-    val replayer = system.actorOf(DeadLetterReplayer.props())
-    system.eventStream.subscribe(replayer, classOf[DeadLetter])
+    try {
+      val system = ActorSystem("ClusterSystem", clusterConfig)
+      system.actorOf(
+        ClusterSingletonManager.props(
+          singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
+          terminationMessage = PoisonPill,
+          settings = ClusterSingletonManagerSettings(system).withRole("compute")
+        ),
+        name = "statsService"
+      )
+      logger.info("MORE")
+      system.actorOf(
+        ClusterSingletonProxy.props(
+          singletonManagerPath = "/user/statsService",
+          settings = ClusterSingletonProxySettings(system).withRole("compute")
+        ),
+        name = "statsServiceProxy"
+      )
+      logger.info("EVEN")
+      val replayer = system.actorOf(DeadLetterReplayer.props())
+      system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
-    import scala.concurrent.ExecutionContext.Implicits.global
-    Await.ready(system.whenTerminated.map(_ => {
-      if (isMetricsEnable) Kamon.shutdown()
-      logger.info("Exiting BEAM")
-    }), scala.concurrent.duration.Duration.Inf)
+      import scala.concurrent.ExecutionContext.Implicits.global
+      Await.ready(system.whenTerminated.map(_ => {
+        if (isMetricsEnable) Kamon.shutdown()
+        logger.info("Exiting BEAM")
+      }), scala.concurrent.duration.Duration.Inf)
+    } catch {
+      case x => logger.info(x.toString)
+    }
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {

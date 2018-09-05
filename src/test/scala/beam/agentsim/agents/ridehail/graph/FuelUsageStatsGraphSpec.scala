@@ -1,10 +1,7 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.FuelUsageStatsGraphSpec.{
-  FuelUsageStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.FuelUsageStatsGraphSpec.{FuelUsageStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator
 import beam.analysis.plots.{FuelUsageStats, GraphsStatsAgentSimEventsListener}

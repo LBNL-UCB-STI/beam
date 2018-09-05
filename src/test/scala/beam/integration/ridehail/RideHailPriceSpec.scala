@@ -9,11 +9,7 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-class RideHailPriceSpec
-    extends WordSpecLike
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon {
+class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
     "create less entries for mode choice rideHail as value increases" ignore {
       val inputRideHailPrice = Seq(0.1, 1.0)
