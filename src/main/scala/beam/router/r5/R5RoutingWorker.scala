@@ -419,7 +419,7 @@ class R5RoutingWorker(
                 .indexWhere(
                   _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
                 ),
-              0
+              1
             ),
             theLinkIds.length - 1
           )

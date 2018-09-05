@@ -73,7 +73,7 @@ setkey(both,time)
 #ggplot(rh,aes(x= start.x,y=start.y,colour=kwh))+geom_point()+geom_point(data=both[type=='Charge'])
 ggplot(rh,aes(x= start.x,y=start.y,colour=type))+geom_point()+geom_point(data=both[type=='Charge'])
 
-#write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/beam-ev-ride-hail.csv"),row.names=F)
+write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/beam-ev-ride-hail.csv"),row.names=F)
 
 # find a veh that recharges
 both[vehicle%in%u(both[type=='Charge']$vehicle),.N,by='vehicle']
