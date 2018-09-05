@@ -357,6 +357,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               parkingManager ! CheckInResource(theStall.id, None)
           }
           theVehicle.unsetParkingStall()
+        case None =>
+          stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle",newLeg))
       }
       val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
         .schedule(newLeg)
