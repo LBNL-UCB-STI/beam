@@ -273,9 +273,11 @@ class R5RoutingWorker(workerParams: WorkerParameters)
       eventualResponse pipeTo sender
       askForMoreWork
     case UpdateTravelTime(travelTime) =>
-      log.info(s"{} UpdateTravelTime", getNameAndHashCode)
-      maybeTravelTime = Some(travelTime)
-      cache.invalidateAll()
+      if(!beamServices.beamConfig.cluster.enabled) {
+        log.info(s"{} UpdateTravelTime", getNameAndHashCode)
+        maybeTravelTime = Some(travelTime)
+        cache.invalidateAll()
+      }
       askForMoreWork
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
