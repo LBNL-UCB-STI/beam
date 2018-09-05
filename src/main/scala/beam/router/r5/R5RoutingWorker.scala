@@ -273,7 +273,7 @@ class R5RoutingWorker(workerParams: WorkerParameters)
       eventualResponse pipeTo sender
       askForMoreWork
     case UpdateTravelTime(travelTime) =>
-      if(!beamServices.beamConfig.cluster.enabled) {
+      if(!beamServices.beamConfig.beam.cluster.enabled) {
         log.info(s"{} UpdateTravelTime", getNameAndHashCode)
         maybeTravelTime = Some(travelTime)
         cache.invalidateAll()
