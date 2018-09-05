@@ -174,9 +174,7 @@ class RideHailAgent(
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
           log.debug("Ending refuel session for {}", theVehicle.id)
           theVehicle.addFuel(energyInJoules)
-          eventsManager.processEvent(
-            new RefuelEvent(tick, theVehicle.stall.get, energyInJoules, tick - sessionStart, theVehicle.id)
-          )
+          eventsManager.processEvent(new RefuelEvent(tick, theVehicle.stall.get.copy(location = beamServices.geo.utm2Wgs(theVehicle.stall.get.location)), energyInJoules, tick - sessionStart, theVehicle.id))
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,

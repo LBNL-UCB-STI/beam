@@ -7,7 +7,7 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Id
 
-class ParkingStall(
+case class ParkingStall(
   val id: Id[ParkingStall],
   val attributes: StallAttributes,
   val location: Location,
