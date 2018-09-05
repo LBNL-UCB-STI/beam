@@ -463,12 +463,12 @@ class R5RoutingWorker(
               transportNetwork.transitLayer.routes.size() == 0
             )
             var legsWithFares = maybeWalkToVehicle
-              .map{
-                walkLeg =>
-                  // If there's a gap between access leg start time and walk leg, we need to move that ahead
-                  // this covers the various contingencies for doing this.
-                  val delayStartTime = Math.max(0.0,(tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
-                  ArrayBuffer((walkLeg.updateStartTime(walkLeg.startTime.toLong + delayStartTime.toLong), 0.0))
+              .map { walkLeg =>
+                // If there's a gap between access leg start time and walk leg, we need to move that ahead
+                // this covers the various contingencies for doing this.
+                val delayStartTime =
+                  Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
+                ArrayBuffer((walkLeg.updateStartTime(walkLeg.startTime.toLong + delayStartTime.toLong), 0.0))
               }
               .getOrElse(ArrayBuffer[(BeamLeg, Double)]())
 

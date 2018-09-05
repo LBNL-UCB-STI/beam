@@ -52,14 +52,38 @@ class ParkingSpec
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(1.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept", ConfigValueFactory.fromAnyRef(0.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept", ConfigValueFactory.fromAnyRef(0.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept", ConfigValueFactory.fromAnyRef(-5.0))
-      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept", ConfigValueFactory.fromAnyRef(0.0))
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+        ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+        ConfigValueFactory.fromAnyRef(1.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+        ConfigValueFactory.fromAnyRef(-5.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
       .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
       .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
@@ -136,7 +160,7 @@ class ParkingSpec
           val parkEventsWithoutLast = parkEvents.dropRight(1)
           val leavingParkEventsWithoutFirst = leavingEvents.tail
 
-          if(parkEventsWithoutLast.size != leavingParkEventsWithoutFirst.size){
+          if (parkEventsWithoutLast.size != leavingParkEventsWithoutFirst.size) {
             println(parkEventsWithoutLast)
             println(leavingParkEventsWithoutFirst)
           }

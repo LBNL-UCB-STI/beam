@@ -68,8 +68,8 @@ trait ChoosesParking extends {
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
 
-      if(data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0){
-        val stop= 0
+      if (data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0) {
+        val stop = 0
       }
       veh.stall.foreach { stall =>
         parkingManager ! CheckInResource(
