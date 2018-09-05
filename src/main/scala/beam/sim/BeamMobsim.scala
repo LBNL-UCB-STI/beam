@@ -264,8 +264,8 @@ class BeamMobsim @Inject()(
                   val radius =
                     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
                   new Coord(
-                    personInitialLocation.getX + radius * rand.nextDouble(),
-                    personInitialLocation.getY + radius * rand.nextDouble()
+                    personInitialLocation.getX + radius * (rand.nextDouble()-0.5),
+                    personInitialLocation.getY + radius * (rand.nextDouble()-0.5)
                   )
                 case RideHailManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
                   val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
