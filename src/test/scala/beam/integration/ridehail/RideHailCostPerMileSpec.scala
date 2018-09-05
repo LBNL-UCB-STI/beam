@@ -18,7 +18,7 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
               ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
             )
             .withValue(
-              RideHailTestHelper.KEY_DEFAULT_COST_PER_MILE,
+              "beam.agentsim.agents.rideHail.defaultCostPerMile",
               ConfigValueFactory.fromAnyRef(tc)
             )
         ).groupedCount

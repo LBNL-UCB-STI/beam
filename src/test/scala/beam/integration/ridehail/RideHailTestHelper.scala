@@ -41,8 +41,4 @@ object RideHailTestHelper {
     matsimConfig
   }
 
-  val KEY_DEFAULT_COST_PER_MILE = "beam.agentsim.agents.rideHail.defaultCostPerMile"
-
-  val KEY_RIDEHAIL_DEFAULT_COST_PER_MILE = "beam.agentsim.agents.rideHail.defaultCostPerMinute"
-
 }
