@@ -54,7 +54,6 @@ case class SigoptExperimentData(
       case None =>
         val createdExperiment: Experiment = createExperiment(experimentDef)
         logger.info("New Experiment created with experimentId [" + createdExperiment.getId + "]")
-        System.exit(0)
         createdExperiment
     }
 

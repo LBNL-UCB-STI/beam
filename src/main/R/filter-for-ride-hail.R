@@ -1,6 +1,6 @@
 # fitler outputs for ride hailing summary and analysis
 
-out.scen <- 'EVFleet__2018-09-05_13-13-58'
+out.scen <- 'EVFleet__2018-09-05_20-52-48'
 
 load(pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/0.events.Rdata"))
 
@@ -40,20 +40,21 @@ length(u(enters$person))
 # Deadheading = 14.35%  of total VMT
 # Avg speed 22 mph
 
-
-my.cat(pp('# trips: ',nrow(rh)))
-my.cat(pp('# vehicles: ',length(u(rh$vehicle))))
-my.cat(pp('unique passengers: ',length(u(enters$person))))
-my.cat(pp('Total VMT: ',sum(rh$length)/1608))
-my.cat(pp('VMT per vehicle: ',sum(rh$length)/1608/length(u(rh$vehicle))))
-my.cat(pp('Avg trip length with passenger: ',sum(rh[num_passengers>0]$length/nrow(rh[num_passengers>0]))/1608))
-my.cat(pp('Avg deadhead trip length: ',sum(rh[num_passengers==0 & reposition==F]$length/nrow(rh[num_passengers==0 & reposition==F]))/1608))
-my.cat(pp('Avg reposition trip length: ',sum(rh[num_passengers==0 & reposition==T]$length/nrow(rh[num_passengers==0 & reposition==T]))/1608))
-my.cat(pp('Empty VMT fraction: ',sum(rh[num_passengers==0]$length)/sum(rh$length)))
-my.cat(pp('Deadhead VMT fraction: ',sum(rh[num_passengers==0 & reposition==F]$length)/sum(rh$length)))
-my.cat(pp('Reposition VMT fraction: ',sum(rh[num_passengers==0 & reposition==T]$length)/sum(rh$length)))
-my.cat(pp('Avg. Speed: ',mean(rh$speed)))
-my.cat(pp('Avg. Speed VMT weighted: ',weighted.mean(rh$speed,rh$length)))
+summ.str <- ''
+summ.str <- pp(summ.str,'\n','# trips:\t\t',nrow(rh))
+summ.str <- pp(summ.str,'\n','# vehicles:\t\t',length(u(rh$vehicle)))
+summ.str <- pp(summ.str,'\n','unique passengers:\t\t',length(u(enters$person)))
+summ.str <- pp(summ.str,'\n','Total VMT:\t\t',sum(rh$length)/1608)
+summ.str <- pp(summ.str,'\n','VMT per vehicle:\t\t',sum(rh$length)/1608/length(u(rh$vehicle)))
+summ.str <- pp(summ.str,'\n','Avg trip length with passenger:\t\t',sum(rh[num_passengers>0]$length/nrow(rh[num_passengers>0]))/1608)
+summ.str <- pp(summ.str,'\n','Avg deadhead trip length:\t\t',sum(rh[num_passengers==0 & reposition==F]$length/nrow(rh[num_passengers==0 & reposition==F]))/1608)
+summ.str <- pp(summ.str,'\n','Avg reposition trip length:\t\t',sum(rh[num_passengers==0 & reposition==T]$length/nrow(rh[num_passengers==0 & reposition==T]))/1608)
+summ.str <- pp(summ.str,'\n','Empty VMT fraction:\t\t',sum(rh[num_passengers==0]$length)/sum(rh$length))
+summ.str <- pp(summ.str,'\n','Deadhead VMT fraction:\t\t',sum(rh[num_passengers==0 & reposition==F]$length)/sum(rh$length))
+summ.str <- pp(summ.str,'\n','Reposition VMT fraction:\t\t',sum(rh[num_passengers==0 & reposition==T]$length)/sum(rh$length))
+summ.str <- pp(summ.str,'\n','Avg. Speed:\t\t',mean(rh$speed))
+summ.str <- pp(summ.str,'\n','Avg. Speed VMT weighted:\t\t',weighted.mean(rh$speed,rh$length))
+my.cat(summ.str)
 
 
 num.paths <- rh[,.(n=length(speed),frac.repos=sum(num_passengers==0)/sum(num_passengers==1)),by='vehicle']
@@ -68,10 +69,12 @@ rh[,type:='Movement']
 ref[,type:='Charge']
 both <- rbindlist(list(rh,ref),use.names=T,fill=T)
 setkey(both,time)
+both[,hour:=floor(time/3600)]
 
 #ggplot(rh,aes(x= start.x,y=start.y,xend=end.x,yend=end.y,colour=reposition))+geom_segment()
 #ggplot(rh,aes(x= start.x,y=start.y,colour=kwh))+geom_point()+geom_point(data=both[type=='Charge'])
-ggplot(rh,aes(x= start.x,y=start.y,colour=type))+geom_point()+geom_point(data=both[type=='Charge'])
+ggplot(both[type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[type=='Charge'],size=0.25)
+dev.new();ggplot(both[type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[type=='Charge'],size=0.25)+facet_wrap(~hour)
 
 write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/beam-ev-ride-hail.csv"),row.names=F)
 
@@ -79,7 +82,12 @@ write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/I
 both[vehicle%in%u(both[type=='Charge']$vehicle),.N,by='vehicle']
 
 
-
-# Why San Jose sparse?
-
-pop <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/population.csv.gz', row.names=NULL))
+# Compare RH initial positions to activities
+rhi<-data.table(read.csv(pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/0.rideHailInitialLocation.csv")))
+rhi[,':='(x=xCoord,y=yCoord)]
+rhi[,type:='RH-Initial']
+load('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/population.Rdata')
+pop <- df
+rm('df')
+poprh<-rbindlist(list(pop,rhi),use.names=T,fill=T)
+ggplot(poprh,aes(x=x,y=y,colour=type))+geom_point(alpha=.2)
