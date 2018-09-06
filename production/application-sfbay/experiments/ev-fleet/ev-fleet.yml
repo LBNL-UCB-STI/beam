@@ -26,16 +26,16 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 112500
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 161000
     - name: High
       params:
-        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 225000
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 322000
 
   - title: ridehailNumber
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.025
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.005
     - name: High
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.05
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
