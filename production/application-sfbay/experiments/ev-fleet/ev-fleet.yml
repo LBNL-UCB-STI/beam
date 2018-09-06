@@ -13,29 +13,39 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
 
 # Default Params
-
 defaultParams:
     ### ---- beam-template.conf param replacement ---####
-    beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.025
-    beam.agentsim.agents.rideHail.vehicleRangeInMeters: 112500.0
+        beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/taz-parking.csv"
 
 # Factors
 
 factors:
+  - title: chargerLevel
+    levels:
+    - name: 250kW
+      params:
+        beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/taz-parking.csv"
+    - name: 50kW
+      params:
+        beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/taz-parking-50kw.csv"
+
   - title: vehicleRange
     levels:
-    - name: Low
+    - name: 75mi
       params:
-        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 161000
-    - name: High
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 120600
+    - name: 150mi
       params:
-        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 322000
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 241200
 
   - title: ridehailNumber
     levels:
-    - name: Low
+    - name: 5k
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.005
-    - name: High
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01208255
+    - name: 10k
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.0241651
+    - name: 15k
+      params:
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.03624764
