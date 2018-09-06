@@ -36,7 +36,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private HashSet<String> personIdList = new HashSet<>();
     private Map<ModePerson, Integer> hourPerson = new HashMap<>();
     private HashSet<String> recentPersonIdRemoveList = new HashSet<>();
-
+    private HashSet<String> allModes = new HashSet<>();
     private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
 
@@ -122,6 +122,8 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
 
             String mode = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE);
+            allModes.add(mode);
+
             String personId = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
             Map<String, String> tags = new HashMap<>();
             tags.put("stats-type", "mode-choice");
@@ -156,13 +158,23 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
                 int modeHour = -1;
                 String mode = null;
+                boolean isRemoved = recentPersonIdRemoveList.contains(person);
 
-                for (ModePerson mP : hourPerson.keySet()) {
-                    if (person.equals(mP.getPerson()) && !recentPersonIdRemoveList.contains(person)) {
-                        modeHour = hourPerson.get(mP);
-                        mode = mP.getMode();
+                for (String m : allModes ){
+                    ModePerson mp = new ModePerson(m, person);
+                    if (hourPerson.keySet().contains(mp) && !isRemoved) {
+                        modeHour = hourPerson.get(mp);
+                        mode = mp.getMode();
                     }
                 }
+
+//                for (ModePerson mP : hourPerson.keySet()) {
+//                    if (person.equals(mP.getPerson()) && isNotRemoved) {
+//                        modeHour = hourPerson.get(mP);
+//                        mode = mP.getMode();
+//                    }
+//                }
+
 
 
                 if (mode != null && modeHour != -1) {
