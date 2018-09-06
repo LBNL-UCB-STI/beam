@@ -1333,17 +1333,11 @@ class RideHailManager(
     routingRequests: List[RoutingRequest]
   ) = {
     val preservedOrder = routingRequests.map(_.requestId)
-//    print(s"Routing reqs for RHReq ${rideHailRequest.requestId}: ")
-//    routingRequests.foreach(req => print(s"${req.requestId}, "))
-//    println("")
     Future
       .sequence(routingRequests.map { req =>
         akka.pattern.ask(router, req).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
-//        print(s"Routing responses for RHReq ${rideHailRequest.requestId}: ")
-//        responseList.foreach(req => print(s"${req.requestId}, "))
-//        println("")
         val requestIdToResponse = responseList.map { response =>
           (response.requestId.get -> response)
         }.toMap
