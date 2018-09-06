@@ -50,6 +50,10 @@ class BeamRouter(
   type WorkId = UUID
   type TimeSent = ZonedDateTime
 
+  val clearRoutedOutstandingWorkEnabled = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+  val secondsToWaitToClearRoutedOutstandingWork =
+    services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
+
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
     mutable.Queue.empty[WorkWithOriginalSender]
   val availableWorkers: mutable.Set[Worker] = mutable.Set.empty[Worker]
@@ -121,7 +125,7 @@ class BeamRouter(
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
-      logExcessiveOutstandingWork
+      logExcessiveOutstandingWorkAndClearIfEnabledAndOver
     case InitTransit(scheduler, parkingManager, id) =>
       // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
       val f = Future
@@ -206,6 +210,9 @@ class BeamRouter(
     case routingResp: RoutingResponse =>
       pipeResponseToOriginalSender(routingResp)
       logIfResponseTookExcessiveTime(routingResp)
+    case ClearRoutedWorkerTracker(workIdToClear) =>
+      //TODO: Maybe do this for all tracker removals?
+      removeOutstandingWorkBy(workIdToClear)
     case work =>
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
@@ -239,12 +246,23 @@ class BeamRouter(
 
   private def getCurrentTime: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
 
-  private def logExcessiveOutstandingWork = Future {
+  private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
     outstandingWorkIdToTimeSent.collect {
       case (workId: WorkId, timeSent: TimeSent) => {
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
-        if (secondsSinceSent > 120)
+        if(clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
+          //TODO: Can the logs be combined?
+          log.warning(
+            "Haven't heard back from work ID '{}' for {} seconds. " +
+              "This is over the configured threshold {}, so submitting to be cleared.",
+            workId,
+            secondsSinceSent,
+            secondsToWaitToClearRoutedOutstandingWork
+          )
+          self ! ClearRoutedWorkerTracker(workIdToClear = workId)
+        }
+        else if (secondsSinceSent > 120)
           log.warning(
             "Haven't heard back from work ID '{}' for {} seconds.",
             workId,
@@ -330,6 +348,11 @@ class BeamRouter(
     worker
   }
 
+  private def removeOutstandingWorkBy(workId: UUID): Unit = {
+    outstandingWorkIdToOriginalSenderMap.remove(workId)
+    outstandingWorkIdToTimeSent.remove(workId)
+  }
+
   private def initDriverAgents(
     initializer: TransitInitializer,
     scheduler: ActorRef, parkingManager: ActorRef,
@@ -362,6 +385,7 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
+  case class ClearRoutedWorkerTracker(workIdToClear: UUID)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
