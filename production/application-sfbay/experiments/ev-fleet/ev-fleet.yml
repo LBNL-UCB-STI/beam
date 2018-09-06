@@ -26,10 +26,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.tuning.transitCapacity: 112500
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 112500
     - name: High
       params:
-        beam.agentsim.tuning.transitCapacity: 225000
+        beam.agentsim.agents.rideHail.vehicleRangeInMeters: 225000
 
   - title: ridehailNumber
     levels:
