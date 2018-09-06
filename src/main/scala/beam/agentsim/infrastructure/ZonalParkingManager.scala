@@ -16,7 +16,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.FileUtils
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -48,6 +48,15 @@ class ZonalParkingManager(
     ParkingStall.Any
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
+
+  val depotStallLocationType: DepotStallLocationType = beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
+    case "AtRequestLocation" =>
+      AtRequestLocation
+    case "AtTAZCenter" =>
+      AtTAZCenter
+    case _ =>
+      AtRequestLocation
+  }
 
   def fillInDefaultPooledResources(): Unit = {
     // First do general parking and charging for personal vehicles
@@ -142,7 +151,14 @@ class ZonalParkingManager(
         }.reverse.headOption
       }
       val maybeParkingStall = maybeParkingAttribs.flatMap{attrib =>
-        maybeCreateNewStall(attrib, location, 0.0, maybeFoundStalls.get.get(attrib))
+        // Location is either TAZ center or random withing 5km of driver location
+        val newLocation = depotStallLocationType match {
+          case AtTAZCenter if beamServices.tazTreeMap.getTAZ(attrib.tazId).isDefined =>
+             beamServices.tazTreeMap.getTAZ(attrib.tazId).get.coord
+          case _ =>
+            location
+        }
+        maybeCreateNewStall(attrib, newLocation, 0.0, maybeFoundStalls.get.get(attrib))
       }
 
       maybeParkingStall.foreach { stall =>

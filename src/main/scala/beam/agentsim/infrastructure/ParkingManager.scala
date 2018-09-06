@@ -5,7 +5,7 @@ import beam.agentsim.ResourceManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import org.apache.commons.lang.builder.HashCodeBuilder
-import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
+import beam.agentsim.infrastructure.ParkingStall.{AtTAZCenter, ChargingPreference, DepotStallLocationType, ReservedParkingType}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
