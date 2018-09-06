@@ -143,6 +143,7 @@ class BeamRouter(
             val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
             val transits = initializer.initMap
             initDriverAgents(initializer, scheduler, parkingManager, transits)
+            metricsPrinter ! Subscribe("histogram", "**")
             localNodes.map {
               case localWorker => {
                 localWorker ! TransitInited(transits)
