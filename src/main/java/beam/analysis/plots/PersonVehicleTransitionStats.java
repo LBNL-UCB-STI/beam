@@ -38,7 +38,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private static final String xAxisLabel = "time (binSize=<?> sec)";
     private int binSize;
     private int numOfBins;
-    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     PersonVehicleTransitionStats(BeamConfig beamConfig){
         binSize = beamConfig.beam().outputs().stats().binSize();
@@ -88,6 +87,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             if (personId.toLowerCase().contains("agent")) {
                 return;
             }
+
             String vehicleId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
             if (vehicleId.contains(":")) {
                 String v = vehicleId.split(":")[0];
