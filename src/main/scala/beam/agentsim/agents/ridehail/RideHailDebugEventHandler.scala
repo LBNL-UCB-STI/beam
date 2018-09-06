@@ -8,9 +8,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.mutable
 
-class RideHailDebugEventHandler(eventsManager: EventsManager)
-    extends BasicEventHandler
-    with LazyLogging {
+class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEventHandler with LazyLogging {
 
   eventsManager.addHandler(this)
 
@@ -63,8 +61,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
 
             vehicleEvents.get(vehicle) match {
               // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
-              case Some(enterEvents)
-                  if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
+              case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
                 logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
 
@@ -100,8 +97,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
 
     vehicleEvents.foreach(
       _._2.foreach(
-        event =>
-          logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")
+        event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")
       )
     )
 

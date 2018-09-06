@@ -57,15 +57,13 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator.transportNetwork))
+            install(module(config, scenario, networkCoordinator))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
-                  case depEvent: PersonDepartureEvent
-                      if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                  case depEvent: PersonDepartureEvent if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
                     nDepartures = nDepartures + 1
-                  case arrEvent: PersonArrivalEvent
-                      if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                  case arrEvent: PersonArrivalEvent if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
                     nArrivals = nArrivals + 1
                   case _ =>
                 }

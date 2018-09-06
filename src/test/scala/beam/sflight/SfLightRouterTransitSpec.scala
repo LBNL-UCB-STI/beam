@@ -7,6 +7,7 @@ import akka.actor._
 import akka.testkit.TestProbe
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
@@ -20,10 +21,12 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
+
   override def beforeAll: Unit = {
     super.beforeAll
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services,Some(router))
     within(5 minutes) { // Router can take a while to initialize
-      router ! InitTransit(new TestProbe(system).ref)
+      router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
       expectMsgType[Success]
     }
   }

@@ -1,7 +1,6 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager}
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.DiscreteTime
@@ -26,11 +25,10 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     // just go with closest request
     rideHailManager
-      .getClosestIdleVehiclesWithinRadius(
+      .getClosestIdleRideHailAgent(
         vehicleAllocationRequest.request.pickUpLocation,
         rideHailManager.radiusInMeters
-      )
-      .headOption match {
+      ) match {
       case Some(agentLocation) =>
         VehicleAllocation(agentLocation, None)
       case None =>

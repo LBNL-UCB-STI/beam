@@ -89,7 +89,9 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                 String str = row[i];
                 if (str != null) {
                     if (str.contains(",")) {
-                        this.out.append("\"" + str + "\"");
+                        this.out.append('"');
+                        this.out.append(str);
+                        this.out.append('"');
                     } else {
                         this.out.append(str);
                     }

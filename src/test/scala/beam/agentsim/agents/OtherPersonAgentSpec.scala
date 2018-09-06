@@ -11,6 +11,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
@@ -18,7 +19,6 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
@@ -54,7 +54,7 @@ import scala.concurrent.Await
 class OtherPersonAgentSpec
     extends TestKit(
       ActorSystem(
-        "testsystem",
+        "OtherPersonAgentSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -85,20 +85,22 @@ class OtherPersonAgentSpec
     TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val beamServices: BeamServices = {
+  val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
+    // TODO Is it right to return defaultTazTreeMap?
+    when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
 
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = beamServices
+    override val beamServices: BeamServices = beamSvc
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
@@ -124,7 +126,7 @@ class OtherPersonAgentSpec
 
   val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
@@ -144,16 +146,16 @@ class OtherPersonAgentSpec
 //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.defaultCarBeamVehicleType,
+        None,
         None
-//        None
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType,
+        None,
         None
-//        None
       )
 
       vehicles.put(bus.getId, bus)
@@ -284,7 +286,7 @@ class OtherPersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,

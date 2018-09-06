@@ -1,11 +1,94 @@
 @startuml
-Scheduler -> PersonAgent: PersonDepartureTrigger
-PersonAgent --> Driver: BecomeDriver|ModifyPassengerSchedule if PersonIsDriver
-Driver --> Scheduler: ScheduleNotifyStartLegTrigger if PersonIsPassenger
-Scheduler --> PersonAgent: NotifyStartLegTrigger
-Driver --> Scheduler: ScheduleNotifyEndLegTrigger if PersonIsPassenger
-Scheduler --> PersonAgent: NotifyEndLegTrigger
-Driver --> Scheduler: ScheduleNotifyEndLegTrigger if PersonIsDriver
-Scheduler --> PersonAgent: PassengerScheduleEmptyTrigger if PersonIsDriver
-PersonAgent -> Scheduler: ScheduleActivityEndTrigger
+rnote over Person: PerformingActivity
+Scheduler -> Person: ActivityEndTrigger
+rnote over Person #FFAAAA: ChoosingMode\n(see Mode Choice\nProtocol)
+Person -> Scheduler: SchedulePersonDepartureTrigger
+rnote over Person: WaitingForDeparture
+Scheduler -> Person: PersonDepartureTrigger
+Person -> Scheduler: Completion
+
+== Walk or Bike Leg ==
+
+rnote over Person: ProcessingNextLeg
+rnote over Person: WaitingToDrive
+rnote over Driver: WaitingToDrive
+Scheduler -> Driver: StartLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: Driving
+Scheduler -> Driver: EndLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: PassengerScheduleEmpty
+rnote over Person: PassengerScheduleEmpty
+Driver -> Person: PassengerScheduleEmpty
+
+== Car Leg==
+
+rnote over Person: ProcessingNextLeg
+rnote over Person: ReleasingParkingSpot
+Person -> ParkingManager: CheckInResource
+rnote over Person: WaitingToDrive
+rnote over Driver: WaitingToDrive
+Scheduler -> Driver: StartLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: Driving
+Scheduler -> Driver: EndLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: ReadyToChooseParking
+rnote over Person: ReadyToChooseParking
+rnote over Person: ChoosingParkingSpot
+Person -> ParkingManager: ParkingInquiry
+ParkingManager -> Person: ParkingInquiryResponse
+Person -> Router: RoutingRequest
+Router -> Person: RoutingResponse
+rnote over Person: WaitingToDrive
+rnote over Driver: WaitingToDrive
+Scheduler -> Driver: StartLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: Driving
+Scheduler -> Driver: EndLegTrigger
+Driver -> Scheduler: Completion
+rnote over Driver: PassengerScheduleEmpty
+rnote over Person: PassengerScheduleEmpty
+Driver -> Person: PassengerScheduleEmpty
+
+== Transit Leg (2 stops)==
+
+rnote over Person: ProcessingNextLeg
+Person -> TransitDriver: ReservationRequest
+rnote over Person: WaitingForReservationConfirmation
+TransitDriver -> Person: ReservationResponse
+rnote over Person: Waiting
+TransitDriver -> Scheduler: ScheduleNotifyLegStartTrigger
+Scheduler -> Person: NotifyLegStartTrigger
+Person -> Scheduler: Completion
+rnote over Person: Moving
+TransitDriver -> Scheduler: ScheduleNotifyLegEndTrigger
+Scheduler -> Person: NotifyLegEndTrigger
+Person -> Scheduler: Completion
+rnote over Person: Waiting
+TransitDriver -> Scheduler: ScheduleNotifyLegStartTrigger
+Scheduler -> Person: NotifyLegStartTrigger
+Person -> Scheduler: Completion
+rnote over Person: Moving
+TransitDriver -> Scheduler: ScheduleNotifyLegEndTrigger
+Scheduler -> Person: NotifyLegEndTrigger
+Person -> Scheduler: Completion
+== Ride Hail Leg ==
+
+rnote over Person: ProcessingNextLeg
+Person -> RideHailManager: ReservationRequest
+rnote over Person: WaitingForReservationConfirmation
+RideHailManager -> Person: ReservationResponse
+rnote over Person: Waiting
+RideHailDriver -> Scheduler: ScheduleNotifyLegStartTrigger
+Scheduler -> Person: NotifyLegStartTrigger
+Person -> Scheduler: Completion
+rnote over Person: Moving
+RideHailDriver -> Scheduler: ScheduleNotifyLegEndTrigger
+Scheduler -> Person: NotifyLegEndTrigger
+Person -> Scheduler: Completion
+
+== Wrap Up Trip ==
+rnote over Person: ProcessingNextLeg
+Person -> Scheduler: ScheduleActivityEndTrigger
 @enduml

@@ -5,20 +5,20 @@ import java.nio.file.{Files, Paths}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import beam.utils.FileUtils
 
 import scala.io.Source
 
 /**
   * BEAM
   */
+// TODO This should be class, not an object
 object BridgeTollDefaults {
-  private var tollPrices: Map[Int, Double] = _
+  private var tollPrices: Map[Int, Double] = _ // TODO when it will be class, we can avoid this!
 
   def estimateBridgeFares(
-    alternatives: Seq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
-  ): Seq[BigDecimal] = {
+  ): IndexedSeq[BigDecimal] = {
 
     val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
     if (tollPrices == null) tollPrices = readTollPrices(tollPriceFile)
@@ -27,13 +27,16 @@ object BridgeTollDefaults {
       alt.tripClassifier match {
         case CAR =>
           BigDecimal(
-            alt.toBeamTrip.legs.map { beamLeg =>
-              if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-                beamLeg.travelPath.linkIds.filter(tollPrices.contains).map(tollPrices).sum
-              } else {
-                0
+            alt.legs.view
+              .map(_.beamLeg)
+              .map { beamLeg =>
+                if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
+                  beamLeg.travelPath.linkIds.view.filter(tollPrices.contains).map(tollPrices).sum
+                } else {
+                  0
+                }
               }
-            }.sum
+              .sum
           )
         case _ =>
           BigDecimal(0)

@@ -2,6 +2,8 @@ package beam.agentsim.agents.vehicles
 
 import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum._
+import org.matsim.vehicles.EngineInformation
+import org.matsim.vehicles.EngineInformation.FuelType
 
 import scala.collection.immutable
 
@@ -83,6 +85,26 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
   object Powertrain {
     //according to EPA's annual report 2015
     val AverageMilesPerGallon = 24.8
+
+    def apply(engineInformation: EngineInformation): Powertrain = {
+      engineInformation.getFuelType.name() match {
+        case "gasoline" =>
+          // convert from L/m to J/m
+          new Powertrain(engineInformation.getGasConsumption * 34.2E6) // 34.2 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+        case "diesel" =>
+          // convert from L/m to J/m
+          new Powertrain(engineInformation.getGasConsumption * 35.8E6) // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+        case "electricity" =>
+          // convert from kWh/m to J/m
+          new Powertrain(engineInformation.getGasConsumption * 3.6E6) // 3.6 MJ/kWh
+        case "biodiesel" =>
+          // convert from L/m to J/m
+          new Powertrain(engineInformation.getGasConsumption * 34.5E6) // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
+        case fuelName =>
+          throw new RuntimeException(s"Unrecognized fuel type in engine information: ${fuelName}")
+      }
+
+    }
 
     def PowertrainFromMilesPerGallon(milesPerGallon: Double): Powertrain =
       new Powertrain(milesPerGallon / 120276367 * 1609.34) // 1609.34 m / mi; 120276367 J per gal

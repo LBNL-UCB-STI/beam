@@ -49,7 +49,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.15" 
+def akkaBinaryVersion = "2.5.15"
 def circeBinaryVersion="0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
@@ -254,7 +254,7 @@ scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
-compileScala.dependsOn(scalafmtAll)
+//compileScala.dependsOn(scalafmtAll)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -276,6 +276,15 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
+
+task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+
+    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task to run tests periodically on continue integration server.
 // ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
@@ -506,7 +515,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx130g"] + logGC
+applicationDefaultJvmArgs = ["-Xmx200g"] + logGC
 println(applicationDefaultJvmArgs)
 
 run {

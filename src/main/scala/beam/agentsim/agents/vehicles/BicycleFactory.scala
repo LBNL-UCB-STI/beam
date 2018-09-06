@@ -52,7 +52,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
         powertrain,
         None,
         beamVehicleType,
-        None
+        None, None
       )))
 
     }

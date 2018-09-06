@@ -16,8 +16,7 @@ import scala.util.Random
 
 object RideHailSurgePricingManager {}
 
-class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServices)
-    extends HasServices {
+class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServices) extends HasServices {
 
   var iteration = 0
 
@@ -67,10 +66,9 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
     beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
-      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) {
-        (arrayBuffer, _) =>
-          arrayBuffer.append(defaultBinContent)
-          arrayBuffer
+      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
+        arrayBuffer.append(defaultBinContent)
+        arrayBuffer
       }
       (v.tazId.toString, array)
     }.toMap
