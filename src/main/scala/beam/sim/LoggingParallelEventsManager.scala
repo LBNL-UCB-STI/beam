@@ -12,13 +12,14 @@ import org.matsim.core.events.handler.EventHandler
 class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
   private val eventManager = new ParallelEventsManagerImpl(config.parallelEventHandling().getNumberOfThreads())
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)
+  val threshold: Int = 1000000
   logger.info(s"Created ParallelEventsManagerImpl with hashcode: ${eventManager.hashCode()}")
 
   override def processEvent(event: Event): Unit = {
     tryLog("processEvent", eventManager.processEvent(event))
     val processed = numOfEvents.incrementAndGet()
-    if (processed % 100000 == 0)
-      logger.info(s"Processed next 10000 events. Total: ${processed}")
+    if (processed % threshold == 0)
+      logger.info(s"Processed next $threshold events. Total: ${processed}")
   }
 
   override def addHandler(handler: EventHandler): Unit = {
