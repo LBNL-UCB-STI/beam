@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.{Vehicle, VehicleType, Vehicles}
 
 import scala.collection.JavaConverters
 
@@ -15,38 +15,82 @@ object BeamVehicleUtils {
     new BeamVehicle(
       BicycleVehicle.powerTrainForBicycle,
       BicycleVehicle.createMatsimVehicle(id),
-      None,
       BicycleVehicle,
+      None,
       None,
       None
     )
   }
 
-  def makeCar(matsimVehicles: Vehicles, id: Id[Vehicle]): BeamVehicle = {
-    val matsimVehicle = JavaConverters.mapAsScalaMap(matsimVehicles.getVehicles)(id)
+  def makeCar(
+    matsimVehicle: Vehicle,
+    vehicleRangeInMeters: Double,
+    refuelRateLimitInWatts: Option[Double]
+  ): BeamVehicle = {
+    val engineInformation = Option(matsimVehicle.getType.getEngineInformation)
 
-    val information = Option(matsimVehicle.getType.getEngineInformation)
+    val powerTrain = engineInformation match {
+      case Some(info) =>
+        Powertrain(info)
+      case None =>
+        Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon)
+    }
 
-    val vehicleAttribute = Option(matsimVehicles.getVehicleAttributes)
+    val fuelCapacityInJoules = vehicleRangeInMeters * powerTrain.estimateConsumptionInJoules(1)
 
-    val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-      information
-        .map(_.getGasConsumption)
-        .getOrElse(Powertrain.AverageMilesPerGallon)
+    new BeamVehicle(
+      powerTrain,
+      matsimVehicle,
+      CarVehicle,
+      Some(fuelCapacityInJoules),
+      Some(fuelCapacityInJoules),
+      refuelRateLimitInWatts
     )
-    new BeamVehicle(powerTrain, matsimVehicle, vehicleAttribute, CarVehicle, None, None)
+  }
+
+  def makeCar(
+    matsimVehicles: Vehicles,
+    id: Id[Vehicle],
+    vehicleRangeInMeters: Double,
+    refuelRateLimitInWatts: Option[Double]
+  ): BeamVehicle = {
+    makeCar(matsimVehicles.getVehicles.get(id), vehicleRangeInMeters, refuelRateLimitInWatts)
   }
 
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
     matsimVehicles: Vehicles,
-    id: Id[Vehicle]
+    id: Id[Vehicle],
+    vehicleRangeInM: Double = Double.MaxValue,
+    refuelRateLimitInWatts: Option[Double]
   ): Either[IllegalArgumentException, BeamVehicle] = {
     if (BicycleVehicle.isVehicleType(id)) {
       Right(makeBicycle(id))
     } else {
-      Right(makeCar(matsimVehicles, id))
+      Right(makeCar(matsimVehicles, id, vehicleRangeInM, refuelRateLimitInWatts))
     }
+  }
+
+  def getVehicleTypeById(
+    id: String,
+    vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
+  ): Option[VehicleType] = {
+    JavaConverters
+      .mapAsScalaMap(vehicleTypes)
+      .filter(idAndType => idAndType._2.getId.toString.equalsIgnoreCase(id))
+      .values
+      .headOption
+  }
+
+  def getVehicleTypeByDescription(
+    description: String,
+    vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
+  ): Option[VehicleType] = {
+    JavaConverters
+      .mapAsScalaMap(vehicleTypes)
+      .filter(idAndType => idAndType._2.getDescription.equalsIgnoreCase(description))
+      .values
+      .headOption
   }
 
 }

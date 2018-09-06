@@ -1,18 +1,17 @@
 @startuml
-Scheduler -> PersonAgent: ActivityEndTrigger
-PersonAgent -> Scheduler: ScheduleBeginModeChoiceTrigger
-Scheduler -> PersonAgent: BeginModeChoiceTrigger
-PersonAgent -> Household: MobilityStatusInquiry
-Household -> PersonAgent: MobilityStatusReponse
-PersonAgent -> Router: RoutingRequest
-PersonAgent -> RideHailManager: RideHailInquiry
-Router -> PersonAgent: RoutingResponse
-RideHailManager -> PersonAgent: RideHailingInquiryResponse
-PersonAgent --> RideHailManager: ReserveRide|ReleaseVehicleReservation
-RideHailManager --> PersonAgent: ReservationResponse(Success|Fail)
-PersonAgent --> Drivers: ReservationRequests if Chosen
-Drivers --> PersonAgent: ReservationResponses(Success|Fail)
-PersonAgent --> Drivers: RemovePassengerFromTrips if AnyFailed
-PersonAgent --> Household: ReleaseVehicleReservation if Unused
-PersonAgent -> Scheduler: SchedulePersonDepartureTrigger
+Scheduler->Person: ActivityEndTrigger
+rnote over Person: ChoosingMode
+Person -> Household: MobilityStatusInquiry
+Household -> Person: MobilityStatusReponse
+Person-> Router: RoutingRequest
+Person-> Router: RideHailTransitRoutingRequest
+Person-> RideHailManager: RideHailInquiry
+Router -> Person: RoutingResponse
+Router -> Person: RideHailTransitRoutingResponse
+RideHailManager -> Person: RideHailInquiryResponse
+Person-> RideHailManager: RideHailTransitInquiry
+RideHailManager -> Person: RideHailTransitInquiryResponses
+Person-> Person: ModeChoice
+rnote over Person: FinishingModeChoice
+Person-> Scheduler: Completion
 @enduml

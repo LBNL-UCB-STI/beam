@@ -32,7 +32,7 @@ object Resource {
 
   trait NotifyResourceIdle {
     def resourceId: Id[_]
-    def whenWhere: SpaceTime
+    def whenWhere: Option[SpaceTime]
   }
 
   case class AssignManager(managerRef: ActorRef)

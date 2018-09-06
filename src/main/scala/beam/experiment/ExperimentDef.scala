@@ -101,10 +101,10 @@ case class Header(
   @BeanProperty var author: String,
   @BeanProperty var beamTemplateConfPath: String,
   @BeanProperty var modeChoiceTemplate: String,
-  @BeanProperty var isParallel: Boolean,
+  @BeanProperty var numWorkers: String,
   @BeanProperty var params: java.util.Map[String, Object]
 ) {
-  def this() = this("", "", "", "", false, new java.util.HashMap())
+  def this() = this("", "", "", "", "", new java.util.HashMap())
 }
 case class BaseScenario(
   @BeanProperty var title: String,

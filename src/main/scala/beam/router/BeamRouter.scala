@@ -122,7 +122,7 @@ class BeamRouter(
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
       logExcessiveOutstandingWork
-    case InitTransit(scheduler, id) =>
+    case InitTransit(scheduler, parkingManager, id) =>
       // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
       val f = Future
         .sequence(
@@ -133,12 +133,12 @@ class BeamRouter(
                 .resolveOne(10.seconds)
                 .flatMap { serviceActor: ActorRef =>
                   log.info("Sending InitTransit to  {}", serviceActor)
-                  serviceActor ? InitTransit(scheduler, id)
+                  serviceActor ? InitTransit(scheduler, parkingManager, id)
                 }
           } + Future {
             val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
             val transits = initializer.initMap
-            initDriverAgents(initializer, scheduler, transits)
+            initDriverAgents(initializer, scheduler, parkingManager, transits)
             localNodes.map {
               case localWorker => {
                 localWorker ! TransitInited(transits)
@@ -332,7 +332,7 @@ class BeamRouter(
 
   private def initDriverAgents(
     initializer: TransitInitializer,
-    scheduler: ActorRef,
+    scheduler: ActorRef, parkingManager: ActorRef,
     transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {
@@ -346,6 +346,7 @@ class BeamRouter(
             services,
             transportNetwork,
             eventsManager,
+            parkingManager,
             transitDriverId,
             vehicle,
             legs
@@ -361,24 +362,17 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class InitTransit(scheduler: ActorRef, id: UUID = UUID.randomUUID())
-
+  case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
-
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     id: UUID = UUID.randomUUID()
   )
-
   case class UpdateTravelTime(travelTime: TravelTime)
-
   case class R5Network(transportNetwork: TransportNetwork)
-
   case object GetTravelTime
-
   case class MATSimNetwork(network: Network)
-
   case object GetMatSimNetwork
 
   /**
