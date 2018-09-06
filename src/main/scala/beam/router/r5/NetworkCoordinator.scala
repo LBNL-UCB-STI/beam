@@ -21,8 +21,7 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
       logger.info(
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
-      transportNetwork =
-        TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       network = NetworkUtils.createNetwork()
       new MatsimNetworkReader(network)
         .readFile(beamConfig.matsim.modules.network.inputNetworkFile)

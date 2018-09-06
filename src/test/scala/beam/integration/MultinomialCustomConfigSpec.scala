@@ -20,7 +20,7 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -31,7 +31,7 @@ class MultinomialCustomConfigSpec
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -58,7 +58,7 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -69,7 +69,7 @@ class MultinomialCustomConfigSpec
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -98,7 +98,7 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -109,7 +109,7 @@ class MultinomialCustomConfigSpec
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -138,7 +138,7 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -149,7 +149,7 @@ class MultinomialCustomConfigSpec
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -178,7 +178,7 @@ class MultinomialCustomConfigSpec
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
@@ -189,7 +189,7 @@ class MultinomialCustomConfigSpec
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(

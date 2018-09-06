@@ -26,8 +26,8 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
     "run to completion" taggedAs (Periodic, ExcludeRegular) in {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
           "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
@@ -61,11 +61,9 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
-                  case depEvent: PersonDepartureEvent
-                      if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                  case depEvent: PersonDepartureEvent if depEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
                     nDepartures = nDepartures + 1
-                  case arrEvent: PersonArrivalEvent
-                      if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
+                  case arrEvent: PersonArrivalEvent if arrEvent.getLegMode.equalsIgnoreCase("drive_transit") =>
                     nArrivals = nArrivals + 1
                   case _ =>
                 }

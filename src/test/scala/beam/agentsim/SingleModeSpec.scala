@@ -240,8 +240,7 @@ class SingleModeSpec
           .filter(_.isInstanceOf[ActivityEndEvent])
           .sliding(2)
           .exists(
-            pair =>
-              pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home")
+            pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home")
           )
       }
       eventsByPerson.map {
