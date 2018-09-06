@@ -72,22 +72,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     data: T
   ): State = {
     println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
-
     data.passengerSchedule.schedule.keys
       .drop(data.currentLegPassengerScheduleIndex)
       .headOption match {
       case Some(currentLeg) =>
         println(currentLeg)
-
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
           log.info(s"stopping vehicle: $id")
-
           goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
             success = true,
             requestId,
             tick
           )
-
         } else {
           stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
         }
@@ -95,6 +91,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         stay()
     }
   }
+
+  var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
 
   when(Driving) {
     case ev @ Event(

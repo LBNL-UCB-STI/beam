@@ -12,8 +12,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager)
-    extends LazyLogging {
+abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
     rideHailManager.scheduler
@@ -116,10 +115,6 @@ object RideHailResourceAllocationManager {
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(rideHailManager)
-      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
-        new ImmediateDispatchWithOverwrite(rideHailManager)
-      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
-        new DummyRideHailDispatchWithBufferingRequests(rideHailManager)
       case x if x startsWith ("Test_") =>
         //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
         //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
