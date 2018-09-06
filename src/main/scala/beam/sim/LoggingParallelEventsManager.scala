@@ -1,4 +1,6 @@
 package beam.sim
+import java.util.concurrent.atomic.AtomicInteger
+
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event
@@ -9,11 +11,14 @@ import org.matsim.core.events.handler.EventHandler
 
 class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
   private val eventManager = new ParallelEventsManagerImpl(config.parallelEventHandling().getNumberOfThreads())
-
+  private val numOfEvents: AtomicInteger = new AtomicInteger(0)
   logger.info(s"Created ParallelEventsManagerImpl with hashcode: ${eventManager.hashCode()}")
 
   override def processEvent(event: Event): Unit = {
     tryLog("processEvent", eventManager.processEvent(event))
+    val processed = numOfEvents.incrementAndGet()
+    if (processed % 100000 == 0)
+      logger.info(s"Processed next 10000 events. Total: ${processed}")
   }
 
   override def addHandler(handler: EventHandler): Unit = {
@@ -37,6 +42,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
   }
   override def finishProcessing(): Unit = {
     tryLog("finishProcessing", eventManager.finishProcessing())
+    logger.info(s"Overall processed events: ${numOfEvents.get()}")
   }
 
   private def tryLog(what: String, body: => Unit): Unit = {

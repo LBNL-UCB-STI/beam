@@ -33,9 +33,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "realized_mode";
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private List<String> personIdList = new ArrayList<>();
+    private HashSet<String> personIdList = new HashSet<>();
     private Map<ModePerson, Integer> hourPerson = new HashMap<>();
-    private List<String> recentPersonIdRemoveList = new ArrayList<>();
+    private HashSet<String> recentPersonIdRemoveList = new HashSet<>();
 
     private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
