@@ -35,6 +35,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
   }
 
   override def initProcessing(): Unit = {
+    numOfEvents.set(0)
     tryLog("initProcessing", eventManager.initProcessing())
   }
 
