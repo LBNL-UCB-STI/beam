@@ -328,15 +328,15 @@ class RideHailManager(
       updateLocationOfAgent(vehicleId, whenWhere, getServiceStatusOf(vehicleId))
 
       //updateLocationOfAgent(vehicleId, whenWhereOpt, isAvailable = true)
-      resources(agentsim.vehicleId2BeamVehicleId(vehicleId)).driver
-        .foreach(driver => {
+      resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).foreach { beamVehicle =>
+        beamVehicle.driver.foreach { driver =>
           val rideHailAgentLocation =
             RideHailAgentLocation(driver, vehicleId, whenWhere)
           vehicleState.put(vehicleId, beamVehicleState)
 
           if (modifyPassengerScheduleManager
-                .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
-                .isPendingReservationEnding(vehicleId, passengerSchedule)) {
+            .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
+            .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
@@ -375,7 +375,8 @@ class RideHailManager(
           }
           modifyPassengerScheduleManager
             .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
-        })
+        }
+      }
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, InService)
@@ -473,9 +474,8 @@ class RideHailManager(
                     unbecomeDriverOnCompletion = legWithInd._2 == 2,
                     beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
                     cost =
-                      if (legWithInd._1.beamLeg == customerTripPlan
-                            .legs(1)
-                            .beamLeg) {
+                      if (customerTripPlan.legs.isDefinedAt(1) &&
+                        legWithInd._1.beamLeg == customerTripPlan.legs(1).beamLeg) {
                         cost
                       } else {
                         0.0
