@@ -70,7 +70,10 @@ class R5RoutingWorker(
           calcRoute(request).copy(requestId = Some(request.requestId))
         }
       }
-      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse.onComplete {
+        case scala.util.Failure(ex) =>
+          log.error("calcRoute failed", ex)
+      }
       eventualResponse pipeTo sender
 
     case UpdateTravelTime(travelTime) =>
