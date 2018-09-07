@@ -12,7 +12,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with Int
 //  "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
 //    "prefer mode choice car type than other modes" in {
 //      val theRun = new StartWithCustomConfig(
-//        baseConfig.withValue("beam.agentsim.agents.modalbehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
+//        baseConfig.withValue(TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS, ConfigValueFactory.fromAnyRef
 //        ("ModeChoiceDriveIfAvailable"))
 //      )
 //      val testModeCount = theRun.groupedCount.getOrElse("car", 0)
