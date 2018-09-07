@@ -291,7 +291,8 @@ trait ChoosesMode {
           val egressSegment = driveTransitTrip.get.legs.view
             .dropWhile(!_.beamLeg.mode.isMassTransit)
             .dropWhile(_.beamLeg.mode.isMassTransit)
-            .map(_.beamLeg).headOption
+            .map(_.beamLeg)
+            .headOption
           //TODO replace hard code number here with parameter
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
