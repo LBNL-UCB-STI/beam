@@ -24,7 +24,6 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
         ).groupedCount
       }
 
-      
       val tc = modeChoice
         .map(_.get("ride_hail"))
         .filter(_.isDefined)
