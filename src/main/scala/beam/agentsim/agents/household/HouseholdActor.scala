@@ -6,6 +6,7 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}

@@ -19,6 +19,9 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{ZonalParkingManager, ZonalParkingManagerSpec}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.{ZonalParkingManager, ZonalParkingManagerSpec}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode

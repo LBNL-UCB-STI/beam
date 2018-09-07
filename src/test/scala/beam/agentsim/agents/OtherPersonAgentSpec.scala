@@ -13,6 +13,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
