@@ -36,7 +36,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private HashSet<String> personIdList = new HashSet<>();
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
     private HashSet<String> recentPersonIdRemoveList = new HashSet<>();
-    private HashSet<String> allModes = new HashSet<>();
     private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
 
@@ -120,10 +119,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Map<String, String> eventAttributes = event.getAttributes();
         if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-
             String mode = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE);
-            allModes.add(mode);
-
             String personId = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
             Map<String, String> tags = new HashMap<>();
             tags.put("stats-type", "mode-choice");
