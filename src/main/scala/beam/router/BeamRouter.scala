@@ -7,8 +7,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -81,6 +81,20 @@ class BeamRouter(
       routerWorker.forward(other)
   }
 
+  private def getVehicleType(vehicleTypeId: Id[BeamVehicleType], mode: Modes.BeamMode): BeamVehicleType = {
+      if (services.vehicleTypes.contains(vehicleTypeId)) {
+        services.vehicleTypes.get(vehicleTypeId).get
+      } else {
+        log.debug(
+          "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
+          vehicleTypeId.toString
+        )
+        //There has to be a default one defined
+        services.vehicleTypes.get(
+          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType])
+        ).getOrElse(BeamVehicleType.defaultTransitBeamVehicleType)
+      }
+  }
   /*
    * Plan of action:
    * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and
@@ -101,42 +115,31 @@ class BeamRouter(
 
       val mode =
         Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val vehicleTypeId =
-        Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
 
-      val vehicleType =
-        if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
-          transitVehicles.getVehicleTypes.get(vehicleTypeId)
-        } else {
-          log.debug(
-            "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-            vehicleTypeId.toString
-          )
-          transitVehicles.getVehicleTypes.get(
-            Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType])
-          )
-        }
+      val vehicleTypeId =
+        Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[BeamVehicleType])
+
+      val vehicleType = getVehicleType(vehicleTypeId, mode)
 
       mode match {
         case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
-          val matSimTransitVehicle =
-            VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
-          matSimTransitVehicle.getType.setDescription(mode.value)
-          val consumption = Option(vehicleType.getEngineInformation)
-            .map(_.getGasConsumption)
-            .getOrElse(Powertrain.AverageMilesPerGallon)
-          //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
-          // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-          //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+
+          val powertrain = Option(vehicleType.primaryFuelConsumptionInJoule)
+              .map(new Powertrain(_))
+              .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
+          val beamVehicleId = BeamVehicle.createId(transitVehId)//, Some(mode.toString)
+
           val vehicle: BeamVehicle = new BeamVehicle(
-            Powertrain.PowertrainFromMilesPerGallon(consumption),
-            matSimTransitVehicle,
-            TransitVehicle,
+            beamVehicleId,
+            powertrain,
             None,
+            vehicleType,
             None,
             None
           ) // TODO: implement fuel level later as needed
-          services.vehicles += (transitVehId -> vehicle)
+          val transitBeamVehId:Id[BeamVehicle] = transitVehId
+          services.vehicles += (transitBeamVehId -> vehicle)
           val transitDriverId =
             TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(

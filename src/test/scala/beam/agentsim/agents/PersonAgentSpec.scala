@@ -10,8 +10,8 @@ import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, Ho
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
@@ -75,7 +75,7 @@ class PersonAgentSpec
   val beamConfig = BeamConfig(system.settings.config)
 
   val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
   val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val randomSeed: Int = 4771
@@ -294,7 +294,7 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, CarVehicle, None, None, None)
+      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -420,18 +420,18 @@ class PersonAgentSpec
 
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val bus = new BeamVehicle(
+        Id.createVehicleId("my_bus"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
-        CarVehicle,
         None,
+        BeamVehicleType.defaultCarBeamVehicleType,
         None,
         None
       )
       val tram = new BeamVehicle(
+        Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
-        CarVehicle,
         None,
+        BeamVehicleType.defaultCarBeamVehicleType,
         None,
         None
       )
@@ -524,7 +524,7 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(beamConfig, stopTick = 1000000.0, maxWindow = 10.0)
       )
-      
+
       val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       scenario.setPopulation(population)
       scenario.setLocked()

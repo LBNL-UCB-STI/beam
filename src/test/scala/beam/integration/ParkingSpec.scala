@@ -14,6 +14,21 @@ import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import java.io.File
+
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import beam.sim.BeamHelper
+import com.typesafe.config.ConfigValueFactory
+import org.apache.commons.io.FileUtils
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.events.handler.BasicEventHandler
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
+import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
 class ParkingSpec
     extends WordSpecLike
     with BeforeAndAfterAll

@@ -10,8 +10,9 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
-import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
@@ -45,7 +46,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -78,8 +79,8 @@ class OtherPersonAgentSpec
 
   val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
-  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
-    TrieMap[Id[Vehicle], BeamVehicle]()
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
+    TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   val personRefs: TrieMap[Id[Person], ActorRef] =
     TrieMap[Id[Person], ActorRef]()
@@ -137,19 +138,23 @@ class OtherPersonAgentSpec
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should also work when the first bus is late") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+
+      val beamVehicleId = Id.createVehicleId("my_bus")
+
       val bus = new BeamVehicle(
+        beamVehicleId,
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
-        CarVehicle,
+//        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
+        BeamVehicleType.defaultCarBeamVehicleType,
         None,
         None
       )
       val tram = new BeamVehicle(
+        Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType),
-        CarVehicle,
         None,
+        BeamVehicleType.defaultCarBeamVehicleType,
         None,
         None
       )

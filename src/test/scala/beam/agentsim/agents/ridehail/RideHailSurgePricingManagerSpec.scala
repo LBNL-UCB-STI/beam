@@ -25,7 +25,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName)
-  val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
   val beamConfig: BeamConfig = BeamConfig(config)
   val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
