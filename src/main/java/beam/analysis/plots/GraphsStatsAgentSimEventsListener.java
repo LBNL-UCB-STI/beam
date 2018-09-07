@@ -124,7 +124,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         }
     }
 
-    public void createGraphs(IterationEndsEvent event) throws IOException {
+    public void createGraphs(IterationEndsEvent event) {
         try {
             modeChoseStats.createGraph(event);
             fuelUsageStats.createGraph(event);
@@ -135,22 +135,24 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.createGraph(event);
             personVehicleTransitionStats.createGraph(event);
             realizedModeStats.createGraph(event);
-        }catch (IOException ioException){
-            throw ioException;
         }catch (Exception e){
             log.error("Exception occurs due to " , e);
         }
     }
 
-    public void notifyShutdown(ShutdownEvent event) throws Exception{
-        if(modeChoseStats instanceof  ModeChosenStats){
-            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
-            modeStats.notifyShutdown(event);
-        }
+    public void notifyShutdown(ShutdownEvent event){
+        try {
+            if (modeChoseStats instanceof ModeChosenStats) {
+                ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
+                modeStats.notifyShutdown(event);
+            }
 
-        if(realizedModeStats instanceof RealizedModeStats){
-            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
-            realizedStats.notifyShutdown(event);
+            if (realizedModeStats instanceof RealizedModeStats) {
+                RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
+                realizedStats.notifyShutdown(event);
+            }
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
         }
     }
 }

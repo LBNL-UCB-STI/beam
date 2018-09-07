@@ -265,13 +265,17 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         return modes;
     }
 
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
-        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null)
-            createRootRealizedModeChoosenGraph(dataset, fileName);
-        writeToRootCSV();
+    public void notifyShutdown(ShutdownEvent event) {
+        try {
+            OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+            String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
+            CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
+            if (dataset != null)
+                createRootRealizedModeChoosenGraph(dataset, fileName);
+            writeToRootCSV();
+        }catch (Exception e){
+            log.error("Exception Occure Due To ",e);
+        }
     }
 
 
