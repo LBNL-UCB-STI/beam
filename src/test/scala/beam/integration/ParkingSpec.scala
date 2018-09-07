@@ -124,7 +124,7 @@ class ParkingSpec
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" ignore {
 
       val parkingEvents = defaultEvents.head.filter(
         e =>
