@@ -52,7 +52,7 @@ class EventsFileSpec
     listValueTagEventFile.size shouldBe listTrips.size
   }
 
-  it should "contain all train routes" in {
+  it should "contain all train routes" ignore {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
@@ -81,7 +81,7 @@ class EventsFileSpec
     listTripsEventFile shouldBe listTrips
   }
 
-  it should "contain the same train trips entries" in {
+  it should "contain the same train trips entries" ignore {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
@@ -114,7 +114,7 @@ class EventsFileSpec
     groupedXmlWithCount should contain theSameElementsAs groupedWithCount
   }
 
-  it should "contain same pathTraversal defined at stop times file for train input file" in {
+  it should "contain same pathTraversal defined at stop times file for train input file" ignore {
     val listTrips = getListIDsWithTag(
       new File("test/input/beamville/r5/train/stop_times.txt"),
       "trip_id",
