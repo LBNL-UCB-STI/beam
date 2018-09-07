@@ -72,16 +72,16 @@ class PersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
 
-  val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
-  val personRefs = TrieMap[Id[Person], ActorRef]()
-  val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  val randomSeed: Int = 4771
-  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  lazy val dummyAgentId = Id.createPersonId("dummyAgent")
+  lazy val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  lazy val personRefs = TrieMap[Id[Person], ActorRef]()
+  lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  lazy val randomSeed: Int = 4771
+  lazy val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
-  val beamSvc: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -94,7 +94,7 @@ class PersonAgentSpec
     theServices
   }
 
-  val modeChoiceCalculator = new ModeChoiceCalculator {
+  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = beamSvc
@@ -108,9 +108,9 @@ class PersonAgentSpec
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
-  val transitDriverProps = Props(new ForwardActor(self))
+  lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  val router = system.actorOf(
+  lazy val router = system.actorOf(
     Props(new Actor() {
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
@@ -121,7 +121,7 @@ class PersonAgentSpec
     "router"
   )
 
-  val parkingManager = system.actorOf(
+  lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
@@ -129,8 +129,7 @@ class PersonAgentSpec
 
   case class TestTrigger(tick: Double) extends Trigger
 
-  private val networkCoordinator = new NetworkCoordinator(beamConfig)
-  networkCoordinator.loadNetwork()
+  private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
   describe("A PersonAgent") {
 
@@ -690,6 +689,10 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
+  }
+
+  override def beforeAll: Unit = {
+    networkCoordinator.loadNetwork()
   }
 
   override def afterAll: Unit = {

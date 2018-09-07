@@ -36,7 +36,7 @@ class ZonalParkingManagerSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
-  val tAZTreeMap: TAZTreeMap =
+  lazy val tAZTreeMap: TAZTreeMap =
     BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
 
   def beamServices(config: BeamConfig): BeamServices = {

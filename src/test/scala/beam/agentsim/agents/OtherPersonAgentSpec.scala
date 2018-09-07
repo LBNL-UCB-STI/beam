@@ -68,24 +68,19 @@ class OtherPersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  val config = BeamConfig(system.settings.config)
-  val eventsManager = new EventsManagerImpl()
-  eventsManager.addHandler(new BasicEventHandler {
-    override def handleEvent(event: Event): Unit = {
-      self ! event
-    }
-  })
+  lazy val config = BeamConfig(system.settings.config)
+  lazy val eventsManager = new EventsManagerImpl()
 
-  val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
+  lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
-  val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
+  lazy val vehicles: TrieMap[Id[Vehicle], BeamVehicle] =
     TrieMap[Id[Vehicle], BeamVehicle]()
 
-  val personRefs: TrieMap[Id[Person], ActorRef] =
+  lazy val personRefs: TrieMap[Id[Person], ActorRef] =
     TrieMap[Id[Person], ActorRef]()
-  val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val beamSvc: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
@@ -97,7 +92,7 @@ class OtherPersonAgentSpec
     theServices
   }
 
-  val modeChoiceCalculator = new ModeChoiceCalculator {
+  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = beamSvc
@@ -111,9 +106,9 @@ class OtherPersonAgentSpec
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
-  val transitDriverProps = Props(new ForwardActor(self))
+  lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  val router: ActorRef = system.actorOf(
+  lazy val router: ActorRef = system.actorOf(
     Props(new Actor() {
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
@@ -124,14 +119,14 @@ class OtherPersonAgentSpec
     "router"
   )
 
-  val parkingManager = system.actorOf(
+  lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
-  private val networkCoordinator = new NetworkCoordinator(config)
-  networkCoordinator.loadNetwork()
+  private lazy val networkCoordinator = new NetworkCoordinator(config)
+
 
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
@@ -464,6 +459,15 @@ class OtherPersonAgentSpec
 
       expectMsgType[CompletionNotice]
     }
+  }
+
+  override def beforeAll: Unit = {
+    eventsManager.addHandler(new BasicEventHandler {
+      override def handleEvent(event: Event): Unit = {
+        self ! event
+      }
+    })
+    networkCoordinator.loadNetwork()
   }
 
   override def afterAll: Unit = {
