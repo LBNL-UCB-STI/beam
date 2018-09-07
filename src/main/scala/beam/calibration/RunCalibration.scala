@@ -23,14 +23,14 @@ import org.apache.commons.lang.SystemUtils
 object RunCalibration extends App with BeamHelper {
 
   // requirement:
-  // - we need local run
-  // - we need to deploy runs
-  // - we need to be able to create new experiment id
-  // - we need to pass existing experiment id to local and remote runs we start
-  // - allow to specify the suggestionId for a run
-
-  // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token)
-
+  /*
+    --runType local|remote
+    - we need local run
+    - we need to deploy runs
+  */
+  // - we need to be able to create new experiment id - [DONE]
+  // - we need to pass existing experiment id to local and remote runs we start - [DONE]
+  // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token) - [LATER]
   // - provide a objective function with is a combination of modes and counts
 
   // Private Constants //
@@ -39,6 +39,7 @@ object RunCalibration extends App with BeamHelper {
   private val NUM_ITERATIONS_TAG = "num_iters"
   private val EXPERIMENT_ID_TAG = "experiment_id"
   private val NEW_EXPERIMENT_FLAG = "00000"
+  private val RUN_TYPE = "run_type"
 
   // Parse the command line inputs
   val argsMap = parseArgs(args)
@@ -49,6 +50,7 @@ object RunCalibration extends App with BeamHelper {
   private val benchmarkLoc: String = argsMap(BENCHMARK_EXPERIMENTS_TAG)
   private val numIters: Int = argsMap(NUM_ITERATIONS_TAG).toInt
   private val experimentId: String = argsMap(EXPERIMENT_ID_TAG)
+  private val runType: String = argsMap(RUN_TYPE)
 
   //  Context object containing experiment definition
   private implicit val experimentData: SigoptExperimentData =
@@ -56,7 +58,8 @@ object RunCalibration extends App with BeamHelper {
 
   val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers + 1)).toInt
 
-  if (experimentData.isParallel && experimentData.isMaster) {
+  if (runType == "remote") {
+    logger.info("Triggering the remote deployment...")
     import sys.process._
     val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
 
@@ -88,6 +91,8 @@ object RunCalibration extends App with BeamHelper {
           if (trimmedExpId != "None") { (EXPERIMENT_ID_TAG, trimmedExpId) } else {
             (EXPERIMENT_ID_TAG, NEW_EXPERIMENT_FLAG)
           }
+        case Array("--run_type", runType: String) if runType.trim.nonEmpty =>
+          (RUN_TYPE, runType)
         case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
