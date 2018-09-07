@@ -6,9 +6,9 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+import org.matsim.core.api.experimental.events.EventsManager
 //import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 //import beam.analysis.plots.GraphSurgePricing
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -41,7 +41,6 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
 
@@ -108,6 +107,9 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+
+          // Override EventsManager
+          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
         }
       }
     )
