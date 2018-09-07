@@ -728,9 +728,10 @@ class RideHailManager(
     case DepotParkingInquiryResponse(None, requestId) =>
       val vehId = parkingInquiryCache.get(requestId).get.vehicleId
       log.debug(
-        "No parking stall found, ride hail vehicle {} stranded",vehId
+        "No parking stall found, ride hail vehicle {} stranded",
+        vehId
       )
-      outOfServiceVehicleManager.releaseTrigger(vehId,Vector())
+      outOfServiceVehicleManager.releaseTrigger(vehId, Vector())
 
     case DepotParkingInquiryResponse(Some(stall), requestId) =>
       val agentLocation = parkingInquiryCache.remove(requestId).get

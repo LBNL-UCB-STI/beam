@@ -61,7 +61,7 @@ class BeamRouter(
   private var numStopsNotFound = 0
 
   override def receive: PartialFunction[Any, Unit] = {
-    case InitTransit(scheduler,parkingManager) =>
+    case InitTransit(scheduler, parkingManager) =>
       val transitSchedule = initTransit(scheduler, parkingManager)
       metricsPrinter ! Subscribe("histogram", "**")
       routerWorker ! TransitInited(transitSchedule)
