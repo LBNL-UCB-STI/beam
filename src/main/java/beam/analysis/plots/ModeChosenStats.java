@@ -231,13 +231,17 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
 //    event hits at the end of the running scenario
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
-        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
-        if (dataset != null)
-            createRootModeChoosenGraph(dataset, fileName);
-        writeToRootCSV();
+    public void notifyShutdown(ShutdownEvent event) {
+        try {
+            OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+            String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
+            CategoryDataset dataset = buildModeChoiceDatasetForGraph();
+            if (dataset != null)
+                createRootModeChoosenGraph(dataset, fileName);
+            writeToRootCSV();
+        }catch (Exception e){
+            log.error("Exception Occure due to ",e);
+        }
     }
 
 

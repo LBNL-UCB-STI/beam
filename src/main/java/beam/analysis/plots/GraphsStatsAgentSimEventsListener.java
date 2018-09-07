@@ -12,6 +12,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,14 +40,15 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private static final int SECONDS_IN_HOUR = 3600;
     public static OutputDirectoryHierarchy CONTROLLER_IO;
     // Static Initializer
-    private final IGraphStats deadHeadingStats = new DeadHeadingStats();
-    private final IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
-    private final IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
-    private final IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
-    private final IGraphStats rideHailWaitingStats;
-    private final IGraphStats personVehicleTransitionStats;
-    private final IGraphStats rideHailingWaitingSingleStats;
-    private final IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private IGraphStats deadHeadingStats = new DeadHeadingStats();
+    private IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
+    private IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
+    private IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
+    private IGraphStats personVehicleTransitionStats;
+    private IGraphStats rideHailWaitingStats;
+    private IGraphStats rideHailingWaitingSingleStats;
+    private IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private Logger log = LoggerFactory.getLogger(this.getClass());
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
@@ -62,6 +65,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+
+        this.rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
     }
 
     // helper methods
@@ -119,28 +124,35 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         }
     }
 
-    public void createGraphs(IterationEndsEvent event) throws IOException {
-
-        modeChoseStats.createGraph(event);
-        fuelUsageStats.createGraph(event);
-        rideHailWaitingStats.createGraph(event);
-        rideHailingWaitingSingleStats.createGraph(event);
-        deadHeadingStats.createGraph(event, "TNC0");
-        deadHeadingStats.createGraph(event, "");
-        personTravelTimeStats.createGraph(event);
-        personVehicleTransitionStats.createGraph(event);
-        realizedModeStats.createGraph(event);
+    public void createGraphs(IterationEndsEvent event) {
+        try {
+            modeChoseStats.createGraph(event);
+            fuelUsageStats.createGraph(event);
+            rideHailWaitingStats.createGraph(event);
+            rideHailingWaitingSingleStats.createGraph(event);
+            deadHeadingStats.createGraph(event, "TNC0");
+            deadHeadingStats.createGraph(event, "");
+            personTravelTimeStats.createGraph(event);
+            personVehicleTransitionStats.createGraph(event);
+            realizedModeStats.createGraph(event);
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
-    public void notifyShutdown(ShutdownEvent event) throws Exception{
-        if(modeChoseStats instanceof  ModeChosenStats){
-            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
-            modeStats.notifyShutdown(event);
-        }
+    public void notifyShutdown(ShutdownEvent event){
+        try {
+            if (modeChoseStats instanceof ModeChosenStats) {
+                ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
+                modeStats.notifyShutdown(event);
+            }
 
-        if(realizedModeStats instanceof RealizedModeStats){
-            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
-            realizedStats.notifyShutdown(event);
+            if (realizedModeStats instanceof RealizedModeStats) {
+                RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
+                realizedStats.notifyShutdown(event);
+            }
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
         }
     }
 }

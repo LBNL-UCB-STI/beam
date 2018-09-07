@@ -74,24 +74,28 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
 
-        tazDataset.clear();
-        transformedBins.clear();
-        revenueDataSet = new double[numberOfTimeBins];
+        try {
+            tazDataset.clear();
+            transformedBins.clear();
+            revenueDataSet = new double[numberOfTimeBins];
 
-        final int iNo = event.getIteration();
+            final int iNo = event.getIteration();
 
-        OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
+            OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
 
-        graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
-        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
-        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
-        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
+            graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
+            surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
+            surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+            revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
+            revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
-        this.createGraphs();
+            this.createGraphs();
 
-        // for next iteration
-        this.surgePricingManager.updateSurgePriceLevels();
+            // for next iteration
+            this.surgePricingManager.updateSurgePriceLevels();
+        }catch (Exception e){
+            log.error("Exception occurs due to " , e);
+        }
     }
 
     private void createGraphs() {

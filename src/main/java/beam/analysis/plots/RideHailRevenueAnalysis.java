@@ -11,6 +11,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.listener.ControlerListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
@@ -27,6 +29,8 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
+    private Logger log = LoggerFactory.getLogger(this.getClass());
+
     @Inject
     public RideHailRevenueAnalysis(RideHailSurgePricingManager surgePricingManager) {
         this.surgePricingManager = surgePricingManager;
@@ -35,26 +39,30 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
 
-        outputDirectoryHiearchy = event.getServices().getControlerIO();
+        try {
+            outputDirectoryHiearchy = event.getServices().getControlerIO();
 
-        // for next iteration
-        surgePricingManager.updateRevenueStats();
+            // for next iteration
+            surgePricingManager.updateRevenueStats();
 
-        ArrayBuffer<?> data = surgePricingManager.rideHailRevenue();
+            ArrayBuffer<?> data = surgePricingManager.rideHailRevenue();
 
-        RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
-        if (model == null)
-            model = new RideHailDistanceRowModel();
-        model.setMaxSurgePricingLevel(surgePricingManager.maxSurgePricingLevel());
-        model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
-        model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
-        GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
+            RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
+            if (model == null)
+                model = new RideHailDistanceRowModel();
+            model.setMaxSurgePricingLevel(surgePricingManager.maxSurgePricingLevel());
+            model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
+            model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
+            GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
 
-        createGraph(data);
+            createGraph(data);
 
-        writeRideHailRevenueCsv(data);
+            writeRideHailRevenueCsv(data);
 
-        rideHailRevenueAnalytics(data);
+            rideHailRevenueAnalytics(data);
+        }catch (Exception e){
+            log.error("Exception occurs due to " ,e );
+        }
     }
 
     private void createGraph(ArrayBuffer<?> data) {

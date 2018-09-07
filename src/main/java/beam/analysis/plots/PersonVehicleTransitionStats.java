@@ -63,7 +63,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
+    public void createGraph(IterationEndsEvent event){
         for (String mode : onRoutes.keySet()) {
             if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
                 continue;
