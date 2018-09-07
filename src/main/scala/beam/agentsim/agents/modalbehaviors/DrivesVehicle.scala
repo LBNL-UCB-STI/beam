@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle}
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
@@ -14,15 +14,13 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{CAR, TRANSIT}
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
-import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -346,17 +344,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
 
-<<<<<<< HEAD
-      if (newLeg.mode == CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0) {
-        val stop = 0
-      }
-      // Un-Park if necessary, this should only happen with RideHailAgents
-      data.currentVehicle.headOption match {
-        case Some(currentVehicleUnderControl) =>
-          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-          theVehicle.stall.foreach { theStall =>
-            parkingManager ! CheckInResource(theStall.id, None)
-=======
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
       } else {
@@ -378,7 +365,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head),
               beamServices.personRefs(personVehicle.personId)
             )
->>>>>>> master
           }
           .toVector
         eventsManager.processEvent(
@@ -476,12 +462,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .to(req.arriveAt)
         .keys
         .toSeq
-<<<<<<< HEAD
-      if (legs.toVector.map(_.duration).sum == 0) {
-        val stop = 0
-      }
-=======
->>>>>>> master
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
       val triggersToSchedule = legsInThePast
