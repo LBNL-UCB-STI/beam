@@ -44,7 +44,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
     private IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
-    private IGraphStats personVehicleTransitionStats = new PersonVehicleTransitionStats();
+    private IGraphStats personVehicleTransitionStats;
     private IGraphStats rideHailWaitingStats;
     private IGraphStats rideHailingWaitingSingleStats;
     private IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
@@ -54,6 +54,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
         rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
         rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
+        personVehicleTransitionStats = new PersonVehicleTransitionStats(beamConfig);
     }
 
     // Constructor
