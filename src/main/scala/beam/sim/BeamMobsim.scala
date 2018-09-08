@@ -1,31 +1,21 @@
 package beam.sim
 
-import collection.JavaConverters._
 import java.awt.Color
 import java.lang.Double
-import java.util
-import java.util.{Collections, Random}
+import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
-import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.Status.{Failure, Success}
+import akka.actor.SupervisorStrategy._
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingStockAttributes}
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -123,6 +113,11 @@ class BeamMobsim @Inject()(
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
+        override val supervisorStrategy: SupervisorStrategy =
+          OneForOneStrategy(maxNrOfRetries = 1, withinTimeRange = 1 minute) {
+            // Yes, we just stop watching actor because unhandled exception there is something critical!
+            case _: Exception ⇒ Stop
+          }
         var runSender: ActorRef = _
         private val errorListener = context.actorOf(ErrorListener.props())
         context.watch(errorListener)
@@ -401,12 +396,17 @@ class BeamMobsim @Inject()(
 //              memoryLoggingTimerCancellable.cancel()
 //              context.stop(memoryLoggingTimerActorRef)
             }
-          case Terminated(_) =>
+          case Terminated(who) =>
+            log.error("Terminated: {}", who)
             if (context.children.isEmpty) {
               context.stop(self)
               runSender ! Success("Ran.")
             } else {
-              log.debug("Remaining: {}", context.children)
+              log.error("Remaining: {}", context.children)
+              // We send back failure
+              runSender ! Failure(new IllegalStateException(s"One of the watching actors '$who' has been terminated."))
+              // And kill ourself :(
+              self ! PoisonPill
             }
 
           case "Run!" =>
