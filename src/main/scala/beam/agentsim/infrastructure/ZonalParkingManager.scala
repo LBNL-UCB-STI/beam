@@ -119,29 +119,35 @@ class ZonalParkingManager(
 
     case inquiry @ DepotParkingInquiry(vehicleId: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
       val tazsWithDists = findTAZsWithDistances(location, 1000.0)
-      val maybeFoundStalls = tazsWithDists.find{
-        case (taz, _) =>
-          pooledResources.find{
-            case (attr, values) =>
-              attr.tazId.equals(taz.tazId) &&
-              attr.reservedFor.equals(reservedFor) &&
-              values.numStalls > 0
-          }.isDefined
-      }.map{ case (taz,_) =>
-        pooledResources.filter{
-          case (attr, values) =>
-            attr.tazId.equals(taz.tazId) &&
-              attr.reservedFor.equals(reservedFor) &&
-              values.numStalls > 0
+      val maybeFoundStalls = tazsWithDists
+        .find {
+          case (taz, _) =>
+            pooledResources.find {
+              case (attr, values) =>
+                attr.tazId.equals(taz.tazId) &&
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0
+            }.isDefined
         }
-      }
+        .map {
+          case (taz, _) =>
+            pooledResources.filter {
+              case (attr, values) =>
+                attr.tazId.equals(taz.tazId) &&
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0
+            }
+        }
 
       val maybeParkingAttribs = maybeFoundStalls.flatMap {
-        _.keys.toVector.sortBy {
-          attribs => ChargingType.getChargerPowerInKW(attribs.chargingType)
-        }.reverse.headOption
+        _.keys.toVector
+          .sortBy { attribs =>
+            ChargingType.getChargerPowerInKW(attribs.chargingType)
+          }
+          .reverse
+          .headOption
       }
-      val maybeParkingStall = maybeParkingAttribs.flatMap{attrib =>
+      val maybeParkingStall = maybeParkingAttribs.flatMap { attrib =>
         maybeCreateNewStall(attrib, location, 0.0, maybeFoundStalls.get.get(attrib))
       }
 
@@ -175,14 +181,14 @@ class ZonalParkingManager(
         case _                                   => Public
       }
 
-      if(inquiry.parkingDuration > 0){
-        val jjj=0
+      if (inquiry.parkingDuration > 0) {
+        val jjj = 0
       }
 
       /*
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */
-      val maybeFoundStall = pooledResources.find{
+      val maybeFoundStall = pooledResources.find {
         case (attr, values) =>
           attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
           attr.parkingType == preferredType &&
@@ -193,15 +199,19 @@ class ZonalParkingManager(
       val maybeDominantSpot = maybeFoundStall match {
         case Some(foundStall) if chargingPreference == NoNeed =>
           maybeCreateNewStall(
-            StallAttributes(nearbyTazsWithDistances.head._1.tazId, preferredType, foundStall._1.pricingModel,
-              NoCharger, reservedFor
+            StallAttributes(
+              nearbyTazsWithDistances.head._1.tazId,
+              preferredType,
+              foundStall._1.pricingModel,
+              NoCharger,
+              reservedFor
             ),
             destinationUtm,
             0.0,
             Some(foundStall._2)
           )
         case _ =>
-        None
+          None
       }
 
       respondWithStall(

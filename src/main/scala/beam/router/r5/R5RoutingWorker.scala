@@ -231,7 +231,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             .copy(requestId = Some(request.requestId), staticRequestId = request.staticRequestId)
         }
       }
-      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse.onComplete {
+        case scala.util.Failure(ex) =>
+          log.error("calcRoute failed", ex)
+      }
       eventualResponse pipeTo sender
       askForMoreWork
     case UpdateTravelTime(travelTime) =>
@@ -632,7 +635,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               itinerary.startTime,
               transportNetwork.transitLayer.routes.size() == 0
             )
-
+            
             val legsWithFares = mutable.ArrayBuffer.empty[(BeamLeg, Double)]
             maybeWalkToVehicle.foreach(walkLeg => {
               // If there's a gap between access leg start time and walk leg, we need to move that ahead

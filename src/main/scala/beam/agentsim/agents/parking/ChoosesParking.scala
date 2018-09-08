@@ -69,9 +69,6 @@ trait ChoosesParking extends {
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
 
-      if(data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0){
-        val stop= 0
-      }
       veh.stall.foreach { stall =>
         parkingManager ! CheckInResource(
           beamServices.vehicles(data.currentVehicle.head).stall.get.id,
@@ -125,9 +122,6 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
         )
-
-//        val vehId = data.currentVehicle.head
-//        eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
 
         goto(WaitingToDrive) using data
       } else {
@@ -206,15 +200,9 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      if(data.currentTrip.get.tripClassifier == DRIVE_TRANSIT){
-        val i = 0
-      }
-
-      //        val newPersonData = data.restOfCurrentTrip.copy()
-
       val currVehicle = beamServices.vehicles(data.currentVehicle.head)
 
-      val newVehicle = if (leg1.beamLeg.mode == CAR) {
+      val newVehicle = if (leg1.beamLeg.mode == CAR || currVehicle.id == bodyId) {
         data.currentVehicle
       } else {
         currVehicle.unsetDriver()
