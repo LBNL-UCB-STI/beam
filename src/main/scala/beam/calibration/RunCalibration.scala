@@ -27,7 +27,7 @@ object RunCalibration extends App with BeamHelper {
     --runType local|remote
     - we need local run
     - we need to deploy runs
-  */
+   */
   // - we need to be able to create new experiment id - [DONE]
   // - we need to pass existing experiment id to local and remote runs we start - [DONE]
   // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token) - [LATER]
@@ -40,6 +40,9 @@ object RunCalibration extends App with BeamHelper {
   private val EXPERIMENT_ID_TAG = "experiment_id"
   private val NEW_EXPERIMENT_FLAG = "00000"
   private val RUN_TYPE = "run_type"
+
+  private val RUN_TYPE_LOCAL = "local"
+  private val RUN_TYPE_REMOTE = "remote"
 
   // Parse the command line inputs
   val argsMap = parseArgs(args)
@@ -58,7 +61,10 @@ object RunCalibration extends App with BeamHelper {
 
   val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers + 1)).toInt
 
-  if (runType == "remote") {
+  if (runType == RUN_TYPE_LOCAL) {
+    val experimentRunner: ExperimentRunner = ExperimentRunner()
+    experimentRunner.runExperiment(numIters)
+  } else if (runType == RUN_TYPE_REMOTE) {
     logger.info("Triggering the remote deployment...")
     import sys.process._
     val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
@@ -69,10 +75,9 @@ object RunCalibration extends App with BeamHelper {
       println(execString)
       execString.!
     })
+  } else {
+    logger.error("{} unknown", RUN_TYPE)
   }
-
-  val experimentRunner: ExperimentRunner = ExperimentRunner()
-  experimentRunner.runExperiment(numIters)
 
   // Aux Methods //
   def parseArgs(args: Array[String]): Map[String, String] = {
