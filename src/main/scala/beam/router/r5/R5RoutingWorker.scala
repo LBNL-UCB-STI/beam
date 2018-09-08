@@ -73,6 +73,7 @@ class R5RoutingWorker(
       eventualResponse.onComplete {
         case scala.util.Failure(ex) =>
           log.error("calcRoute failed", ex)
+        case _ =>
       }
       eventualResponse pipeTo sender
 
