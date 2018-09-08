@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-05-exp-both/'
+  args<-'/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-06/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -127,17 +127,34 @@ ref.sum <- ref[,.(n.charge.sessions=.N,
 all.sum <- join.on(join.on(rh.sum,enters.sum,'run','run'),ref.sum,'run','run')
 all.sum <- join.on(all.sum,exp,'run','run',names(exp)[!names(exp)%in%names(all.sum)])
 
+all.m <- melt(all.sum,id.vars=c(names(exp)))
+
 p <- ggplot(melt(all.sum,id.vars=c(names(exp))),aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
 pdf.scale <- 1.5
 ggsave(pp(plots.dir,'summary-ride-hail-metrics-by-run.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 write.csv(all.sum,file=pp(plots.dir,'summary-ride-hail-metrics.csv'))
 
-all.m <- melt(all.sum,id.vars=c(names(exp)))
-all.m[,':='(range=beam.agentsim.agents.rideHail.vehicleRangeInMeters/1609,numDrivers=beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation*410000)]
-for(metric in u(all.m$variable)){
- p <- ggplot(all.m[variable==metric],aes(x=range,y=numDrivers,colour=value,size=value))+geom_point()+labs(title=metric)
- pdf.scale <- 0.75
- ggsave(pp(plots.dir,'metric-',metric,'.pdf'),p,width=7*pdf.scale,height=6*pdf.scale,units='in')
+save(all.sum,exp,file=pp(plots.dir,'summary-metrics.Rdata'))
+
+if(F){
+  load(file=pp(plots.dir,'summary-metrics.Rdata'))
+  all.m <- melt(all.sum,id.vars=c(names(exp)))
+  all.m[,':='(range=beam.agentsim.agents.rideHail.vehicleRangeInMeters/1609,numDrivers=beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation*410000,power=as.numeric(unlist(lapply(str_split(chargerLevel,"kW"),function(ll){ ll[[1]]}))))]
+  for(metric in u(all.m$variable)){
+   p <- ggplot(all.m[variable==metric],aes(x=range,y=numDrivers,colour=value,size=value))+geom_point()+labs(title=metric)+facet_wrap(~power)
+   pdf.scale <- 0.75
+   ggsave(pp(plots.dir,'metric-',metric,'.pdf'),p,width=11*pdf.scale,height=6*pdf.scale,units='in')
+  }
+  all.m[,':='(rangeOrdered=factor(vehicleRange, levels=unique(vehicleRange[order(range)]), ordered=TRUE),
+              powerOrdered=factor(chargerLevel, levels=unique(chargerLevel[order(power)]), ordered=TRUE))]
+  for(fleetSize in u(all.m$ridehailNumber)){
+    for(metric in u(all.m$variable)){
+     p <- ggplot(all.m[ridehailNumber==fleetSize & variable==metric],aes(x=rangeOrdered,y=value,fill=powerOrdered))+geom_bar(stat='identity',position='dodge')+labs(title=metric)
+     pdf.scale <- 0.75
+     ggsave(pp(plots.dir,fleetSize,'-fleet-metric-',metric,'.pdf'),p,width=11*pdf.scale,height=6*pdf.scale,units='in')
+    }
+  }
+
 }
 
 #num.paths <- rh[,.(n=length(speed),frac.repos=sum(num_passengers==0)/sum(num_passengers==1)),by='vehicle']
