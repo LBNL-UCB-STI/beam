@@ -75,10 +75,10 @@ class BeamVehicle(
   def becomeDriver(
     newDriverRef: ActorRef
   ): BecomeDriverResponse = {
-    if (driver.isEmpty){
+    if (driver.isEmpty) {
       driver = Some(newDriverRef)
       BecomeDriverOfVehicleSuccess
-    }else if(driver.get == newDriverRef){
+    } else if (driver.get == newDriverRef) {
       NewDriverAlreadyControllingVehicle
     } else {
       DriverAlreadyAssigned(driver.get)
@@ -88,6 +88,7 @@ class BeamVehicle(
   def setReservedParkingStall(newStall: Option[ParkingStall]) = {
     reservedStall = newStall
   }
+
   def useParkingStall(newStall: ParkingStall) = {
     stall = Some(newStall)
   }

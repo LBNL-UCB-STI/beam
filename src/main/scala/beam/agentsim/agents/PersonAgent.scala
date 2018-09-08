@@ -14,7 +14,11 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -455,10 +459,10 @@ class PersonAgent(
 
       val (stateToGo, currentTick) =
         if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
-          log.debug("ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",legsToInclude)
-          if(legsToInclude.map(_.beamLeg.duration).sum==0){
-            val ii=0
-          }
+          log.debug(
+            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+            legsToInclude
+          )
           (ReleasingParkingSpot, _currentTick.get)
         } else {
           val (currentTick, _) = releaseTickAndTriggerId()
@@ -477,7 +481,11 @@ class PersonAgent(
               )
               None
             case NewDriverAlreadyControllingVehicle =>
-              log.debug("I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",vehicle.id, id)
+              log.debug(
+                "I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",
+                vehicle.id,
+                id
+              )
               Some(currentVehicle)
             case BecomeDriverOfVehicleSuccess =>
               eventsManager.processEvent(
@@ -494,9 +502,6 @@ class PersonAgent(
         }
       if (currentVehicleForNextState.isDefined) {
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
-        if(legsToInclude.map(_.beamLeg.duration).sum==0){
-          val iii=0
-        }
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,

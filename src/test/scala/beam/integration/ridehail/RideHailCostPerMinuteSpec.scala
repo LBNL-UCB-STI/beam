@@ -1,14 +1,10 @@
 package beam.integration.ridehail
 
-import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig}
+import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConstants}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-/**
-  * Created by fdariasm on 29/08/2017
-  *
-  */
 class RideHailCostPerMinuteSpec
     extends WordSpecLike
     with Matchers
@@ -19,13 +15,14 @@ class RideHailCostPerMinuteSpec
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" in {
       val inputCostPerMinute = Seq(0.0, 100.0)
+
       val modeChoice = inputCostPerMinute.map(
         tc =>
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-                ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
               )
               .withValue(
                 "beam.agentsim.agents.rideHail.defaultCostPerMinute",
@@ -37,15 +34,6 @@ class RideHailCostPerMinuteSpec
         .map(_.get("ride_hail"))
         .filter(_.isDefined)
         .map(_.get)
-
-      //      val z1 = tc.drop(1)
-      //      val z2 = tc.dropRight(1)
-      //      val zip = z2 zip z1
-
-      //      println(tc)
-      //      println(z1)
-      //      println(z2)
-      //      println(zip)
 
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }

@@ -29,7 +29,7 @@ class RideHailModifyPassengerScheduleManager(
     mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
-  var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
+  var nextCompleteNoticeRideHailAllocationTimeout: Option[CompletionNotice] = None
   var numberOfOutStandingmodifyPassengerScheduleAckForRepositioning: Int = 0
   val resourcesNotCheckedIn_onlyForDebugging = mutable.Set[Id[Vehicle]]()
 
@@ -284,21 +284,21 @@ class RideHailModifyPassengerScheduleManager(
       tick + rideHailAllocationManagerTimeoutInSeconds
     )
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
-    nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId, Vector(timerMessage))
+    nextCompleteNoticeRideHailAllocationTimeout = Some(CompletionNotice(triggerId, Vector(timerMessage)))
   }
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
     log.debug(
       "sending ACK to scheduler for next repositionTimeout ({})",
-      nextCompleteNoticeRideHailAllocationTimeout.id
+      nextCompleteNoticeRideHailAllocationTimeout.get.id
     )
 
-    val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.newTriggers
+    val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
       .filter(x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout])
       .head
       .trigger
 
-    val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.newTriggers.filter(
+    val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.filter(
       x =>
         x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
     )
@@ -308,7 +308,7 @@ class RideHailModifyPassengerScheduleManager(
       assert(false)
     }
 
-    scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+    scheduler ! nextCompleteNoticeRideHailAllocationTimeout.get
 //    printState()
   }
 
@@ -350,9 +350,13 @@ class RideHailModifyPassengerScheduleManager(
       }
     }
 
-    val newTriggers = triggersToSchedule ++ nextCompleteNoticeRideHailAllocationTimeout.newTriggers
-    nextCompleteNoticeRideHailAllocationTimeout =
-      CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, newTriggers)
+    var newTriggers = triggersToSchedule.toVector
+    if (nextCompleteNoticeRideHailAllocationTimeout.isDefined) {
+      newTriggers = newTriggers ++ nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
+      nextCompleteNoticeRideHailAllocationTimeout = Some(
+        CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.get.id, newTriggers)
+      )
+    }
 
     if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning == 0) {
       sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()

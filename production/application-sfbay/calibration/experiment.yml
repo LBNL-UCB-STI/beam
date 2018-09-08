@@ -91,3 +91,13 @@ factors:
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept: -4.0
+
+
+  - title: countsFactor
+    levels:
+    - name: Low
+      params:
+        matsim.modules.counts.countsScaleFactor: 0.0
+    - name: High
+      params:
+        matsim.modules.counts.countsScaleFactor: 100.0

@@ -81,4 +81,9 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
+    <Logger name="beam.calibration" level="Info" additivity="false">
+        <appender-ref ref="STDOUT"/>
+
+    </Logger>
+
 </configuration>
