@@ -71,7 +71,7 @@ object RunCalibration extends App with BeamHelper {
 
     (1 to experimentData.numWorkers).foreach({ _ =>
       val execString: String =
-        s"""./gradlew$gradlewEnding :deploy -PrunName=${experimentData.experimentDef.header.title} -PinstanceType=t2.large -PmaxRAM=128g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode']""""
+        s"""./gradlew$gradlewEnding :deploy -PrunName=${experimentData.experimentDef.header.title} -PinstanceType=t2.large -PmaxRAM=10g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode', '--run_type', 'local']""""
       println(execString)
       execString.!
     })
