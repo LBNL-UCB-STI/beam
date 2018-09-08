@@ -308,7 +308,7 @@ class RideHailModifyPassengerScheduleManager(
       assert(false)
     }
 
-    scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+    scheduler ! nextCompleteNoticeRideHailAllocationTimeout.get
 //    printState()
   }
 
@@ -351,10 +351,11 @@ class RideHailModifyPassengerScheduleManager(
     }
 
     var newTriggers = triggersToSchedule.toVector
-    if(nextCompleteNoticeRideHailAllocationTimeout.isDefined){
+    if (nextCompleteNoticeRideHailAllocationTimeout.isDefined) {
       newTriggers = newTriggers ++ nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
-      nextCompleteNoticeRideHailAllocationTimeout =
-        Some(CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.get.id, newTriggers))
+      nextCompleteNoticeRideHailAllocationTimeout = Some(
+        CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.get.id, newTriggers)
+      )
     }
 
     if (numberOfOutStandingmodifyPassengerScheduleAckForRepositioning == 0) {
