@@ -374,54 +374,56 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
 
-      if (newLeg.mode == CAR && data.passengerSchedule.schedule.keys.toVector.map(_.duration).sum == 0) {
-        val stop = 0
-      }
-      // Un-Park if necessary, this should only happen with RideHailAgents
-      data.currentVehicle.headOption match {
-        case Some(currentVehicleUnderControl) =>
-          val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-          theVehicle.stall.foreach { theStall =>
-            parkingManager ! CheckInResource(theStall.id, None)
-          }
-          theVehicle.unsetParkingStall()
-      }
-      val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
-        .schedule(newLeg)
-        .riders
-        .map { personVehicle =>
-          ScheduleTrigger(
-            NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head),
-            beamServices.personRefs(personVehicle.personId)
-          )
+      if (data.currentVehicle.isEmpty) {
+        stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
+      } else {
+        // Un-Park if necessary, this should only happen with RideHailAgents
+        data.currentVehicle.headOption match {
+          case Some(currentVehicleUnderControl) =>
+            val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+            theVehicle.stall.foreach { theStall =>
+              parkingManager ! CheckInResource(theStall.id, None)
+            }
+            theVehicle.unsetParkingStall()
+          case None =>
         }
-        .toVector
-      eventsManager.processEvent(
-        new VehicleEntersTrafficEvent(
-          tick,
-          Id.createPersonId(id),
-          null,
-          data.currentVehicle.head,
-          "car",
-          1.0
+        val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
+          .schedule(newLeg)
+          .riders
+          .map { personVehicle =>
+            ScheduleTrigger(
+              NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head),
+              beamServices.personRefs(personVehicle.personId)
+            )
+          }
+          .toVector
+        eventsManager.processEvent(
+          new VehicleEntersTrafficEvent(
+            tick,
+            Id.createPersonId(id),
+            null,
+            data.currentVehicle.head,
+            "car",
+            1.0
+          )
         )
-      )
-      // Produce link events for this trip (the same ones as in PathTraversalEvent).
-      // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-      // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      val beamLeg = data.passengerSchedule.schedule
-        .drop(data.currentLegPassengerScheduleIndex)
-        .head
-        ._1
-      RoutingModel
-        .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
-        .foreach(eventsManager.processEvent)
-      val endTime = tick + beamLeg.duration
-      goto(Driving) using LiterallyDrivingData(data, endTime)
-        .asInstanceOf[T] replying CompletionNotice(
-        triggerId,
-        triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
-      )
+        // Produce link events for this trip (the same ones as in PathTraversalEvent).
+        // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
+        // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+        val beamLeg = data.passengerSchedule.schedule
+          .drop(data.currentLegPassengerScheduleIndex)
+          .head
+          ._1
+        RoutingModel
+          .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
+          .foreach(eventsManager.processEvent)
+        val endTime = tick + beamLeg.duration
+        goto(Driving) using LiterallyDrivingData(data, endTime)
+          .asInstanceOf[T] replying CompletionNotice(
+          triggerId,
+          triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
+        )
+      }
     case ev @ Event(Interrupt(_, _), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       stash()
@@ -494,9 +496,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .to(req.arriveAt)
         .keys
         .toSeq
-      if (legs.toVector.map(_.duration).sum == 0) {
-        val stop = 0
-      }
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
       val triggersToSchedule = legsInThePast
