@@ -15,8 +15,9 @@ import org.scalatest.mockito.MockitoSugar
 
 class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
+  // dummy change
   // TODO: include events handling as with : RideHailPassengersEventsSpec
-  it should "be able to run for 1 iteration without exceptions" in {
+  it should "be able to run for 1 iteration without exceptions" ignore {
     val config = RideHailTestHelper.buildConfig(RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE)
 
     val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)

@@ -64,6 +64,32 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
+  private def handleStopDrivingIfNoPassengerOnBoard(
+    tick: Double,
+    requestId: Int,
+    data: T
+  ): State = {
+    println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
+    data.passengerSchedule.schedule.keys
+      .drop(data.currentLegPassengerScheduleIndex)
+      .headOption match {
+      case Some(currentLeg) =>
+        println(currentLeg)
+        if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
+          log.info(s"stopping vehicle: $id")
+          goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+            success = true,
+            requestId,
+            tick
+          )
+        } else {
+          stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
+        }
+      case None =>
+        stay()
+    }
+  }
+
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
 
   when(Driving) {
@@ -239,6 +265,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
 
   }
 
@@ -425,6 +453,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       }
 
       stay()
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+
   }
 
   when(WaitingToDriveInterrupted) {
@@ -559,6 +591,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         currentVehicleUnderControl.getState()
       )
       stay()
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ${stateName}")
+
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+    //stay()
+
   }
 
   private def hasRoomFor(

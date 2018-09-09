@@ -423,7 +423,7 @@ class R5RoutingWorker(
                 .indexWhere(
                   _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
                 ),
-              0
+              1
             ),
             theLinkIds.length - 1
           )
@@ -612,7 +612,7 @@ class R5RoutingWorker(
               )
             } else {
               val unbecomeDriverAtComplete = Modes
-                .isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || beamLeg == tripWithFares.trip.legs.last)
+                .isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || index == tripWithFares.trip.legs.size-1)
               if (beamLeg.mode == WALK) {
                 val body =
                   routingRequest.streetVehicles.find(_.mode == WALK).get

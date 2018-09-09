@@ -33,10 +33,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "realized_mode";
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private List<String> personIdList = new ArrayList<>();
-    private Map<ModePerson, Integer> hourPerson = new HashMap<>();
-    private List<String> recentPersonIdRemoveList = new ArrayList<>();
-
+    private HashSet<String> personIdList = new HashSet<>();
+    private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
+    private HashSet<String> recentPersonIdRemoveList = new HashSet<>();
     private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
 
@@ -120,7 +119,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Map<String, String> eventAttributes = event.getAttributes();
         if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-
             String mode = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE);
             String personId = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
             Map<String, String> tags = new HashMap<>();
@@ -143,9 +141,17 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             } else {
                 hourData = new HashMap<>();
             }
+
             hourData.put(mode, frequency);
 
-            hourPerson.put(new ModePerson(mode, personId), hour);
+            ModeHour modeHour = new ModeHour(mode, hour);
+            Stack<ModeHour> modeHours = hourPerson.get(personId);
+            if(modeHours == null){
+                modeHours = new Stack<>();
+            }
+            modeHours.push(modeHour);
+            hourPerson.put(personId, modeHours);
+
             hourModeFrequency.put(hour, hourData);
 
         }
@@ -154,19 +160,12 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 String person = eventAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
                 personIdList.add(person);
 
-                int modeHour = -1;
-                String mode = null;
+                Stack<ModeHour> modeHours = hourPerson.get(person);
 
-                for (ModePerson mP : hourPerson.keySet()) {
-                    if (person.equals(mP.getPerson()) && !recentPersonIdRemoveList.contains(person)) {
-                        modeHour = hourPerson.get(mP);
-                        mode = mP.getMode();
-                    }
-                }
+                if (modeHours != null && modeHours.size() > 0 && !recentPersonIdRemoveList.contains(person)) {
+                    ModeHour modeHour = modeHours.pop();
+                    hourPerson.put(person, modeHours);
 
-
-                if (mode != null && modeHour != -1) {
-                    hourPerson.remove(new ModePerson(mode, person));
                     Integer replanning = 1;
                     if (hourData != null) {
                         replanning = hourData.get("others");
@@ -180,12 +179,12 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     }
 
                     hourData.put("others", replanning);
-                    Map<String, Integer> hourMode = hourModeFrequency.get(modeHour);
+                    Map<String, Integer> hourMode = hourModeFrequency.get(modeHour.getHour());
                     if (hourMode != null) {
-                        Integer frequency = hourMode.get(mode);
+                        Integer frequency = hourMode.get(modeHour.getMode());
                         if (frequency != null) {
                             frequency--;
-                            hourMode.put(mode, frequency);
+                            hourMode.put(modeHour.getMode(), frequency);
                         }
                     }
                 }
@@ -399,47 +398,47 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
 
-    public class ModePerson {
+    public class ModeHour {
         private String mode;
-        private String person;
+        private Integer hour;
 
-        ModePerson(String mode, String person) {
+        public ModeHour(String mode, Integer hour) {
             this.mode = mode;
-            this.person = person;
+            this.hour = hour;
         }
 
         public String getMode() {
             return mode;
         }
 
-        public String getPerson() {
-            return person;
+        public Integer getHour() {
+            return hour;
         }
 
         @Override
         public String toString() {
-            return "[mode: " + mode + ", person: " + person + "]";
+            return "[Mode: " + mode + ", Hour: " + hour + "]";
         }
 
         @Override
         public boolean equals(Object o) {
 
             if (o == this) return true;
-            if (!(o instanceof ModePerson)) {
+            if (!(o instanceof ModeHour)) {
                 return false;
             }
 
-            ModePerson modePerson = (ModePerson) o;
+            ModeHour modeHour = (ModeHour) o;
 
-            return modePerson.person.equals(person) &&
-                    modePerson.mode.equals(mode);
+            return modeHour.mode.equals(mode) &&
+                    hour.equals(hour);
         }
 
         @Override
         public int hashCode() {
             int result = 17;
-            result = 31 * result + person.hashCode();
             result = 31 * result + mode.hashCode();
+            result = 31 * result + hour.hashCode();
             return result;
         }
     }
