@@ -51,6 +51,7 @@ class BeamRouter(
   type TimeSent = ZonedDateTime
 
   val clearRoutedOutstandingWorkEnabled = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+
   val secondsToWaitToClearRoutedOutstandingWork =
     services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
 
@@ -252,18 +253,17 @@ class BeamRouter(
     outstandingWorkIdToTimeSent.collect {
       case (workId: WorkId, timeSent: TimeSent) => {
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
-        if(clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
+        if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
           //TODO: Can the logs be combined?
           log.warning(
             "Haven't heard back from work ID '{}' for {} seconds. " +
-              "This is over the configured threshold {}, so submitting to be cleared.",
+            "This is over the configured threshold {}, so submitting to be cleared.",
             workId,
             secondsSinceSent,
             secondsToWaitToClearRoutedOutstandingWork
           )
           self ! ClearRoutedWorkerTracker(workIdToClear = workId)
-        }
-        else if (secondsSinceSent > 120)
+        } else if (secondsSinceSent > 120)
           log.warning(
             "Haven't heard back from work ID '{}' for {} seconds.",
             workId,
@@ -356,7 +356,8 @@ class BeamRouter(
 
   private def initDriverAgents(
     initializer: TransitInitializer,
-    scheduler: ActorRef, parkingManager: ActorRef,
+    scheduler: ActorRef,
+    parkingManager: ActorRef,
     transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {

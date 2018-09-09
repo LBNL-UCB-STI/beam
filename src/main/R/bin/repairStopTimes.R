@@ -96,7 +96,13 @@ for(file.path in args$args){
     setkey(stops.final,orig.order)
     stops.final[,':='(fix.arrival_time=NULL,fix.departure_time=NULL,orig.order=NULL)]
 
-    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = "",row.names =F,quote=1:4)
+    if('stop_headsign' %in% names(stops.final)){
+      all.names <- names(stops.final)
+      streval(pp("write.csv(stops.final[,.(trip_id,arrival_time,departure_time,stop_id, stop_headsign,",pp(all.names[-which(all.names%in%c('trip_id','arrival_time','departure_time','stop_id','stop_headsign'))],collapse=","),")],file=pp(tmp.dir,'/stop_times.txt'),na = '',row.names =F,quote=c(1:5))"))
+    }else{
+      write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = "",row.names =F,quote=c(1:4))
+    }
+    
     setwd(tmp.dir)
     zip(file.path,'stop_times.txt')
   }else{

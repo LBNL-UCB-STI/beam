@@ -234,6 +234,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       eventualResponse.onComplete {
         case scala.util.Failure(ex) =>
           log.error("calcRoute failed", ex)
+        case _ =>
       }
       eventualResponse pipeTo sender
       askForMoreWork
@@ -592,7 +593,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 .indexWhere(
                   _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
                 ),
-              0
+              1
             ),
             theLinkIds.length - 1
           )
@@ -635,12 +636,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               itinerary.startTime,
               transportNetwork.transitLayer.routes.size() == 0
             )
-            
+
             val legsWithFares = mutable.ArrayBuffer.empty[(BeamLeg, Double)]
             maybeWalkToVehicle.foreach(walkLeg => {
               // If there's a gap between access leg start time and walk leg, we need to move that ahead
               // this covers the various contingencies for doing this.
-              val delayStartTime = Math.max(0.0,(tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
+              val delayStartTime =
+                Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
               legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime.toLong + delayStartTime.toLong), 0.0))
             })
 
@@ -780,7 +782,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               )
             } else {
               val unbecomeDriverAtComplete = Modes
-                .isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || beamLeg == tripWithFares.trip.legs.last)
+                .isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || index == tripWithFares.trip.legs.size - 1)
               if (beamLeg.mode == WALK) {
                 val body =
                   routingRequest.streetVehicles.find(_.mode == WALK).get
