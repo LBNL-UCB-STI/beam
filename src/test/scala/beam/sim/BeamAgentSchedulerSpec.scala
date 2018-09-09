@@ -36,7 +36,7 @@ class BeamAgentSchedulerSpec
           SchedulerProps(
             config,
             stopTick = 10,
-            maxWindow = 10.0,
+            maxWindow = 10,
             new StuckFinder(config.beam.debug.stuckAgentDetection)
           )
         )
@@ -56,7 +56,7 @@ class BeamAgentSchedulerSpec
           SchedulerProps(
             config,
             stopTick = 10,
-            maxWindow = 0.0,
+            maxWindow = 0,
             new StuckFinder(config.beam.debug.stuckAgentDetection)
           )
         )
@@ -71,7 +71,7 @@ class BeamAgentSchedulerSpec
         SchedulerProps(
           config,
           stopTick = 100,
-          maxWindow = 100.0,
+          maxWindow = 100,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )

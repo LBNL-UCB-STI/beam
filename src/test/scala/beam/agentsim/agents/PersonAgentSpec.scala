@@ -146,7 +146,7 @@ class PersonAgentSpec
           SchedulerProps(
             beamConfig,
             stopTick = 11,
-            maxWindow = 10.0,
+            maxWindow = 10,
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
@@ -220,7 +220,7 @@ class PersonAgentSpec
         SchedulerProps(
           beamConfig,
           stopTick = 1000000,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -363,7 +363,7 @@ class PersonAgentSpec
         SchedulerProps(
           beamConfig,
           stopTick = 1000000,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -554,7 +554,7 @@ class PersonAgentSpec
         SchedulerProps(
           beamConfig,
           stopTick = 1000000,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )

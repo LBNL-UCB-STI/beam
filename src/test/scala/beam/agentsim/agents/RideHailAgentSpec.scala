@@ -172,7 +172,7 @@ class RideHailAgentSpec
         SchedulerProps(
           config,
           stopTick = 64800,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )
@@ -247,7 +247,7 @@ class RideHailAgentSpec
         SchedulerProps(
           config,
           stopTick = 64800,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )
@@ -311,7 +311,7 @@ class RideHailAgentSpec
         SchedulerProps(
           config,
           stopTick = 64800,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )

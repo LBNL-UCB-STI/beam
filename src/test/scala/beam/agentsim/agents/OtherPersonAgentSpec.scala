@@ -264,7 +264,7 @@ class OtherPersonAgentSpec
         SchedulerProps(
           config,
           stopTick = 1000000,
-          maxWindow = 10.0,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )

@@ -86,7 +86,7 @@ object BeamAgentScheduler {
   def SchedulerProps(
     beamConfig: BeamConfig,
     stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
-    maxWindow: Double = 1.0,
+    maxWindow: Int = 1,
     stuckFinder: StuckFinder
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
