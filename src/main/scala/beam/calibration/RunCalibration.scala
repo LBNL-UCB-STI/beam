@@ -109,7 +109,7 @@ object RunCalibration extends App with BeamHelper {
            '--benchmark','$benchmarkLoc',
            '--num_iters', '$iterPerNode',
            '--run_type', 'local',
-           '--sigopt-api-token', '$sigoptApiToken']"""".stripMargin
+           '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
       println(execString)
       execString.!
     })
