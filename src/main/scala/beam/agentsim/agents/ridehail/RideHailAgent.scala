@@ -149,7 +149,7 @@ class RideHailAgent(
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          vehicle.checkInResource(Some(SpaceTime(initialLocation, tick.toLong)), context.dispatcher)
+          vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
           eventsManager.processEvent(
             new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
           )
@@ -195,7 +195,7 @@ class RideHailAgent(
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
-              Some(SpaceTime(theVehicle.stall.get.location, tick.toLong)),
+              Some(SpaceTime(theVehicle.stall.get.location, tick)),
               data.passengerSchedule,
               theVehicle.getState(),
               _currentTriggerId

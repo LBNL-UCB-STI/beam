@@ -20,7 +20,7 @@ import scala.collection.mutable
 class RideHailModifyPassengerScheduleManager(
   val log: LoggingAdapter,
   val rideHailManager: ActorRef,
-  val rideHailAllocationManagerTimeoutInSeconds: Double,
+  val rideHailAllocationManagerTimeoutInSeconds: Int,
   val scheduler: ActorRef,
   val beamConfig: BeamConfig
 ) {
@@ -267,7 +267,7 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
+  def startWaiveOfRepositioningRequests(tick: Int, triggerId: Long): Unit = {
 //    log.debug(
 //      "RepositioningTimeout(" + tick + ") - START repositioning waive - triggerId(" + triggerId + ")"
 //    )
@@ -365,7 +365,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def repositionVehicle(
     passengerSchedule: PassengerSchedule,
-    tick: Double,
+    tick: Int,
     vehicleId: Id[Vehicle],
     rideHailAgent: ActorRef
   ): Unit = {
@@ -381,7 +381,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def reserveVehicle(
     passengerSchedule: PassengerSchedule,
-    tick: Double,
+    tick: Int,
     rideHailAgent: RideHailAgentLocation,
     inquiryId: Option[Int]
   ): Unit = {
@@ -399,7 +399,7 @@ class RideHailModifyPassengerScheduleManager(
 
   private def sendInterruptMessage(
     modifyPassengerSchedule: ModifyPassengerSchedule,
-    tick: Double,
+    tick: Int,
     vehicleId: Id[Vehicle],
     rideHailAgent: ActorRef,
     interruptOrigin: InterruptOrigin.Value
@@ -571,14 +571,14 @@ case class RideHailModifyPassengerScheduleStatus(
   vehicleId: Id[Vehicle],
   modifyPassengerSchedule: ModifyPassengerSchedule,
   interruptOrigin: InterruptOrigin.Value,
-  tick: Double,
+  tick: Int,
   rideHailAgent: ActorRef,
   var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED
 )
 
 case class RepositionVehicleRequest(
   passengerSchedule: PassengerSchedule,
-  tick: Double,
+  tick: Int,
   vehicleId: Id[Vehicle],
   rideHailAgent: ActorRef
 )

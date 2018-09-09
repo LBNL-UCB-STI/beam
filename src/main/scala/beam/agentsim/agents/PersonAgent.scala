@@ -164,11 +164,11 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
-  case class ActivityStartTrigger(tick: Double) extends Trigger
+  case class ActivityStartTrigger(tick: Int) extends Trigger
 
-  case class ActivityEndTrigger(tick: Double) extends Trigger
+  case class ActivityEndTrigger(tick: Int) extends Trigger
 
-  case class PersonDepartureTrigger(tick: Double) extends Trigger
+  case class PersonDepartureTrigger(tick: Int) extends Trigger
 
 }
 
@@ -223,7 +223,7 @@ class PersonAgent(
     case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
       goto(Initialized) replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(ActivityStartTrigger(0.0), self))
+        Vector(ScheduleTrigger(ActivityStartTrigger(0), self))
       )
   }
 
@@ -232,7 +232,7 @@ class PersonAgent(
       logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
       goto(PerformingActivity) replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime), self))
+        Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime.toInt), self))
       )
   }
 
@@ -553,7 +553,7 @@ class PersonAgent(
 
       eventsManager.processEvent(
         new ReserveRideHailEvent(
-          _currentTick.getOrElse(departAt.atTime),
+          _currentTick.getOrElse(departAt.atTime).toDouble,
           id,
           departAt.atTime,
           nextLeg.beamLeg.travelPath.startPoint.loc,
@@ -622,7 +622,7 @@ class PersonAgent(
           )
           scheduler ! CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(endTime), self))
+            Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
           )
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,

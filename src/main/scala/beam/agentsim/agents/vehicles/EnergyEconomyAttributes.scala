@@ -3,7 +3,6 @@ package beam.agentsim.agents.vehicles
 import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum._
 import org.matsim.vehicles.EngineInformation
-import org.matsim.vehicles.EngineInformation.FuelType
 
 import scala.collection.immutable
 
@@ -71,7 +70,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
     */
   class Powertrain(joulesPerMeter: Double) {
 
-    def estimateConsumptionAt(trajectory: Trajectory, time: Double): Double = {
+    def estimateConsumptionAt(trajectory: Trajectory, time: Int): Double = {
       val path = trajectory.computePath(time)
       joulesPerMeter * path
     }

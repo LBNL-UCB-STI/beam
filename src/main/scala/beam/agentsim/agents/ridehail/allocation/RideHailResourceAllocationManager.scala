@@ -35,7 +35,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   // TODO: is third argument really needed
   def updateVehicleAllocations(
-    tick: Double,
+    tick: Int,
     triggerId: Long,
     rideHailManager: RideHailManager
   ): Unit = {
