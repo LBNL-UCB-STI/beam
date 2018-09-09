@@ -49,14 +49,15 @@ class ZonalParkingManager(
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
 
-  val depotStallLocationType: DepotStallLocationType = beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
-    case "AtRequestLocation" =>
-      AtRequestLocation
-    case "AtTAZCenter" =>
-      AtTAZCenter
-    case _ =>
-      AtRequestLocation
-  }
+  val depotStallLocationType: DepotStallLocationType =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
+      case "AtRequestLocation" =>
+        AtRequestLocation
+      case "AtTAZCenter" =>
+        AtTAZCenter
+      case _ =>
+        AtRequestLocation
+    }
 
   def fillInDefaultPooledResources(): Unit = {
     // First do general parking and charging for personal vehicles
@@ -156,11 +157,11 @@ class ZonalParkingManager(
           .reverse
           .headOption
       }
-      val maybeParkingStall = maybeParkingAttribs.flatMap{attrib =>
+      val maybeParkingStall = maybeParkingAttribs.flatMap { attrib =>
         // Location is either TAZ center or random withing 5km of driver location
         val newLocation = depotStallLocationType match {
           case AtTAZCenter if beamServices.tazTreeMap.getTAZ(attrib.tazId).isDefined =>
-             beamServices.tazTreeMap.getTAZ(attrib.tazId).get.coord
+            beamServices.tazTreeMap.getTAZ(attrib.tazId).get.coord
           case _ =>
             location
         }

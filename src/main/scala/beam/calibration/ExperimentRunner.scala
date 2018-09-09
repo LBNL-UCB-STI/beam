@@ -112,8 +112,8 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
   }
 
   def createConfigBasedOnSuggestion(
-                                     suggestion: Suggestion
-                                   )(implicit experimentData: SigoptExperimentData): Config = {
+    suggestion: Suggestion
+  )(implicit experimentData: SigoptExperimentData): Config = {
     val assignments = suggestion.getAssignments
 
     val experimentName: String = suggestion.getExperiment
@@ -123,13 +123,13 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
     val configParams: mutable.Map[String, Object] = JavaConverters.mapAsScalaMap(
       experimentData.experimentDef.defaultParams
     ) ++
-      JavaConverters
-        .iterableAsScalaIterable(assignments.entrySet())
-        .seq
-        .map { e =>
-          e.getKey -> e.getValue
-        }
-        .toMap
+    JavaConverters
+      .iterableAsScalaIterable(assignments.entrySet())
+      .seq
+      .map { e =>
+        e.getKey -> e.getValue
+      }
+      .toMap
 
     val experimentBaseDir = Paths.get(experimentData.experimentPath.getParent).toAbsolutePath
 
