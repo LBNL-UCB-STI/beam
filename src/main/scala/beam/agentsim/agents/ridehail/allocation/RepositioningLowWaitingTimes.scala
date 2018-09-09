@@ -102,10 +102,9 @@ class RepositioningLowWaitingTimes(
 
         //tncIterationStats.printMap()
 
-        if (tick > 0) {
+        if (tick > 0 && maxNumberOfVehiclesToReposition <= 0) {
           // ignoring tick 0, as no vehicles checked in at that time
-          assert(
-            maxNumberOfVehiclesToReposition > 0,
+          logger.error(
             "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed"
           )
         }

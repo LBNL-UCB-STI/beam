@@ -376,7 +376,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
-  "max_ram": "${maxRAM ?: '64g'}",
+  "max_ram": "${maxRAM ?: '140g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -501,7 +501,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 mainClassName = "beam.sim.RunBeam"
 
 
-def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "130g")
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140g")
 
 
 def getCurrentTimestamp = {
@@ -515,7 +515,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx200g"] + logGC
+applicationDefaultJvmArgs = ["-Xmx140g"] + logGC
 println(applicationDefaultJvmArgs)
 
 run {
