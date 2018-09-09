@@ -17,10 +17,10 @@ import beam.utils.StuckFinder
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Deadline, FiniteDuration}
-import scala.collection.JavaConverters._
 
 case class RideHailingManagerIsExtremelySlowException(
   message: String,
@@ -234,14 +234,16 @@ class BeamAgentScheduler(
 
     case Monitor =>
       if (log.isDebugEnabled) {
-        log.debug(
-          s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse
-            .size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${Option(triggerQueue.peek())}\n\tawaitingResponse.head=$awaitingToString"
-        )
+        val logStr =
+          s"""
+             |\tnowInSeconds=$nowInSeconds
+             |\tawaitingResponse.size=${awaitingResponse.size()}
+             |\ttriggerQueue.size=${triggerQueue.size}
+             |\ttriggerQueue.head=${Option(triggerQueue.peek())}
+             |\tawaitingResponse.head=$awaitingToString""".stripMargin
+        log.debug(logStr)
+        awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
       }
-      awaitingResponse
-        .values()
-        .forEach(x => log.debug("awaitingResponse:" + x.toString))
 
     case SkipOverBadActors =>
       val stuckAgents = stuckFinder.detectStuckAgents()

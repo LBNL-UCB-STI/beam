@@ -345,8 +345,8 @@ class RideHailManager(
           vehicleState.put(vehicleId, beamVehicleState)
 
           if (modifyPassengerScheduleManager
-            .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
-            .isPendingReservationEnding(vehicleId, passengerSchedule)) {
+                .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
+                .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
