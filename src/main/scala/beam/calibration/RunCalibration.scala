@@ -67,10 +67,11 @@ object RunCalibration extends App with BeamHelper {
         Sigopt.clientToken = sigoptApiToken
         logger.info("The client token is set from the program arguments")
       }else{
-        logger.info("Could not proceed as client token is not set")
+        throw new APIConnectionError(
+          "No client token is present in the program arguments"
+        )
       }
     }
-
   }
 
   //  Context object containing experiment definition
