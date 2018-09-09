@@ -110,7 +110,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
   // TODO: define 3 state names to allow for proper transitioning
 
-  override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
+  override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
     // try to cancel first ride of day
 
     if (!overwriteAttemptStarted && reservationCompleted) {

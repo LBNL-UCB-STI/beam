@@ -263,7 +263,7 @@ class OtherPersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           config,
-          stopTick = 1000000.0,
+          stopTick = 1000000,
           maxWindow = 10.0,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )

@@ -127,7 +127,7 @@ class PersonAgentSpec
     "ParkingManager"
   )
 
-  case class TestTrigger(tick: Double) extends Trigger
+  case class TestTrigger(tick: Int) extends Trigger
 
   private val networkCoordinator = new NetworkCoordinator(beamConfig)
   networkCoordinator.loadNetwork()
@@ -145,7 +145,7 @@ class PersonAgentSpec
         TestActorRef[BeamAgentScheduler](
           SchedulerProps(
             beamConfig,
-            stopTick = 11.0,
+            stopTick = 11,
             maxWindow = 10.0,
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
@@ -173,7 +173,7 @@ class PersonAgentSpec
       )
 
       watch(personAgentRef)
-      scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
       expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
@@ -219,7 +219,7 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
+          stopTick = 1000000,
           maxWindow = 10.0,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -362,7 +362,7 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
+          stopTick = 1000000,
           maxWindow = 10.0,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -553,7 +553,7 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
+          stopTick = 1000000,
           maxWindow = 10.0,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
