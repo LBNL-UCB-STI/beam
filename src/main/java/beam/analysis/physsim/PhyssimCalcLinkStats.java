@@ -1,5 +1,7 @@
 package beam.analysis.physsim;
 
+import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import org.jfree.chart.*;
@@ -15,6 +17,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
@@ -23,6 +27,8 @@ import java.util.*;
 import java.util.List;
 
 public class PhyssimCalcLinkStats {
+
+    private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -84,7 +90,14 @@ public class PhyssimCalcLinkStats {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
             createModesFrequencyGraph(dataset, iteration);
+
+            String outPath =
+                    this.controllerIO
+                            .getIterationFilename(iteration, "countscompare.txt");
+            Double countsError= CountsObjectiveFunction.evaluateFromRun(outPath);
+            log.info("countsError:" + countsError);
         }
+
     }
 
     private boolean isNotTestMode() {
