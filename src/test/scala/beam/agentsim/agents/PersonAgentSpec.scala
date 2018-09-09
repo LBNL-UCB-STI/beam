@@ -273,7 +273,8 @@ class PersonAgentSpec
               )
             )
           )
-        )
+        ),
+        java.util.UUID.randomUUID()
       )
 
       // The agent will ask for a ride, and we will answer.
@@ -405,7 +406,8 @@ class PersonAgentSpec
               )
             )
           )
-        )
+        ),
+        java.util.UUID.randomUUID()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -646,7 +648,8 @@ class PersonAgentSpec
               )
             )
           )
-        )
+        ),
+        java.util.UUID.randomUUID()
       )
 
       events.expectMsgType[ModeChoiceEvent]

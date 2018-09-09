@@ -436,7 +436,7 @@ class RideHailManager(
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
     case RoutingResponses(request, None, responses) =>
-//      println(s"got routingResponse: ${request.requestId} with no RHA")
+      //      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
     case RoutingResponses(
@@ -444,7 +444,7 @@ class RideHailManager(
         Some(rideHailLocation),
         responses
         ) =>
-//      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
+      //      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
       val itins = responses.map { response =>
         response.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL))
       }
@@ -478,7 +478,8 @@ class RideHailManager(
           val tripDriver2Cust = RoutingResponse(
             Vector(
               itins2Cust.head.copy(legs = itins2Cust.head.legs.map(l => l.copy(asDriver = true)))
-            )
+            ),
+            java.util.UUID.randomUUID()
           )
           val timeToCustomer =
             tripDriver2Cust.itineraries.head.totalTravelTimeInSecs
@@ -503,7 +504,8 @@ class RideHailManager(
                   )
                 )
               )
-            )
+            ),
+            java.util.UUID.randomUUID()
           )
 
           val travelProposal = TravelProposal(
@@ -670,9 +672,9 @@ class RideHailManager(
             )
 
             if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: Vector[RoutingModel.EmbodiedBeamTrip] =
-                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
+              val modRHA2Cust: IndexedSeq[RoutingModel.EmbodiedBeamTrip] =
+                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
+              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
 
               // TODO: extract creation of route to separate method?
               val passengerSchedule = PassengerSchedule().addLegs(
@@ -848,20 +850,20 @@ class RideHailManager(
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None) =>
-//        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
+        //        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
         requestRoutes(
           request,
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation)
         )
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
-//        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
+        //        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
-//        println(s"${request.requestId} -- RoutingRequired")
+        //        println(s"${request.requestId} -- RoutingRequired")
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
-//        println(s"${request.requestId} -- NoVehicleAllocated")
+        //        println(s"${request.requestId} -- NoVehicleAllocated")
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
