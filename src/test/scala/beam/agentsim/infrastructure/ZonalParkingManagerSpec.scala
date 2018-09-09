@@ -5,7 +5,11 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse, ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingManager.{
+  DepotParkingInquiry,
+  DepotParkingInquiryResponse,
+  ParkingStockAttributes
+}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -50,8 +54,6 @@ class ZonalParkingManagerSpec
     theServices
   }
 
-
-
   describe(
     "Depot parking in ZonalParkingManager should return parking stalls according to reservedFor field"
   ) {
@@ -71,15 +73,15 @@ class ZonalParkingManagerSpec
       val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
       val location = new Coord(170572.95810126758, 2108.0402919341077)
-      val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
+      val inquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.Any)
 
       zonalParkingManager ! inquiry
-      expectMsg(DepotParkingInquiryResponse(None,inquiry.requestId))
+      expectMsg(DepotParkingInquiryResponse(None, inquiry.requestId))
 
-      val newInquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.RideHailManager)
+      val newInquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.RideHailManager)
       zonalParkingManager ! newInquiry
       expectMsgPF() {
-        case dpier @ DepotParkingInquiryResponse(Some(_),newInquiry.requestId) => dpier
+        case dpier @ DepotParkingInquiryResponse(Some(_), newInquiry.requestId) => dpier
       }
     }
 
@@ -96,16 +98,16 @@ class ZonalParkingManagerSpec
 
       val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(beamServices(config))
       val location = new Coord(170572.95810126758, 2108.0402919341077)
-      val inquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.Any)
+      val inquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.Any)
 
       zonalParkingManager ! inquiry
       expectMsgPF() {
-        case dpier @ DepotParkingInquiryResponse(Some(_),inquiry.requestId) => dpier
+        case dpier @ DepotParkingInquiryResponse(Some(_), inquiry.requestId) => dpier
       }
 
-      val newInquiry = DepotParkingInquiry(Id.create("NA",classOf[Vehicle]),location, ParkingStall.RideHailManager)
+      val newInquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.RideHailManager)
       zonalParkingManager ! newInquiry
-      expectMsg(DepotParkingInquiryResponse(None,newInquiry.requestId))
+      expectMsg(DepotParkingInquiryResponse(None, newInquiry.requestId))
     }
   }
 
@@ -115,14 +117,19 @@ class ZonalParkingManagerSpec
 }
 
 object ZonalParkingManagerSpec {
-  def mockZonalParkingManager(beamServices: BeamServices, routerOpt: Option[ActorRef] = None, stockAttributesOpt: Option[ParkingStockAttributes] = None)(implicit system: ActorSystem): ActorRef = {
+
+  def mockZonalParkingManager(
+    beamServices: BeamServices,
+    routerOpt: Option[ActorRef] = None,
+    stockAttributesOpt: Option[ParkingStockAttributes] = None
+  )(implicit system: ActorSystem): ActorRef = {
     val beamRouterProbe = routerOpt match {
       case Some(router) =>
         router
       case None =>
         TestProbe().ref
     }
-    val parkingStockAttributes = stockAttributesOpt match{
+    val parkingStockAttributes = stockAttributesOpt match {
       case Some(stockAttrib) =>
         stockAttrib
       case None =>

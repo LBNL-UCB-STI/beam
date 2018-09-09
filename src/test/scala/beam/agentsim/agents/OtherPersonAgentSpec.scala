@@ -26,6 +26,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -260,7 +261,12 @@ class OtherPersonAgentSpec
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
+        SchedulerProps(
+          config,
+          stopTick = 1000000.0,
+          maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)
+        )
       )
 
       bus.becomeDriver(
