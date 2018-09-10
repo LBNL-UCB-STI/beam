@@ -50,7 +50,7 @@ wait.times <- list()
 for(run.i in 1:nrow(exp)){
   grp <-  exp$run[run.i]
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
-  output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_','output')
+  output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_',ifelse(file.exists(pp(run.dir,'output')),'output',''))
   last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,output.dir,'/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
   #if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
   events.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
@@ -140,7 +140,6 @@ all.sum <- join.on(join.on(join.on(rh.sum,enters.sum,'run','run'),ref.sum,'run',
 all.sum <- join.on(all.sum,exp,'run','run',names(exp)[!names(exp)%in%names(all.sum)])
 
 all.m <- melt(all.sum,id.vars=c(names(exp)))
-
 
 p <- ggplot(all.m,aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
 pdf.scale <- 1.5
