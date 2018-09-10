@@ -39,7 +39,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
+          "beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
           //"DEFAULT_MANAGER"
         )
       )
@@ -68,7 +68,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
           //"DEFAULT_MANAGER"
         )
       )
