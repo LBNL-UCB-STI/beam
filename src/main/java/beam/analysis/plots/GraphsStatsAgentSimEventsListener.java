@@ -4,7 +4,11 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
+import org.jfree.data.category.CategoryDataset;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -12,6 +16,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,12 +52,16 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private final IGraphStats personVehicleTransitionStats;
     private final IGraphStats rideHailingWaitingSingleStats;
     private final IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private final BeamConfig beamConfig;
+
+    private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
         rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
         rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
         personVehicleTransitionStats = new PersonVehicleTransitionStats(beamConfig);
+       this.beamConfig=beamConfig;
     }
 
     // Constructor
@@ -120,7 +130,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-
         modeChoseStats.createGraph(event);
         fuelUsageStats.createGraph(event);
         rideHailWaitingStats.createGraph(event);
@@ -130,6 +139,23 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         personTravelTimeStats.createGraph(event);
         personVehicleTransitionStats.createGraph(event);
         realizedModeStats.createGraph(event);
+
+        if (CONTROLLER_IO != null) {
+            try {
+                // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
+
+                // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
+                ((ModeChosenStats) modeChoseStats).writeToRootCSV();
+                if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length()>0) {
+                    String outPath = CONTROLLER_IO.getOutputFilename("modeChoice.csv");
+                    Double modesError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                            .evaluateFromRun(outPath);
+                    log.info("modes Error: " + modesError);
+                }
+            } catch (Exception e){
+                log.error("exception: {}", e.getMessage());
+            }
+        }
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception{
