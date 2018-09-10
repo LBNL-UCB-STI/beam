@@ -56,17 +56,18 @@ object RunCalibration extends App with BeamHelper {
   private val runType: String = argsMap(RUN_TYPE)
   private val sigoptApiToken: String = argsMap(SIGOPT_API_TOKEN_TAG)
 
+  // @Asif: TODO hide the checking into SigOptApiToken.getClientAPIToken
   try {
     Sigopt.clientToken = SigOptApiToken.getClientAPIToken
-  }catch {
+  } catch {
 
     case ex: APIConnectionError => {
       logger.info(ex.getMessage)
 
-      if(sigoptApiToken != null){
+      if (sigoptApiToken != null) {
         Sigopt.clientToken = sigoptApiToken
         logger.info("The client token is set from the program arguments")
-      }else{
+      } else {
         throw new APIConnectionError(
           "No client token is present in the program arguments"
         )
