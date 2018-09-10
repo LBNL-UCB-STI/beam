@@ -22,7 +22,6 @@ object BeamConfigUtils extends LazyLogging {
       .withFallback(
         ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava)
       )
-      .resolve
   }
 
 }

@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle}
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
@@ -14,15 +14,13 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{CAR, TRANSIT}
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
-import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -65,6 +63,32 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val parkingManager: ActorRef
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
+
+  private def handleStopDrivingIfNoPassengerOnBoard(
+    tick: Double,
+    requestId: Int,
+    data: T
+  ): State = {
+    println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
+    data.passengerSchedule.schedule.keys
+      .drop(data.currentLegPassengerScheduleIndex)
+      .headOption match {
+      case Some(currentLeg) =>
+        println(currentLeg)
+        if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
+          log.info(s"stopping vehicle: $id")
+          goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+            success = true,
+            requestId,
+            tick
+          )
+        } else {
+          stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
+        }
+      case None =>
+        stay()
+    }
+  }
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
 
@@ -241,6 +265,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
 
   }
 
@@ -427,6 +453,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       }
 
       stay()
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+
   }
 
   when(WaitingToDriveInterrupted) {
@@ -561,6 +591,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         currentVehicleUnderControl.getState()
       )
       stay()
+
+    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ${stateName}")
+
+      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
+    //stay()
+
   }
 
   private def hasRoomFor(
