@@ -29,7 +29,7 @@ object PersonTravelTimeStatsGraphSpec {
   ) extends BasicEventHandler
       with IterationEndsListener {
 
-    private val personTravelTimeStats =
+    private lazy val personTravelTimeStats =
       new PersonTravelTimeStats(computation)
 
     override def reset(iteration: Int): Unit = {

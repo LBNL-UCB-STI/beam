@@ -26,12 +26,12 @@ class EventsFileSpec
     with EventsFileHandlingCommon
     with IntegrationSpecCommon {
 
-  private val config: Config = baseConfig
+  private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
 
-  val beamConfig = BeamConfig(config)
+  lazy val beamConfig = BeamConfig(config)
   var matsimConfig: org.matsim.core.config.Config = _
 
   override protected def beforeAll(): Unit = {

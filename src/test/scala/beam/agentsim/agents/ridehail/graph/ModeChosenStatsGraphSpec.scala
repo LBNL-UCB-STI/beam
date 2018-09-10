@@ -28,7 +28,7 @@ object ModeChosenStatsGraphSpec {
       extends BasicEventHandler
       with IterationEndsListener {
 
-    private val modeChosenStats =
+    private lazy val modeChosenStats =
       new ModeChosenStats(compute)
 
     override def reset(iteration: Int): Unit = {
@@ -53,7 +53,7 @@ object ModeChosenStatsGraphSpec {
   }
 
   class StatsValidationHandler extends BasicEventHandler {
-    val counter = new CopyOnWriteArrayList[String]()
+    lazy val counter = new CopyOnWriteArrayList[String]()
 
     override def handleEvent(event: Event): Unit = {
       event match {

@@ -105,6 +105,46 @@ To replaces the text pointers with the actual files run the following command(if
    $ git lfs pull
    Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
    
+GIT-LFS Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+
+However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+
+* Checkout your production branch:
+
+  git checkout production-branch
+
+* Bring branch even with master
+
+  git merge master
+
+* Resolve conflicts if needed
+
+* Capture the files that are different now between production and master:
+
+git diff --name-only HEAD master > diff-with-master.txt
+
+* You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+
+* IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+
+* Checkout master
+
+  git checkout master
+
+* Create a new branch off of master, this is where you will stage the files to then merge back into master:
+
+  git checkout -b new-branch-with-changes-4ci
+
+* Do a file by file checkout of all differing files from production branch onto master:
+
+  cat diff-with-master.txt | xargs git checkout production-branch --
+
+* Commit these files, push, and go create your pull request!
+
+
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

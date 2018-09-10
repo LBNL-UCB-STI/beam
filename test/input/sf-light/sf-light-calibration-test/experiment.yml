@@ -3,11 +3,11 @@
 # Header
 
 header:
-    title: SF-Light-Calibration-5k-Test
-    author: MyName
+    title: SF Light Calibration 5k-Test
+    author: BEAM Developers
     beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
-    isParallel: false
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g

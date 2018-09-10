@@ -28,7 +28,7 @@ object RealizedModeStatsGraphSpec {
   ) extends BasicEventHandler
       with IterationEndsListener {
 
-    private val realizedModeStats =
+    private lazy val realizedModeStats =
       new RealizedModeStats(computation)
 
     override def reset(iteration: Int): Unit = {
@@ -57,7 +57,7 @@ object RealizedModeStatsGraphSpec {
   }
 
   class StatsValidationHandler extends BasicEventHandler {
-    private val counter = new CopyOnWriteArrayList[String]()
+    private lazy val counter = new CopyOnWriteArrayList[String]()
     private var personsId = Set[String]()
     private var lastPersonMode = Map[String, String]()
 

@@ -7,6 +7,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
@@ -31,6 +32,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     }
   }
 
+  // TODO: is third argument really needed
   def updateVehicleAllocations(
     tick: Double,
     triggerId: Long,
@@ -42,7 +44,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
     // TODO: refactor to BufferedRideHailRequests?
     val timerTrigger = BufferedRideHailRequestsTimeout(
-      tick + 10 // TODO: replace with new config variable
+      tick + 1 // TODO: replace with new config variable
     )
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
     Vector(timerMessage)
@@ -55,20 +57,35 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   }
 
+  /*
+    This method is called periodically
+   */
   def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
     logger.trace("default implementation updateVehicleAllocations executed")
   }
 
+  /*
+
+   */
   def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
     logger.trace("default implementation handleRideCancellationReply executed")
   }
 
+  /*
+  This method is called periodically and allows the overwriting resource allocation module to specify which
+  ridehail vehicle should be repositioned/redistributed to which location to better meet anticipated demand.
+   */
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     logger.trace("default implementation repositionVehicles executed")
     Vector()
   }
 
-  def setBufferedRideHailRequests(bufferedRideHailRequests: BufferedRideHailRequests): Unit = {}
+  /*
+  This method is called whenever a reservation is sucessfully completed. Overwrite this method if you need to process this info further.
+  Use case: You want to overwrite a ride and make sure that it has been processed before cancelling it. Reason: If you cancel it during the reservation,
+  the reservation will overwrite the cancellation.
+   */
+  def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
 }
 
@@ -96,10 +113,10 @@ object RideHailResourceAllocationManager {
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(rideHailManager)
-      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
-        new ImmediateDispatchWithOverwrite(rideHailManager)
-      case RideHailResourceAllocationManager.DUMMY_DISPATCH_WITH_BUFFERING =>
-        new DummyRideHailDispatchWithBufferingRequests(rideHailManager)
+      // TODO: IMMEDIATE_DISPATCH_WITH_OVERWRITE is failing because was moved to test folder.
+      // this instantiation can be made uniformß
+//      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
+//        new ImmediateDispatchWithOverwrite(rideHailManager)
       case x if x startsWith ("Test_") =>
         //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
         //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]

@@ -2,10 +2,13 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.{ParkingManager, ParkingStall}
+import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -28,10 +31,10 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 class BeamVehicle(
   val powerTrain: Powertrain,
   val matSimVehicle: Vehicle,
-  val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
-  var fuelLevel: Option[Double],
-  val fuelCapacityInJoules: Option[Double]
+  var fuelLevelInJoules: Option[Double],
+  val fuelCapacityInJoules: Option[Double],
+  val refuelRateLimitInJoulesPerSecond: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
@@ -48,6 +51,7 @@ class BeamVehicle(
     */
   var driver: Option[ActorRef] = None
 
+  var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
 
   def getType: VehicleType = matSimVehicle.getType
@@ -70,13 +74,19 @@ class BeamVehicle(
     */
   def becomeDriver(
     newDriverRef: ActorRef
-  ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
+  ): BecomeDriverResponse = {
     if (driver.isEmpty) {
-      driver = Option(newDriverRef)
-      Right(BecomeDriverOfVehicleSuccessAck)
+      driver = Some(newDriverRef)
+      BecomeDriverOfVehicleSuccess
+    } else if (driver.get == newDriverRef) {
+      NewDriverAlreadyControllingVehicle
     } else {
-      Left(DriverAlreadyAssigned(id, driver.get))
+      DriverAlreadyAssigned(driver.get)
     }
+  }
+
+  def setReservedParkingStall(newStall: Option[ParkingStall]) = {
+    reservedStall = newStall
   }
 
   def useParkingStall(newStall: ParkingStall) = {
@@ -87,16 +97,55 @@ class BeamVehicle(
     stall = None
   }
 
-  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(
-      fLevel - powerTrain
-        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
-    )
+  def useFuel(distanceInMeters: Double): Double = {
+    fuelLevelInJoules match {
+      case Some(fLevel) =>
+        val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
+        if (fLevel < energyConsumed) {
+          logger.warn(
+            "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
+            id,
+            distanceInMeters,
+            fLevel / powerTrain.estimateConsumptionInJoules(1)
+          )
+        }
+        fuelLevelInJoules = Some(Math.max(fLevel - energyConsumed, 0.0))
+        energyConsumed
+      case None =>
+        0.0
+    }
   }
 
-  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
+  def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>
+    fuelLevelInJoules = Some(fLevel + fuelInJoules)
   }
+
+  /**
+    *
+    * @return refuelingDuration
+    */
+  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+    stall match {
+      case Some(theStall) =>
+        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
+          theStall.attributes.chargingType,
+          fuelLevelInJoules.get,
+          fuelCapacityInJoules.get,
+          refuelRateLimitInJoulesPerSecond,
+          None
+        )
+      case None =>
+        (0, 0.0) // if we are not parked, no refueling can occur
+    }
+  }
+
+  def getState(): BeamVehicleState =
+    BeamVehicleState(
+      fuelLevelInJoules.getOrElse(Double.NaN),
+      fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
+      driver,
+      stall
+    )
 
 }
 
@@ -104,4 +153,11 @@ object BeamVehicle {
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
+
+  case class BeamVehicleState(
+    fuelLevel: Double,
+    remainingRangeInM: Double,
+    driver: Option[ActorRef],
+    stall: Option[ParkingStall]
+  )
 }
