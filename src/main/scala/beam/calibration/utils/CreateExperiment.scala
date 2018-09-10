@@ -11,8 +11,8 @@ object CreateExperiment extends LazyLogging {
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
 
   def main(args: Array[String]): Unit = {
-    val experimentLoc: String = "test/input/sf-light/sf-light-calibration/experiment.yml"
-    val benchmarkLoc: String = "test/input/sf-light/sf-light-calibration/benchmark.csv"
+    val experimentLoc: String = "production/application-sfbay/calibration/experiment_counts_calibration.yml"
+    val benchmarkLoc: String = "production/applicaion-sfbay/calibration/benchmark.csv"
     SigoptExperimentData(experimentLoc, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
   }
 }
