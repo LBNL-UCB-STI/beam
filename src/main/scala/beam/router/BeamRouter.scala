@@ -378,7 +378,7 @@ class BeamRouter(
           )
           val transitDriver =
             context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }
   }
