@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters._
 
-object DeleteSuggestion extends LazyLogging{
+object DeleteSuggestion extends LazyLogging {
   val deleteSuggestionId: String = "21226774"
 
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
@@ -17,7 +17,6 @@ object DeleteSuggestion extends LazyLogging{
   val experiment = new Experiment("51962")
 
   val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
-
 
   def deleteSuggestion(experimentId: String, suggestionId: String) = {
 
@@ -31,12 +30,12 @@ object DeleteSuggestion extends LazyLogging{
     }
   }
 
-  def deleteSuggestions(experimentId: String, suggestions: List[String]) ={
+  def deleteSuggestions(experimentId: String, suggestions: List[String]) = {
 
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) => {
-        suggestions.foreach{
-          suggestionId => {
+        suggestions.foreach { suggestionId =>
+          {
 
             _experiment.suggestions().delete(suggestionId).call()
           }
@@ -52,11 +51,10 @@ object DeleteSuggestion extends LazyLogging{
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) => {
 
-        if(_experiment.suggestions().list().call().getData.size() > 0)
-          _experiment.suggestions().list().call().getData.forEach{
-            d => println(d)
-          }
-        else
+        if (_experiment.suggestions().list().call().getData.size() > 0)
+          _experiment.suggestions().list().call().getData.forEach { d =>
+            println(d)
+          } else
           logger.info(s"Experiement with id $experimentId has no suggestion")
       }
       case None => {
@@ -70,16 +68,15 @@ object DeleteSuggestion extends LazyLogging{
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) => {
 
-        if(_experiment.suggestions().list().call().getData.size() > 0)
-          _experiment.suggestions().list().call().getData.forEach{
-            d => {
-              if(d.getState == "open"){
+        if (_experiment.suggestions().list().call().getData.size() > 0)
+          _experiment.suggestions().list().call().getData.forEach { d =>
+            {
+              if (d.getState == "open") {
                 logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
                 _experiment.suggestions().delete(d.getId).call()
               }
             }
-          }
-        else
+          } else
           logger.info(s"Experiement with id $experimentId has no suggestion")
       }
       case None => {
@@ -103,4 +100,3 @@ object DeleteSuggestion extends LazyLogging{
 
   }
 }
-

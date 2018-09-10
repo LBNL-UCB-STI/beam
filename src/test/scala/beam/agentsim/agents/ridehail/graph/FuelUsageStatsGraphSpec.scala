@@ -27,7 +27,7 @@ object FuelUsageStatsGraphSpec {
       extends BasicEventHandler
       with IterationEndsListener {
 
-    private val fuelUsageStats =
+    private lazy val fuelUsageStats =
       new FuelUsageStats(compute)
 
     override def reset(iteration: Int): Unit = {

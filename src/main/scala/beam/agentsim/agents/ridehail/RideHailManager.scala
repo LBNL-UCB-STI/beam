@@ -197,6 +197,16 @@ class RideHailManager(
   private val rideHailAllocationManagerTimeoutInSeconds = {
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   }
+
+  private val pendingDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
+    mutable.Map[Int, RideHailRequest]()
+
+  private val completedDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
+    mutable.Map[Int, RideHailRequest]()
+
+  val allocationManager: String =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
+
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
   val tncIterationStats: Option[TNCIterationStats] = {
@@ -335,8 +345,8 @@ class RideHailManager(
           vehicleState.put(vehicleId, beamVehicleState)
 
           if (modifyPassengerScheduleManager
-            .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
-            .isPendingReservationEnding(vehicleId, passengerSchedule)) {
+                .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
+                .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
@@ -426,7 +436,7 @@ class RideHailManager(
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
     case RoutingResponses(request, None, responses) =>
-//      println(s"got routingResponse: ${request.requestId} with no RHA")
+      //      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
     case RoutingResponses(
@@ -434,7 +444,7 @@ class RideHailManager(
         Some(rideHailLocation),
         responses
         ) =>
-//      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
+      //      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
       val itins = responses.map { response =>
         response.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL))
       }
@@ -468,7 +478,8 @@ class RideHailManager(
           val tripDriver2Cust = RoutingResponse(
             Vector(
               itins2Cust.head.copy(legs = itins2Cust.head.legs.map(l => l.copy(asDriver = true)))
-            )
+            ),
+            java.util.UUID.randomUUID()
           )
           val timeToCustomer =
             tripDriver2Cust.itineraries.head.totalTravelTimeInSecs
@@ -493,7 +504,8 @@ class RideHailManager(
                   )
                 )
               )
-            )
+            ),
+            java.util.UUID.randomUUID()
           )
 
           val travelProposal = TravelProposal(
@@ -660,9 +672,9 @@ class RideHailManager(
             )
 
             if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: Vector[RoutingModel.EmbodiedBeamTrip] =
-                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
+              val modRHA2Cust: IndexedSeq[RoutingModel.EmbodiedBeamTrip] =
+                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
+              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
 
               // TODO: extract creation of route to separate method?
               val passengerSchedule = PassengerSchedule().addLegs(
@@ -838,20 +850,20 @@ class RideHailManager(
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None) =>
-//        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
+        //        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
         requestRoutes(
           request,
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation)
         )
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
-//        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
+        //        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
-//        println(s"${request.requestId} -- RoutingRequired")
+        //        println(s"${request.requestId} -- RoutingRequired")
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
-//        println(s"${request.requestId} -- NoVehicleAllocated")
+        //        println(s"${request.requestId} -- NoVehicleAllocated")
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
@@ -1074,10 +1086,15 @@ class RideHailManager(
 
           bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
         } else {
+
           response.request.customer.personRef.get ! response.copy(
             triggersToSchedule = triggersToSchedule.toVector
           )
         }
+        rideHailResourceAllocationManager.reservationCompletionNotice(
+          response.request.customer.personId,
+          response.travelProposal.get.rideHailAgentLocation.vehicleId
+        )
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $requestId")
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
@@ -1156,7 +1173,16 @@ class RideHailManager(
               .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
           findDriverAndSendRoutingRequests(request)
         } else {
-          handleReservation(request, travelProposal)
+          if (pendingDummyRideHailRequests.contains(request.requestId)) {
+
+            println(s"stranding customer: ${request.customer.personId}")
+
+            request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
+
+            completedDummyRequest(request)
+          } else {
+            handleReservation(request, travelProposal)
+          }
 
         }
       case None =>
@@ -1218,7 +1244,66 @@ class RideHailManager(
 
   }
 
+  def assignDummyRidehail(request: RideHailRequest): Unit = {
+    pendingDummyRideHailRequests.put(request.requestId, request)
+    DebugLib.emptyFunctionForSettingBreakPoint()
+  }
+
+  def getPendingDummyRequests: mutable.Map[Int, RideHailRequest] = {
+    pendingDummyRideHailRequests
+  }
+
+  def completedDummyRequest(request: RideHailRequest): Unit = {
+    pendingDummyRideHailRequests.remove(request.requestId)
+    completedDummyRideHailRequests.put(request.requestId, request)
+  }
+
+  def getCompletedDummyRequests: mutable.Map[Int, RideHailRequest] = {
+    completedDummyRideHailRequests
+  }
+
+  def removeDummyRequest(request: RideHailRequest): Unit = {
+    completedDummyRideHailRequests.remove(request.requestId)
+  }
+
   def createRoutingRequestsToCustomerAndDestination(
+    request: RideHailRequest,
+    rideHailLocation: RideHailAgentLocation
+  ): List[RoutingRequest] = {
+
+    val pickupSpaceTime = SpaceTime((request.pickUpLocation, request.departAt.atTime))
+    val customerAgentBody =
+      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
+    val rideHailVehicleAtOrigin = StreetVehicle(
+      rideHailLocation.vehicleId,
+      SpaceTime((rideHailLocation.currentLocation.loc, request.departAt.atTime)),
+      CAR,
+      asDriver = false
+    )
+    val rideHailVehicleAtPickup =
+      StreetVehicle(rideHailLocation.vehicleId, pickupSpaceTime, CAR, asDriver = false)
+
+    // route from ride hailing vehicle to customer
+    val rideHailAgent2Customer = RoutingRequest(
+      rideHailLocation.currentLocation.loc,
+      request.pickUpLocation,
+      request.departAt,
+      Vector(),
+      Vector(rideHailVehicleAtOrigin)
+    )
+    // route from customer to destination
+    val rideHail2Destination = RoutingRequest(
+      request.pickUpLocation,
+      request.destination,
+      request.departAt,
+      Vector(),
+      Vector(customerAgentBody, rideHailVehicleAtPickup)
+    )
+
+    List(rideHailAgent2Customer, rideHail2Destination)
+  }
+
+  def requestRoutesToCustomerAndDestination(
     request: RideHailRequest,
     rideHailLocation: RideHailAgentLocation
   ): List[RoutingRequest] = {
@@ -1261,17 +1346,11 @@ class RideHailManager(
     routingRequests: List[RoutingRequest]
   ) = {
     val preservedOrder = routingRequests.map(_.requestId)
-//    print(s"Routing reqs for RHReq ${rideHailRequest.requestId}: ")
-//    routingRequests.foreach(req => print(s"${req.requestId}, "))
-//    println("")
     Future
       .sequence(routingRequests.map { req =>
         akka.pattern.ask(router, req).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
-//        print(s"Routing responses for RHReq ${rideHailRequest.requestId}: ")
-//        responseList.foreach(req => print(s"${req.requestId}, "))
-//        println("")
         val requestIdToResponse = responseList.map { response =>
           (response.requestId.get -> response)
         }.toMap

@@ -1,6 +1,5 @@
 package beam.integration.ridehail
 
-import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.integration.TestConstants
 import beam.sim.config.MatSimBeamConfigBuilder
 import beam.utils.TestConfigUtils.testConfig
@@ -9,14 +8,12 @@ import org.matsim.core.config.{Config => MatSimConfig}
 
 object RideHailTestHelper {
 
-  def buildConfig: Config = {
+  def buildConfig(allocationManagerName: String): Config = {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
-        ConfigValueFactory.fromAnyRef(
-          RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE
-        )
+        ConfigValueFactory.fromAnyRef(allocationManagerName)
       )
       .withValue(
         TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,

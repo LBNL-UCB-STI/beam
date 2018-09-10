@@ -2,11 +2,6 @@ package beam.sim
 
 object RunBeam extends BeamHelper {
 
-  def matchConfigFile(args: Array[String]): String = args.toList match {
-    case "--config" :: config :: _ => config
-    case _                         => throw new IllegalArgumentException("Missing required argument: config")
-  }
-
   def main(args: Array[String]): Unit = {
     print("""
     |  ________
@@ -19,8 +14,7 @@ object RunBeam extends BeamHelper {
     |
      """.stripMargin)
 
-    val configFile: String = matchConfigFile(args)
-    runBeamWithConfigFile(configFile)
+    runBeamUsing(args)
     logger.info("Exiting BEAM")
   }
 

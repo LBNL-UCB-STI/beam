@@ -1,10 +1,8 @@
 package beam.sim
 
-import collection.JavaConverters._
 import java.awt.Color
 import java.lang.Double
-import java.util
-import java.util.{Collections, Random}
+import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
@@ -20,12 +18,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
   RideHailAllocationManagerTimeout
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingStockAttributes}
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -133,7 +126,8 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
-            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+            new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
           "scheduler"
         )

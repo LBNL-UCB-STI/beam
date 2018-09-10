@@ -97,13 +97,14 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             }
 
             String unitVehicle;
-            try {
-                Integer.parseInt(vehicleId);
+            boolean isDigit = vehicleId.replace("-","").chars().allMatch( Character::isDigit );
+            if(isDigit){
                 unitVehicle = "car";
             }
-            catch (NumberFormatException e){
+            else {
                 unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
             }
+
 
             Integer count = modePerson.get(unitVehicle);
             if (count == null) {
@@ -148,11 +149,11 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             }
 
             String unitVehicle;
-            try {
-                Integer.parseInt(vehicleId);
+            boolean isDigit = vehicleId.replace("-","").chars().allMatch( Character::isDigit );
+            if(isDigit){
                 unitVehicle = "car";
             }
-            catch (NumberFormatException e){
+            else {
                 unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
             }
 
