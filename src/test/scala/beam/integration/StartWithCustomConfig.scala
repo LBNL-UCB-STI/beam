@@ -11,20 +11,20 @@ class StartWithCustomConfig(val config: Config)
     with IntegrationSpecCommon
     with BeamHelper {
 
-  val conf =
+  lazy val conf =
     config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
-  val beamConfig = BeamConfig(conf)
+  lazy val beamConfig = BeamConfig(conf)
 
-  val (matsimConfig, _) = runBeamWithConfig(conf)
+  lazy val (matsimConfig, _) = runBeamWithConfig(conf)
 
-  val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
+  lazy val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
 
-  val eventsReader: ReadEvents = new ReadEventsBeam
+  lazy val eventsReader: ReadEvents = new ReadEventsBeam
 
-  val listValueTagEventFile =
+  lazy val listValueTagEventFile =
     eventsReader.getListTagsFrom(file.getPath, tagToReturn = "mode", eventType = Some("ModeChoice"))
 
-  val groupedCount = listValueTagEventFile
+  lazy val groupedCount = listValueTagEventFile
     .groupBy(s => s)
     .map { case (k, v) => (k, v.size) }
 }

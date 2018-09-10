@@ -114,7 +114,7 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord
         )
-//        println(s"requesting: ${inquiry.requestId}")
+        //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
       }
 
@@ -271,7 +271,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, Some(requestId)),
+        theRouterResult @ RoutingResponse(_, _, Some(requestId)),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       val driveTransitTrip =
@@ -332,7 +332,7 @@ trait ChoosesMode {
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
-//      println(s"receiving response: ${theRideHailResult}")
+      //      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {
         case choosesModeData.rideHail2TransitAccessInquiryId =>
           choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailResult))
@@ -366,7 +366,7 @@ trait ChoosesMode {
       DiscreteTime(legs.head.startTime.toInt),
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
     )
-//    println(s"requesting: ${inquiry.requestId}")
+    //    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
     Some(inquiry.requestId)
   }
@@ -473,7 +473,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }
 
-      modeChoiceCalculator(filteredItinerariesForChoice) match {
+      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
@@ -663,7 +663,7 @@ object ChoosesMode {
       routingResponse = if (withRouting) {
         None
       } else {
-        Some(RoutingResponse(Vector()))
+        Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
       },
       rideHailResult = if (withRideHail) {
         None

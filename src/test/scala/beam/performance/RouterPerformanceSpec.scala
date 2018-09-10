@@ -494,7 +494,7 @@ class RouterPerformanceSpec
     Seq(nodes(start), nodes(end))
   }
 
-  private val utm2Wgs: GeotoolsTransformation =
+  private lazy val utm2Wgs: GeotoolsTransformation =
     new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
 
   def Utm2Wgs(coord: Coord): Coord = {
