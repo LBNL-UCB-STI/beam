@@ -17,7 +17,7 @@ header:
 
       runName: "Production_Calibration_counts_1"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "0b3e07a22a19f0b69c7c27fb5ec88a0c62ac8998"
+      beamCommit: "b7f2e5481a8d27def1e0fc20fe9d6ea680728df3"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
