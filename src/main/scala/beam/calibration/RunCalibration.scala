@@ -79,8 +79,6 @@ object RunCalibration extends App with BeamHelper {
   private implicit val experimentData: SigoptExperimentData =
     SigoptExperimentData(experimentLoc, benchmarkLoc, experimentId, development = false)
 
-  val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers + 1)).toInt
-
   if (runType == RUN_TYPE_LOCAL) {
     val experimentRunner: ExperimentRunner = ExperimentRunner()
     experimentRunner.runExperiment(numIters)
@@ -108,7 +106,7 @@ object RunCalibration extends App with BeamHelper {
            '--experiments', '$experimentLoc',
            '--experiment_id', '${experimentData.experiment.getId}',
            '--benchmark','$benchmarkLoc',
-           '--num_iters', '$iterPerNode',
+           '--num_iters', '$numIters',
            '--run_type', 'local',
            '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
       println(execString)
