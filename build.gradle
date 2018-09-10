@@ -18,7 +18,7 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
-        classpath 'gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1'
+        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
 
     }
@@ -28,8 +28,7 @@ plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
-    id 'com.palantir.docker' version '0.20.1'
-
+    id 'org.ajoberstar.grgit' version '1.7.2'
 }
 
 //ext {
@@ -45,7 +44,7 @@ apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'com.palantir.docker'
+apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
 version = '0.6.0'
@@ -340,17 +339,7 @@ lambda {
 }
 
 def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
-        }
-    } catch (e) {
-    }
-    return gitBranch
+    return grgit.branch.current.name
 }
 
 task deploy(type: AWSLambdaInvokeTask) {
@@ -507,6 +496,21 @@ task sourcesJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
+docker {
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = System.getenv("DOCKER_USER")
+        password = System.getenv("DOCKER_PASSWORD")
+    }
+
+    javaApplication {
+        baseImage = 'anapsix/alpine-java:8u181b13_jdk_unlimited'
+        maintainer = 'Kirill Mitin "mitin.kirill.ol@gmail.com"'
+        ports = [2552]
+        tag = 'beammodel/beam:latest'
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run Via application plugin
 // Note: colon preceding "run" is necessary to only run the main project and not launch the GUI as well.
@@ -592,7 +596,9 @@ jar {
                 'Specification-Vendor': "Sun Microsystems, Inc.",
                 'Implementation-Title': "com.sun.media.imageio",
                 'Implementation-Version': "1.1",
-                'Implementation-Vendor': "Sun Microsystems, Inc."
+                'Implementation-Vendor': "Sun Microsystems, Inc.",
+                'Build-Commit': "${grgit.head().id}",
+                'Build-Branch': "${grgit.branch.current.name}"
         )
     }
 }
@@ -602,17 +608,4 @@ shadowJar {
         resource = 'reference.conf'
     }
     mergeServiceFiles()
-}
-
-docker {
-    dependsOn shadowJar
-    name "${shadowJar.baseName}/${shadowJar.baseName}"
-    files shadowJar.archivePath
-    copySpec.with {
-        from('test') {
-            include '**'
-            into 'test'
-        }
-    }
-    buildArgs(['JAR_FILE': "${shadowJar.archiveName}"])
 }
