@@ -91,11 +91,6 @@ public class PhyssimCalcLinkStats {
             }
             createModesFrequencyGraph(dataset, iteration);
 
-            String outPath =
-                    this.controllerIO
-                            .getIterationFilename(iteration, "countscompare.txt");
-            Double countsError= CountsObjectiveFunction.evaluateFromRun(outPath);
-            log.info("countsError:" + countsError);
         }
 
     }
