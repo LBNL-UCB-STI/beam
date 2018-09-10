@@ -386,7 +386,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "testSim"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
