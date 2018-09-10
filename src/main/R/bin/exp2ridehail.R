@@ -48,7 +48,7 @@ for(run.i in 1:nrow(exp)){
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
   output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_','output')
   last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,output.dir,'/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
-  if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
+  #if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
   events.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
   ev <- csv2rdata(events.csv)
   ev[,run:=grp]
