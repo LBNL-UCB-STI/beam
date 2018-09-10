@@ -40,6 +40,7 @@ object RunCalibration extends App with BeamHelper {
   private val EXPERIMENT_ID_TAG = "experiment_id"
   private val NEW_EXPERIMENT_FLAG = "00000"
   private val RUN_TYPE = "run_type"
+  private val SIGOPT_API_TOKEN_TAG = "sigopt_api_token"
 
   private val RUN_TYPE_LOCAL = "local"
   private val RUN_TYPE_REMOTE = "remote"
@@ -48,12 +49,31 @@ object RunCalibration extends App with BeamHelper {
   val argsMap = parseArgs(args)
 
   // Store CLI inputs as private members
-  Sigopt.clientToken = SigOptApiToken.getClientAPIToken
   private val experimentLoc: String = argsMap(EXPERIMENTS_TAG)
   private val benchmarkLoc: String = argsMap(BENCHMARK_EXPERIMENTS_TAG)
   private val numIters: Int = argsMap(NUM_ITERATIONS_TAG).toInt
   private val experimentId: String = argsMap(EXPERIMENT_ID_TAG)
   private val runType: String = argsMap(RUN_TYPE)
+  private val sigoptApiToken: String = argsMap(SIGOPT_API_TOKEN_TAG)
+
+  // @Asif: TODO hide the checking into SigOptApiToken.getClientAPIToken
+  try {
+    Sigopt.clientToken = SigOptApiToken.getClientAPIToken
+  } catch {
+
+    case ex: APIConnectionError => {
+      logger.info(ex.getMessage)
+
+      if (sigoptApiToken != null) {
+        Sigopt.clientToken = sigoptApiToken
+        logger.info("The client token is set from the program arguments")
+      } else {
+        throw new APIConnectionError(
+          "No client token is present in the program arguments"
+        )
+      }
+    }
+  }
 
   //  Context object containing experiment definition
   private implicit val experimentData: SigoptExperimentData =
@@ -89,7 +109,8 @@ object RunCalibration extends App with BeamHelper {
            '--experiment_id', '${experimentData.experiment.getId}',
            '--benchmark','$benchmarkLoc',
            '--num_iters', '$iterPerNode',
-           '--run_type', 'local']"""".stripMargin
+           '--run_type', 'local',
+           '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
       println(execString)
       execString.!
     })
@@ -116,6 +137,8 @@ object RunCalibration extends App with BeamHelper {
           }
         case Array("--run_type", runType: String) if runType.trim.nonEmpty =>
           (RUN_TYPE, runType)
+        case Array("--sigopt_api_token", sigoptApiToken: String) if sigoptApiToken.trim.nonEmpty =>
+          (SIGOPT_API_TOKEN_TAG, sigoptApiToken)
         case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
