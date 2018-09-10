@@ -316,7 +316,7 @@ class BeamAgentScheduler(
               .first() + 1 < maxWindow) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
-              "Hour " +  nowInSeconds / 3600.0 + " completed. " + math.round(
+              "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
                 10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime
                   .freeMemory()) / Math
                   .pow(1000, 3)

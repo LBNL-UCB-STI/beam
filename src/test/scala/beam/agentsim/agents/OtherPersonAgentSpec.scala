@@ -128,7 +128,6 @@ class OtherPersonAgentSpec
 
   private lazy val networkCoordinator = new NetworkCoordinator(config)
 
-
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should also work when the first bus is late") {
