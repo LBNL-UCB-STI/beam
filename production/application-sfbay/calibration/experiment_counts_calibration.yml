@@ -3,11 +3,11 @@
 # Header
 
 header:
-    title: Production_Calibration_counts_1
+    title: Production_Calibration_counts_2
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 1
+    numWorkers: 9
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -26,7 +26,7 @@ header:
       s3Backup: "true"
       maxRAM: "140g"
       region: "us-east-2"
-      instanceType: "c5.18xlarge"
+      instanceType: "m4.16xlarge"
 
 
 
