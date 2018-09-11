@@ -149,7 +149,6 @@ write.csv(all.sum,file=pp(plots.dir,'summary-ride-hail-metrics.csv'))
 p <- ggplot(all.m[variable%in%c('n.charge.sessions','n.unique.vehicles.that.charge','n.trips.with.passenger','vmt.per.vehicle','n.charge.sessions','customer.wait.50th.percentile','customer.wait.99th.percentile','deadhead.vmt.fraction')],aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
 pdf.scale <- 1.5
 ggsave(pp(plots.dir,'summary-ride-hail-metrics-by-run.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
-write.csv(all.sum,file=pp(plots.dir,'summary-ride-hail-metrics.csv'))
 
 save(all.sum,exp,file=pp(plots.dir,'summary-metrics.Rdata'))
 
