@@ -8,12 +8,29 @@ import java.util.stream.Stream
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor.SupervisorStrategy._
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  Identify,
+  OneForOneStrategy,
+  PoisonPill,
+  Props,
+  SupervisorStrategy,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  NotifyIterationEnds,
+  RideHailAllocationManagerTimeout
+}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -374,7 +391,6 @@ class BeamMobsim @Inject()(
 
           case CompletionNotice(_, _) =>
             log.info("Scheduler is finished.")
-            cleanupRideHailingAgents()
             endSegment("agentsim-execution", "agentsim")
             log.info("Ending Agentsim")
             log.info("Processing Agentsim Events (Start)")
@@ -382,15 +398,27 @@ class BeamMobsim @Inject()(
 
             cleanupRideHailingAgents()
             cleanupVehicle()
+
+            context.unwatch(population)
             population ! Finish
+
             val future = rideHailManager.ask(NotifyIterationEnds())
             Await.ready(future, timeout.duration).value
+            context.unwatch(rideHailManager)
             context.stop(rideHailManager)
+
+            context.unwatch(scheduler)
             context.stop(scheduler)
+
+            context.unwatch(errorListener)
             context.stop(errorListener)
+
+            context.unwatch(parkingManager)
             context.stop(parkingManager)
+
             if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
               debugActorWithTimerCancellable.cancel()
+              context.unwatch(debugActorWithTimerActorRef)
               context.stop(debugActorWithTimerActorRef)
             }
             if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
@@ -432,9 +460,11 @@ class BeamMobsim @Inject()(
         }
 
         private def cleanupRideHailingAgents(): Unit = {
-          rideHailAgents.foreach(_ ! Finish)
+          rideHailAgents.foreach { actor =>
+            actor ! Finish
+            context.unwatch(actor)
+          }
           rideHailAgents = new ArrayBuffer()
-
         }
 
         private def cleanupVehicle(): Unit = {
