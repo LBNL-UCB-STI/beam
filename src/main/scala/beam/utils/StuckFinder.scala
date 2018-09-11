@@ -1,7 +1,9 @@
 package beam.utils
 
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
+import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
+import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
@@ -36,14 +38,23 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   }
 
   def add(time: Long, st: ScheduledTrigger): Unit = {
-    if (cfg.enabled)
-      class2Helper(toKey(st)).add(time, st)
+    if (cfg.enabled) {
+      class2Helper
+        .get(toKey(st))
+        .foreach { helper =>
+          helper.add(time, st)
+        }
+    }
   }
 
   def removeByKey(st: ScheduledTrigger): Option[ValueWithTime[ScheduledTrigger]] = {
-    if (cfg.enabled)
-      class2Helper(toKey(st)).removeByKey(st)
-    else
+    if (cfg.enabled) {
+      class2Helper
+        .get(toKey(st))
+        .flatMap { helper =>
+          helper.removeByKey(st)
+        }
+    } else
       None
   }
 
@@ -81,7 +92,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
 
   def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
     val diff = currentTimeMs - startedAtMs
-    val threshold = class2Threshold(toKey(st))
+    val threshold = class2Threshold.getOrElse(toKey(st), cfg.defaultTimeoutMs)
     val isStuck = diff > threshold
     if (isStuck) {
       logger.warn(s"$st is stuck. Diff: $diff ms, Threshold: $threshold ms")
@@ -93,9 +104,14 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
 
   private def verifyTypesExist(): Unit = {
     // Make sure that those classes exist
-    cfg.thresholds.foreach { t =>
+    val definedTypes = cfg.thresholds.map { t =>
       // ClassNotFoundException  will be thrown if class does not exists or renamed or deleted
       Class.forName(t.triggerType)
+    }
+
+    val allSubClasses = new ReflectionUtils { val packageName = "beam.agentsim" }.classesOfType[Trigger]
+    allSubClasses.diff(definedTypes).foreach { clazz =>
+      logger.warn("There is no configuration for '{}'", clazz)
     }
   }
 }
