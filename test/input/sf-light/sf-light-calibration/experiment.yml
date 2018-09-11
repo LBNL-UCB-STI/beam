@@ -7,7 +7,7 @@ header:
     author: BEAM Developers
     beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 5
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g

@@ -31,7 +31,7 @@ object RideHailingWaitingSingleStatsSpec {
   ) extends BasicEventHandler
       with IterationEndsListener {
 
-    private val railHailingSingleStat =
+    private lazy val railHailingSingleStat =
       new RideHailingWaitingSingleStats(beamServices.beamConfig, waitingComp)
 
     override def reset(iteration: Int): Unit = {

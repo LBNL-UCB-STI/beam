@@ -27,7 +27,7 @@ object RideHailingWaitingGraphSpec {
   ) extends BasicEventHandler
       with IterationEndsListener {
 
-    private val railHailingStat =
+    private lazy val railHailingStat =
       new RideHailWaitingStats(waitingComp)
 
     override def reset(iteration: Int): Unit = {

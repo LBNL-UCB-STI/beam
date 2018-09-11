@@ -1,8 +1,9 @@
 # fitler outputs for ride hailing summary and analysis
 
 out.scen <- 'EVFleet__2018-09-05_20-52-48'
+out.scen <- 'broken-rhm'
 
-load(pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/0.events.Rdata"))
+load(pp("/Users/critter/Documents/beam/beam-output/EVFleet-Final/",out.scen,"/ITERS/it.0/0.events.Rdata"))
 
 pt <- df[type=='PathTraversal' & vehicle_type=='BEV' & substr(vehicle,1,5)=='rideH']
 
@@ -76,14 +77,14 @@ both[,hour:=floor(time/3600)]
 ggplot(both[type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[type=='Charge'],size=0.25)
 dev.new();ggplot(both[type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[type=='Charge'],size=0.25)+facet_wrap(~hour)
 
-write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/beam-ev-ride-hail.csv"),row.names=F)
+write.csv(both,file=pp("/Users/critter/Documents/beam/beam-output/EVFleet-Final/",out.scen,"/ITERS/it.0/beam-ev-ride-hail.csv"),row.names=F)
 
 # find a veh that recharges
 both[vehicle%in%u(both[type=='Charge']$vehicle),.N,by='vehicle']
 
 
 # Compare RH initial positions to activities
-rhi<-data.table(read.csv(pp("/Users/critter/Documents/beam/beam-output/",out.scen,"/ITERS/it.0/0.rideHailInitialLocation.csv")))
+rhi<-data.table(read.csv(pp("/Users/critter/Documents/beam/beam-output/EVFleet-Final/",out.scen,"/ITERS/it.0/0.rideHailInitialLocation.csv")))
 rhi[,':='(x=xCoord,y=yCoord)]
 rhi[,type:='RH-Initial']
 load('/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/population.Rdata')

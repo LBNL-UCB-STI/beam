@@ -17,7 +17,7 @@ class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with Ak
 
   @Provides @Singleton
   def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
-    val system = ActorSystem("beam-actor-system", config)
+    val system = ActorSystem("ClusterSystem", config)
     // add the GuiceAkkaExtension to the system, and initialize it with the Guice injector
     GuiceAkkaExtension(system).initialize(injector)
     system

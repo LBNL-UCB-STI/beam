@@ -24,18 +24,18 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
   val MODE = "Car"
 
   trait ChainBasedTourAllocatorTestFixture {
-    val pop: Population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
-    val popFact: PopulationFactory = pop.getFactory
-    val persAttr: ObjectAttributes = pop.getPersonAttributes
-    val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
+    lazy val pop: Population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
+    lazy val popFact: PopulationFactory = pop.getFactory
+    lazy val persAttr: ObjectAttributes = pop.getPersonAttributes
+    lazy val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
 
     // These are unique to each test case
     val personList: immutable.IndexedSeq[Id[Person]]
     val vehicleList: immutable.IndexedSeq[Id[Vehicle]]
 
-    val hhs = new HouseholdsImpl
+    lazy val hhs = new HouseholdsImpl
 
-    val hh: HouseholdImpl = hhs.getFactory
+    lazy val hh: HouseholdImpl = hhs.getFactory
       .createHousehold(Id.create("hh", classOf[Household]))
       .asInstanceOf[HouseholdImpl]
     var chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator = _

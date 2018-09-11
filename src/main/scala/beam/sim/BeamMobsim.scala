@@ -128,7 +128,8 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
-            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+            new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
           "scheduler"
         )
@@ -393,8 +394,8 @@ class BeamMobsim @Inject()(
               context.stop(debugActorWithTimerActorRef)
             }
             if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
-//              memoryLoggingTimerCancellable.cancel()
-//              context.stop(memoryLoggingTimerActorRef)
+              //              memoryLoggingTimerCancellable.cancel()
+              //              context.stop(memoryLoggingTimerActorRef)
             }
           case Terminated(who) =>
             log.error("Terminated: {}", who)

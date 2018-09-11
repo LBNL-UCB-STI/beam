@@ -68,8 +68,8 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
 
     }
 
-//    val bestAssignments: BestAssignments =
-//      experimentData.experiment.bestAssignments().fetch().call()
+    //    val bestAssignments: BestAssignments =
+    //      experimentData.experiment.bestAssignments().fetch().call()
 
   }
 
@@ -80,11 +80,34 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
           .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
-    } else {
+    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction")) {
       val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString)
+    } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction")) {
+      var outpath = Paths.get(
+        GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+          .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+      )
+      val countsObjVal = CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
+
+      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val modesObjVal = new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
+        .evaluateFromRun(outpath.toAbsolutePath.toString)
+
+      val meanToCountsWeightRatio: Double = {
+        experimentData.baseConfig.getDouble("beam.calibration.meanToCountsWeightRatio")
+      }
+
+      val modeWeight = meanToCountsWeightRatio / (1 + meanToCountsWeightRatio)
+      val countsWeight = 1 - modeWeight
+
+      -(countsWeight * Math.abs(countsObjVal) + modeWeight * Math.abs(modesObjVal))
+    } else {
+      logger.error("objectiveFunctionClassName not set")
+      Double.NegativeInfinity
     }
   }
 

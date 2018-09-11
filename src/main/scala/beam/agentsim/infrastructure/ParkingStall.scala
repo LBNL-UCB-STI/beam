@@ -148,4 +148,7 @@ object ParkingStall {
   case object Any extends ReservedParkingType
   case object RideHailManager extends ReservedParkingType
 
+  sealed trait DepotStallLocationType
+  case object AtRequestLocation extends DepotStallLocationType
+  case object AtTAZCenter extends DepotStallLocationType
 }
