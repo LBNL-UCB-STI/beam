@@ -116,7 +116,7 @@ class BeamMobsim @Inject()(
         override val supervisorStrategy: SupervisorStrategy =
           OneForOneStrategy(maxNrOfRetries = 1) {
             // Yes, we just stop watching actor because unhandled exception there is something critical!
-            case _: Exception ⇒ Stop
+            case _: Exception => Stop
           }
         var runSender: ActorRef = _
         private val errorListener = context.actorOf(ErrorListener.props())
