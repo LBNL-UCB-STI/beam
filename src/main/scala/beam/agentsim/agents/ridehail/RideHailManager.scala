@@ -12,16 +12,11 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.ridehail.{MoveOutOfServiceVehicleToDepotParking, OutOfServiceVehicleManager}
-import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
+import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -34,7 +29,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamTime, DiscreteTime}
+import beam.router.RoutingModel.DiscreteTime
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
@@ -801,7 +796,7 @@ class RideHailManager(
       }
 
     case Finish =>
-      log.info("finish message received from BeamAgentScheduler")
+      log.info("finish message received from {}", sender())
 
     case msg =>
       log.warning(s"unknown message received by RideHailManager $msg")

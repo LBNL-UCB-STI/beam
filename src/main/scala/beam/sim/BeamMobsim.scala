@@ -130,6 +130,7 @@ class BeamMobsim @Inject()(
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
+        val startTime = Deadline.now
         override val supervisorStrategy: SupervisorStrategy =
           OneForOneStrategy(maxNrOfRetries = 1) {
             // Yes, we just stop watching actor because unhandled exception there is something critical!
@@ -425,6 +426,8 @@ class BeamMobsim @Inject()(
               //              memoryLoggingTimerCancellable.cancel()
               //              context.stop(memoryLoggingTimerActorRef)
             }
+            logger.info("Stopped all actors")
+            runSender ! Success(s"Mobsim iteration ${beamServices.iterationNumber} has been finished in ${(Deadline.now - startTime).toMillis} ms")
           case Terminated(who) =>
             log.error("Terminated: {}", who)
             if (context.children.isEmpty) {
