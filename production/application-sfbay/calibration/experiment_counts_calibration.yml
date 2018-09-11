@@ -7,7 +7,7 @@ header:
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/fall18-calib-run12.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 5
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -25,8 +25,8 @@ header:
       shutdownBehavior: "stop"
       s3Backup: "true"
       maxRAM: "140g"
-      region: "us-east-2"
-      instanceType: "m5.24xlarge"
+      region: "us-west-2"
+      instanceType: "c5.18xlarge"
 
 
 

@@ -7,7 +7,7 @@ header:
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 5
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -17,7 +17,7 @@ header:
 
       runName: "Production_Calibration_modes_1"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "223d3cea3f74bff692fb99eac99744ab8646b7df"
+      beamCommit: "3048dbe4c8e28474efbba687210d8bc219e956df"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
@@ -26,7 +26,7 @@ header:
       s3Backup: "true"
       maxRAM: "140g"
       region: "us-east-2"
-      instanceType: "m5.24xlarge"
+      instanceType: "c5.18xlarge"
 
 
 
