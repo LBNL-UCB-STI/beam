@@ -18,7 +18,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
+        TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
         ConfigValueFactory.fromAnyRef("ModeChoiceLCCM")
       )
       .resolve()

@@ -50,6 +50,11 @@ class BeamRouter(
   type WorkId = UUID
   type TimeSent = ZonedDateTime
 
+  val clearRoutedOutstandingWorkEnabled = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+
+  val secondsToWaitToClearRoutedOutstandingWork =
+    services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
+
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
     mutable.Queue.empty[WorkWithOriginalSender]
   val availableWorkers: mutable.Set[Worker] = mutable.Set.empty[Worker]
@@ -121,8 +126,8 @@ class BeamRouter(
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
-      logExcessiveOutstandingWork
-    case InitTransit(scheduler, id) =>
+      logExcessiveOutstandingWorkAndClearIfEnabledAndOver
+    case InitTransit(scheduler, parkingManager, id) =>
       // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
       val f = Future
         .sequence(
@@ -133,12 +138,13 @@ class BeamRouter(
                 .resolveOne(10.seconds)
                 .flatMap { serviceActor: ActorRef =>
                   log.info("Sending InitTransit to  {}", serviceActor)
-                  serviceActor ? InitTransit(scheduler, id)
+                  serviceActor ? InitTransit(scheduler, parkingManager, id)
                 }
           } + Future {
             val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
             val transits = initializer.initMap
-            initDriverAgents(initializer, scheduler, transits)
+            initDriverAgents(initializer, scheduler, parkingManager, transits)
+            metricsPrinter ! Subscribe("histogram", "**")
             localNodes.map {
               case localWorker => {
                 localWorker ! TransitInited(transits)
@@ -206,6 +212,9 @@ class BeamRouter(
     case routingResp: RoutingResponse =>
       pipeResponseToOriginalSender(routingResp)
       logIfResponseTookExcessiveTime(routingResp)
+    case ClearRoutedWorkerTracker(workIdToClear) =>
+      //TODO: Maybe do this for all tracker removals?
+      removeOutstandingWorkBy(workIdToClear)
     case work =>
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
@@ -239,12 +248,22 @@ class BeamRouter(
 
   private def getCurrentTime: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
 
-  private def logExcessiveOutstandingWork = Future {
+  private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
     outstandingWorkIdToTimeSent.collect {
       case (workId: WorkId, timeSent: TimeSent) => {
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
-        if (secondsSinceSent > 120)
+        if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
+          //TODO: Can the logs be combined?
+          log.warning(
+            "Haven't heard back from work ID '{}' for {} seconds. " +
+            "This is over the configured threshold {}, so submitting to be cleared.",
+            workId,
+            secondsSinceSent,
+            secondsToWaitToClearRoutedOutstandingWork
+          )
+          self ! ClearRoutedWorkerTracker(workIdToClear = workId)
+        } else if (secondsSinceSent > 120)
           log.warning(
             "Haven't heard back from work ID '{}' for {} seconds.",
             workId,
@@ -330,9 +349,15 @@ class BeamRouter(
     worker
   }
 
+  private def removeOutstandingWorkBy(workId: UUID): Unit = {
+    outstandingWorkIdToOriginalSenderMap.remove(workId)
+    outstandingWorkIdToTimeSent.remove(workId)
+  }
+
   private def initDriverAgents(
     initializer: TransitInitializer,
     scheduler: ActorRef,
+    parkingManager: ActorRef,
     transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {
@@ -346,6 +371,7 @@ class BeamRouter(
             services,
             transportNetwork,
             eventsManager,
+            parkingManager,
             transitDriverId,
             vehicle,
             legs
@@ -361,24 +387,18 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class InitTransit(scheduler: ActorRef, id: UUID = UUID.randomUUID())
-
+  case class ClearRoutedWorkerTracker(workIdToClear: UUID)
+  case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
-
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     id: UUID = UUID.randomUUID()
   )
-
   case class UpdateTravelTime(travelTime: TravelTime)
-
   case class R5Network(transportNetwork: TransportNetwork)
-
   case object GetTravelTime
-
   case class MATSimNetwork(network: Network)
-
   case object GetMatSimNetwork
 
   /**
@@ -395,8 +415,8 @@ object BeamRouter {
     origin: Location,
     destination: Location,
     departureTime: BeamTime,
-    transitModes: Seq[BeamMode],
-    streetVehicles: Seq[StreetVehicle],
+    transitModes: IndexedSeq[BeamMode],
+    streetVehicles: IndexedSeq[StreetVehicle],
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
   ) {

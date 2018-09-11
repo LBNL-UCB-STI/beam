@@ -6,7 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.agentsim.infrastructure.TAZTreeMap
+import org.matsim.core.api.experimental.events.EventsManager
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -211,6 +211,9 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+
+          // Override EventsManager
+          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
         }
       }
     )
@@ -292,36 +295,30 @@ trait BeamHelper extends LazyLogging {
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
-    try {
-      val system = ActorSystem("ClusterSystem", clusterConfig)
-      system.actorOf(
-        ClusterSingletonManager.props(
-          singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
-          terminationMessage = PoisonPill,
-          settings = ClusterSingletonManagerSettings(system).withRole("compute")
-        ),
-        name = "statsService"
-      )
-      logger.info("MORE")
-      system.actorOf(
-        ClusterSingletonProxy.props(
-          singletonManagerPath = "/user/statsService",
-          settings = ClusterSingletonProxySettings(system).withRole("compute")
-        ),
-        name = "statsServiceProxy"
-      )
-      logger.info("EVEN")
-      val replayer = system.actorOf(DeadLetterReplayer.props())
-      system.eventStream.subscribe(replayer, classOf[DeadLetter])
+    val system = ActorSystem("ClusterSystem", clusterConfig)
+    system.actorOf(
+      ClusterSingletonManager.props(
+        singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(system).withRole("compute")
+      ),
+      name = "statsService"
+    )
+    system.actorOf(
+      ClusterSingletonProxy.props(
+        singletonManagerPath = "/user/statsService",
+        settings = ClusterSingletonProxySettings(system).withRole("compute")
+      ),
+      name = "statsServiceProxy"
+    )
+    val replayer = system.actorOf(DeadLetterReplayer.props())
+    system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
-      import scala.concurrent.ExecutionContext.Implicits.global
-      Await.ready(system.whenTerminated.map(_ => {
-        if (isMetricsEnable) Kamon.shutdown()
-        logger.info("Exiting BEAM")
-      }), scala.concurrent.duration.Duration.Inf)
-    } catch {
-      case x => logger.info(x.toString)
-    }
+    import scala.concurrent.ExecutionContext.Implicits.global
+    Await.ready(system.whenTerminated.map(_ => {
+      if (isMetricsEnable) Kamon.shutdown()
+      logger.info("Exiting BEAM")
+    }), scala.concurrent.duration.Duration.Inf)
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {

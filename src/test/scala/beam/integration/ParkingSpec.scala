@@ -1,17 +1,9 @@
 package beam.integration
 
+import java.io.File
+
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
-
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-
-import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
-import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.sim.BeamHelper
@@ -22,8 +14,7 @@ import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuffer
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 
 class ParkingSpec
     extends WordSpecLike
@@ -33,22 +24,6 @@ class ParkingSpec
     with IntegrationSpecCommon
     with EventsFileHandlingCommon {
 
-  def collectEvents(filePath: String): Queue[Event] = {
-    var events: Queue[Event] = Queue()
-    val handler = new BasicEventHandler {
-      def handleEvent(event: Event): Unit = {
-        events = events :+ event
-      }
-    }
-    val eventsMan = EventsUtils.createEventsManager()
-    eventsMan.addHandler(handler)
-
-    val reader = new MatsimEventsReader(eventsMan)
-    reader.readFile(filePath)
-
-    events
-  }
-
   def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
   }
@@ -56,16 +31,44 @@ class ParkingSpec
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+      .withValue(
+        TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+        ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+        ConfigValueFactory.fromAnyRef(1.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+        ConfigValueFactory.fromAnyRef(-5.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
+      .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
         "beam.agentsim.taz.parking",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-$parkingScenario.csv")
+        ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
-      )
-//      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(50))
       .withValue(
         "beam.outputs.events.overrideWritingLevels",
         ConfigValueFactory.fromAnyRef(
@@ -92,10 +95,10 @@ class ParkingSpec
     queueEvents
   }
 
-  val limitedEvents = runAndCollectForIterations("limited", 10)
-  val defaultEvents = runAndCollectForIterations("default", 10)
-  val expensiveEvents = runAndCollectForIterations("expensive", 10)
-  val emptyEvents = runAndCollectForIterations("empty", 10)
+  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
+  lazy val defaultEvents = runAndCollectForIterations("default", 10)
+  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
+  lazy val emptyEvents = runAndCollectForIterations("empty", 10)
 
   val filterForCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
@@ -111,7 +114,7 @@ class ParkingSpec
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" ignore {
 
       val parkingEvents = defaultEvents.head.filter(
         e =>
@@ -206,7 +209,7 @@ class ParkingSpec
       }
     }
 
-    "expensive parking should reduce driving" in {
+    "expensive parking should reduce driving" ignore {
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
@@ -248,6 +251,7 @@ class ParkingSpec
         PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
         "walk".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
       }
+
       val defaultPathTraversalEvents = defaultEvents.head.filter(filterPathTraversalForWalk)
 
       val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0) {

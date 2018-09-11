@@ -7,7 +7,7 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Id
 
-class ParkingStall(
+case class ParkingStall(
   val id: Id[ParkingStall],
   val attributes: StallAttributes,
   val location: Location,
@@ -46,10 +46,6 @@ object ParkingStall {
     }
   }
 
-//  lazy val parkingMap = Map[Int, ParkingType](
-//    1 -> Residential, 2 -> Workplace, 3 -> Public, 4 -> NoOtherExists
-//  )
-
   sealed trait ChargingType
 
   case object NoCharger extends ChargingType
@@ -70,11 +66,60 @@ object ParkingStall {
         case _           => throw new RuntimeException("Invalid case")
       }
     }
-  }
 
-//  lazy val chargingMap = Map[Int, ChargingType](
-//    1 -> NoCharger, 2 -> Level1, 3 -> Level2, 4 -> DCFast, 5 -> UltraFast
-//  )
+    def getChargerPowerInKW(chargerType: ChargingType): Double = {
+      chargerType match {
+        case NoCharger => 0.0
+        case Level1 =>
+          1.5
+        case Level2 =>
+          6.7
+        case DCFast =>
+          50.0
+        case UltraFast =>
+          250.0
+      }
+    }
+
+    def calculateChargingSessionLengthAndEnergyInJoules(
+      chargerType: ChargingType,
+      currentEnergyLevelInJoule: Double,
+      energyCapacityInJoule: Double,
+      vehicleChargingLimit: Option[Double],
+      sessionDurationLimit: Option[Long]
+    ): (Long, Double) = {
+      val vehicleChargingLimitActual = vehicleChargingLimit.getOrElse(Double.MaxValue)
+      val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
+      val sessionLength = Math.min(
+        sessionLengthLimiter,
+        chargerType match {
+          case NoCharger => 0L
+          case chType if chType == Level1 || chType == Level2 =>
+            Math.round(
+              (energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math
+                .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+            )
+          case chType if chType == DCFast || chType == UltraFast =>
+            if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
+              0L
+            } else {
+              Math.round(
+                (energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math
+                  .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+              )
+            }
+        }
+      )
+      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
+        vehicleChargingLimitActual,
+        getChargerPowerInKW(chargerType)
+      ) * 3.6e6
+      if (sessionLength < 0) {
+        val i = 0
+      }
+      (sessionLength, sessionEnergyInJoules)
+    }
+  }
 
   sealed trait ChargingPreference
   case object NoNeed extends ChargingPreference
@@ -83,19 +128,17 @@ object ParkingStall {
 
   /*
    *  Flat fee means one price is paid independent of time
-   *  Block means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
+   *  Block (not yet implemented) means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
    *
    *  Use block price even if price is a simple hourly price.
    */
   sealed trait PricingModel
-  case object Free extends PricingModel
   case object FlatFee extends PricingModel
   case object Block extends PricingModel
 
   object PricingModel {
 
     def fromString(s: String): PricingModel = s match {
-      case "Free"    => Free
       case "FlatFee" => FlatFee
       case "Block"   => Block
     }
@@ -105,8 +148,7 @@ object ParkingStall {
   case object Any extends ReservedParkingType
   case object RideHailManager extends ReservedParkingType
 
-//  lazy val PricingMap = Map[Int, PricingModel](
-//    1 -> Free, 2 -> FlatFee, 3 -> Block
-//  )
-
+  sealed trait DepotStallLocationType
+  case object AtRequestLocation extends DepotStallLocationType
+  case object AtTAZCenter extends DepotStallLocationType
 }
