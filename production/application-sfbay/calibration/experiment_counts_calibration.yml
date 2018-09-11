@@ -5,7 +5,7 @@
 header:
     title: Production_Calibration_counts_4
     author: BEAM Developers
-    beamTemplateConfPath: production/application-sfbay/fall18-calib-run12.conf
+    beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
     params:
