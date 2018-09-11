@@ -1,10 +1,8 @@
 package beam.sim
 
-import collection.JavaConverters._
 import java.awt.Color
 import java.lang.Double
-import java.util
-import java.util.{Collections, Random}
+import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
@@ -132,7 +130,8 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
-            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+            new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
           "scheduler"
         )
@@ -406,8 +405,8 @@ class BeamMobsim @Inject()(
               context.stop(debugActorWithTimerActorRef)
             }
             if (beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
-//              memoryLoggingTimerCancellable.cancel()
-//              context.stop(memoryLoggingTimerActorRef)
+              //              memoryLoggingTimerCancellable.cancel()
+              //              context.stop(memoryLoggingTimerActorRef)
             }
           case Terminated(_) =>
             if (context.children.isEmpty) {

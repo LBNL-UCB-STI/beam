@@ -24,7 +24,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
 
   override def beforeAll: Unit = {
     super.beforeAll
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services,Some(router))
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, Some(router))
     within(5 minutes) { // Router can take a while to initialize
       router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
       expectMsgType[Success]

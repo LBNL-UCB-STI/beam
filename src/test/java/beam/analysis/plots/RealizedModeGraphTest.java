@@ -56,7 +56,7 @@ public class RealizedModeGraphTest {
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
         int expectedWalkResult = 17;
-        int expectedCarResult = 15;
+        int expectedCarResult = 16;
         int expectedRideHailResult = 11;
         int expectedOtherResult = 4;
         int hour = 6;
@@ -78,7 +78,7 @@ public class RealizedModeGraphTest {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 3;
-        int expectedRideHailResult = 3;
+        int expectedRideHailResult = 2;
         int expectedOtherResult = 4;
         int hour = 7;
 
@@ -99,7 +99,7 @@ public class RealizedModeGraphTest {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
-        int expectedRideHailResult = 4;
+        int expectedRideHailResult = 3;
         int expectedOtherResult = 3;
         int hour = 8;
 
@@ -120,7 +120,7 @@ public class RealizedModeGraphTest {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
-        int expectedRideHailResult = 3;
+        int expectedRideHailResult = 2;
         int expectedOtherResult = 4;
 
         int actaulCarResult = stats.get(9).get(CAR);
@@ -140,7 +140,7 @@ public class RealizedModeGraphTest {
 
         int expectedWalkResult = 2;
         int expectedCarResult = 2;
-        int expectedRideHailResult = 3;
+        int expectedRideHailResult = 2;
         int expectedOtherResult = 4;
 
         int actaulCarResult = stats.get(11).get(CAR);

@@ -6,9 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-//import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-//import beam.analysis.plots.GraphSurgePricing
-import beam.agentsim.infrastructure.TAZTreeMap
+import org.matsim.core.api.experimental.events.EventsManager
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -23,7 +21,7 @@ import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
@@ -41,12 +39,117 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
+  private val argsParser = new scopt.OptionParser[Arguments]("beam") {
+    opt[String]("config")
+      .action(
+        (value, args) =>
+          args.copy(
+            config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
+            configLocation = Option(value)
+        )
+      )
+      .validate(
+        value =>
+          if (value.trim.isEmpty) failure("config location cannot be empty")
+          else success
+      )
+      .text("Location of the beam config file")
+    opt[String]("cluster-type")
+      .action(
+        (value, args) =>
+          args.copy(clusterType = value.trim.toLowerCase match {
+            case "master" => Some(Master)
+            case "worker" => Some(Worker)
+            case _        => None
+          })
+      )
+      .text("If running as a cluster, specify master or worker")
+    opt[String]("node-host")
+      .action((value, args) => args.copy(nodeHost = Option(value)))
+      .validate(value => if (value.trim.isEmpty) failure("node-host cannot be empty") else success)
+      .text("Host used to run the remote actor system")
+    opt[String]("node-port")
+      .action((value, args) => args.copy(nodePort = Option(value)))
+      .validate(value => if (value.trim.isEmpty) failure("node-port cannot be empty") else success)
+      .text("Port used to run the remote actor system")
+    opt[String]("seed-address")
+      .action((value, args) => args.copy(seedAddress = Option(value)))
+      .validate(
+        value =>
+          if (value.trim.isEmpty) failure("seed-address cannot be empty")
+          else success
+      )
+      .text(
+        "Comma separated list of initial addresses used for the rest of the cluster to bootstrap"
+      )
+    opt[Boolean]("use-local-worker")
+      .action((value, args) => args.copy(useLocalWorker = Some(value)))
+      .text(
+        "Boolean determining whether to use a local worker. " +
+        "If cluster is NOT enabled this defaults to true and cannot be false. " +
+        "If cluster is specified then this defaults to false and must be explicitly set to true. " +
+        "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
+      )
+
+    checkConfig(
+      args =>
+        if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
+          failure("If using the cluster then node-host, node-port, and seed-address are required")
+        else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
+          failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
+        else success
+    )
+  }
+
+  private def updateConfigForClusterUsing(
+    parsedArgs: Arguments,
+    config: TypesafeConfig
+  ): TypesafeConfig = {
+    (for {
+      seedAddress <- parsedArgs.seedAddress
+      nodeHost    <- parsedArgs.nodeHost
+      nodePort    <- parsedArgs.nodePort
+    } yield {
+      config.withFallback(
+        ConfigFactory.parseMap(
+          Map(
+            "seed.address" -> seedAddress,
+            "node.host"    -> nodeHost,
+            "node.port"    -> nodePort
+          ).asJava
+        )
+      )
+    }).getOrElse(config)
+  }
+
+  private def embedSelectArgumentsIntoConfig(
+    parsedArgs: Arguments,
+    config: TypesafeConfig
+  ): TypesafeConfig = {
+    config.withFallback(
+      ConfigFactory.parseMap(
+        (
+          Map(
+            "beam.cluster.enabled" -> parsedArgs.useCluster,
+            "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
+              if (parsedArgs.useCluster) false else true
+            )
+          ) ++ {
+            if (parsedArgs.useCluster)
+              Map("beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString)
+            else Map.empty[String, Any]
+          }
+        ).asJava
+      )
+    )
+  }
 
   def module(
-    typesafeConfig: com.typesafe.config.Config,
+    typesafeConfig: TypesafeConfig,
     scenario: Scenario,
     networkCoordinator: NetworkCoordinator
   ): com.google.inject.Module =
@@ -108,39 +211,117 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+
+          // Override EventsManager
+          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
         }
       }
     )
 
-  def runBeamWithConfigFile(configFileName: String): Unit = {
-    assert(configFileName != null, "Argument is null: configFileName")
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
-
-    val (_, outputDirectory) = runBeamWithConfig(config)
-
-    val props = new Properties()
-    props.setProperty("commitHash", LoggingUtil.getCommitHash)
-    props.setProperty("configFile", configFileName)
-    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation out put props.")
-    val beamConfig = BeamConfig(config)
-    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-          .equalsIgnoreCase("ModeChoiceLCCM")) {
-      Files.copy(
-        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
-        Paths.get(
-          outputDirectory,
-          Paths
-            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
-            .getFileName
-            .toString
+  def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true) = {
+    val parsedArgs = argsParser.parse(args, init = Arguments()) match {
+      case Some(parsedArgs) => parsedArgs
+      case None =>
+        throw new IllegalArgumentException(
+          "Arguments provided were unable to be parsed. See above for reasoning."
         )
-      )
     }
-    Files.copy(Paths.get(configFileName), Paths.get(outputDirectory, "beam.conf"))
+    assert(
+      !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
+      "config is a required value, and must yield a valid config."
+    )
+    val configLocation = parsedArgs.configLocation.get
+
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
+      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
+      else parsedArgs.config.get
+    }).resolve()
+
+    parsedArgs.clusterType match {
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ => {
+        val (_, outputDirectory) = runBeamWithConfig(config)
+        val props = new Properties()
+        props.setProperty("commitHash", LoggingUtil.getCommitHash)
+        props.setProperty("configFile", configLocation)
+        val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
+        props.store(out, "Simulation out put props.")
+        val beamConfig = BeamConfig(config)
+        if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+              .equalsIgnoreCase("ModeChoiceLCCM")) {
+          Files.copy(
+            Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+            Paths.get(
+              outputDirectory,
+              Paths
+                .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+                .getFileName
+                .toString
+            )
+          )
+        }
+        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
+      }
+    }
   }
 
-  def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
+  def runClusterWorkerUsing(config: TypesafeConfig) = {
+    val clusterConfig = ConfigFactory
+      .parseString(s"""
+                      |akka.cluster.roles = [compute]
+                      |akka.actor.deployment {
+                      |      /statsService/singleton/workerRouter {
+                      |        router = round-robin-pool
+                      |        cluster {
+                      |          enabled = on
+                      |          max-nr-of-instances-per-node = 1
+                      |          allow-local-routees = on
+                      |          use-roles = ["compute"]
+                      |        }
+                      |      }
+                      |    }
+          """.stripMargin)
+      .withFallback(config)
+
+    if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
+
+    import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
+    import beam.router.ClusterWorkerRouter
+    import beam.sim.monitoring.DeadLetterReplayer
+
+    val system = ActorSystem("ClusterSystem", clusterConfig)
+    system.actorOf(
+      ClusterSingletonManager.props(
+        singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(system).withRole("compute")
+      ),
+      name = "statsService"
+    )
+    system.actorOf(
+      ClusterSingletonProxy.props(
+        singletonManagerPath = "/user/statsService",
+        settings = ClusterSingletonProxySettings(system).withRole("compute")
+      ),
+      name = "statsServiceProxy"
+    )
+    val replayer = system.actorOf(DeadLetterReplayer.props())
+    system.eventStream.subscribe(replayer, classOf[DeadLetter])
+
+    import scala.concurrent.ExecutionContext.Implicits.global
+    Await.ready(system.whenTerminated.map(_ => {
+      if (isMetricsEnable) Kamon.shutdown()
+      logger.info("Exiting BEAM")
+    }), scala.concurrent.duration.Duration.Inf)
+  }
+
+  def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -230,3 +411,22 @@ trait BeamHelper extends LazyLogging {
 }
 
 case class MapStringDouble(data: Map[String, Double])
+case class Arguments(
+  configLocation: Option[String] = None,
+  config: Option[TypesafeConfig] = None,
+  clusterType: Option[ClusterType] = None,
+  nodeHost: Option[String] = None,
+  nodePort: Option[String] = None,
+  seedAddress: Option[String] = None,
+  useLocalWorker: Option[Boolean] = None
+) {
+  val useCluster = clusterType.isDefined
+}
+
+sealed trait ClusterType
+case object Master extends ClusterType {
+  override def toString() = "master"
+}
+case object Worker extends ClusterType {
+  override def toString() = "worker"
+}

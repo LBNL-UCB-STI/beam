@@ -1,8 +1,7 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -46,7 +45,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         // go with nearest ETA
         findNearestByETAConsideringRange(
           vehicleAllocationRequest.request,
-          requestToExcludedDrivers.get(reqId).get
+          requestToExcludedDrivers.get(reqId).getOrElse(Set())
         )
       case _ =>
         agentLocationOpt
@@ -65,11 +64,11 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
               .sum) {
           requestToExcludedDrivers.put(
             reqId,
-            requestToExcludedDrivers.get(reqId).get + agentLocation.vehicleId
+            requestToExcludedDrivers.get(reqId).getOrElse(Set()) + agentLocation.vehicleId
           )
           findNearestByETAConsideringRange(
             vehicleAllocationRequest.request,
-            requestToExcludedDrivers.get(reqId).get
+            requestToExcludedDrivers.get(reqId).getOrElse(Set())
           ) match {
             case Some(newAgentLoc) =>
               makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)

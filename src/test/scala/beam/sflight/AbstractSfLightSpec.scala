@@ -50,10 +50,10 @@ class AbstractSfLightSpec
   var scenario: Scenario = _
 
   val confPath = "test/input/sf-light/sf-light.conf"
-  val config = testConfig(confPath)
-  val beamConfig = BeamConfig(config)
+  lazy val config = testConfig(confPath)
+  lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
-  val services: BeamServices = mock[BeamServices]
+  lazy val services: BeamServices = mock[BeamServices]
 
   override def beforeAll: Unit = {
 

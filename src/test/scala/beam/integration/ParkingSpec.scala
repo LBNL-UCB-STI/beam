@@ -29,6 +29,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+
 class ParkingSpec
     extends WordSpecLike
     with BeforeAndAfterAll
@@ -37,20 +39,8 @@ class ParkingSpec
     with IntegrationSpecCommon
     with EventsFileHandlingCommon {
 
-  def collectEvents(filePath: String): Queue[Event] = {
-    var events: Queue[Event] = Queue()
-    val handler = new BasicEventHandler {
-      def handleEvent(event: Event): Unit = {
-        events = events :+ event
-      }
-    }
-    val eventsMan = EventsUtils.createEventsManager()
-    eventsMan.addHandler(handler)
-
-    val reader = new MatsimEventsReader(eventsMan)
-    reader.readFile(filePath)
-
-    events
+  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
+    runAndCollectForIterations(parkingScenario, 1).head
   }
 
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
@@ -164,10 +154,6 @@ class ParkingSpec
           val parkEventsWithoutLast = parkEvents.dropRight(1)
           val leavingParkEventsWithoutFirst = leavingEvents.tail
 
-          if (parkEventsWithoutLast.size != leavingParkEventsWithoutFirst.size) {
-            println(parkEventsWithoutLast)
-            println(leavingParkEventsWithoutFirst)
-          }
           parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
           (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }

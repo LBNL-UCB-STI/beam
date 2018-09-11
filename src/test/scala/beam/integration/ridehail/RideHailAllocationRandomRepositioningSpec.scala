@@ -1,5 +1,6 @@
 package beam.integration.ridehail
 
+import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.router.r5.NetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
@@ -15,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for 1 iteration without exceptions" in {
-    val config = RideHailTestHelper.buildConfig
+    val config = RideHailTestHelper.buildConfig(RideHailResourceAllocationManager.RANDOM_REPOSITIONING)
 
     val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
 
