@@ -7,17 +7,15 @@ import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEve
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
-
-import org.slf4j.LoggerFactory
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
-    extends ScoringFunctionFactory {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
 
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
@@ -35,6 +33,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
           case _: ReplanningEvent =>
+            // FIXME? If this happens often, maybe we can optimize it:
+            // trips is list buffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -70,9 +70,11 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
               )
+              .toArray
+              .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+
             log.debug(vectorOfUtilities.toString())
             person.getSelectedPlan.getAttributes
               .putAttribute("scores", MapStringDouble(vectorOfUtilities))
@@ -84,6 +86,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                 person
                   .getPlans()
                   .asScala
+                  .view
                   .map(
                     plan =>
                       plan.getAttributes

@@ -3,11 +3,10 @@ package beam.sim
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
@@ -17,10 +16,9 @@ import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{CsvUtils, DateUtils, FileUtils}
+import beam.utils.{DateUtils, FileUtils}
 import beam.utils.matsim_conversion.ShapeUtils.CsvTaz
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import glokka.Registry
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
@@ -41,8 +39,6 @@ import scala.util.Try
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
-
-  val registry: ActorRef
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -66,9 +62,6 @@ trait BeamServices extends ActorInject {
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-
-  val registry: ActorRef =
-    Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -122,7 +115,6 @@ object BeamServices {
 
   def readVehiclesFile(filePath: String,
                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicle], BeamVehicle] = {
-//    val prefix = "private"
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
       val vehicleIdString = line.get("vehicleId")
       val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
@@ -132,7 +124,7 @@ object BeamServices {
 
       val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
 
-      val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None)
+      val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None, None)
       acc += ((vehicleId, beamVehicle))
     }
   }
@@ -193,7 +185,7 @@ object BeamServices {
   }
 
   private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
-    FileUtils.using(new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {mapReader =>
+    FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {mapReader =>
       var res: A = z
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)

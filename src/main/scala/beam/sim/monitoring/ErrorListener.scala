@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
 import beam.router.Modes.BeamMode.TRANSIT
 
 /**
@@ -18,7 +19,7 @@ class ErrorListener() extends Actor with ActorLogging {
   private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
   override def receive: Receive = {
-    case event @ BeamAgent.TerminatedPrematurelyEvent(_, _) =>
+    case event @ BeamAgent.TerminatedPrematurelyEvent(_, _, _) =>
       terminatedPrematurelyEvents ::= event
       if (terminatedPrematurelyEvents.size >= nextCounter) {
         nextCounter *= 2
@@ -39,6 +40,19 @@ class ErrorListener() extends Actor with ActorLogging {
           log.warning(s"Trigger sent to dead letters $trigger")
           d.sender ! CompletionNotice(triggerId)
         //
+        case m: RoutingRequest =>
+          log.debug(
+            "Retrying {} via {} tell {} using {}",
+            m.requestId,
+            d.recipient,
+            d.message,
+            d.sender
+          )
+          d.recipient.tell(d.message, d.sender)
+        case m: EmbodyWithCurrentTravelTime =>
+          log.debug("Retrying {} via {} tell {} using {}", m.id, d.recipient, d.message, d.sender)
+          d.recipient.tell(d.message, d.sender)
+        case WorkAvailable => //Do not retry GimmeWork - resiliency is built in
         case _ =>
           log.error(s"ErrorListener: saw dead letter without knowing how to handle it: $d")
       }
@@ -47,14 +61,11 @@ class ErrorListener() extends Actor with ActorLogging {
   }
 
   def formatErrorReasons(): String = {
-    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = -1
+    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) =
+      event.tick.map(tick => Math.round(tick / 3600.0).toInt).getOrElse(-1)
 
     val msgCounts = terminatedPrematurelyEvents
-      .groupBy(
-        event =>
-          event.reason.toString
-            .substring(0, Math.min(event.reason.toString.length - 1, 65))
-      )
+      .groupBy(event => "ALL")
       .mapValues(
         eventsPerReason =>
           eventsPerReason
@@ -64,7 +75,7 @@ class ErrorListener() extends Actor with ActorLogging {
     msgCounts
       .map {
         case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy(_._1)
+          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
           s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
             .map { case (_, cnt)                             => cnt.toString }
             .mkString("\t")}"

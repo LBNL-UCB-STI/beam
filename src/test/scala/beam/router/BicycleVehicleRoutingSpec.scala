@@ -31,7 +31,7 @@ import scala.language.postfixOps
 class BicycleVehicleRoutingSpec
     extends TestKit(
       ActorSystem(
-        "router-test",
+        "BicycleVehicleRoutingSpec",
         BeamConfigUtils
           .parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf")
           .resolve()

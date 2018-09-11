@@ -11,14 +11,15 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
@@ -26,6 +27,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -54,7 +56,7 @@ import scala.concurrent.Await
 class OtherPersonAgentSpec
     extends TestKit(
       ActorSystem(
-        "testsystem",
+        "OtherPersonAgentSpec",
         ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -68,37 +70,34 @@ class OtherPersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  val config = BeamConfig(system.settings.config)
-  val eventsManager = new EventsManagerImpl()
-  eventsManager.addHandler(new BasicEventHandler {
-    override def handleEvent(event: Event): Unit = {
-      self ! event
-    }
-  })
+  lazy val config = BeamConfig(system.settings.config)
+  lazy val eventsManager = new EventsManagerImpl()
 
-  val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
+  lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     TrieMap[Id[BeamVehicle], BeamVehicle]()
 
-  val personRefs: TrieMap[Id[Person], ActorRef] =
+  lazy val personRefs: TrieMap[Id[Person], ActorRef] =
     TrieMap[Id[Person], ActorRef]()
-  val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  val beamServices: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
+    // TODO Is it right to return defaultTazTreeMap?
+    when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
 
-  val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
-    override val beamServices: BeamServices = beamServices
+    override val beamServices: BeamServices = beamSvc
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
@@ -109,9 +108,9 @@ class OtherPersonAgentSpec
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
-  val transitDriverProps = Props(new ForwardActor(self))
+  lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  val router: ActorRef = system.actorOf(
+  lazy val router: ActorRef = system.actorOf(
     Props(new Actor() {
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
@@ -122,14 +121,14 @@ class OtherPersonAgentSpec
     "router"
   )
 
-  val parkingManager = system.actorOf(
+  lazy val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
-  private val networkCoordinator = new NetworkCoordinator(config)
-  networkCoordinator.loadNetwork()
+  private lazy val networkCoordinator = new NetworkCoordinator(config)
+
 
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
@@ -144,16 +143,16 @@ class OtherPersonAgentSpec
 //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.defaultCarBeamVehicleType,
+        None,
         None
-//        None
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType,
+        None,
         None
-//        None
       )
 
       vehicles.put(bus.getId, bus)
@@ -262,7 +261,12 @@ class OtherPersonAgentSpec
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0)
+        SchedulerProps(
+          config,
+          stopTick = 1000000.0,
+          maxWindow = 10.0,
+          new StuckFinder(config.beam.debug.stuckAgentDetection)
+        )
       )
 
       bus.becomeDriver(
@@ -284,7 +288,7 @@ class OtherPersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices,
+          beamSvc,
           (_) => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -350,7 +354,8 @@ class OtherPersonAgentSpec
               )
             )
           )
-        )
+        ),
+        java.util.UUID.randomUUID()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -428,7 +433,8 @@ class OtherPersonAgentSpec
               )
             )
           )
-        )
+        ),
+        java.util.UUID.randomUUID()
       )
       expectMsgType[ModeChoiceEvent]
 
@@ -466,6 +472,15 @@ class OtherPersonAgentSpec
 
       expectMsgType[CompletionNotice]
     }
+  }
+
+  override def beforeAll: Unit = {
+    eventsManager.addHandler(new BasicEventHandler {
+      override def handleEvent(event: Event): Unit = {
+        self ! event
+      }
+    })
+    networkCoordinator.loadNetwork()
   }
 
   override def afterAll: Unit = {

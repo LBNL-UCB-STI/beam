@@ -5,6 +5,7 @@ import java.time.ZonedDateTime
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
@@ -32,10 +33,12 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec
-    extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+    extends TestKit(
+      ActorSystem("AbstractSfLightSpec", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   akka.test.timefactor=10
-  """)))
+  """))
+    )
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -47,13 +50,13 @@ class AbstractSfLightSpec
   var scenario: Scenario = _
 
   val confPath = "test/input/sf-light/sf-light.conf"
+  lazy val config = testConfig(confPath)
+  lazy val beamConfig = BeamConfig(config)
+  // Have to mock some things to get the router going
+  lazy val services: BeamServices = mock[BeamServices]
 
   override def beforeAll: Unit = {
-    val config = testConfig(confPath)
-    val beamConfig = BeamConfig(config)
 
-    // Have to mock some things to get the router going
-    val services: BeamServices = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)

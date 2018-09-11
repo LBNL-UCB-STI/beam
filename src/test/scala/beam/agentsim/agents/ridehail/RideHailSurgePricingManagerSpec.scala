@@ -27,10 +27,10 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val config: Config = testConfig(testConfigFileName)
   val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
-  val beamConfig: BeamConfig = BeamConfig(config)
-  val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+  lazy val beamConfig: BeamConfig = BeamConfig(config)
+  lazy val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
 
-  val beamServices: BeamServices = {
+  lazy val beamServices: BeamServices = {
     val theServices = mock[BeamServices]
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -45,11 +45,11 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
-      val rhspm = new RideHailSurgePricingManager(beamServices)
-      rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
-      rhspm.surgePriceBins should have size beamServices.tazTreeMap.tazQuadTree.size()
+      val surgePricingManager = new RideHailSurgePricingManager(beamServices)
+      surgePricingManager.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
+      surgePricingManager.surgePriceBins should have size beamServices.tazTreeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
-      rhspm.surgePriceBins.values.map(f => f.map(_ shouldBe expectedResult))
+      surgePricingManager.surgePriceBins.values.map(f => f.map(_ shouldBe expectedResult))
     }
 
     "correctly update SurgePriceLevels" in {

@@ -143,7 +143,7 @@ class FareCalculator(directory: String) {
     val rules = agencies.getOrElse(agencyId, Vector()).partition(_.containsId == null)
 
     (rules._1.filter(baseRule(_, routeId, fromId, toId)) ++
-    rules._2.groupBy(_.fare).filter(containsRule(_, routeId, _containsIds)).map(_._2.last))
+    rules._2.groupBy(_.fare).view.filter(containsRule(_, routeId, _containsIds)).map(_._2.last))
       .map(f => BeamFareSegment(f.fare, agencyId))
   }
 
@@ -261,8 +261,8 @@ object FareCalculator {
     routeId: String,
     containsIds: Set[String]
   ) =
-    t._2.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
-    t._2.map(_.containsId).toSet.equals(containsIds)
+    t._2.view.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
+    t._2.view.map(_.containsId).toSet.equals(containsIds)
 
   /**
     * Take an itinerary specific collection of @BeamFareSegment and apply transfer rules
@@ -271,7 +271,9 @@ object FareCalculator {
     * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
     * @return collection of @BeamFareSegment for an itinerary after applying transfer rules
     */
-  def filterFaresOnTransfers(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+  def filterFaresOnTransfers(
+    fareSegments: IndexedSeq[BeamFareSegment]
+  ): IndexedSeq[BeamFareSegment] = {
 
     /**
       * Apply filter on fare segments, agency by agency in order
@@ -280,8 +282,8 @@ object FareCalculator {
       * @return a resultant collection of @BeamFareSegment
       */
     def groupFaresByAgencyAndProceed(
-      fareSegments: Vector[BeamFareSegment]
-    ): Vector[BeamFareSegment] = {
+      fareSegments: IndexedSeq[BeamFareSegment]
+    ): IndexedSeq[BeamFareSegment] = {
       if (fareSegments.isEmpty)
         Vector()
       else {
@@ -300,9 +302,9 @@ object FareCalculator {
       * @return processed collection of @BeamFareSegment
       */
     def iterateTransfers(
-      fareSegments: Vector[BeamFareSegment],
+      fareSegments: IndexedSeq[BeamFareSegment],
       trans: Int = 0
-    ): Vector[BeamFareSegment] = {
+    ): IndexedSeq[BeamFareSegment] = {
 
       /**
         * Generate a next transfer number /option
@@ -329,7 +331,7 @@ object FareCalculator {
         * @param lhs takes fare segments
         * @return
         */
-      def applyTransferRules(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+      def applyTransferRules(lhs: IndexedSeq[BeamFareSegment]): IndexedSeq[BeamFareSegment] = {
         // when permitted transfers are 0, then return as is
         // otherwise take the first segment and reiterate for the rest
         // having higher segment duration from permitted transfer duration
@@ -338,11 +340,12 @@ object FareCalculator {
           case 0 => lhs
           case _ =>
             Vector(lhs.head) ++ iterateTransfers(
-              lhs.tail.zipWithIndex
+              lhs.view.tail.zipWithIndex
                 .filter(
                   fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans
                 )
                 .map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration))
+                .toVector
             )
         }
       }
@@ -350,10 +353,10 @@ object FareCalculator {
       // separate fare segments with current transfer number as lhs then apply transfer rules
       // and reiterate for rest of the fare segments (rhs) with next iteration number
       fareSegments.span(_.fare.transfers == trans) match {
-        case (Vector(), Vector()) => Vector()
-        case (Vector(), rhs)      => iterateTransfers(rhs, next)
-        case (lhs, Vector())      => applyTransferRules(lhs)
-        case (lhs, rhs)           => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
+        case (IndexedSeq(), IndexedSeq()) => Vector()
+        case (IndexedSeq(), rhs)          => iterateTransfers(rhs, next)
+        case (lhs, IndexedSeq())          => applyTransferRules(lhs)
+        case (lhs, rhs)                   => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
       }
     }
 
@@ -361,6 +364,6 @@ object FareCalculator {
   }
 
   def sumFares(rules: Vector[BeamFareSegment]): Double = {
-    filterFaresOnTransfers(rules).map(_.fare.price).sum
+    filterFaresOnTransfers(rules).view.map(_.fare.price).sum
   }
 }

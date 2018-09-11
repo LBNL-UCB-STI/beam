@@ -8,15 +8,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
@@ -43,10 +35,8 @@ trait ModeChoiceCalculator extends HasServices {
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
     mutable.Map[VotType, BigDecimal](
-      DefaultVot ->
-      (try {
-        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-      } catch { case _: NullPointerException => 18.0 })
+      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
   /**
@@ -81,21 +71,21 @@ trait ModeChoiceCalculator extends HasServices {
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
     )
 
-  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
-    val votType = matchMode2Vot(beamMode)
-    if (!votType.equals(DefaultVot))
-      Some(valuesOfTime += votType -> value)
-    else {
-      None
-    }
-  }
+//  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
+//    val votType = matchMode2Vot(beamMode)
+//    if (!votType.equals(DefaultVot))
+//      Some(valuesOfTime += votType -> value)
+//    else {
+//      None
+//    }
+//  }
 
   def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
     time / 3600 * getVot(beamMode)
   }
   ///~
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
+  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 

@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
@@ -15,6 +16,9 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.io.UncheckedIOException;
+import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
@@ -24,16 +28,25 @@ import java.util.List;
 
 public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport {
 
-
-    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail", "others"));
+    private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail" , "others"));
 
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap();
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
-    private final int binSize = 300;
-    private final int nofBins = 30 * 3600 / binSize + 1;
+    private static final String xAxisLabel = "time (binSize=<?> sec)";
+    private int binSize;
+    private int numOfBins;
+
+    PersonVehicleTransitionStats(BeamConfig beamConfig){
+        binSize = beamConfig.beam().outputs().stats().binSize();
+        String endTime = beamConfig.matsim().modules().qsim().endTime();
+        Double _endTime = Time.parseTime(endTime);
+        Double _numOfTimeBins = _endTime / binSize;
+        _numOfTimeBins = Math.floor(_numOfTimeBins);
+        numOfBins = _numOfTimeBins.intValue() + 1;
+    }
 
 
     @Override
@@ -55,7 +68,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
                 continue;
             }
-
             writeGraphic(event.getIteration(), mode);
         }
     }
@@ -75,6 +87,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             if (personId.toLowerCase().contains("agent")) {
                 return;
             }
+
             String vehicleId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
             if (vehicleId.contains(":")) {
                 String v = vehicleId.split(":")[0];
@@ -83,7 +96,15 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 }
             }
 
-            String unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            String unitVehicle;
+            boolean isDigit = vehicleId.replace("-","").chars().allMatch( Character::isDigit );
+            if(isDigit){
+                unitVehicle = "car";
+            }
+            else {
+                unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            }
+
 
             Integer count = modePerson.get(unitVehicle);
             if (count == null) {
@@ -127,7 +148,14 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 return;
             }
 
-            String unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            String unitVehicle;
+            boolean isDigit = vehicleId.replace("-","").chars().allMatch( Character::isDigit );
+            if(isDigit){
+                unitVehicle = "car";
+            }
+            else {
+                unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+            }
 
             Integer count = modePerson.get(unitVehicle);
             if (count != null) {
@@ -173,7 +201,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> enterKeys = personEnter.keySet();
             for (Integer key : enterKeys) {
                 enterSeries.add(key, personEnter.get(key));
-                //enterSeries.add(key + 0.1, 0);
             }
         }
 
@@ -183,7 +210,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> exitKeys = personExit.keySet();
             for (Integer key : exitKeys) {
                 exitSeries.add(key, personExit.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -193,7 +219,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             Set<Integer> indexKeys = indexCount.keySet();
             for (Integer key : indexKeys) {
                 onRouteSeries.add(key, indexCount.get(key));
-                //exitSeries.add(key + 0.1, 0);
             }
         }
 
@@ -203,7 +228,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
         final JFreeChart chart = ChartFactory.createXYLineChart(
                 "Trip Histogram, " + mode + ", it." + iteration,
-                "time", "# persons",
+                xAxisLabel.replace("<?>", String.valueOf(binSize)), "# persons",
                 xyData,
                 PlotOrientation.VERTICAL,
                 true,   // legend
@@ -216,7 +241,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         plot.getRangeAxis().setStandardTickUnits(NumberAxis.createIntegerTickUnits());
         final CategoryAxis axis1 = new CategoryAxis("sec");
         axis1.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 7));
-        plot.setDomainAxis(new NumberAxis("time"));
+        plot.setDomainAxis(new NumberAxis(xAxisLabel.replace("<?>",String.valueOf(binSize))));
 
         plot.getRenderer().setSeriesStroke(0, new BasicStroke(2.0f));
         plot.getRenderer().setSeriesStroke(1, new BasicStroke(2.0f));
@@ -245,8 +270,8 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     private int getBinIndex(final double time) {
         int bin = (int) (time / this.binSize);
-        if (bin >= this.nofBins) {
-            return this.nofBins;
+        if (bin >= this.numOfBins) {
+            return this.numOfBins;
         }
         return bin;
     }

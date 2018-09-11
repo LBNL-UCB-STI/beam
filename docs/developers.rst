@@ -105,6 +105,46 @@ To replaces the text pointers with the actual files run the following command(if
    $ git lfs pull
    Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
    
+GIT-LFS Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+
+However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+
+* Checkout your production branch:
+
+  git checkout production-branch
+
+* Bring branch even with master
+
+  git merge master
+
+* Resolve conflicts if needed
+
+* Capture the files that are different now between production and master:
+
+git diff --name-only HEAD master > diff-with-master.txt
+
+* You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+
+* IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+
+* Checkout master
+
+  git checkout master
+
+* Create a new branch off of master, this is where you will stage the files to then merge back into master:
+
+  git checkout -b new-branch-with-changes-4ci
+
+* Do a file by file checkout of all differing files from production branch onto master:
+
+  cat diff-with-master.txt | xargs git checkout production-branch --
+
+* Commit these files, push, and go create your pull request!
+
+
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -329,3 +369,116 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
 You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
 
 .. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
+
+Scala tips
+^^^^^^^^^^
+Scala Collection
+~~~~~~~~~~~~~~~~
+
+Use ``mutable`` buffer instead of ``immutable var``:
+****************************************************
+
+::
+
+   // Before
+   var buffer = scala.collection.immutable.Vector.empty[Int]
+   buffer = buffer :+ 1
+   buffer = buffer :+ 2
+
+   // After
+   val buffer = scala.collection.mutable.ArrayBuffer.empty[Int]
+   buffer += 1
+   buffer += 2
+
+Don’t create temporary collections, use `view`_:
+************************************************
+
+::
+
+   val seq: Seq[Int] = Seq(1, 2, 3, 4, 5)
+
+   // Before
+   seq.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+   // After
+   seq.view.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+Don’t emulate ``collectFirst`` and ``collect``:
+***********************************************
+
+::
+
+   // collectFirst
+   // Get first number >= 4
+   val seq: Seq[Int] = Seq(1, 2, 10, 20)
+   val predicate: Int => Boolean = (x: Int)  => { x >= 4 }
+
+   // Before
+   seq.filter(predicate).headOption
+
+   // After
+   seq.collectFirst { case num if predicate(num) => num }
+
+   // collect
+   // Get first char of string, if it's longer than 3
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+   val predicate: String => Boolean = (s: String)  => { s.size > 3 }
+
+   // Before
+   s.filter(predicate).map { s => s.head }
+
+   // After
+   s.collect { case curr if predicate(curr) => curr.head }
+
+Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
+**********************************************************************
+
+::
+
+   // Get odd elements of sequence s
+   val predicate: Int => Boolean = (idx: Int)  => { idx % 2 == 1 }
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+
+   // Before
+   s.zipWithIndex.collect {
+       case x if predicate(x._2) => x._1   // what is _1 or _2 ??
+   }
+
+   // After
+   s.zipWithIndex.collect {
+       case (s, idx) if predicate(idx) => s
+   }
+
+   // Use destructuring bindings to extract values from tuple
+   val tuple = ("Hello", 5)
+
+   // Before
+   val str = tuple._1
+   val len = tuple._2
+
+   // After
+   val (str, len) = tuple
+
+Great article about `Scala Collection tips and tricks`_, must read
+******************************************************************
+
+Use lazy logging
+~~~~~~~~~~~~~~~~
+
+When you log, prefer to use API which are lazy. If you use
+``scala logging``, you have `it for free`_. When use ``ActorLogging`` in
+Akka, you should not use `string interpolation`_, but use method with
+replacement arguments:
+
+::
+
+   // Before
+   log.debug(s"Hello: $name")
+
+   // After
+   log.debug("Hello: {}", name)
+
+.. _view:  https://www.scala-lang.org/blog/2017/11/28/view-based-collections.html
+.. _Scala Collection tips and tricks: https://pavelfatin.com/scala-collections-tips-and-tricks/#sequences-rewriting
+.. _it for free: https://github.com/lightbend/scala-logging#scala-logging-
+.. _string interpolation: https://docs.scala-lang.org/overviews/core/string-interpolation.html

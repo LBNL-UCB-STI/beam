@@ -52,7 +52,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var initParkingVeh: Seq[ActorRef] = Nil
+  var initParkingVeh = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -70,7 +70,7 @@ class Population(
     case Finish =>
       context.children.foreach(_ ! Finish)
       initParkingVeh.foreach(context.stop(_))
-      initParkingVeh = Nil
+      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
@@ -157,15 +157,15 @@ class Population(
                   0
                 ) //TODO personSelectedPlan.getType is null
 
-                def receive = {
-                  case ParkingInquiryResponse(stall) =>
-                    vehicle._2.useParkingStall(stall)
-                    context.stop(self)
-                  //TODO deal with timeouts and errors
-                }
-              }))
-              initParkingVeh :+= initParkingVehicle
-          }
+              def receive = {
+                case ParkingInquiryResponse(stall, _) =>
+                  vehicle._2.useParkingStall(stall)
+                  context.stop(self)
+                //TODO deal with timeouts and errors
+              }
+            }))
+            initParkingVeh append initParkingVehicle
+        }
 
           context.watch(householdActor)
           householdActor ? Identify(0)
@@ -182,6 +182,8 @@ class Population(
 }
 
 object Population {
+  val defaultVehicleRange = 500e3
+  val refuelRateLimitInWatts = None
 
   case object InitParkingVehicles
 

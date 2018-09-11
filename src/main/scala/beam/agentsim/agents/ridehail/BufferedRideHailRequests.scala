@@ -43,6 +43,10 @@ class BufferedRideHailRequests(
     numberOfOverwriteRequestsOpen = numberOfOverwriteRequestsOpen - 1
   }
 
+  def increaseNumberOfOpenOverwriteRequests() = {
+    numberOfOverwriteRequestsOpen = numberOfOverwriteRequestsOpen + 1
+  }
+
   def registerVehicleAsReplacementVehicle(vehicleId: Id[Vehicle]): Unit = {
     setOfReplacementVehicles add vehicleId
 
