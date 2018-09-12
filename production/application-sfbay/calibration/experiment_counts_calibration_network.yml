@@ -3,7 +3,7 @@
 # Header
 
 header:
-    title: Production_Calibration_counts_4
+    title: Production_Calibration_counts_network_1
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
@@ -15,7 +15,7 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "Production_Calibration_counts_4"
+      runName: "Production_Calibration_counts_network_1"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
       beamCommit: "223d3cea3f74bff692fb99eac99744ab8646b7df"
       deployMode: "execute"
@@ -59,12 +59,3 @@ factors:
     - name: High
       params:
         beam.physsim.storageCapacityFactor: 1.0
-
-  - title: countsFactor
-    levels:
-    - name: Low
-      params:
-        matsim.modules.counts.countsScaleFactor: 10.0
-    - name: High
-      params:
-        matsim.modules.counts.countsScaleFactor: 100.0

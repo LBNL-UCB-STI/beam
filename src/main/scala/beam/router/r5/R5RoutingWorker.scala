@@ -370,7 +370,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-    log.debug(profileRequest.toString)
+//    log.debug(profileRequest.toString)
     val result = try {
       getPlan(profileRequest)
     } catch {
@@ -384,7 +384,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
-    log.debug(routingRequest.toString)
+//    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
@@ -817,7 +817,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        log.debug("Adding dummy walk route with maximum street time.")
+//        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
           new Coord(routingRequest.origin.getX, routingRequest.origin.getY),
           new Coord(routingRequest.destination.getX, routingRequest.destination.getY),

@@ -94,7 +94,7 @@ object DeleteSuggestion extends LazyLogging {
 //    listSuggestions(experimentId)
 
     ///
-    val experimentId = "52688"
+    val experimentId = "52783"
     listSuggestions(experimentId)
     deleteAllOpenSuggestions(experimentId)
 

@@ -622,8 +622,8 @@ class RideHailManager(
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
-      log.debug("getIdleVehicles().size:{}", getIdleVehicles.size)
-      getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}", x._1.toString))
+//      log.debug("getIdleVehicles().size:{}", getIdleVehicles.size)
+//      getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}", x._1.toString))
 
       val repositionVehicles: Vector[(Id[Vehicle], Location)] =
         rideHailResourceAllocationManager.repositionVehicles(tick)
@@ -705,10 +705,10 @@ class RideHailManager(
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
       if (getIdleVehicles.contains(vehicleId)) {
-        log.debug(
-          "RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: {}",
-          vehicleId
-        )
+//        log.debug(
+//          "RideHailAllocationManagerTimeout: requesting to send interrupt message to vehicle for repositioning: {}",
+//          vehicleId
+//        )
         modifyPassengerScheduleManager.repositionVehicle(
           passengerSchedule,
           tick,
@@ -842,6 +842,13 @@ class RideHailManager(
     request: RideHailRequest,
     responses: List[RoutingResponse] = List()
   ): Unit = {
+    log.info(
+      "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
+      request.departAt,
+      availableRideHailVehicles.size,
+      inServiceRideHailVehicles.size,
+      outOfServiceRideHailVehicles.size
+    )
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
 
@@ -850,20 +857,20 @@ class RideHailManager(
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None) =>
-        //        println(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
+        log.debug(s"${request.requestId} -- VehicleAllocation(${agentLocation.vehicleId}, None)")
         requestRoutes(
           request,
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation)
         )
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
-        //        println(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
+        log.debug(s"${request.requestId} -- VehicleAllocation(agentLocation, Some())")
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
-        //        println(s"${request.requestId} -- RoutingRequired")
+        log.debug(s"${request.requestId} -- RoutingRequired")
         requestRoutes(request, None, routesRequired)
       case NoVehicleAllocated =>
-        //        println(s"${request.requestId} -- NoVehicleAllocated")
+        log.debug(s"${request.requestId} -- NoVehicleAllocated")
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
   }
