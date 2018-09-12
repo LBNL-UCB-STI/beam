@@ -3,11 +3,11 @@
 # Header
 
 header:
-    title: Production_Calibration_counts_2
+    title: Production_Calibration_counts_4
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 9
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -15,9 +15,9 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "Production_Calibration_counts_1"
+      runName: "Production_Calibration_counts_4"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "cb9791cf1c47227e5bba45b0637f9f6cd45e8450"
+      beamCommit: "223d3cea3f74bff692fb99eac99744ab8646b7df"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
@@ -25,8 +25,8 @@ header:
       shutdownBehavior: "stop"
       s3Backup: "true"
       maxRAM: "140g"
-      region: "us-east-2"
-      instanceType: "m4.16xlarge"
+      region: "us-west-2"
+      instanceType: "c5.18xlarge"
 
 
 
