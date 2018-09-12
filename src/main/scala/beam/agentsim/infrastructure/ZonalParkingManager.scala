@@ -4,7 +4,7 @@ import java.io.FileWriter
 import java.nio.file.{Files, Paths}
 import java.util
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
@@ -32,7 +32,8 @@ class ZonalParkingManager(
   val beamRouter: ActorRef,
   parkingStockAttributes: ParkingStockAttributes
 ) extends ParkingManager(parkingStockAttributes)
-    with HasServices {
+    with HasServices
+    with ActorLogging {
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
     collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
@@ -112,7 +113,7 @@ class ZonalParkingManager(
     // Irrelevant for parking
 
     case CheckInResource(stallId: Id[ParkingStall], availableIn: Option[SpaceTime]) =>
-      if(resources.contains(stallId)) {
+      if (resources.contains(stallId)) {
         val stall = resources(stallId)
         val stallValues = pooledResources(stall.attributes)
 
@@ -121,6 +122,13 @@ class ZonalParkingManager(
           stallValues.copy(numStalls = stallValues.numStalls + 1)
         )
         resources.remove(stall.id)
+        log.debug(
+          "CheckInResource with {} available stalls ",
+          pooledResources
+            .filter(_._1.reservedFor == RideHailManager)
+            .map(_._2.numStalls.toLong)
+            .sum
+        )
       }
 
     case CheckOutResource(_) =>
@@ -130,6 +138,13 @@ class ZonalParkingManager(
       )
 
     case inquiry @ DepotParkingInquiry(vehicleId: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
+      log.debug(
+        "DepotParkingInquiry with {} available stalls ",
+        pooledResources
+          .filter(_._1.reservedFor == RideHailManager)
+          .map(_._2.numStalls.toLong)
+          .sum
+      )
       val tazsWithDists = findTAZsWithDistances(location, 1000.0)
       val maybeFoundStalls = tazsWithDists
         .find {
@@ -178,6 +193,13 @@ class ZonalParkingManager(
           stallValues.copy(numStalls = stallValues.numStalls - 1)
         )
       }
+      log.debug(
+        "DepotParkingInquiry with {} available stalls ",
+        pooledResources
+          .filter(_._1.reservedFor == RideHailManager)
+          .map(_._2.numStalls.toLong)
+          .sum
+      )
 
       val response = DepotParkingInquiryResponse(maybeParkingStall, inquiry.requestId)
       sender() ! response

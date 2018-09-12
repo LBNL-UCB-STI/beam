@@ -288,10 +288,10 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
-    log.debug(
-      "sending ACK to scheduler for next repositionTimeout ({})",
-      nextCompleteNoticeRideHailAllocationTimeout.get.id
-    )
+//    log.debug(
+//      "sending ACK to scheduler for next repositionTimeout ({})",
+//      nextCompleteNoticeRideHailAllocationTimeout.get.id
+//    )
 
     val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
       .filter(x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout])
