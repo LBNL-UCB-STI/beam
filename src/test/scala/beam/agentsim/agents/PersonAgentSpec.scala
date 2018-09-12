@@ -429,7 +429,7 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
-    it("should know how to take a walk_transit trip when it's already in its plan") {
+    ignore("should know how to take a walk_transit trip when it's already in its plan") {
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.

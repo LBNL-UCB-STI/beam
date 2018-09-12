@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
@@ -51,6 +52,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
+    private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -89,6 +91,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -128,6 +131,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
+
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
         if (beamConfig.beam().debug().debugEnabled()) {
@@ -146,6 +151,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
             linkStatsGraph.clean();
+        });
+
+        CompletableFuture.runAsync(() -> {
+            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
         });
 
         if (writePhysSimEvents(iterationNumber)) {
