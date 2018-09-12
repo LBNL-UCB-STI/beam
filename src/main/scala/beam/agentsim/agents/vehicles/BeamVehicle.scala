@@ -29,11 +29,11 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
+  val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val matSimVehicle: Vehicle,
+  val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
   var fuelLevelInJoules: Option[Double],
-  val fuelCapacityInJoules: Option[Double],
   val refuelRateLimitInJoulesPerSecond: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
@@ -41,7 +41,7 @@ class BeamVehicle(
   /**
     * Identifier for this vehicle
     */
-  val id: Id[Vehicle] = matSimVehicle.getId
+//  val id: Id[BeamVehicle] = vehicleId
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -53,8 +53,6 @@ class BeamVehicle(
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
-
-  def getType: VehicleType = matSimVehicle.getType
 
   override def getId: Id[BeamVehicle] = id
 
@@ -130,7 +128,7 @@ class BeamVehicle(
         ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
-          fuelCapacityInJoules.get,
+          beamVehicleType.primaryFuelCapacityInJoule,
           refuelRateLimitInJoulesPerSecond,
           None
         )
@@ -154,6 +152,10 @@ object BeamVehicle {
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
+  def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
+    Id.create(s"${prefix.map(_+"-").getOrElse("")}${id.toString}", classOf[BeamVehicle])
+  }
+
   case class BeamVehicleState(
     fuelLevel: Double,
     remainingRangeInM: Double,
@@ -161,3 +163,4 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   )
 }
+

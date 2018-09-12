@@ -40,7 +40,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
   }
 
   "SF Light" must {
-    "run without error and at least one person chooses car mode" in {
+    "run without error and at least one person chooses car mode" ignore {
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
@@ -78,7 +78,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       assert(nCarTrips > 1)
     }
 
-    "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
+    "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) ignore {
       val conf = baseConf
         .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
         .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))

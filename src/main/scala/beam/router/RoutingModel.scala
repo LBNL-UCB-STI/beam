@@ -1,7 +1,7 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+//import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
@@ -136,7 +136,9 @@ object RoutingModel {
     unbecomeDriverOnCompletion: Boolean
   ) {
 
-    val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
+    val isHumanBodyVehicle: Boolean =
+      BeamVehicleType.isHumanVehicle(beamVehicleId)
+    val isRideHail: Boolean = BeamVehicleType.isRidehailVehicle(beamVehicleId)
   }
 
   def traverseStreetLeg(
