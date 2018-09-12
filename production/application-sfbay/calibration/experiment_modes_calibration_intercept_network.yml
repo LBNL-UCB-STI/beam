@@ -17,7 +17,7 @@ header:
 
       runName: "Calibration_modes_intercept_and_network_1"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "223d3cea3f74bff692fb99eac99744ab8646b7df"
+      beamCommit: "7dd52a0dd680798661073a48051c411ba933e8f3"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
