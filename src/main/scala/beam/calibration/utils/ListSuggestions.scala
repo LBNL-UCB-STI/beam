@@ -10,7 +10,7 @@ object ListSuggestions extends App {
 
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
 
-  val experiment = new Experiment("52769")
+  val experiment = new Experiment("52783")
 
   val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 

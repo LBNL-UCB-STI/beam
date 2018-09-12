@@ -17,7 +17,7 @@ header:
 
       runName: "Production_Calibration_modes_1"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "1fa3be9f27aa2effc0d65648cc3431a1471cd481"
+      beamCommit: "4062b57ab89a04272ad5d9b5564c9980bccdd54e"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
@@ -26,7 +26,7 @@ header:
       s3Backup: "true"
       maxRAM: "140g"
       region: "us-east-2"
-      instanceType: "m4.16xlarge"
+      instanceType: "c5.18xlarge"
 
 
 
