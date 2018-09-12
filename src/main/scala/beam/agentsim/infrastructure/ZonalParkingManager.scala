@@ -112,14 +112,16 @@ class ZonalParkingManager(
     // Irrelevant for parking
 
     case CheckInResource(stallId: Id[ParkingStall], availableIn: Option[SpaceTime]) =>
-      val stall = resources(stallId)
-      val stallValues = pooledResources(stall.attributes)
+      if(resources.contains(stallId)) {
+        val stall = resources(stallId)
+        val stallValues = pooledResources(stall.attributes)
 
-      pooledResources.update(
-        stall.attributes,
-        stallValues.copy(numStalls = stallValues.numStalls + 1)
-      )
-      resources.remove(stall.id)
+        pooledResources.update(
+          stall.attributes,
+          stallValues.copy(numStalls = stallValues.numStalls + 1)
+        )
+        resources.remove(stall.id)
+      }
 
     case CheckOutResource(_) =>
       // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
