@@ -400,17 +400,17 @@ class RideHailModifyPassengerScheduleManager(
     passengerSchedule: PassengerSchedule
   ): Boolean = {
     val result = getWithVehicleIds(vehicleId)
-      .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
+      .find(_.interruptOrigin == InterruptOrigin.RESERVATION)
       .exists(_.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule)
 
-    //    if (result) {
-    //      val a = getWithVehicleIds(vehicleId)
-    //        .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
-    //        .head
-    //        .modifyPassengerSchedule
-    //        .updatedPassengerSchedule
-    //      DebugLib.emptyFunctionForSettingBreakPoint()
-    //    }
+    if (result) {
+      val a = getWithVehicleIds(vehicleId)
+        .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
+        .head
+        .modifyPassengerSchedule
+        .updatedPassengerSchedule
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
 
     result
   }
