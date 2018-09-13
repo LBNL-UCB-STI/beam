@@ -397,9 +397,20 @@ class PersonAgent(
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_), data: BasePersonData) =>
+      if (id.equals("501900-2013001147754-0-3400175")) {
+        val i = 0
+      }
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
-        beamServices.vehicles(data.currentVehicle.head).unsetDriver()
+        val theVehicle = beamServices.vehicles(data.currentVehicle.head)
+        theVehicle.unsetDriver()
+        nextNotifyVehicleResourceIdle match {
+          case Some(nextNotify) =>
+//            context.parent ! nextNotify
+            theVehicle.manager.foreach(
+              _ ! nextNotify
+            )
+        }
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head)
         )

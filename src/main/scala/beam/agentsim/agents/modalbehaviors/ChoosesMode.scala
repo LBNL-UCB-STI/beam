@@ -473,6 +473,10 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }
 
+      if (filteredItinerariesForChoice.size == 1 && filteredItinerariesForChoice.head.tripClassifier == WALK) {
+        val i = 0
+      }
+
       modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
@@ -485,8 +489,8 @@ trait ChoosesMode {
               case None =>
                 R5RoutingWorker
                   .createBushwackingTrip(
-                    currentActivity(choosesModeData.personData).getCoord,
-                    nextAct.getCoord,
+                    beamServices.geo.utm2Wgs(currentActivity(choosesModeData.personData).getCoord),
+                    beamServices.geo.utm2Wgs(nextAct.getCoord),
                     _currentTick.get.toInt,
                     bodyId,
                     beamServices
@@ -564,6 +568,7 @@ trait ChoosesMode {
           tick,
           id,
           chosenTrip.tripClassifier.value,
+          data.personData.currentTourMode.map(_.value).getOrElse(""),
           data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
           _experiencedBeamPlan
             .activities(data.personData.currentActivityIndex)

@@ -278,7 +278,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     // csv for root modeChoice.png
-    private void writeToRootCSV() {
+    public void writeToRootCSV() {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
 
