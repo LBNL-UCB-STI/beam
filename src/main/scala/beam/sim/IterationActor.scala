@@ -6,12 +6,28 @@ import java.util.stream.Stream
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, DeadLetter, Identify, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  Cancellable,
+  DeadLetter,
+  Identify,
+  OneForOneStrategy,
+  PoisonPill,
+  Props,
+  SupervisorStrategy,
+  Terminated
+}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  NotifyIterationEnds,
+  RideHailAllocationManagerTimeout
+}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -233,8 +249,7 @@ class IterationActor(
     //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
     val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
-    val ridehailBeamVehicleType = beamServices
-      .vehicleTypes
+    val ridehailBeamVehicleType = beamServices.vehicleTypes
       .get(ridehailBeamVehicleTypeId)
       .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
 
@@ -250,7 +265,8 @@ class IterationActor(
       powertrain,
       None,
       ridehailBeamVehicleType,
-      Some(1.0), None
+      Some(1.0),
+      None
     )
 
     beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
@@ -436,7 +452,6 @@ object IterationActor {
     eventsManager: EventsManager,
     rideHailSurgePricingManager: RideHailSurgePricingManager
   ): Props = {
-    Props(classOf[IterationActor], beamServices, transportNetwork, scenario,
-      eventsManager, rideHailSurgePricingManager)
+    Props(classOf[IterationActor], beamServices, transportNetwork, scenario, eventsManager, rideHailSurgePricingManager)
   }
 }

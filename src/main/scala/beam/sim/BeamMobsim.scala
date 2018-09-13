@@ -44,8 +44,10 @@ class BeamMobsim @Inject()(
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.startNewIteration
     eventsManager.initProcessing()
-    val iteration = actorSystem.actorOf(IterationActor.props(beamServices, transportNetwork, scenario, eventsManager,
-      rideHailSurgePricingManager), "BeamMobsim.iteration")
+    val iteration = actorSystem.actorOf(
+      IterationActor.props(beamServices, transportNetwork, scenario, eventsManager, rideHailSurgePricingManager),
+      "BeamMobsim.iteration"
+    )
     logger.info("Iteration result: {}", Await.result(iteration ? "Run!", timeout.duration))
     iteration ! PoisonPill
     logger.info("Agentsim finished.")

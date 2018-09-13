@@ -310,7 +310,8 @@ class PersonAgentSpec
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
+      val beamVehicle =
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())

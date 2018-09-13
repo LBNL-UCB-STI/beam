@@ -27,7 +27,7 @@ class RepositioningLowWaitingTimes(
     val future =
       rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
     Await
-      .result(future, rideHailManager.timeout.duration)
+      .result(future, rideHailManager.rideHailStatsTimeout.duration)
       .asInstanceOf[Option[TNCIterationStats]]
   }
   tncIterationStats.foreach(_.logMap())

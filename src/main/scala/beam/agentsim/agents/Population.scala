@@ -27,7 +27,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 import scala.util.Try
 
@@ -95,13 +95,13 @@ class Population(
         Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
           //TODO a good example where projection should accompany the data
           if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx") == null) {
+                .getAttribute(household.getId.toString, "homecoordx") == null) {
             log.error(
               s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
             )
           }
           if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+                .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
             log.error(
               s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
             )
@@ -157,15 +157,15 @@ class Population(
                   0
                 ) //TODO personSelectedPlan.getType is null
 
-              def receive = {
-                case ParkingInquiryResponse(stall, _) =>
-                  vehicle._2.useParkingStall(stall)
-                  context.stop(self)
-                //TODO deal with timeouts and errors
-              }
-            }))
-            initParkingVeh append initParkingVehicle
-        }
+                def receive = {
+                  case ParkingInquiryResponse(stall, _) =>
+                    vehicle._2.useParkingStall(stall)
+                    context.stop(self)
+                  //TODO deal with timeouts and errors
+                }
+              }))
+              initParkingVeh append initParkingVehicle
+          }
 
           context.watch(householdActor)
           householdActor ? Identify(0)
@@ -203,7 +203,7 @@ object Population {
       .map({ id =>
         makeHouseholdVehicle(beamServices.privateVehicles, id) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
-          case Left(e) => throw e
+          case Left(e)        => throw e
         }
       })
       .toMap
