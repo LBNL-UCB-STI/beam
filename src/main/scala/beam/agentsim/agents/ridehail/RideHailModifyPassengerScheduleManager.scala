@@ -335,9 +335,7 @@ class RideHailModifyPassengerScheduleManager(
         ignoreErrorPrint = false
       }
 
-      if (vehicles.size > 1 && !vehicles
-            .filter(x => x.interruptOrigin == InterruptOrigin.RESERVATION)
-            .isEmpty) {
+      if (vehicles.size > 1 && vehicles.exists(_.interruptOrigin == InterruptOrigin.RESERVATION)) {
         // this means there is a race condition between a repositioning and reservation message and we should remove the reposition/not process it further
 
         // ALREADY removed in handle interruption
