@@ -10,16 +10,15 @@ goto :init
 
 :usage
     echo USAGE:
-    echo   %__BAT_NAME% [flags] "required argument" "optional argument" 
+    echo   %__BAT_NAME% [flags] "required argument" "optional argument"
     echo.
     echo.  /?, --help           shows this help
     echo.  /v, --version        shows the version
     echo.  /e, --verbose        shows detailed output
     echo.
-    echo.  -h host_name         host name where source files are available
+    echo.  -h host_csv          host csv, with dns and identity file
     echo.  -p search_path       search file path
     echo.  -s search_word       search word
-    echo.  -i identity_file     specify the identity file, default value ~/beam-box.pem
     goto :eof
 
 :version
@@ -31,7 +30,7 @@ goto :init
     call :header
     call :usage
     echo.
-    if not defined host_name  echo host_name: not provided
+    if not defined host_csv  echo host_csv: not provided
     if not defined search_path  echo search_path: not provided
     if not defined search_word  echo search_word: not provided
     echo.
@@ -50,8 +49,7 @@ goto :init
     set "OptVersion="
     set "OptVerbose="
 
-    set "identity_file=~/beam-box.pem"
-    set "host_name="
+    set "host_csv="
     set "search_path=/var/log/cloud-init-output.log"
     set "search_word="
 
@@ -70,8 +68,7 @@ goto :init
     if /i "%~1"=="-e"         set "OptVerbose=yes"  & shift & goto :parse
     if /i "%~1"=="--verbose"  set "OptVerbose=yes"  & shift & goto :parse
 
-    if /i "%~1"=="-i"         set "identity_file=%~2"       & shift & shift & goto :parse
-    if /i "%~1"=="-h"         set "host_name=%~2"           & shift & shift & goto :parse
+    if /i "%~1"=="-h"         set "host_csv=%~2"           & shift & shift & goto :parse
     if /i "%~1"=="-p"         set "search_path=%~2"         & shift & shift & goto :parse
     if /i "%~1"=="-s"         set "search_word=%~2"         & shift & shift & goto :parse
 
@@ -79,7 +76,7 @@ goto :init
     goto :parse
 
 :validate
-    if not defined host_name        call :missing_argument & goto :end
+    if not defined host_csv        call :missing_argument & goto :end
     if not defined search_path      call :missing_argument & goto :end
     where scp >nul 2>nul
     if %errorlevel%==1 (
@@ -91,13 +88,15 @@ goto :init
     if defined OptVerbose (
         echo **** DEBUG IS ON ****
 
-         if defined identity_file           echo identity_file:      "%identity_file%"
-         if defined host_name               echo host_name:          "%host_name%"
+         if defined host_csv               echo host_csv:          "%host_csv%"
          if defined search_path             echo search_path:        "%search_path%"
          if defined search_word             echo search_word:        "%search_word%"
     )
 
-    ssh -i "%identity_file%" ubuntu@%host_name% grep %search_word% %search_path%
+    for /f "tokens=1,2 delims=, " %%a in (%host_csv%) do (
+        echo Results from host: %%a
+        ssh -i "%%b" ubuntu@%%a grep %search_word% %search_path%
+    )
 
 :end
     call :cleanup
@@ -118,8 +117,7 @@ goto :init
     set "OptVersion="
     set "OptVerbose="
 
-    set "identity_file="
-    set "host_name="
+    set "host_csv="
     set "search_path="
     set "search_word="
 
