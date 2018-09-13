@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util
 
@@ -430,7 +430,9 @@ class ZonalParkingManager(
   ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
+      val destinationFile = new File(writeDestinationPath)
+      destinationFile.getParentFile.mkdirs()
+      mapWriter = new CsvMapWriter(new FileWriter(destinationFile), CsvPreference.STANDARD_PREFERENCE)
 
       val header = Array[String](
         "taz",
