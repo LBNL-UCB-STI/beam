@@ -819,8 +819,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (maybeBody.isDefined) {
 //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
-          new Coord(routingRequest.origin.getX, routingRequest.origin.getY),
-          new Coord(routingRequest.destination.getX, routingRequest.destination.getY),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
           routingRequest.departureTime.atTime,
           maybeBody.get.id,
           beamServices
