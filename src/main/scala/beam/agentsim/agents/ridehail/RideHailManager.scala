@@ -87,7 +87,7 @@ object RideHailManager {
     responseRideHail2Dest: RoutingResponse
   ) {
     override def toString(): String =
-      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: ${timeToCustomer}, price: ${estimatedPrice}, travelTime: ${estimatedTravelTime}"
+      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
   }
 
   case class RoutingResponses(

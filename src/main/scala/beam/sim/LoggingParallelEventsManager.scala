@@ -19,7 +19,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
     tryLog("processEvent", eventManager.processEvent(event))
     val processed = numOfEvents.incrementAndGet()
     if (processed % threshold == 0)
-      logger.info(s"Processed next $threshold events. Total: ${processed}")
+      logger.info(s"Processed next $threshold events. Total: $processed")
   }
 
   override def addHandler(handler: EventHandler): Unit = {
