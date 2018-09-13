@@ -60,9 +60,20 @@ trait ChoosesMode {
 
   when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusResponse(streetVehicles), choosesModeData: ChoosesModeData) =>
+      val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+      )
+      choosesModeData.personData.currentTourMode match {
+        case Some(mode) =>
+          log.debug("{}", mode)
+          val currAct = currentActivity(choosesModeData.personData)
+          val i = 0
+        case _ =>
+      }
+
       val bodyStreetVehicle = StreetVehicle(
         bodyId,
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong),
+        currentPersonLocation,
         WALK,
         asDriver = true
       )
@@ -96,7 +107,7 @@ trait ChoosesMode {
         streetVehiclesIntermodalUse: IntermodalUse = Access
       ): Unit = {
         router ! RoutingRequest(
-          currentActivity(choosesModeData.personData).getCoord,
+          currentPersonLocation.loc,
           nextAct.getCoord,
           departTime,
           Modes.filterForTransit(transitModes),
@@ -110,7 +121,7 @@ trait ChoosesMode {
         val inquiry = RideHailRequest(
           RideHailInquiry,
           bodyVehiclePersonId,
-          currentActivity(choosesModeData.personData).getCoord,
+          currentPersonLocation.loc,
           departTime,
           nextAct.getCoord
         )
@@ -122,7 +133,7 @@ trait ChoosesMode {
         //TODO make ride hail wait buffer config param
         val startWithWaitBuffer = 600 + departTime.atTime.toLong
         val currentSpaceTime =
-          SpaceTime(currentActivity(choosesModeData.personData).getCoord, startWithWaitBuffer)
+          SpaceTime(currentPersonLocation.loc, startWithWaitBuffer)
         val theRequest = RoutingRequest(
           currentSpaceTime.loc,
           nextAct.getCoord,
@@ -419,6 +430,7 @@ trait ChoosesMode {
         _,
         choosesModeData @ ChoosesModeData(
           personData,
+          currentLocation,
           None,
           Some(routingResponse),
           Some(rideHailResult),
@@ -436,6 +448,9 @@ trait ChoosesMode {
         _,
         _
         ) =>
+      val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+      )
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(
         rideHail2TransitAccessResult,
@@ -489,7 +504,7 @@ trait ChoosesMode {
               case None =>
                 R5RoutingWorker
                   .createBushwackingTrip(
-                    beamServices.geo.utm2Wgs(currentActivity(choosesModeData.personData).getCoord),
+                    beamServices.geo.utm2Wgs(currentPersonLocation.loc),
                     beamServices.geo.utm2Wgs(nextAct.getCoord),
                     _currentTick.get.toInt,
                     bodyId,
@@ -618,6 +633,7 @@ object ChoosesMode {
 
   case class ChoosesModeData(
     personData: BasePersonData,
+    currentLocation: Option[SpaceTime] = None,
     pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
     routingResponse: Option[RoutingResponse] = None,
     rideHailResult: Option[RideHailResponse] = None,

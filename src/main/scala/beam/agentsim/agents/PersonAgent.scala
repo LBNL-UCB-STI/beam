@@ -325,21 +325,28 @@ class PersonAgent(
   when(WaitingForReservationConfirmation) {
     case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
-    case Event(ReservationResponse(_, Left(firstErrorResponse), _), data: BasePersonData) =>
+    case Event(
+        ReservationResponse(_, Left(firstErrorResponse), _),
+        data @ BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _)
+        ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
-      holdTickAndTriggerId(tick, triggerId)
-      goto(ChoosingMode) using ChoosesModeData(data, isWithinTripReplanning = true)
+      eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+      goto(ChoosingMode) using ChoosesModeData(
+        data,
+        currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
+        isWithinTripReplanning = true
+      )
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
-    case Event(RideHailResponse(_, _, Some(error), _), data: BasePersonData) =>
+    case Event(
+        RideHailResponse(_, _, Some(error), _),
+        data @ BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _)
+        ) =>
       logDebug(s"replanning because ${error.errorCode}")
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
-      holdTickAndTriggerId(tick, triggerId)
+      eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(currentTourMode = None),
+        currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
         isWithinTripReplanning = true
       )
   }
