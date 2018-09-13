@@ -38,7 +38,7 @@ class TriggerMeasurer extends LazyLogging {
         }
 
       case None =>
-        logger.error(s"Can't find ${t} in triggerWithIdToStartTime")
+        logger.error(s"Can't find $t in triggerWithIdToStartTime")
     }
   }
 

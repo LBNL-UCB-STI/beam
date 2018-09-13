@@ -10,7 +10,7 @@ object ActorVersionJDEQSim {
 
     @deprecated("See beam.agentsim.sim.AgentsimServices", "2.0")
     def receive: PartialFunction[Any, Unit] = {
-      case "start" => {
+      case "start" =>
         val config = ConfigUtils.loadConfig(
           "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml"
         )
@@ -31,8 +31,6 @@ object ActorVersionJDEQSim {
         //eventsManager.finishProcessing()
 
         //println(countEnterLinkEvents.getLinkEnterCount())
-
-      }
       case i: Int => println("Number: " + i)
     }
   }

@@ -3,7 +3,7 @@ package beam.sim
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef}
+import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
+import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -38,7 +38,7 @@ import scala.util.Try
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices extends ActorInject {
   val controler: ControlerI
-  var beamConfig: BeamConfig
+  val beamConfig: BeamConfig
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -61,7 +61,7 @@ trait BeamServices extends ActorInject {
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+  val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 

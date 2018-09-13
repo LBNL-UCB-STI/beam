@@ -593,7 +593,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ${stateName}")
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + $stateName")
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
     //stay()
