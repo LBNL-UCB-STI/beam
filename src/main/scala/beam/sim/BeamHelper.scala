@@ -370,9 +370,9 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: Config
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
-      var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
-      var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
-      var notSelectedPersonIds = mutable.Set[Id[Person]]()
+      val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
+      val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
+      val notSelectedPersonIds = mutable.Set[Id[Person]]()
       var numberOfAgents = 0
 
       scenario.getVehicles.getVehicles

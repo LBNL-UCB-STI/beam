@@ -406,7 +406,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     val rideHailAgentInterruptId =
       RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
-    var interruptMessageStatus = InterruptMessageStatus.UNDEFINED
+    val interruptMessageStatus = InterruptMessageStatus.UNDEFINED
 
     val rideHailModifyPassengerScheduleStatus = RideHailModifyPassengerScheduleStatus(
       rideHailAgentInterruptId,

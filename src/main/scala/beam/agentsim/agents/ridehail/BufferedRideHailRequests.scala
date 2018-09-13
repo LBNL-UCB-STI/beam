@@ -30,7 +30,7 @@ class BufferedRideHailRequests(
   private var nextBufferedTriggerMessages = Vector[BeamAgentScheduler.ScheduleTrigger]()
 
   // these are the vehicleIds with which we are overwriting things
-  private var setOfReplacementVehicles =
+  private val setOfReplacementVehicles =
     mutable.Set[Id[Vehicle]]()
 
   var numberOfOverwriteRequestsOpen: Int = 0

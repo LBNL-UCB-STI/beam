@@ -94,7 +94,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transportNetwork = networkCoordinator.transportNetwork
       val beamServices: BeamServices = new BeamServices {
         override lazy val controler: ControlerI = ???
-        override var beamConfig: BeamConfig = BeamConfig(config)
+        override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
         override var modeChoiceCalculatorFactory: HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(

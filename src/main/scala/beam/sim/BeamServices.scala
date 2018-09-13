@@ -61,7 +61,7 @@ trait BeamServices extends ActorInject {
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+  val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
