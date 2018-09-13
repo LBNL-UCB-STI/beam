@@ -19,6 +19,9 @@ goto :init
     echo.  -h host_csv          host csv, with dns and identity file
     echo.  -p search_path       search file path
     echo.  -s search_word       search word
+    echo.
+    echo Example:
+    echo   %__BAT_NAME% -h dns.csv -s iteration
     goto :eof
 
 :version
