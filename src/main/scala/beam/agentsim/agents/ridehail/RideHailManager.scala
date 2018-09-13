@@ -842,7 +842,7 @@ class RideHailManager(
     request: RideHailRequest,
     responses: List[RoutingResponse] = List()
   ): Unit = {
-    log.info(
+    log.debug(
       "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
       request.departAt,
       availableRideHailVehicles.size,
