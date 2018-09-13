@@ -10,6 +10,9 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -358,7 +361,7 @@ class BeamRouter(
     initializer: TransitInitializer,
     scheduler: ActorRef,
     parkingManager: ActorRef,
-    transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
+    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
@@ -389,7 +392,7 @@ object BeamRouter {
 
   case class ClearRoutedWorkerTracker(workIdToClear: UUID)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
-  case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
