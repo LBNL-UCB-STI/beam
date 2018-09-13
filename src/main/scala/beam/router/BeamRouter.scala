@@ -147,7 +147,7 @@ class BeamRouter(
             val transits = initializer.initMap
             initDriverAgents(initializer, scheduler, parkingManager, transits)
             metricsPrinter ! Subscribe("histogram", "**")
-            localNodes.map {
+            localNodes.foreach {
               case localWorker =>
                 localWorker ! TransitInited(transits)
             }
