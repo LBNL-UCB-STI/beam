@@ -35,7 +35,6 @@ class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper 
 
       modeChoiceWithHighFraction should be < modeChoiceWithLowFraction
 
-      isOrdered(tc)((a, b) => a <= b) shouldBe true
     }
   }
 

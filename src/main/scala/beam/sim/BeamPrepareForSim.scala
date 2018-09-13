@@ -1,6 +1,5 @@
 package beam.sim
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.replanning.SwitchModalityStyle
 import javax.inject.Inject
 import org.matsim.api.core.v01.{Id, Scenario}
