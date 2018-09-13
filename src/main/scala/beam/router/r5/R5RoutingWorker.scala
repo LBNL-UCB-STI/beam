@@ -179,7 +179,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   import context.dispatcher
 
   override final def receive: Receive = {
-    case "tick" => {
+    case "tick" =>
       firstMsgTime match {
         case Some(firstMsgTimeValue) =>
           val seconds =
@@ -198,7 +198,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           }
         case None => //
       }
-    }
     case WorkAvailable =>
       workAssigner = sender
       askForMoreWork
