@@ -59,7 +59,7 @@ class ParkingSpec
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+        TestConstants.MODAL_BEHAVIOR_DRIVE_TRANSIT_INTERCEPT,
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(

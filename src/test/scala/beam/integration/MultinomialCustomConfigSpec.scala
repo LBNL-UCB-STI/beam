@@ -142,7 +142,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          TestConstants.MODAL_BEHAVIOR_DRIVE_TRANSIT_INTERCEPT,
           ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
@@ -153,7 +153,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          TestConstants.MODAL_BEHAVIOR_DRIVE_TRANSIT_INTERCEPT,
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
