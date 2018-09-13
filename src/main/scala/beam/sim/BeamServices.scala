@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
+import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -38,7 +38,7 @@ import scala.util.Try
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices extends ActorInject {
   val controler: ControlerI
-  var beamConfig: BeamConfig
+  val beamConfig: BeamConfig
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
