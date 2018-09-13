@@ -3,6 +3,10 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.analysis.plots.passengerpertrip.CarPassengerPerTrip;
+import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
+import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
+import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -35,6 +39,7 @@ public class DeadHeadingStats implements IGraphStats {
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
+
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -75,7 +80,11 @@ public class DeadHeadingStats implements IGraphStats {
             createDeadHeadingDistanceGraph(event);
         } else {
             processDeadHeadingPassengerPerTripRemainingRepositionings();
-            createDeadHeadingPassengerPerTripGraph(event, graphType);
+            //createDeadHeadingPassengerPerTripGraph(event, graphType);
+
+            for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()){
+                graph.process(event);
+            }
         }
     }
 
@@ -89,6 +98,8 @@ public class DeadHeadingStats implements IGraphStats {
         deadHeadingVkt = 0d;
         repositioningVkt = 0d;
         reservationCount = 0;
+
+        passengerPerTripMap.clear();
     }
 
     // Deadheading Distance Graph
@@ -740,6 +751,61 @@ public class DeadHeadingStats implements IGraphStats {
         } catch (IOException e) {
             System.out.println("CSV generation failed." + e);
         }
+    }
+
+
+    //
+    // New Code
+    @Override
+    public void collectEvents(Event event) {
+
+        String type = event.getEventType();
+        String mode = getEventMode(event);
+        String vehicleId = getVehicleId(event);
+        Double time = event.getTime();
+
+        if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")){
+
+            IGraphPassengerPerTrip graph = passengerPerTripMap.get("car");
+            if(graph == null){
+                graph = new CarPassengerPerTrip("car");
+            }
+            graph.collectEvent(event);
+
+            passengerPerTripMap.put("car", graph);
+
+        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && vehicleId.contains("ride")){
+
+            IGraphPassengerPerTrip graph = passengerPerTripMap.get("tnc");
+            if(graph == null){
+                graph = new TncPassengerPerTrip();
+            }
+            graph.collectEvent(event);
+
+            passengerPerTripMap.put("tnc", graph);
+        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)){
+
+            String[] modesToExclude = {"car", "walk", "ride_hail", "subway"};
+
+            if(!Arrays.asList(modesToExclude).contains(mode)) {
+                IGraphPassengerPerTrip graph = passengerPerTripMap.get(mode);
+                if (graph == null) {
+                    graph = new GenericPassengerPerTrip(mode);
+                }
+                graph.collectEvent(event);
+                passengerPerTripMap.put(mode, graph);
+            }
+        }
+    }
+
+    Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
+
+    private String getVehicleId(Event event) {
+        return event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+    }
+
+    private String getEventMode(Event event){
+        return event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
     }
 
 }

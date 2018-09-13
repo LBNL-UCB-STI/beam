@@ -127,6 +127,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         }else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
             personVehicleTransitionStats.processStats(event);
         }
+
+        deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
@@ -134,8 +136,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.createGraph(event);
         rideHailWaitingStats.createGraph(event);
         rideHailingWaitingSingleStats.createGraph(event);
+
+        deadHeadingStats.createGraph(event);
         deadHeadingStats.createGraph(event, "TNC0");
         deadHeadingStats.createGraph(event, "");
+
         personTravelTimeStats.createGraph(event);
         personVehicleTransitionStats.createGraph(event);
         realizedModeStats.createGraph(event);
