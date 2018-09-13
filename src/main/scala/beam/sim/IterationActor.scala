@@ -65,7 +65,7 @@ class IterationActor(
     with ActorLogging
     with MetricsSupport {
 
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(1000, TimeUnit.SECONDS)
 
   val rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
@@ -332,19 +332,16 @@ class IterationActor(
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
+      cleanupRideHailingAgents()
       endSegment("agentsim-execution", "agentsim")
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")
       startSegment("agentsim-events", "agentsim")
 
-      cleanupRideHailingAgents()
-      cleanupVehicle()
-
       context.unwatch(population)
       population ! Finish
 
-      val future = rideHailManager.ask(NotifyIterationEnds())
-      Await.ready(future, timeout.duration).value
+      Await.result(rideHailManager.ask(NotifyIterationEnds()), timeout.duration)
       context.unwatch(rideHailManager)
       context.stop(rideHailManager)
 
@@ -407,14 +404,6 @@ class IterationActor(
 //      context.unwatch(actor)
     }
     rideHailAgents.clear()
-  }
-
-  private def cleanupVehicle(): Unit = {
-    // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
-    scenario.getPopulation.getPersons.keySet().forEach { personId =>
-      val bodyVehicleId = BeamVehicle.createId(personId)
-      beamServices.vehicles -= bodyVehicleId
-    }
   }
 
   def getQuadTreeBound[p <: Person](persons: Stream[p]): QuadTreeBounds = {
