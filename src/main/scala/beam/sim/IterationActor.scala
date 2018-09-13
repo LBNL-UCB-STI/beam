@@ -6,30 +6,15 @@ import java.util.stream.Stream
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  OneForOneStrategy,
-  PoisonPill,
-  Props,
-  SupervisorStrategy,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, DeadLetter, Identify, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy, Terminated}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -46,7 +31,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.VehicleType
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -244,20 +229,28 @@ class IterationActor(
 
     val rideHailName = s"rideHailAgent-${person.getId}"
 
-    val rideHailVehicleId =
-      Id.createVehicleId(s"rideHailVehicle-${person.getId}")
-    val rideHailVehicle: Vehicle =
-      VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
+    val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
+    //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+
+    val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+    val ridehailBeamVehicleType = beamServices
+      .vehicleTypes
+      .get(ridehailBeamVehicleTypeId)
+      .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
+
     val rideHailAgentPersonId: Id[RideHailAgent] =
       Id.create(rideHailName, classOf[RideHailAgent])
-    val engineInformation =
-      Option(rideHailVehicle.getType.getEngineInformation)
-    val vehicleAttribute =
-      Option(scenario.getVehicles.getVehicleAttributes)
-    val rideHailBeamVehicle = BeamVehicleUtils.makeCar(
-      rideHailVehicle,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters,
-      None
+
+    val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+      .map(new Powertrain(_))
+      .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
+    val rideHailBeamVehicle = new BeamVehicle(
+      rideHailVehicleId,
+      powertrain,
+      None,
+      ridehailBeamVehicleType,
+      Some(1.0), None
     )
 
     beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
@@ -403,7 +396,7 @@ class IterationActor(
   private def cleanupVehicle(): Unit = {
     // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
     scenario.getPopulation.getPersons.keySet().forEach { personId =>
-      val bodyVehicleId = HumanBodyVehicle.createId(personId)
+      val bodyVehicleId = BeamVehicle.createId(personId)
       beamServices.vehicles -= bodyVehicleId
     }
   }
