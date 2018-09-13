@@ -57,6 +57,7 @@ runcmd:
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - sudo git pull
   - sudo git lfs pull
+  - python -m SimpleHTTPServer 8000 &
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
