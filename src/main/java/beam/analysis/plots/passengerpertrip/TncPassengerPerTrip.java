@@ -114,13 +114,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public void process(IterationEndsEvent event) throws IOException {
 
-        System.out.println(TncPassengerPerTrip.class.getName() + " - iteration - " + event.getIteration()
-                + " ->  Count of events collected -> " + eventCounter
-                + " -> Total passengers collected -> " + passengerCounter
-        );
-
         processDeadHeadingPassengerPerTripRemainingRepositionings();
-
         CategoryDataset dataSet = getCategoryDataSet();
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
     }

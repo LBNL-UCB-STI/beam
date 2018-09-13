@@ -51,9 +51,6 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public void process(IterationEndsEvent event) throws IOException {
 
-        System.out.println(this.graphName + " ->  Count of events collected -> " + eventCounter);
-
-
         CategoryDataset dataSet = getCategoryDataSet();
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
     }
