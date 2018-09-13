@@ -40,7 +40,7 @@ defaultParams:
     beam.agentsim.tuning.transitCapacity: 0.5
     beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
 
-# Factors
+# FactorsZ
 factors:
   - title: flowCapacityFactor
     levels:
