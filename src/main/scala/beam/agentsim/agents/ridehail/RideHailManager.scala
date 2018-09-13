@@ -16,7 +16,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -174,7 +178,8 @@ class RideHailManager(
     with ActorLogging
     with HasServices {
 
-  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  val routingRequestTimeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  val rideHailStatsTimeout: Timeout = Timeout(10, TimeUnit.SECONDS)
 
   val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
@@ -208,9 +213,9 @@ class RideHailManager(
     val rideHailIterationHistoryActor =
       context.actorSelection("/user/rideHailIterationHistoryActor")
     val future =
-      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
+      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)(rideHailStatsTimeout)
     Await
-      .result(future, timeout.duration)
+      .result(future, rideHailStatsTimeout.duration)
       .asInstanceOf[Option[TNCIterationStats]]
   }
   tncIterationStats.foreach(_.logMap())
@@ -656,7 +661,7 @@ class RideHailManager(
             transitModes = Vector(),
             streetVehicles = Vector(rideHailVehicleAtOrigin)
           )
-          val futureRideHailAgent2CustomerResponse = router ? routingRequest
+          val futureRideHailAgent2CustomerResponse = (router ? routingRequest)(routingRequestTimeout)
 
           for {
             rideHailAgent2CustomerResponse <- futureRideHailAgent2CustomerResponse
@@ -761,7 +766,7 @@ class RideHailManager(
         transitModes = Vector(),
         streetVehicles = Vector(agentLocation.toStreetVehicle())
       )
-      val futureRideHail2ParkingRouteRequest = router ? routingRequest
+      val futureRideHail2ParkingRouteRequest = (router ? routingRequest)(routingRequestTimeout)
 
       for {
         futureRideHail2ParkingRouteRespones <- futureRideHail2ParkingRouteRequest
@@ -1343,7 +1348,7 @@ class RideHailManager(
     val preservedOrder = routingRequests.map(_.requestId)
     Future
       .sequence(routingRequests.map { req =>
-        akka.pattern.ask(router, req).mapTo[RoutingResponse]
+        akka.pattern.ask(router, req)(routingRequestTimeout).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
         val requestIdToResponse = responseList.map { response =>
