@@ -576,13 +576,6 @@ case class RideHailModifyPassengerScheduleStatus(
   var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED
 )
 
-case class RepositionVehicleRequest(
-  passengerSchedule: PassengerSchedule,
-  tick: Double,
-  vehicleId: Id[Vehicle],
-  rideHailAgent: ActorRef
-)
-
 case object ReduceAwaitingRepositioningAckMessagesByOne
 
 object RideHailModifyPassengerScheduleManager {
