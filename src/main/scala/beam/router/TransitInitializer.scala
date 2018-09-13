@@ -181,16 +181,17 @@ class TransitInitializer(
 
   private def getVehicleType(vehicleTypeId: Id[BeamVehicleType], mode: Modes.BeamMode): BeamVehicleType = {
     if (services.vehicleTypes.contains(vehicleTypeId)) {
-      services.vehicleTypes.get(vehicleTypeId).get
+      services.vehicleTypes(vehicleTypeId)
     } else {
       logger.debug(
         "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
         vehicleTypeId.toString
       )
       //There has to be a default one defined
-      services.vehicleTypes.get(
-        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType])
-      ).getOrElse(BeamVehicleType.defaultTransitBeamVehicleType)
+      services.vehicleTypes.getOrElse(
+          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
+          BeamVehicleType.defaultTransitBeamVehicleType
+        )
     }
   }
 

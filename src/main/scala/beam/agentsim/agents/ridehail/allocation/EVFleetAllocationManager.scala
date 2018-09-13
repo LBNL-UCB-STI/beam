@@ -33,7 +33,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       // Otherwise, we look through all routes returned and find the first one that
       // corresponds to an idle driver and use this as our agentLocation
       val maybeId = routeResponsesByDriver.keys.find(rideHailManager.getIdleVehicles.contains(_))
-      maybeId.map(rideHailManager.getIdleVehicles.get(_).get)
+      maybeId.map(rideHailManager.getIdleVehicles(_))
     }
     // If agentLoc None, we grab the closest Idle agents but filter out any with a range that
     // obviously cannot make the trip (range is less than 1.26xEuclidean distance. this factor is
@@ -45,7 +45,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         // go with nearest ETA
         findNearestByETAConsideringRange(
           vehicleAllocationRequest.request,
-          requestToExcludedDrivers.get(reqId).getOrElse(Set())
+          requestToExcludedDrivers.getOrElse(reqId, Set())
         )
       case _ =>
         agentLocationOpt
@@ -64,11 +64,11 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
               .sum) {
           requestToExcludedDrivers.put(
             reqId,
-            requestToExcludedDrivers.get(reqId).getOrElse(Set()) + agentLocation.vehicleId
+            requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId
           )
           findNearestByETAConsideringRange(
             vehicleAllocationRequest.request,
-            requestToExcludedDrivers.get(reqId).getOrElse(Set())
+            requestToExcludedDrivers.getOrElse(reqId, Set())
           ) match {
             case Some(newAgentLoc) =>
               makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)

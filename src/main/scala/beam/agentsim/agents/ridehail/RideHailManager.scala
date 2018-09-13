@@ -356,7 +356,7 @@ class RideHailManager(
                 StartRefuelTrigger(whenWhere.time),
                 rideHailAgentLocation.rideHailAgent
               )
-              beamServices.vehicles.get(rideHailAgentLocation.vehicleId).get.useParkingStall(stallOpt.get)
+              beamServices.vehicles(rideHailAgentLocation.vehicleId).useParkingStall(stallOpt.get)
               sender() ! NotifyVehicleResourceIdleReply(
                 triggerId,
                 Vector[ScheduleTrigger](startFuelTrigger)
