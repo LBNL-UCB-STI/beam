@@ -124,7 +124,6 @@ class BeamRouter(
   }
 
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
-  private var numStopsNotFound = 0
 
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
@@ -312,7 +311,7 @@ class BeamRouter(
         )
         outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
         worker ! work
-      case otherWork =>
+      case _ =>
         log.warning(
           "Forwarding work via {} instead of telling because it isn't a handled type - {}",
           receivePath,
