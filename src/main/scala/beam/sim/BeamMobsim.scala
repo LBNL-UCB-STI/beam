@@ -20,7 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}

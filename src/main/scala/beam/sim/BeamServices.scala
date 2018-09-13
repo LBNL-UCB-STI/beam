@@ -3,7 +3,7 @@ package beam.sim
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef}
+import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicle
