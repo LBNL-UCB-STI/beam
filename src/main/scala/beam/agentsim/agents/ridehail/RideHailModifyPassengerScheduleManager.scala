@@ -148,19 +148,8 @@ class RideHailModifyPassengerScheduleManager(
         assert(vehicleId == modifyPassengerScheduleStatus.vehicleId)
         assert(tick == modifyPassengerScheduleStatus.tick)
 
-//        log.debug(
-//          "RideHailModifyPassengerScheduleManager.handleInterrupt: " + modifyPassengerScheduleStatus.toString
-//        )
-        var reservationModifyPassengerScheduleStatus =
-          mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
-
-        for (modifyPassengerScheduleStatus <- getWithVehicleIds(
-               modifyPassengerScheduleStatus.vehicleId
-             )) {
-          if (modifyPassengerScheduleStatus.interruptOrigin == InterruptOrigin.RESERVATION) {
-            reservationModifyPassengerScheduleStatus += modifyPassengerScheduleStatus
-          }
-        }
+        val reservationModifyPassengerScheduleStatus = getWithVehicleIds(modifyPassengerScheduleStatus.vehicleId)
+          .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
 
         var selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus] = None
         val withVehicleIds = getWithVehicleIds(vehicleId)
