@@ -473,7 +473,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }
 
-      if(filteredItinerariesForChoice.size == 1 && filteredItinerariesForChoice.head.tripClassifier==WALK){
+      if (filteredItinerariesForChoice.size == 1 && filteredItinerariesForChoice.head.tripClassifier == WALK) {
         val i = 0
       }
 
@@ -568,6 +568,7 @@ trait ChoosesMode {
           tick,
           id,
           chosenTrip.tripClassifier.value,
+          data.personData.currentTourMode.map(_.value).getOrElse(""),
           data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
           _experiencedBeamPlan
             .activities(data.personData.currentActivityIndex)
