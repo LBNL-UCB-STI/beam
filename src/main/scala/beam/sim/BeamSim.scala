@@ -149,13 +149,15 @@ class BeamSim @Inject()(
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      modalityStyleStats.processData(scenario.getPopulation, event)
-      modalityStyleStats.buildModalityStyleGraph()
-      createGraphsFromEvents.createGraphs(event)
-      PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
-        event.getServices.getControlerIO
-          .getIterationFilename(event.getIteration, "population.csv.gz")
-      )
+      tryLog("modalityStyleStats.processData", modalityStyleStats.processData(scenario.getPopulation, event))
+      tryLog("modalityStyleStats.buildModalityStyleGraph", modalityStyleStats.buildModalityStyleGraph())
+      tryLog("createGraphsFromEvents.createGraphs", createGraphsFromEvents.createGraphs(event))
+      tryLog("PopulationWriterCSV.write", {
+        PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
+          event.getServices.getControlerIO
+            .getIterationFilename(event.getIteration, "population.csv.gz")
+        )
+      })
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
@@ -193,6 +195,16 @@ class BeamSim @Inject()(
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: ${fileName}")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
+    }
+  }
+
+  private def tryLog(what: String, body: => Unit): Unit = {
+    try {
+      body
+    } catch {
+      case t: Throwable =>
+        val st = Thread.currentThread.getStackTrace.mkString(System.lineSeparator())
+        logger.error(s"Method '$what' failed with: ${t.getMessage}. Stacktrace: $st", t)
     }
   }
 }
