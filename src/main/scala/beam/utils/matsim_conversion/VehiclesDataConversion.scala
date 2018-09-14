@@ -7,13 +7,13 @@ import beam.utils.FileUtils
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
 
-import scala.xml.{Elem, NodeSeq}
+import scala.xml.{Elem, NodeSeq, XML}
 
-object VehiclesDataConversion {
+object VehiclesDataConversion extends App {
 
   val beamFuelTypesTitles = Seq("fuelTypeId","priceInDollarsPerMJoule")
   val beamFuelTypes = Seq(
-    Seq("gasoline","0.03"), Seq("diesel","0.02")
+    Seq("gasoline","0.03"), Seq("diesel","0.02"), Seq("electricity", "0.01")
   )
 
   val beamVehicleTypeTitles = Seq(
@@ -37,20 +37,43 @@ object VehiclesDataConversion {
     "vehicleId","vehicleTypeId"
   )
 
-  def generateFuelTypesDefaults(conversionConfig: ConversionConfig) = {
-    val beamFuelTypesPath = conversionConfig.scenarioDirectory + "/beamFuelTypes.csv"
+  if(null == args || args.size < 3){
+    println("Please include parameters: /path/to/vehicles.xml /path/to/transitVehicles.xml /outputDirectory/path")
+  } else {
+    val vehiclesFile = args(0)
+    val transitVehiclesFile = args(1)
+    val outputDir = args(2)
+
+    generateVehiclesData(vehiclesFile, transitVehiclesFile, outputDir)
+  }
+
+  def generateVehiclesData(vehiclesFile: String, transitFile: String, outputDir: String) = {
+    generateFuelTypesDefaults(outputDir)
+
+    val vehiclesDoc = XML.loadFile(vehiclesFile)
+    val transitDoc = XML.loadFile(transitFile)
+
+    val vehicleTypes = generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
+    val transitVehicleTypes = generateVehicleTypesFromSource(transitDoc \\ "vehicleType")
+
+    generateVehicleTypesDefaults(outputDir, vehicleTypes ++ transitVehicleTypes)
+    generateVehiclesDataFromSource(outputDir, vehiclesDoc)
+  }
+
+  def generateFuelTypesDefaults(scenarioDirectory: String) = {
+    val beamFuelTypesPath = scenarioDirectory + "/beamFuelTypes.csv"
 
     writeCsvFile(beamFuelTypesPath, beamFuelTypes, beamFuelTypesTitles)
   }
 
-  def generateVehicleTypesDefaults(conversionConfig: ConversionConfig, vehicleTypes: Seq[Seq[String]]) = {
-    val beamVehTypesPath = conversionConfig.scenarioDirectory + "/vehicleTypes.csv"
+  def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]) = {
+    val beamVehTypesPath = scenarioDirectory + "/vehicleTypes.csv"
 
     writeCsvFile(beamVehTypesPath, beamVehicleTypes ++ vehicleTypes, beamVehicleTypeTitles)
   }
 
   def generateVehicleTypesFromSource(vehicleTypeSeq: NodeSeq): Seq[Seq[String]] = {
-    val requiredFieldsForType = List("description", "capacity", "length", "engineInformation")
+    val requiredFieldsForType = List("capacity", "length", "engineInformation") //description ?
 
     for {
       vehicleType  <- vehicleTypeSeq
@@ -60,12 +83,12 @@ object VehiclesDataConversion {
     }
 
     vehicleTypeSeq.map { vt =>
-      val description = (vt \\ "description").text
+      val id = (vt \@ "id")
       val seatingCap = vt \ "capacity" \\ "seats" \@ "persons"
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
-      Seq(description,seatingCap,standingCap,length,fuelType,"2","4","gasoline","80","3","level","60","unit","50","40","CAR")
+      Seq(id,seatingCap,standingCap,length,fuelType,"2","4","gasoline","80","3","level","60","unit","50","40","CAR")
     }
   }
 
@@ -94,11 +117,11 @@ object VehiclesDataConversion {
     }
   }
 
-  def generateVehiclesDataFromSource(vehiclesDoc: Elem, conversionConfig: ConversionConfig): Seq[Seq[String]] = {
+  def generateVehiclesDataFromSource(scenarioDirectory: String, vehiclesDoc: Elem): Seq[Seq[String]] = {
     val vehicles = (vehiclesDoc \ "vehicle").map{ vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
-    val beamVehiclesPath = conversionConfig.scenarioDirectory + "/vehicles.csv"
+    val beamVehiclesPath = scenarioDirectory + "/vehicles.csv"
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
   }

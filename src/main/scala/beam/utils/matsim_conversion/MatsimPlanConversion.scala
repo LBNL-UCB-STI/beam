@@ -1,12 +1,5 @@
 package beam.utils.matsim_conversion
 
-import java.io.FileWriter
-import java.util
-
-import beam.utils.FileUtils
-import org.supercsv.io.CsvMapWriter
-import org.supercsv.prefs.CsvPreference
-
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -22,16 +15,16 @@ object MatsimPlanConversion {
     val persons = transformedPopulationDoc \\ "person"
 
     //Generate vehicles data
-    VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig)
+    VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles){
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig, Seq())
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons,conversionConfig)
     }else {
       val vehiclesFile = conversionConfig.vehiclesInput.get
       val vehiclesDoc = XML.loadFile(vehiclesFile)
       val vehicleTypes = VehiclesDataConversion.generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig, vehicleTypes)
-      VehiclesDataConversion.generateVehiclesDataFromSource(vehiclesDoc, conversionConfig)
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, vehicleTypes)
+      VehiclesDataConversion.generateVehiclesDataFromSource(conversionConfig.scenarioDirectory, vehiclesDoc)
     }
 
     val houseHolds =
