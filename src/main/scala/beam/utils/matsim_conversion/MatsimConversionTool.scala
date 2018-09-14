@@ -27,7 +27,7 @@ object MatsimConversionTool extends App {
 //    println(s"Network file ${conversionConfig.matsimNetworkFile}")
     new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
-    MatsimPlanConversion.generateScenarioXml(conversionConfig)
+    MatsimPlanConversion.generateScenarioData(conversionConfig)
     generateTazDefaults(conversionConfig, network)
     generateOsmFilteringCommand(conversionConfig, network)
   } else {
