@@ -139,7 +139,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     if (!reservationCompleted) {
       bufferedRideHailRequest = bufferedRideHailRequest.filter(_.request.customer.personId == personId)
 
-      if (bufferedRideHailRequest.size > 0) {
+      if (bufferedRideHailRequest.nonEmpty) {
         reservationCompleted = true
 
         println(s"reservationCompletionNotice: true - personId: ${personId}")

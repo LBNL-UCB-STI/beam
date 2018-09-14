@@ -11,7 +11,7 @@ case class RideHailResponse(
   triggersToSchedule: Vector[ScheduleTrigger] = Vector()
 ) {
   override def toString(): String =
-    s"request: ${request}, error: ${error}, travelProposal: ${travelProposal}"
+    s"request: $request, error: $error, travelProposal: $travelProposal"
 }
 
 object RideHailResponse {

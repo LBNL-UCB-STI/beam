@@ -49,7 +49,7 @@ public class PersonTravelTimeTest {
     });
 
     @Before
-    public void setUpClass() throws IOException {
+    public void setUpClass() {
         GraphTestUtil.createDummySimWithXML(new PersonTravelTimeHandler(personTravelTimeStats));
         personTravelTimeStats.compute();
     }

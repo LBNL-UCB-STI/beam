@@ -1,7 +1,5 @@
 package beam.replanning.utilitybased
 
-import java.util.Random
-
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
@@ -31,8 +29,6 @@ case class ChainBasedTourVehicleAllocator(
   val stageActivitytypes = new CompositeStageActivityTypes()
 
   val linkNetworkRouteFactory = new LinkNetworkRouteFactory()
-
-  private val random = new Random(3004568) // Random.org
 
   // Delegation
   val householdMemberships: Map[Id[Person], Household] = householdMembershipAllocator.memberships

@@ -94,14 +94,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transportNetwork = networkCoordinator.transportNetwork
       val beamServices: BeamServices = new BeamServices {
         override lazy val controler: ControlerI = ???
-        override var beamConfig: BeamConfig = BeamConfig(config)
+        override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
         override var modeChoiceCalculatorFactory: HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
         )
-        override var beamRouter: ActorRef = null
+        override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap[Id[BeamVehicle], BeamVehicle]()
@@ -179,7 +179,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   import context.dispatcher
 
   override final def receive: Receive = {
-    case "tick" => {
+    case "tick" =>
       firstMsgTime match {
         case Some(firstMsgTimeValue) =>
           val seconds =
@@ -198,7 +198,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           }
         case None => //
       }
-    }
     case WorkAvailable =>
       workAssigner = sender
       askForMoreWork

@@ -47,7 +47,7 @@ public class FuelUsageGraphTest {
     });
 
     @Before
-    public void setUpClass() throws IOException {
+    public void setUpClass() {
         GraphTestUtil.createDummySimWithXML(new FuelUsageHandler(fuelUsageStats));
         fuelUsageStats.compute();
     }

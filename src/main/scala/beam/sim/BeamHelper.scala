@@ -239,7 +239,7 @@ trait BeamHelper extends LazyLogging {
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ => {
+      case _ =>
         val (_, outputDirectory) = runBeamWithConfig(config)
         val props = new Properties()
         props.setProperty("commitHash", LoggingUtil.getCommitHash)
@@ -261,7 +261,6 @@ trait BeamHelper extends LazyLogging {
           )
         }
         Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
-      }
     }
   }
 
@@ -371,9 +370,9 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: Config
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
-      var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
-      var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
-      var notSelectedPersonIds = mutable.Set[Id[Person]]()
+      val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
+      val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
+      val notSelectedPersonIds = mutable.Set[Id[Person]]()
       var numberOfAgents = 0
 
       scenario.getVehicles.getVehicles

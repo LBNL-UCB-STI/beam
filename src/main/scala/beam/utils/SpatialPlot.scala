@@ -120,8 +120,6 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
   }
 
   def writeImage(path: String): Unit = {
-    val bound = boundsCalculator.getBound
-
     val graphics2d = bufferedImage.createGraphics()
 
     for (lineToPlot <- linesToPlot) {

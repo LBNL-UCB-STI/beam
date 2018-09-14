@@ -132,12 +132,12 @@ class ZonalParkingManager(
       val maybeFoundStalls = tazsWithDists
         .find {
           case (taz, _) =>
-            pooledResources.find {
+            pooledResources.exists {
               case (attr, values) =>
                 attr.tazId.equals(taz.tazId) &&
-                attr.reservedFor.equals(reservedFor) &&
-                values.numStalls > 0
-            }.isDefined
+                  attr.reservedFor.equals(reservedFor) &&
+                  values.numStalls > 0
+            }
         }
         .map {
           case (taz, _) =>

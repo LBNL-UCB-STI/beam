@@ -52,7 +52,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var initParkingVeh = mutable.ListBuffer[ActorRef]()
+  val initParkingVeh = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
