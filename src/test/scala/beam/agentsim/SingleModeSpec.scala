@@ -116,7 +116,7 @@ class SingleModeSpec
         .values()
         .forEach(person => {
           person.getSelectedPlan.getPlanElements.asScala.collect {
-            case (leg: Leg) =>
+            case leg: Leg =>
               leg.setMode("walk")
           }
         })

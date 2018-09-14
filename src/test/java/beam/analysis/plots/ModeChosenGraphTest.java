@@ -43,7 +43,7 @@ public class ModeChosenGraphTest {
     });
 
     @Before
-    public void setUpClass() throws IOException {
+    public void setUpClass() {
         createDummySimWithXML(new ModeChosenHandler(modeChoseStats));
         modeChoseStats.compute();
     }

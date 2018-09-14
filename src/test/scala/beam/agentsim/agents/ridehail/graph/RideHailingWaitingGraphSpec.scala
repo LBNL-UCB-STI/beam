@@ -3,7 +3,7 @@ import java.{lang, util}
 
 import beam.agentsim.agents.ridehail.graph.RideHailingWaitingGraphSpec.{RideHailingWaitingGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.{RideHailWaitingStats}
+import beam.analysis.plots.RideHailWaitingStats
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
