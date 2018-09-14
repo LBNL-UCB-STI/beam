@@ -1,6 +1,5 @@
 package beam.router
 
-//import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
@@ -124,7 +123,7 @@ object RoutingModel {
   object BeamLeg {
 
     def dummyWalk(startTime: Long): BeamLeg =
-      (new BeamLeg(0L, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))).updateStartTime(startTime)
+      new BeamLeg(0L, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0)).updateStartTime(startTime)
   }
 
   case class EmbodiedBeamLeg(

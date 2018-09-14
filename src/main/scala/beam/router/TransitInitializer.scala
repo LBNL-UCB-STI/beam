@@ -1,21 +1,22 @@
-package beam.sim
+package beam.router
+
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.RoutingModel.{BeamLeg, BeamPath, TransitStopsInfo, WindowTime}
+import beam.sim.BeamServices
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
+import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

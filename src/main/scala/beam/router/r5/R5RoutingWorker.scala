@@ -12,11 +12,10 @@ import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM, WALK}
+import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
@@ -25,11 +24,11 @@ import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
-import beam.router.{Modes, RoutingModel}
+import beam.router.{Modes, RoutingModel, TransitInitializer}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
-import beam.sim.{BeamHelper, BeamServices, TransitInitializer}
+import beam.sim.BeamServices
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
@@ -39,18 +38,14 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
 import com.google.inject.Injector
 import com.typesafe.config.Config
-import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
+import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -59,7 +54,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Either, Left, Right}
 
 case class WorkerParameters(
   beamServices: BeamServices,
@@ -109,7 +103,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] = BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
-        override def startNewIteration: Unit = throw new Exception("???")
+        override def startNewIteration(): Unit = throw new Exception("???")
 
         override protected def injector: Injector = throw new Exception("???")
 
@@ -150,20 +144,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private val distanceThresholdToIgnoreWalking =
     beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
-  val numOfThreads =
-    if (Runtime.getRuntime().availableProcessors() <= 2) 1
-    else Runtime.getRuntime().availableProcessors() - 2
+  val numOfThreads: Int =
+    if (Runtime.getRuntime.availableProcessors() <= 2) 1
+    else Runtime.getRuntime.availableProcessors() - 2
   implicit val executionContext: ExecutionContext =
     ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
 
-  val tickTask =
+  val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   var msgs: Long = 0
   var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
-    Runtime.getRuntime().availableProcessors(),
+    Runtime.getRuntime.availableProcessors(),
     numOfThreads
   )
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
@@ -171,12 +165,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   var workAssigner: ActorRef = context.parent
 
   override def preStart(): Unit = {
-    askForMoreWork
+    askForMoreWork()
   }
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
-  import context.dispatcher
+//  import context.dispatcher
 
   override final def receive: Receive = {
     case "tick" =>
@@ -200,7 +194,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     case WorkAvailable =>
       workAssigner = sender
-      askForMoreWork
+      askForMoreWork()
     case InitTransit(scheduler, _, id) =>
       val start = System.currentTimeMillis()
       val initializer = new TransitInitializer(beamServices, transportNetwork, transitVehicles)
@@ -216,13 +210,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       sender() ! Success("inited")
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
-      askForMoreWork
+      askForMoreWork()
     case GetTravelTime =>
       maybeTravelTime match {
         case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
         case None             => sender ! R5Network(transportNetwork)
       }
-      askForMoreWork
+      askForMoreWork()
     case request: RoutingRequest =>
       msgs += 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
@@ -238,14 +232,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         case _ =>
       }
       eventualResponse pipeTo sender
-      askForMoreWork
+      askForMoreWork()
     case UpdateTravelTime(travelTime) =>
       if (!beamServices.beamConfig.beam.cluster.enabled) {
         log.info(s"{} UpdateTravelTime", getNameAndHashCode)
         maybeTravelTime = Some(travelTime)
         cache.invalidateAll()
       }
-      askForMoreWork
+      askForMoreWork()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Long, linkId: Int) =>
@@ -288,10 +282,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         ),
         embodyRequestId
       )
-      askForMoreWork
+      askForMoreWork()
   }
 
-  private def askForMoreWork =
+  private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
   def updateLegWithCurrentTravelTime(leg: BeamLeg): BeamLeg = {
@@ -589,7 +583,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val indexFromEnd = Math.min(
             Math.max(
               theLinkIds.reverse
-                .map(lengthOfLink(_))
+                .map(lengthOfLink)
                 .scanLeft(0.0)(_ + _)
                 .indexWhere(
                   _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
@@ -644,7 +638,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // this covers the various contingencies for doing this.
               val delayStartTime =
                 Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
-              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime.toLong + delayStartTime.toLong), 0.0))
+              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toLong), 0.0))
             })
 
             val access = option.access.get(itinerary.connection.access)
@@ -1234,7 +1228,7 @@ object R5RoutingWorker {
   ) =
     Props(
       new R5RoutingWorker(
-        new WorkerParameters(
+        WorkerParameters(
           beamServices,
           transportNetwork,
           network,
