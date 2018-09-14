@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, Paths}
+import java.nio.file._
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -15,13 +15,14 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
+import beam.utils.BashUtil.{getBranch, getCommitHash}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
@@ -242,7 +243,7 @@ trait BeamHelper extends LazyLogging {
       case _ =>
         val (_, outputDirectory) = runBeamWithConfig(config)
         val props = new Properties()
-        props.setProperty("commitHash", LoggingUtil.getCommitHash)
+        props.setProperty("commitHash", getCommitHash)
         props.setProperty("configFile", configLocation)
         val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
         props.store(out, "Simulation out put props.")
@@ -260,7 +261,7 @@ trait BeamHelper extends LazyLogging {
             )
           )
         }
-        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
+        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"), StandardCopyOption.REPLACE_EXISTING)
     }
   }
 
@@ -337,9 +338,15 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.agentsim.simulationName,
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
+
     LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+
+    logger.info(s"Starting beam on branch $getBranch at commit $getCommitHash.")
+    val outConf = Paths.get(outputDirectory, "beam.conf")
+    Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
+    logger.info(s"Config [${beamConfig.beam.agentsim.simulationName}] copied to $outConf.")
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
