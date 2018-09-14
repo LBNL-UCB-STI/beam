@@ -1,5 +1,7 @@
 package beam.analysis;
 
+import beam.agentsim.agents.vehicles.BeamVehicle;
+import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.common.GeoUtils$;
 import beam.utils.DebugLib;
@@ -13,10 +15,7 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
-import org.matsim.vehicles.VehicleReaderV1;
-import org.matsim.vehicles.VehicleType;
-import org.matsim.vehicles.VehicleUtils;
-import org.matsim.vehicles.Vehicles;
+import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -101,7 +100,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public static HashMap<String, R5NetworkLink> r5NetworkLinks;
     public static int numberOfLinkIdsMissingInR5NetworkFile = 0;
-    private static Vehicles vehicles;
+    private static TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles;
     private Table<String, String, Double>[] linkVehicleTypeTuples = new Table[NUMBER_OF_BINS];
     private Table<String, String, Double>[] energyConsumption = new Table[NUMBER_OF_BINS];
     private Table<String, String, Double>[] numberOfVehicles = new Table[NUMBER_OF_BINS];
@@ -114,7 +113,6 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             energyConsumption[i] = HashBasedTable.create();
             numberOfVehicles[i] = HashBasedTable.create();
             numberOfPassengers[i] = HashBasedTable.create();
-
         }
     }
 
@@ -162,11 +160,12 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     public static void loadVehicles(String vehiclesFileName) {
-        vehicles = VehicleUtils.createVehiclesContainer();
-        new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
+        //TODO
+//        vehicles = VehicleUtils.createVehiclesContainer();
+//        new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
     }
 
-    public static void setVehicles(Vehicles vehicles) {
+    public static void setVehicles(TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles) {
         PathTraversalSpatialTemporalTableGenerator.vehicles = vehicles;
     }
 
@@ -216,13 +215,15 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         if (vehicleIdString.contains(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)) {
             // is transit agency
             transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
-            Id<VehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), VehicleType.class);
-            if (!vehicles.getVehicleTypes().containsKey(vehicleTypeId)) {
-                vehicleTypeId = Id.create((mode + "-DEFAULT").toUpperCase(), VehicleType.class);
+            Id<BeamVehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), BeamVehicleType.class);
+
+            if (!vehicles.contains(vehicleTypeId)) {
+                vehicleTypeId = Id.create((mode + "-DEFAULT").toUpperCase(), BeamVehicleType.class);
             }
 
-            VehicleType vehicleType = vehicles.getVehicleTypes().get(vehicleTypeId);
-            String vehicleFuelType = vehicleType.getEngineInformation().getFuelType().name();
+            BeamVehicleType vehicleType = vehicles.get(vehicleTypeId).get();
+
+            String vehicleFuelType = vehicleType.primaryFuelType().fuelTypeId();
 
             if (vehicleFuelType.equalsIgnoreCase(BIODIESEL)) {
                 return NATURAL_GAS;
