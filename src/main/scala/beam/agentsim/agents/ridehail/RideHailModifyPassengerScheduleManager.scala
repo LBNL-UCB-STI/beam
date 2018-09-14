@@ -148,19 +148,8 @@ class RideHailModifyPassengerScheduleManager(
         assert(vehicleId == modifyPassengerScheduleStatus.vehicleId)
         assert(tick == modifyPassengerScheduleStatus.tick)
 
-//        log.debug(
-//          "RideHailModifyPassengerScheduleManager.handleInterrupt: " + modifyPassengerScheduleStatus.toString
-//        )
-        var reservationModifyPassengerScheduleStatus =
-          mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
-
-        for (modifyPassengerScheduleStatus <- getWithVehicleIds(
-               modifyPassengerScheduleStatus.vehicleId
-             )) {
-          if (modifyPassengerScheduleStatus.interruptOrigin == InterruptOrigin.RESERVATION) {
-            reservationModifyPassengerScheduleStatus += modifyPassengerScheduleStatus
-          }
-        }
+        val reservationModifyPassengerScheduleStatus = getWithVehicleIds(modifyPassengerScheduleStatus.vehicleId)
+          .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
 
         var selectedForModifyPassengerSchedule: Option[RideHailModifyPassengerScheduleStatus] = None
         val withVehicleIds = getWithVehicleIds(vehicleId)
@@ -335,9 +324,7 @@ class RideHailModifyPassengerScheduleManager(
         ignoreErrorPrint = false
       }
 
-      if (vehicles.size > 1 && !vehicles
-            .filter(x => x.interruptOrigin == InterruptOrigin.RESERVATION)
-            .isEmpty) {
+      if (vehicles.size > 1 && vehicles.exists(_.interruptOrigin == InterruptOrigin.RESERVATION)) {
         // this means there is a race condition between a repositioning and reservation message and we should remove the reposition/not process it further
 
         // ALREADY removed in handle interruption
@@ -406,7 +393,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     val rideHailAgentInterruptId =
       RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
-    var interruptMessageStatus = InterruptMessageStatus.UNDEFINED
+    val interruptMessageStatus = InterruptMessageStatus.UNDEFINED
 
     val rideHailModifyPassengerScheduleStatus = RideHailModifyPassengerScheduleStatus(
       rideHailAgentInterruptId,
@@ -574,13 +561,6 @@ case class RideHailModifyPassengerScheduleStatus(
   tick: Double,
   rideHailAgent: ActorRef,
   var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED
-)
-
-case class RepositionVehicleRequest(
-  passengerSchedule: PassengerSchedule,
-  tick: Double,
-  vehicleId: Id[Vehicle],
-  rideHailAgent: ActorRef
 )
 
 case object ReduceAwaitingRepositioningAckMessagesByOne

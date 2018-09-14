@@ -133,10 +133,6 @@ class BeamAgentScheduler(
   private var startSender: ActorRef = _
   private var nowInSeconds: Double = 0.0
 
-  private var previousTotalAwaitingRespone = 0L
-  private var currentTotalAwaitingResponse = 0L
-  private var numberRepeats = 0
-
   private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
 
   private var startedAt: Deadline = _
