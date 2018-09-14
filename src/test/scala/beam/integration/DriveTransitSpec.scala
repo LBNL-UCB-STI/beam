@@ -23,14 +23,16 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
    * in a periodic fashion, this can be un-ignored. -CS
    */
   "DriveTransit trips" must {
-    "run to completion" taggedAs (Periodic, ExcludeRegular) ignore { //TODO need vehicle input dta
+    "run to completion" taggedAs (Periodic, ExcludeRegular) ignore {
+
+      //TODO need vehicle input dta
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
         .withValue(
           TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          TestConstants.MODAL_BEHAVIOR_DRIVE_TRANSIT_INTERCEPT,
           ConfigValueFactory.fromAnyRef(9999)
         )
         .withValue(
