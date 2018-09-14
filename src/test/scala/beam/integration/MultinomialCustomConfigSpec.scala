@@ -43,8 +43,8 @@ class MultinomialCustomConfigSpec
       val carConfigPositive = new StartWithCustomConfig(config1)
       val carConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = carConfigPositive.groupedCount.getOrElse(BeamMode.CAR.value, 0);
-      val countNegative = carConfigNegative.groupedCount.getOrElse(BeamMode.CAR.value, 0);
+      val countPositive = carConfigPositive.groupedCount.getOrElse(BeamMode.CAR.value, 0)
+      val countNegative = carConfigNegative.groupedCount.getOrElse(BeamMode.CAR.value, 0)
 
       logger.debug("CAR __________>")
       logger.debug(s"Positive: $countPositive")
@@ -81,10 +81,8 @@ class MultinomialCustomConfigSpec
       val bikeConfigPositive = new StartWithCustomConfig(config1)
       val bikeConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        bikeConfigPositive.groupedCount.get("bike").getOrElse(0);
-      val countNegative =
-        bikeConfigNegative.groupedCount.get("bike").getOrElse(0);
+      val countPositive = bikeConfigPositive.groupedCount.getOrElse("bike", 0)
+      val countNegative = bikeConfigNegative.groupedCount.getOrElse("bike", 0)
 
 //      println("Bike __________>")
 //      println("Positive: " + countPositive)
@@ -121,10 +119,8 @@ class MultinomialCustomConfigSpec
       val rideConfigPositive = new StartWithCustomConfig(config1)
       val rideConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        rideConfigPositive.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0);
-      val countNegative =
-        rideConfigNegative.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0);
+      val countPositive = rideConfigPositive.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
+      val countNegative = rideConfigNegative.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
 
 //      println("Ride Hailing __________>")
 //      println("Positive: " + countPositive)
@@ -162,9 +158,9 @@ class MultinomialCustomConfigSpec
       val transitConfigNegative = new StartWithCustomConfig(config2)
 
       val countPositive =
-        transitConfigPositive.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0);
+        transitConfigPositive.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0)
       val countNegative =
-        transitConfigNegative.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0);
+        transitConfigNegative.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0)
 
 //      println("Transit __________>")
 //      println("Positive: " + countPositive)
@@ -201,10 +197,8 @@ class MultinomialCustomConfigSpec
       val walkConfigPositive = new StartWithCustomConfig(config1)
       val walkConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        walkConfigPositive.groupedCount.getOrElse(BeamMode.WALK.value, 0);
-      val countNegative =
-        walkConfigNegative.groupedCount.getOrElse(BeamMode.WALK.value, 0);
+      val countPositive = walkConfigPositive.groupedCount.getOrElse(BeamMode.WALK.value, 0)
+      val countNegative = walkConfigNegative.groupedCount.getOrElse(BeamMode.WALK.value, 0)
 
 //      println("WAlk __________>")
 //      println("Positive: " + countPositive)
