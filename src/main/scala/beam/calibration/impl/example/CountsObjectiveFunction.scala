@@ -4,9 +4,9 @@ import scala.io.Source
 import beam.calibration.api.ObjectiveFunction
 import beam.utils.FileUtils.using
 
-object CountsObjectiveFunction extends ObjectiveFunction {
+object CountsObjectiveFunction {
 
-  override def evaluateFromRun(runDataPath: String): Double = {
+  def evaluateFromRun(runDataPath: String): Double = {
     val counts = getStatsFromFile(runDataPath)
     -(counts.map { case (_, sCd) => sCd.map { _.normalizedError }.sum / sCd.size }.sum / counts.size)
   }
