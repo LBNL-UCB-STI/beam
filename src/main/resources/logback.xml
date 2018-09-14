@@ -86,7 +86,7 @@
 
     </Logger>
 
-    <Logger name="beam.router.BeamRouter" level="Info" additivity="false">
+    <Logger name="beam.router.BeamRouter" level="Error" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
 
