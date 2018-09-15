@@ -790,10 +790,10 @@ class RideHailManager(
               agentLocation.vehicleId
             )
           case None =>
-            log.error(
-              "No route to parking stall found, ride hail agent {} stranded",
-              agentLocation.vehicleId
-            )
+            //log.error(
+            //  "No route to parking stall found, ride hail agent {} stranded",
+            //  agentLocation.vehicleId
+            //)
 
             // release trigger if no parking depot found so that simulation can continue
             outOfServiceVehicleManager.releaseTrigger(agentLocation.vehicleId)
