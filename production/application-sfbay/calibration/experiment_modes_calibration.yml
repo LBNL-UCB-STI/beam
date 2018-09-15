@@ -11,13 +11,13 @@ header:
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
-      S3_OUTPUT_PATH_SUFFIX: "sf-light"
+      S3_OUTPUT_PATH_SUFFIX: "application-sfbay"
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
       runName: "Production_Calibration_modes_intercept_absError_2"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "7109bf4fc7f16b22feaa44f8454d624c42f2f8a4"
+      beamCommit: "8fabc5981ca81ebcaf69dd9b27146c8cc224a256"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
