@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
+import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -140,7 +141,19 @@ trait BeamHelper extends LazyLogging {
             )
           ) ++ {
             if (parsedArgs.useCluster)
-              Map("beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString)
+              Map(
+                "beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString,
+                "akka.actor.provider"      -> "akka.cluster.ClusterActorRefProvider",
+                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.getOrElse(
+                  throw new RuntimeException("`nodeHost` is not set")
+                ),
+                "akka.remote.artery.canonical.port" -> parsedArgs.nodePort
+                  .map { _.toInt }
+                  .getOrElse(throw new RuntimeException("`nodePort` is not set")),
+                "akka.cluster.seed-nodes" -> util.Arrays.asList(
+                  s"akka://ClusterSystem@${parsedArgs.seedAddress.getOrElse(throw new RuntimeException("`seedAddress` is not set"))}"
+                ),
+              )
             else Map.empty[String, Any]
           }
         ).asJava
