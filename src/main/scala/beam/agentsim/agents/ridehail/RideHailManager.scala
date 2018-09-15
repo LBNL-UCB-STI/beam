@@ -314,7 +314,7 @@ class RideHailManager(
           rideHailResourceAllocationManager.handleRideCancellationReply(ev)
 
         case None =>
-          log.error(s"request not found: ${ev}")
+          log.error(s"request not found: $ev")
       }
 
     case NotifyIterationEnds() =>
