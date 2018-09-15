@@ -5,6 +5,7 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
@@ -153,9 +154,13 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
                 ((ModeChosenStats) modeChoseStats).writeToRootCSV();
                 if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length()>0) {
                     String outPath = CONTROLLER_IO.getOutputFilename("modeChoice.csv");
-                    Double modesError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
-                            .evaluateFromRun(outPath);
-                    log.info("modes Error: " + modesError);
+                    Double modesAbsoluteError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                            .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
+                    log.info("modesAbsoluteError: " + modesAbsoluteError);
+
+                    Double modesRMSPError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                            .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
+                    log.info("modesRMSPError: " + modesRMSPError);
                 }
             } catch (Exception e){
                 log.error("exception: {}", e.getMessage());
