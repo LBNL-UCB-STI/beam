@@ -773,10 +773,7 @@ class RideHailManager(
           .mapTo[RoutingResponse]
       } {
         val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
-          .filter(
-            x => x.tripClassifier.equals(RIDE_HAIL)
-          )
-          .headOption
+          .find(x => x.tripClassifier.equals(RIDE_HAIL))
 
         itinOpt match {
           case Some(itin) =>
