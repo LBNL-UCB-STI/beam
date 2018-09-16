@@ -4,15 +4,14 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Status.Success
+import akka.actor.Status.{Status, Success}
 import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 //import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -22,9 +21,9 @@ import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.{BeamServices, TransitInitializer}
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
+import beam.sim.{BeamServices, TransitInitializer}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
@@ -32,9 +31,9 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 class BeamRouter(
   services: BeamServices,
@@ -130,33 +129,18 @@ class BeamRouter(
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
     case InitTransit(scheduler, parkingManager, id) =>
-      // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
-      val f = Future
-        .sequence(
-          remoteNodes.map {
-            case address =>
-              context
-                .actorSelection(RootActorPath(address) / servicePathElements)
-                .resolveOne(10.seconds)
-                .flatMap { serviceActor: ActorRef =>
-                  log.info("Sending InitTransit to  {}", serviceActor)
-                  serviceActor ? InitTransit(scheduler, parkingManager, id)
-                }
-          } + Future {
-            val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
-            val transits = initializer.initMap
-            initDriverAgents(initializer, scheduler, parkingManager, transits)
-            metricsPrinter ! Subscribe("histogram", "**")
-            localNodes.foreach {
-              case localWorker =>
-                localWorker ! TransitInited(transits)
-            }
-          }
-        )
-        .map { _ =>
-          Success("success")
+      val localInit: Future[Set[Status]] = Future {
+        val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
+        val transits = initializer.initMap
+        initDriverAgents(initializer, scheduler, parkingManager, transits)
+        metricsPrinter ! Subscribe("histogram", "**")
+        localNodes.map {
+          case localWorker =>
+            localWorker ! TransitInited(transits)
+            Success(s"local worker '$localWorker' inited")
         }
-      f.pipeTo(sender)
+      }
+      localInit.pipeTo(sender)
     case msg: UpdateTravelTime =>
       if (!services.beamConfig.beam.cluster.enabled) {
         metricsPrinter ! Print(
