@@ -145,7 +145,7 @@ class ZonalParkingManager(
           .map(_._2.numStalls.toLong)
           .sum
       )
-      val tazsWithDists = findTAZsWithDistances(location, 1000.0)
+      val tazsWithDists = findTAZsWithinDistance(location, 10000.0)
       val maybeFoundStalls = tazsWithDists
         .find {
           case (taz, _) =>
@@ -215,7 +215,7 @@ class ZonalParkingManager(
           parkingDuration: Double,
           reservedFor: ReservedParkingType
         ) =>
-      val nearbyTazsWithDistances = findTAZsWithDistances(destinationUtm, 500.0)
+      val nearbyTazsWithDistances = findTAZsWithinDistance(destinationUtm, 5000.0)
       val preferredType = activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
@@ -332,7 +332,7 @@ class ZonalParkingManager(
   }
 
   def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destinationUtm, searchRadius)
+    val nearbyTazsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, searchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
       Vector(FlatFee, Block).flatMap { pricingModel =>
         val attrib =
@@ -385,21 +385,11 @@ class ZonalParkingManager(
     }
   }
 
-  def findTAZsWithDistances(searchCenter: Location, startRadius: Double): Vector[(TAZ, Double)] = {
-    var nearbyTazs: Vector[TAZ] = Vector()
-    var searchRadius = startRadius
-    while (nearbyTazs.isEmpty) {
-      if (searchRadius > ZonalParkingManager.maxSearchRadius) {
-        throw new RuntimeException(
-          "Parking search radius has reached 10,000 km and found no TAZs, possible map projection error?"
-        )
-      }
-      nearbyTazs = beamServices.tazTreeMap.tazQuadTree
-        .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
-        .asScala
-        .toVector
-      searchRadius = searchRadius * 2.0
-    }
+  def findTAZsWithinDistance(searchCenter: Location, searchRadius: Double): Vector[(TAZ, Double)] = {
+    val nearbyTazs = beamServices.tazTreeMap.tazQuadTree
+      .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
+      .asScala
+      .toVector
     nearbyTazs
       .zip(nearbyTazs.map { taz =>
         // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
