@@ -760,8 +760,9 @@ public class DeadHeadingStats implements IGraphStats {
     public void collectEvents(Event event) {
 
         String type = event.getEventType();
-        String mode = getEventMode(event);
-        String vehicleId = getVehicleId(event);
+        Map<String, String> attributes = event.getAttributes();
+        String mode = getEventMode(attributes);
+        String vehicleId = getVehicleId(attributes);
         Double time = event.getTime();
 
         if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")){
@@ -770,7 +771,7 @@ public class DeadHeadingStats implements IGraphStats {
             if(graph == null){
                 graph = new CarPassengerPerTrip("car");
             }
-            graph.collectEvent(event);
+            graph.collectEvent(event, attributes);
 
             passengerPerTripMap.put("car", graph);
 
@@ -780,7 +781,7 @@ public class DeadHeadingStats implements IGraphStats {
             if(graph == null){
                 graph = new TncPassengerPerTrip();
             }
-            graph.collectEvent(event);
+            graph.collectEvent(event, attributes);
 
             passengerPerTripMap.put("tnc", graph);
         }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)){
@@ -792,7 +793,7 @@ public class DeadHeadingStats implements IGraphStats {
                 if (graph == null) {
                     graph = new GenericPassengerPerTrip(mode);
                 }
-                graph.collectEvent(event);
+                graph.collectEvent(event, attributes);
                 passengerPerTripMap.put(mode, graph);
             }
         }
@@ -800,12 +801,12 @@ public class DeadHeadingStats implements IGraphStats {
 
     Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
-    private String getVehicleId(Event event) {
-        return event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+    private String getVehicleId(Map<String, String> attributes) {
+        return attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
     }
 
-    private String getEventMode(Event event){
-        return event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+    private String getEventMode(Map<String, String> attributes){
+        return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
     }
 
 }
