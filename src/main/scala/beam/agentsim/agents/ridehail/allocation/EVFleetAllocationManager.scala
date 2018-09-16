@@ -149,7 +149,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   /*
    * Finally, we delgate repositioning to the repositioning manager
    */
-//  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-//    repositioningLowWaitingTimes.repositionVehicles(tick)
-//  }
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+    repositioningLowWaitingTimes.repositionVehicles(tick)
+  }
 }
