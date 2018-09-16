@@ -17,11 +17,12 @@ goto :init
     echo.  /e, --verbose        shows detailed output
     echo.
     echo.  -h host_csv          host csv, with dns and identity file
-    echo.  -p search_path       search file path
-    echo.  -s search_word       search word
+    echo.  -target_cert target_cert_path
+    echo.  -target_host target_host_dns
+    echo.  -source_folder source_folder_to_copy
     echo.
     echo Example:
-    echo   %__BAT_NAME% -h dns.csv -s iteration
+    echo   %__BAT_NAME% -h dns.csv -target_cert [PATH_TO_CERT_FILE] -target_host [TARGET_HOST_DNS] -source_folder [SOURCE_FOLDER_TO_COPY]
     goto :eof
 
 :version
@@ -34,8 +35,9 @@ goto :init
     call :usage
     echo.
     if not defined host_csv  echo host_csv: not provided
-    if not defined search_path  echo search_path: not provided
-    if not defined search_word  echo search_word: not provided
+    if not defined target_cert_path  echo target_cert_path: not provided
+    if not defined target_host_dns  echo target_host_dns: not provided
+    if not defined source_folder_to_copy echo source_folder_to_copy: not provided
     echo.
     goto :eof
 
@@ -53,8 +55,10 @@ goto :init
     set "OptVerbose="
 
     set "host_csv="
-    set "search_path=/var/log/cloud-init-output.log"
-    set "search_word="
+
+    set "target_cert_path="
+    set "target_host_dns="
+    set "source_folder_to_copy="
 
 :parse
     if "%~1"=="" goto :validate
@@ -72,15 +76,19 @@ goto :init
     if /i "%~1"=="--verbose"  set "OptVerbose=yes"  & shift & goto :parse
 
     if /i "%~1"=="-h"         set "host_csv=%~2"           & shift & shift & goto :parse
-    if /i "%~1"=="-p"         set "search_path=%~2"         & shift & shift & goto :parse
-    if /i "%~1"=="-s"         set "search_word=%~2"         & shift & shift & goto :parse
+
+    if /i "%~1"=="-target_cert"         set "target_cert_path=%~2"         & shift & shift & goto :parse
+    if /i "%~1"=="-target_host"         set "target_host_dns=%~2"         & shift & shift & goto :parse
+    if /i "%~1"=="-source_folder"         set "source_folder_to_copy=%~2"         & shift & shift & goto :parse
 
     shift
     goto :parse
 
 :validate
     if not defined host_csv        call :missing_argument & goto :end
-    if not defined search_path      call :missing_argument & goto :end
+    if not defined target_cert_path      call :missing_argument & goto :end
+    if not defined target_host_dns     call :missing_argument & goto :end
+    if not defined source_folder_to_copy     call :missing_argument & goto :end
     where scp >nul 2>nul
     if %errorlevel%==1 (
         @echo scp not found in path. Please install OpenSSH [https://github.com/PowerShell/Win32-OpenSSH/wiki/Install-Win32-OpenSSH]
@@ -94,13 +102,19 @@ goto :init
          if defined host_csv               echo host_csv:          "%host_csv%"
          if defined search_path             echo search_path:        "%search_path%"
          if defined search_word             echo search_word:        "%search_word%"
+         if defined target_cert_path        echo target_cert_path:   "%target_cert_path%"
+         if defined target_host_dns         echo target_host_dns:   "%target_host_dns%"
+         if defined source_folder         echo source_folder_to_copy:   "%source_folder_to_copy%"
     )
 
     for /f "tokens=1,2 delims=, " %%a in (%host_csv%) do (
         echo Results from host: %%a
-        scp -i "%%b" -r "%%b" ubuntu@%%a:~/cert.cer
-        ssh -i "%%b" ubuntu@%%a chmod 600 cert.cer
-        ssh -i "%%b" ubuntu@%%a scp -i "cert.cer" -r git/beam/production/application-sfbay/calibration/experiments ubuntu@ec2-34-219-126-79.us-west-2.compute.amazonaws.com:~/experiments
+        scp -i "%%b" -r "%target_cert_path%" ubuntu@%%a:~/.ssh/result_host_cert.pem
+        ssh -i "%%b" ubuntu@%%a chmod 600 ~/.ssh/result_host_cert.pem
+        ssh -i "%%b" ubuntu@%%a scp -i ~/.ssh/result_host_cert.pem -r "%source_folder_to_copy%" ubuntu@%target_host_dns%:~/sigoptResults
+
+        REM ssh -i "%target_cert_path%" ubuntu@%target_host_dns% ls sigoptResults
+
     )
 
 :end
@@ -126,4 +140,7 @@ goto :init
     set "search_path="
     set "search_word="
 
+    set "target_cert_path="
+    set "target_host_dns="
+    set "source_folder_to_copy="
     goto :eof
