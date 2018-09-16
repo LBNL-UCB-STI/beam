@@ -2,14 +2,10 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  Interrupt,
-  ModifyPassengerSchedule,
-  NotifyVehicleResourceIdleReply,
-  Resume
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, NotifyVehicleResourceIdleReply, Resume}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailModifyPassengerScheduleManager}
 import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig
@@ -90,4 +86,5 @@ case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
   tick: Double,
   vehicleId: Id[Vehicle],
+  stall: ParkingStall
 )

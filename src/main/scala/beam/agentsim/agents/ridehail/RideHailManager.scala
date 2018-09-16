@@ -700,7 +700,8 @@ class RideHailManager(
       modifyPassengerScheduleManager
         .modifyPassengerScheduleAckReceivedForRepositioning(Vector())
 
-    case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId) =>
+    case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId, stall) =>
+      pendingAgentsSentToPark.put(vehicleId, stall)
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
@@ -783,11 +784,11 @@ class RideHailManager(
             val passengerSchedule = PassengerSchedule().addLegs(
               itin.toBeamTrip.legs
             )
-            pendingAgentsSentToPark.put(agentLocation.vehicleId, stall)
             self ! MoveOutOfServiceVehicleToDepotParking(
               passengerSchedule,
               itin.legs.head.beamLeg.startTime,
-              agentLocation.vehicleId
+              agentLocation.vehicleId,
+              stall
             )
           case None =>
             //log.error(
