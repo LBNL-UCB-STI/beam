@@ -145,7 +145,7 @@ class ZonalParkingManager(
           .map(_._2.numStalls.toLong)
           .sum
       )
-      val tazsWithDists = findTAZsWithinDistance(location, 10000.0)
+      val tazsWithDists = findTAZsWithinDistance(location, 10000.0, 20000.0)
       val maybeFoundStalls = tazsWithDists
         .find {
           case (taz, _) =>
@@ -216,7 +216,7 @@ class ZonalParkingManager(
           parkingDuration: Double,
           reservedFor: ReservedParkingType
         ) =>
-      val nearbyTazsWithDistances = findTAZsWithinDistance(destinationUtm, 5000.0)
+      val nearbyTazsWithDistances = findTAZsWithinDistance(destinationUtm, 500.0, 16000.0)
       val preferredType = activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
@@ -230,13 +230,18 @@ class ZonalParkingManager(
       /*
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */
-      val maybeFoundStall = pooledResources.find {
-        case (attr, values) =>
-          attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
-          attr.parkingType == preferredType &&
-          attr.reservedFor.equals(reservedFor) &&
-          values.numStalls > 0 &&
-          values.feeInCents == 0
+      val maybeFoundStall = nearbyTazsWithDistances.size match {
+        case 0 =>
+          None
+        case _ =>
+          pooledResources.find {
+            case (attr, values) =>
+              attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
+                attr.parkingType == preferredType &&
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0 &&
+                values.feeInCents == 0
+          }
       }
       val maybeDominantSpot = maybeFoundStall match {
         case Some(foundStall) if chargingPreference == NoNeed =>
@@ -332,8 +337,8 @@ class ZonalParkingManager(
     }
   }
 
-  def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, searchRadius)
+  def selectPublicStall(inquiry: ParkingInquiry, startSearchRadius: Double): ParkingStall = {
+    val nearbyTazsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
       Vector(FlatFee, Block).flatMap { pricingModel =>
         val attrib =
@@ -371,7 +376,7 @@ class ZonalParkingManager(
     chosenStall match {
       case Some(stall) => stall
       case None =>
-        if (searchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
+        if (startSearchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
           stallnum = stallnum + 1
           new ParkingStall(
             Id.create(stallnum, classOf[ParkingStall]),
@@ -381,16 +386,21 @@ class ZonalParkingManager(
             Some(defaultStallValues)
           )
         } else {
-          selectPublicStall(inquiry, searchRadius * 2.0)
+          selectPublicStall(inquiry, startSearchRadius * 2.0)
         }
     }
   }
 
-  def findTAZsWithinDistance(searchCenter: Location, searchRadius: Double): Vector[(TAZ, Double)] = {
-    val nearbyTazs = beamServices.tazTreeMap.tazQuadTree
-      .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
-      .asScala
-      .toVector
+  def findTAZsWithinDistance(searchCenter: Location, startRadius: Double, maxRadius: Double): Vector[(TAZ, Double)] = {
+    var nearbyTazs: Vector[TAZ] = Vector()
+    var searchRadius = startRadius
+    while (nearbyTazs.isEmpty && searchRadius <= maxRadius) {
+      nearbyTazs = beamServices.tazTreeMap.tazQuadTree
+        .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
+        .asScala
+        .toVector
+      searchRadius = searchRadius * 2.0
+    }
     nearbyTazs
       .zip(nearbyTazs.map { taz =>
         // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
