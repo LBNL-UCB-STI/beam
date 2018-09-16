@@ -554,7 +554,7 @@ class RideHailManager(
         log.debug(
           "modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck
         )
-        outOfServiceVehicleManager.handleModifyPassengerScheduleAck(vehicleId, triggersToSchedule)
+        outOfServiceVehicleManager.releaseTrigger(vehicleId, triggersToSchedule)
       } else {
 
         requestIdOpt match {
@@ -700,7 +700,8 @@ class RideHailManager(
       modifyPassengerScheduleManager
         .modifyPassengerScheduleAckReceivedForRepositioning(Vector())
 
-    case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId) =>
+    case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId, stall) =>
+      pendingAgentsSentToPark.put(vehicleId, stall)
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
@@ -783,22 +784,25 @@ class RideHailManager(
             val passengerSchedule = PassengerSchedule().addLegs(
               itin.toBeamTrip.legs
             )
-            pendingAgentsSentToPark.put(agentLocation.vehicleId, stall)
             self ! MoveOutOfServiceVehicleToDepotParking(
               passengerSchedule,
               itin.legs.head.beamLeg.startTime,
-              agentLocation.vehicleId
+              agentLocation.vehicleId,
+              stall
             )
           case None =>
-            log.error(
-              "No route to parking stall found, ride hail agent {} stranded",
-              agentLocation.vehicleId
-            )
+            //log.error(
+            //  "No route to parking stall found, ride hail agent {} stranded",
+            //  agentLocation.vehicleId
+            //)
 
             // release trigger if no parking depot found so that simulation can continue
-            outOfServiceVehicleManager.releaseTrigger(agentLocation.vehicleId)
+            self ! ReleaseAgentTrigger(agentLocation.vehicleId)
         }
       }
+
+    case ReleaseAgentTrigger(vehicleId) =>
+      outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
