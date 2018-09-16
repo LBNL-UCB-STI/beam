@@ -554,7 +554,7 @@ class RideHailManager(
         log.debug(
           "modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck
         )
-        outOfServiceVehicleManager.handleModifyPassengerScheduleAck(vehicleId, triggersToSchedule)
+        outOfServiceVehicleManager.releaseTrigger(vehicleId, triggersToSchedule)
       } else {
 
         requestIdOpt match {
@@ -796,9 +796,12 @@ class RideHailManager(
             //)
 
             // release trigger if no parking depot found so that simulation can continue
-            outOfServiceVehicleManager.releaseTrigger(agentLocation.vehicleId)
+            self ! ReleaseAgentTrigger(agentLocation.vehicleId)
         }
       }
+
+    case ReleaseAgentTrigger(vehicleId) =>
+      outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")

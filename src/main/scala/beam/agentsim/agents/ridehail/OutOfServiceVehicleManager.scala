@@ -68,13 +68,6 @@ class OutOfServiceVehicleManager(
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
-  def handleModifyPassengerScheduleAck(
-    vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger]
-  ): Unit = {
-    releaseTrigger(vehicleId, triggersToSchedule)
-  }
-
   def releaseTrigger(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
@@ -90,6 +83,8 @@ class OutOfServiceVehicleManager(
   }
 
 }
+
+case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
 
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
