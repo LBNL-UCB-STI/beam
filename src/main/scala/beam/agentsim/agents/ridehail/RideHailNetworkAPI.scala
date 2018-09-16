@@ -50,7 +50,7 @@ class RideHailNetworkAPI {
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
     getLinks() match {
       case Some(links) =>
-        Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
+        Some(links.get(Id.createLinkId(linkId.toString)).getFreespeed)
       case None => None
     }
   }

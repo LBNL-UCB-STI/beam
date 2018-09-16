@@ -264,11 +264,8 @@ class RideHailModifyPassengerScheduleManager(
     //    )
     ////    printState()
     assert(
-      (vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2
-        .filter(x => x.size != 0))
-        .size == resourcesNotCheckedIn_onlyForDebugging
-        .filter(x => getWithVehicleIds(x).size != 0)
-        .size
+      vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
+        == resourcesNotCheckedIn_onlyForDebugging.count(x => getWithVehicleIds(x).nonEmpty)
     )
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning <= 0)
     val timerTrigger = RideHailAllocationManagerTimeout(
