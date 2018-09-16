@@ -193,7 +193,7 @@ class ZonalParkingManager(
           stallValues.copy(numStalls = stallValues.numStalls - 1)
         )
       }
-      log.debug("DepotParkingInquiry reserved stall: {}",maybeParkingStall)
+      log.debug("DepotParkingInquiry reserved stall: {}", maybeParkingStall)
       log.debug(
         "DepotParkingInquiry {} available stalls ",
         pooledResources
