@@ -142,17 +142,11 @@ trait BeamHelper extends LazyLogging {
           ) ++ {
             if (parsedArgs.useCluster)
               Map(
-                "beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString,
-                "akka.actor.provider"      -> "akka.cluster.ClusterActorRefProvider",
-                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.getOrElse(
-                  throw new RuntimeException("`nodeHost` is not set")
-                ),
-                "akka.remote.artery.canonical.port" -> parsedArgs.nodePort
-                  .map { _.toInt }
-                  .getOrElse(throw new RuntimeException("`nodePort` is not set")),
-                "akka.cluster.seed-nodes" -> util.Arrays.asList(
-                  s"akka://ClusterSystem@${parsedArgs.seedAddress.getOrElse(throw new RuntimeException("`seedAddress` is not set"))}"
-                ),
+                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
+                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
+                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
+                "akka.cluster.seed-nodes"               -> util.Arrays.asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
