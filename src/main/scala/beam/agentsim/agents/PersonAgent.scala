@@ -540,7 +540,9 @@ class PersonAgent(
         s"Missed transit pickup during a ride_hail_transit trip, late by ${_currentTick.get - nextLeg.beamLeg.startTime} sec"
       )
       goto(ChoosingMode) using ChoosesModeData(
-        personData = data.copy(currentTourMode = Some(WALK_TRANSIT))
+        personData = data.copy(currentTourMode = Some(WALK_TRANSIT)),
+        currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
+        isWithinTripReplanning = true
       )
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit =>
