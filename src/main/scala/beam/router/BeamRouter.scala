@@ -10,6 +10,9 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -121,7 +124,6 @@ class BeamRouter(
   }
 
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
-  private var numStopsNotFound = 0
 
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
@@ -145,10 +147,9 @@ class BeamRouter(
             val transits = initializer.initMap
             initDriverAgents(initializer, scheduler, parkingManager, transits)
             metricsPrinter ! Subscribe("histogram", "**")
-            localNodes.map {
-              case localWorker => {
+            localNodes.foreach {
+              case localWorker =>
                 localWorker ! TransitInited(transits)
-              }
             }
           }
         )
@@ -251,7 +252,7 @@ class BeamRouter(
   private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
     outstandingWorkIdToTimeSent.collect {
-      case (workId: WorkId, timeSent: TimeSent) => {
+      case (workId: WorkId, timeSent: TimeSent) =>
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
           //TODO: Can the logs be combined?
@@ -269,7 +270,6 @@ class BeamRouter(
             workId,
             secondsSinceSent
           )
-      }
     }
   }
 
@@ -310,7 +310,7 @@ class BeamRouter(
         )
         outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
         worker ! work
-      case otherWork =>
+      case _ =>
         log.warning(
           "Forwarding work via {} instead of telling because it isn't a handled type - {}",
           receivePath,
@@ -358,7 +358,7 @@ class BeamRouter(
     initializer: TransitInitializer,
     scheduler: ActorRef,
     parkingManager: ActorRef,
-    transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
+    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
@@ -389,7 +389,7 @@ object BeamRouter {
 
   case class ClearRoutedWorkerTracker(workIdToClear: UUID)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
-  case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],

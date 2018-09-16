@@ -87,7 +87,7 @@ object RideHailManager {
     responseRideHail2Dest: RoutingResponse
   ) {
     override def toString(): String =
-      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: ${timeToCustomer}, price: ${estimatedPrice}, travelTime: ${estimatedTravelTime}"
+      s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
   }
 
   case class RoutingResponses(
@@ -314,7 +314,7 @@ class RideHailManager(
           rideHailResourceAllocationManager.handleRideCancellationReply(ev)
 
         case None =>
-          log.error(s"request not found: ${ev}")
+          log.error(s"request not found: $ev")
       }
 
     case NotifyIterationEnds() =>
@@ -356,7 +356,7 @@ class RideHailManager(
                 StartRefuelTrigger(whenWhere.time),
                 rideHailAgentLocation.rideHailAgent
               )
-              beamServices.vehicles.get(rideHailAgentLocation.vehicleId).get.useParkingStall(stallOpt.get)
+              beamServices.vehicles(rideHailAgentLocation.vehicleId).useParkingStall(stallOpt.get)
               sender() ! NotifyVehicleResourceIdleReply(
                 triggerId,
                 Vector[ScheduleTrigger](startFuelTrigger)
@@ -773,10 +773,7 @@ class RideHailManager(
           .mapTo[RoutingResponse]
       } {
         val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
-          .filter(
-            x => x.tripClassifier.equals(RIDE_HAIL)
-          )
-          .headOption
+          .find(x => x.tripClassifier.equals(RIDE_HAIL))
 
         itinOpt match {
           case Some(itin) =>

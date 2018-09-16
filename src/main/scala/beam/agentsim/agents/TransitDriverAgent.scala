@@ -104,7 +104,7 @@ class TransitDriverAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       vehicle.becomeDriver(self) match {
-        case DriverAlreadyAssigned(currentDriver) =>
+        case DriverAlreadyAssigned(_) =>
           stop(
             Failure(
               s"BeamAgent $id attempted to become driver of vehicle $id " +

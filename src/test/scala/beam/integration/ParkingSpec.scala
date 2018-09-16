@@ -15,6 +15,21 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import java.io.File
+
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import beam.sim.BeamHelper
+import com.typesafe.config.ConfigValueFactory
+import org.apache.commons.io.FileUtils
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.events.handler.BasicEventHandler
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
+import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
+
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 
 class ParkingSpec
     extends WordSpecLike
@@ -233,7 +248,7 @@ class ParkingSpec
         .sum should be > emptyModeChoiceCarCount.takeRight(5).sum
     }
 
-    "limited parking access should reduce driving" in {
+    "limited parking access should reduce driving" ignore {
       val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 

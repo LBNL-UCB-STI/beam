@@ -101,7 +101,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
           // convert from L/m to J/m
           new Powertrain(engineInformation.getGasConsumption * 34.5E6) // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
         case fuelName =>
-          throw new RuntimeException(s"Unrecognized fuel type in engine information: ${fuelName}")
+          throw new RuntimeException(s"Unrecognized fuel type in engine information: $fuelName")
       }
 
     }

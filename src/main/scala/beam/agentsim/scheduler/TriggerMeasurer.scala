@@ -38,7 +38,7 @@ class TriggerMeasurer extends LazyLogging {
         }
 
       case None =>
-        logger.error(s"Can't find ${t} in triggerWithIdToStartTime")
+        logger.error(s"Can't find $t in triggerWithIdToStartTime")
     }
   }
 
@@ -48,7 +48,7 @@ class TriggerMeasurer extends LazyLogging {
     triggerTypeToOccurrence.foreach {
       case (clazz, buf) =>
         val s = Statistics(buf.map(_.toDouble))
-        sb.append(s"${nl}Type: $clazz${nl}Stats: ${s}${nl}".stripMargin)
+        sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
     sb.toString()
   }

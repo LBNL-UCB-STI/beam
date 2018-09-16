@@ -26,11 +26,12 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Ignore, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+@Ignore
 class WarmStartRoutingSpec
     extends TestKit(
       ActorSystem(

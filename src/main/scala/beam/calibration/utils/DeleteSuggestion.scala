@@ -21,12 +21,10 @@ object DeleteSuggestion extends LazyLogging {
   def deleteSuggestion(experimentId: String, suggestionId: String) = {
 
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
+      case Some(_experiment) =>
         _experiment.suggestions().delete(suggestionId).call()
-      }
-      case None => {
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 

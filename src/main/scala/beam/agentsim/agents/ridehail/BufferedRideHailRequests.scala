@@ -16,7 +16,7 @@ class BufferedRideHailRequests(
   private var tick: Double = _
   private var triggerId: Long = _
 
-  def newTimeout(tick: Double, triggerId: Long) = {
+  def newTimeout(tick: Double, triggerId: Long): Unit = {
     this.tick = tick
     this.triggerId = triggerId
   }
@@ -30,20 +30,20 @@ class BufferedRideHailRequests(
   private var nextBufferedTriggerMessages = Vector[BeamAgentScheduler.ScheduleTrigger]()
 
   // these are the vehicleIds with which we are overwriting things
-  private var setOfReplacementVehicles =
+  private val setOfReplacementVehicles =
     mutable.Set[Id[Vehicle]]()
 
   var numberOfOverwriteRequestsOpen: Int = 0
 
-  def setNumberOfOverwriteRequests(numRequests: Integer) = {
+  def setNumberOfOverwriteRequests(numRequests: Integer): Unit = {
     numberOfOverwriteRequestsOpen = numRequests
   }
 
-  def decreaseNumberOfOpenOverwriteRequests() = {
+  def decreaseNumberOfOpenOverwriteRequests(): Unit = {
     numberOfOverwriteRequestsOpen = numberOfOverwriteRequestsOpen - 1
   }
 
-  def increaseNumberOfOpenOverwriteRequests() = {
+  def increaseNumberOfOpenOverwriteRequests(): Unit = {
     numberOfOverwriteRequestsOpen = numberOfOverwriteRequestsOpen + 1
   }
 
@@ -61,8 +61,7 @@ class BufferedRideHailRequests(
     setOfReplacementVehicles.contains(vehicleId)
   }
 
-  def addTriggerMessages(messages: Vector[BeamAgentScheduler.ScheduleTrigger]) = {
-
+  def addTriggerMessages(messages: Vector[BeamAgentScheduler.ScheduleTrigger]): Unit = {
     nextBufferedTriggerMessages = nextBufferedTriggerMessages ++ messages
   }
 
@@ -71,7 +70,7 @@ class BufferedRideHailRequests(
     numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.size == 0
   }
 
-  def tryClosingBufferedRideHailRequestWaive() = {
+  def tryClosingBufferedRideHailRequestWaive(): Unit = {
 
     if (isBufferedRideHailRequestProcessingOver) {
       closingBufferedRideHailRequestWaive()
@@ -79,7 +78,7 @@ class BufferedRideHailRequests(
 
   }
 
-  def closingBufferedRideHailRequestWaive() = {
+  def closingBufferedRideHailRequestWaive(): Unit = {
 
     if (nextBufferedTriggerMessages.size > 1) {
       DebugLib.emptyFunctionForSettingBreakPoint()
