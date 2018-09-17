@@ -56,8 +56,8 @@ object BeamVehicleUtils {
 
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
-                            beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-                            id: Id[Vehicle]
+    beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
+    id: Id[Vehicle]
   ): Either[IllegalArgumentException, BeamVehicle] = {
 
     if (BeamVehicleType.isBicycleVehicle(id)) {

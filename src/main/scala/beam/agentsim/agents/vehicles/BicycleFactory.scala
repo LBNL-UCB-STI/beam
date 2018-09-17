@@ -20,26 +20,28 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
     val beamVehicleType = BeamVehicleType.defaultBicycleBeamVehicleType
 
     beamServices.vehicleTypes += (
-      (Id.create(beamVehicleType.vehicleTypeId, classOf[BeamVehicleType]),
-        beamVehicleType)
+      (
+        Id.create(beamVehicleType.vehicleTypeId, classOf[BeamVehicleType]),
+        beamVehicleType
       )
+    )
 
     // Add bicycles to household (all for now)
     JavaConverters
       .collectionAsScalaIterable(scenario.getHouseholds.getHouseholds.values())
       .seq
       .foreach { hh =>
-        addBicycleVehicleIdsToHousehold(hh,beamVehicleType)
+        addBicycleVehicleIdsToHousehold(hh, beamVehicleType)
       }
   }
 
   def addBicycleVehicleIdsToHousehold(household: Household, beamVehicleType: BeamVehicleType)(
-    implicit vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]): Unit = {
+    implicit vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+  ): Unit = {
     val householdMembers: Iterable[Id[Person]] =
       JavaConverters.collectionAsScalaIterable(household.getMemberIds)
 
     householdMembers.foreach { id: Id[Person] =>
-
       val bicycleId: Id[BeamVehicle] = BeamVehicle.createId(id, Some("bike"))
       household.getVehicleIds.add(bicycleId)
 
@@ -47,13 +49,19 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
         .map(new Powertrain(_))
         .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
-      vehicles += ((bicycleId, new BeamVehicle(
-        bicycleId,
-        powertrain,
-        None,
-        beamVehicleType,
-        None, None
-      )))
+      vehicles += (
+        (
+          bicycleId,
+          new BeamVehicle(
+            bicycleId,
+            powertrain,
+            None,
+            beamVehicleType,
+            None,
+            None
+          )
+        )
+      )
 
     }
   }

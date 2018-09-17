@@ -135,8 +135,8 @@ class ZonalParkingManager(
             pooledResources.exists {
               case (attr, values) =>
                 attr.tazId.equals(taz.tazId) &&
-                  attr.reservedFor.equals(reservedFor) &&
-                  values.numStalls > 0
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0
             }
         }
         .map {

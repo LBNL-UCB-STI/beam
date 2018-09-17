@@ -153,7 +153,7 @@ object BeamVehicle {
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
-    Id.create(s"${prefix.map(_+"-").getOrElse("")}${id.toString}", classOf[BeamVehicle])
+    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id.toString}", classOf[BeamVehicle])
   }
 
   case class BeamVehicleState(
@@ -163,4 +163,3 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   )
 }
-

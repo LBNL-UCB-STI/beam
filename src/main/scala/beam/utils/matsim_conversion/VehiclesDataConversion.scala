@@ -11,33 +11,168 @@ import scala.xml.{Elem, NodeSeq, XML}
 
 object VehiclesDataConversion extends App {
 
-  val beamFuelTypesTitles = Seq("fuelTypeId","priceInDollarsPerMJoule")
+  val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
+
   val beamFuelTypes = Seq(
-    Seq("gasoline","0.03"), Seq("diesel","0.02"), Seq("electricity", "0.01")
+    Seq("gasoline", "0.03"),
+    Seq("diesel", "0.02"),
+    Seq("electricity", "0.01")
   )
 
   val beamVehicleTypeTitles = Seq(
-    "vehicleTypeId","seatingCapacity","standingRoomCapacity","lengthInMeter","primaryFuelType",
-    "primaryFuelConsumptionInJoulePerMeter","primaryFuelCapacityInJoule","secondaryFuelType",
-    "secondaryFuelConsumptionInJoulePerMeter","secondaryFuelCapacityInJoule","automationLevel",
-    "maxVelocity","passengerCarUnit","rechargeLevel2RateLimitInWatts","rechargeLevel3RateLimitInWatts",
+    "vehicleTypeId",
+    "seatingCapacity",
+    "standingRoomCapacity",
+    "lengthInMeter",
+    "primaryFuelType",
+    "primaryFuelConsumptionInJoulePerMeter",
+    "primaryFuelCapacityInJoule",
+    "secondaryFuelType",
+    "secondaryFuelConsumptionInJoulePerMeter",
+    "secondaryFuelCapacityInJoule",
+    "automationLevel",
+    "maxVelocity",
+    "passengerCarUnit",
+    "rechargeLevel2RateLimitInWatts",
+    "rechargeLevel3RateLimitInWatts",
     "vehicleCategory"
   )
+
   val beamVehicleTypes = Seq(
-    Seq("CAR-1","4","0","4.5","gasoline","2","4","gasoline","80","3","level","60","unit","50","40","CAR"),
-    Seq("SUV-2","6","0","5.5","gasoline","2","4","gasoline","80","3","level","50","unit","50","40","SUV"),
-    Seq("BUS-DEFAULT","50","50","12","diesel","2","4","gasoline","80","3","level","50","unit","50","40","TRANSIT-BUS"),
-    Seq("SUBWAY-DEFAULT","50","50","12","diesel","2","4","gasoline","80","3","level","50","unit","50","40","TRANSIT-SUBWAY"),
-    Seq("TRAM-DEFAULT","50","50","7.5","diesel","2","4","gasoline","80","3","level","50","unit","50","40","TRANSIT-TRAM"),
-    Seq("RAIL-DEFAULT","50","50","7.5","diesel","2","4","gasoline","80","3","level","50","unit","50","40","TRANSIT-RAIL"),
-    Seq("CABLE_CAR-DEFAULT","50","50","7.5","diesel","2","4","gasoline","80","3","level","50","unit","50","40","TRANSIT-CABLE_CAR"),
+    Seq(
+      "CAR-1",
+      "4",
+      "0",
+      "4.5",
+      "gasoline",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "60",
+      "unit",
+      "50",
+      "40",
+      "CAR"
+    ),
+    Seq(
+      "SUV-2",
+      "6",
+      "0",
+      "5.5",
+      "gasoline",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "SUV"
+    ),
+    Seq(
+      "BUS-DEFAULT",
+      "50",
+      "50",
+      "12",
+      "diesel",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "TRANSIT-BUS"
+    ),
+    Seq(
+      "SUBWAY-DEFAULT",
+      "50",
+      "50",
+      "12",
+      "diesel",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "TRANSIT-SUBWAY"
+    ),
+    Seq(
+      "TRAM-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "TRANSIT-TRAM"
+    ),
+    Seq(
+      "RAIL-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "TRANSIT-RAIL"
+    ),
+    Seq(
+      "CABLE_CAR-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "2",
+      "4",
+      "gasoline",
+      "80",
+      "3",
+      "level",
+      "50",
+      "unit",
+      "50",
+      "40",
+      "TRANSIT-CABLE_CAR"
+    ),
   )
 
   val beamVehicleTitles = Seq(
-    "vehicleId","vehicleTypeId"
+    "vehicleId",
+    "vehicleTypeId"
   )
 
-  if(null == args || args.size < 3){
+  if (null == args || args.size < 3) {
     println("Please include parameters: /path/to/vehicles.xml /path/to/transitVehicles.xml /outputDirectory/path")
   } else {
     val vehiclesFile = args(0)
@@ -88,7 +223,24 @@ object VehiclesDataConversion extends App {
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
-      Seq(id,seatingCap,standingCap,length,fuelType,"2","4","gasoline","80","3","level","60","unit","50","40","CAR")
+      Seq(
+        id,
+        seatingCap,
+        standingCap,
+        length,
+        fuelType,
+        "2",
+        "4",
+        "gasoline",
+        "80",
+        "3",
+        "level",
+        "60",
+        "unit",
+        "50",
+        "40",
+        "CAR"
+      )
     }
   }
 
@@ -103,22 +255,22 @@ object VehiclesDataConversion extends App {
   }
 
   def writeCsvFile(beamVehiclesPath: String, data: Seq[Seq[String]], titles: Seq[String]) = {
-    FileUtils.using(
-      new CsvMapWriter(new FileWriter(beamVehiclesPath), CsvPreference.STANDARD_PREFERENCE)){ writer =>
-      writer.writeHeader(titles :_*)
-      val rows = data.map{ row =>
-        row.zipWithIndex.foldRight(new util.HashMap[String, Object]()){ case ((s, i), acc) =>
-          acc.put(titles(i), s)
-          acc
+    FileUtils.using(new CsvMapWriter(new FileWriter(beamVehiclesPath), CsvPreference.STANDARD_PREFERENCE)) { writer =>
+      writer.writeHeader(titles: _*)
+      val rows = data.map { row =>
+        row.zipWithIndex.foldRight(new util.HashMap[String, Object]()) {
+          case ((s, i), acc) =>
+            acc.put(titles(i), s)
+            acc
         }
       }
       val titlesArray = titles.toArray
-      rows.foreach(row => writer.write(row, titlesArray :_*))
+      rows.foreach(row => writer.write(row, titlesArray: _*))
     }
   }
 
   def generateVehiclesDataFromSource(scenarioDirectory: String, vehiclesDoc: Elem): Seq[Seq[String]] = {
-    val vehicles = (vehiclesDoc \ "vehicle").map{ vehicle =>
+    val vehicles = (vehiclesDoc \ "vehicle").map { vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
     val beamVehiclesPath = scenarioDirectory + "/vehicles.csv"
