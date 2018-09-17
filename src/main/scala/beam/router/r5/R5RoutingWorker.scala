@@ -61,7 +61,7 @@ case class WorkerParameters(
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   transitVehicles: Vehicles,
-  isRemote: Boolean
+  transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
 )
 
 class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLogging with MetricsSupport {
@@ -122,6 +122,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
       }
 
+      val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
+      val transits = initializer.initMap
+
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
       val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
       WorkerParameters(
@@ -131,7 +134,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         fareCalculator,
         tollCalculator,
         scenario.getTransitVehicles,
-        isRemote = true,
+        transits
       )
     })
   }
@@ -143,7 +146,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     fareCalculator,
     tollCalculator,
     transitVehicles,
-    isRemote
+    transitMap
   ) = workerParams
 
   private val distanceThresholdToIgnoreWalking =
@@ -171,25 +174,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var maybeTravelTime: Option[TravelTime] = None
 
-  private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = initTransitMap(isRemote)
-
-  def initTransitMap(isRemote: Boolean): Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = {
-    if (isRemote) {
-      val start = System.currentTimeMillis()
-      val initializer = new TransitInitializer(beamServices, transportNetwork, transitVehicles)
-      val transits = initializer.initMap
-      val stop = System.currentTimeMillis()
-      log.info(
-        s"{} initTransitMap in ${stop - start} ms. transitSchedule[{}] keys: {}",
-        getNameAndHashCode,
-        transits.hashCode(),
-        transits.keys.size
-      )
-      transits
-    } else {
-      Map.empty
-    }
-  }
+  private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
 
   private val cache = CacheBuilder
     .newBuilder()
@@ -1246,7 +1231,7 @@ object R5RoutingWorker {
           fareCalculator,
           tollCalculator,
           transitVehicles,
-          isRemote = false
+          Map.empty
         )
       )
     )
