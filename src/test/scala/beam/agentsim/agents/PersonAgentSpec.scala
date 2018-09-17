@@ -50,6 +50,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import PersonAgentSpec.ZERO
 
 class PersonAgentSpec
   extends TestKit(
@@ -184,6 +185,7 @@ class PersonAgentSpec
 
     // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
     // TODO: probably test needs to be updated due to update in rideHailManager
+
     ignore("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -273,7 +275,7 @@ class PersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 true,
                 None,
-                BigDecimal(0),
+                ZERO,
                 true
               )
             )
@@ -411,7 +413,7 @@ class PersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 true,
                 None,
-                BigDecimal(0),
+                ZERO,
                 true
               )
             )
@@ -457,16 +459,18 @@ class PersonAgentSpec
 
       val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
 
+      val busId = Id.createVehicleId("my_bus")
       val bus = new BeamVehicle(
-        id = Id.createVehicleId("my_bus"),
+        id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
         fuelLevelInJoules = None,
         refuelRateLimitInJoulesPerSecond = None
       )
+      val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
-        id = Id.createVehicleId("my_tram"),
+        id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
@@ -484,16 +488,16 @@ class PersonAgentSpec
           duration = 600,
           travelPath = BeamPath(
             Vector(),
-            Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
+            Some(TransitStopsInfo(1, busId, 2)),
             SpaceTime(new Coord(166321.9, 1568.87), 28800),
             SpaceTime(new Coord(167138.4, 1117), 29400),
             1.0
           )
         ),
-        beamVehicleId = Id.createVehicleId("my_bus"),
+        beamVehicleId = busId,
         asDriver = false,
         passengerSchedule = None,
-        cost = BigDecimal(0),
+        cost = ZERO,
         unbecomeDriverOnCompletion = false
       )
       val busLeg2 = EmbodiedBeamLeg(
@@ -503,16 +507,16 @@ class PersonAgentSpec
           duration = 600,
           travelPath = BeamPath(
             Vector(),
-            Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
+            Some(TransitStopsInfo(2, busId, 3)),
             SpaceTime(new Coord(167138.4, 1117), 29400),
             SpaceTime(new Coord(180000.4, 1200), 30000),
             1.0
           )
         ),
-        beamVehicleId = Id.createVehicleId("my_bus"),
+        beamVehicleId = busId,
         asDriver = false,
         passengerSchedule = None,
-        cost = BigDecimal(0),
+        cost = ZERO,
         unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
@@ -522,16 +526,16 @@ class PersonAgentSpec
           duration = 600,
           travelPath = BeamPath(
             linkIds = Vector(),
-            transitStops = Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+            transitStops = Some(TransitStopsInfo(3, tramId, 4)),
             startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
             endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
             distanceInM = 1.0
           )
         ),
-        beamVehicleId = Id.createVehicleId("my_tram"),
+        beamVehicleId = tramId,
         asDriver = false,
         passengerSchedule = None,
-        cost = BigDecimal(0),
+        cost = ZERO,
         unbecomeDriverOnCompletion = false
       )
 
@@ -632,7 +636,7 @@ class PersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 true,
                 None,
-                BigDecimal(0),
+                ZERO,
                 false
               ),
               busLeg,
@@ -654,7 +658,7 @@ class PersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 true,
                 None,
-                BigDecimal(0),
+                ZERO,
                 false
               )
             )
@@ -748,4 +752,8 @@ class PersonAgentSpec
     shutdown()
   }
 
+}
+
+object PersonAgentSpec {
+  val ZERO: BigDecimal = BigDecimal(0)
 }
