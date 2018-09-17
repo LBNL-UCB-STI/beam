@@ -136,6 +136,8 @@ class PersonAgentSpec
 
   describe("A PersonAgent") {
 
+    val hoseHoldDummyId = Id.create("dummy", classOf[Household])
+
     it("should allow scheduler to set the first activity") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -154,7 +156,7 @@ class PersonAgentSpec
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
@@ -198,7 +200,7 @@ class PersonAgentSpec
       val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
       val matsimConfig = configBuilder.buildMatSamConf()
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(matsimConfig)
 
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
@@ -325,7 +327,7 @@ class PersonAgentSpec
           .defaultCarBeamVehicleType, None, None
       )
       vehicles.put(vehicleId, beamVehicle)
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
       val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -539,7 +541,7 @@ class PersonAgentSpec
         unbecomeDriverOnCompletion = false
       )
 
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       population.getPersonAttributes.putAttribute(
