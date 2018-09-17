@@ -52,9 +52,6 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
-/**
-  * Created by sfeygin on 2/7/17.
-  */
 class PersonAgentSpec
     extends TestKit(
       ActorSystem(
