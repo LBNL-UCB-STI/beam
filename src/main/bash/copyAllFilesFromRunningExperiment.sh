@@ -37,16 +37,23 @@ else
 
     for d in */ ; do
         current=`date +%s`
-        last_modified=`stat -c "%Y" ${d::-1}/beam-log.out`
+        lastFileModified="${d::-1}/stopwatch.txt"
+        last_modified=`stat -c "%Y" $lastFileModified`
 
-        if [ $(($current-$last_modified)) -gt 180 ]; then
-            echo "moving dir ${d::-1}"
-            #echo "mv ${d::-1} $source_dir/"
-            #echo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/${d::-1}"
-            sudo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/"
+        if [ -e $lastFileModified ]
+        then
+            if [ $(($current-$last_modified)) -gt 180 ]; then
+                echo "moving dir ${d::-1}"
+                #echo "mv ${d::-1} $source_dir/"
+                #echo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/${d::-1}"
+                sudo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/"
+            else
+                echo "${d::-1} in progress cur_date: $current - last_modified: $last_modified";
+            fi
         else
-            echo "${d::-1} in progress cur_date: $current - last_modified: $last_modified";
+            echo "${d::-1}/stopwatch.txt does not exist"
         fi
+
     done
 
 
