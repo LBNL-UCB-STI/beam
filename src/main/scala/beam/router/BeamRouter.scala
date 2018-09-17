@@ -252,7 +252,7 @@ class BeamRouter(
   private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
     outstandingWorkIdToTimeSent.collect {
-      case (workId: WorkId, timeSent: TimeSent) => {
+      case (workId: WorkId, timeSent: TimeSent) =>
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
           //TODO: Can the logs be combined?
@@ -270,7 +270,6 @@ class BeamRouter(
             workId,
             secondsSinceSent
           )
-      }
     }
   }
 

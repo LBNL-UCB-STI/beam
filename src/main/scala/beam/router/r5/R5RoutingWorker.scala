@@ -644,7 +644,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // this covers the various contingencies for doing this.
               val delayStartTime =
                 Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
-              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime.toLong + delayStartTime.toLong), 0.0))
+              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toLong), 0.0))
             })
 
             val access = option.access.get(itinerary.connection.access)

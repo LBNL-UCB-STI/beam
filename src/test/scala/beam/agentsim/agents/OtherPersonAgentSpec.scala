@@ -129,7 +129,6 @@ class OtherPersonAgentSpec
 
   private lazy val networkCoordinator = new NetworkCoordinator(config)
 
-
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should also work when the first bus is late") {
@@ -289,7 +288,7 @@ class OtherPersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
-          (_) => modeChoiceCalculator,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,
