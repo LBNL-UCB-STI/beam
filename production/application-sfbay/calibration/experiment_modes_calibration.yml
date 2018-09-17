@@ -3,9 +3,9 @@
 # Header
 
 header:
-    title: Production_Calibration_modes_intercept_absErrorWithModeDiversity_1
+    title: modes_intercept_ absError_ModeDiversity_it10_B
     author: BEAM Developers
-    beamTemplateConfPath: production/application-sfbay/fall18-calib-run14.conf
+    beamTemplateConfPath: production/application-sfbay/fall18-calib-run15.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
     numWorkers: 10
     params:
@@ -15,9 +15,9 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "Production_Calibration_modes_intercept_absErrorWithModeDiversity_1"
+      runName: "modes_intercept_ absError_ModeDiversity_it10_B"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "e5075b715c913328f760abb3a83ad5ef8e7b4c06"
+      beamCommit: "8043505324ac709d2f9983be0d3222fa925756c3"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
