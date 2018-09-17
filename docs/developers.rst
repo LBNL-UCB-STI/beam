@@ -430,6 +430,19 @@ Don’t emulate ``collectFirst`` and ``collect``:
    // After
    s.collect { case curr if predicate(curr) => curr.head }
 
+Prefer ``nonEmpty`` over ``size > 0``:
+*************************************
+
+::
+ 
+  //Before
+  (1 to x).size > 0
+  
+  //After
+  (1 to x).nonEmpty
+  
+  //nonEmpty shortcircuits as soon as the first element is encountered
+
 Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
 **********************************************************************
 
