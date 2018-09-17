@@ -42,28 +42,32 @@ else
         if [ $(($current-$last_modified)) -gt 180 ]; then
             echo "moving dir ${d::-1}"
             #echo "mv ${d::-1} $source_dir/"
-            echo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/${d::-1}"
-            sudo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/${d::-1}"
+            #echo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/${d::-1}"
+            sudo mv "${d::-1}" "$1/to_copy/$exp_id/suggestions/"
         else
             echo "${d::-1} in progress cur_date: $current - last_modified: $last_modified";
         fi
     done
 
 
-    echo $(pwd)
-    echo "Exiting for test purposes.."
-    exit 0
+    sourceExperimentDir="$1/to_copy/${exp_id}"
+    copiedExperiementDir="$1/copied/"
 
-    if [ -z "$(ls -A $source_exp_dir)" ]; then
-       echo "Empty source directory $source_dir"
-       sudo mv "$source_exp_dir" "$target_exp_dir"
+    sudo mkdir "$1/copied"
+
+
+    echo "sourceExperimentDir: $sourceExperimentDir"
+    echo "copiedExperiementDir: $copiedExperiementDir"
+
+    if [ -z "$(ls -A $sourceExperimentDir)" ]; then
+       echo "Empty source directory $sourceExperimentDir"
        exit 0
     else
         echo "Copying the files... from $source_dir"
-        #sudo scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $source_dir ubuntu@$2:~/sigoptResults/
+        sudo scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $sourceExperimentDir ubuntu@$2:~/sigoptResults/
         echo "Copying completed..."
-        sudo mv "$source_exp_dir" "$target_exp_dir"
-        echo "Moved the suggestions from $source_exp_dir to $target_exp_dir"
+        sudo mv "$sourceExperimentDir" "$copiedExperiementDir"
+        echo "Moved the suggestions from $sourceExperimentDir to $copiedExperiementDir"
         echo "Done.."
     fi
 fi
