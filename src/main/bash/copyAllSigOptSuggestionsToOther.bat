@@ -112,7 +112,7 @@ goto :init
         scp -i "%%b" -r "%target_cert_path%" ubuntu@%%a:~/.ssh/result_host_cert.pem
         scp -i "%%b" -r copyAllFiles.sh ubuntu@%%a:~/copyAllFiles.sh
         ssh -i "%%b" ubuntu@%%a chmod +x copyAllFiles.sh
-        ssh -i "%%b" ubuntu@%%a ~/copyAllFiles.sh %source_folder_to_copy% %target_host_dns% "&"
+        ssh -i "%%b" ubuntu@%%a "~/copyAllFiles.sh %source_folder_to_copy% %target_host_dns% &"
 
         REM ssh -i "%%b" ubuntu@%%a chmod 600 ~/.ssh/result_host_cert.pem
         REM ssh -i "%%b" ubuntu@%%a scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r "%source_folder_to_copy%" ubuntu@%target_host_dns%:~/sigoptResults/
