@@ -135,6 +135,10 @@ class PersonAgentSpec
 
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
+  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
+
+  private val matsimConfig = configBuilder.buildMatSamConf()
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -198,8 +202,7 @@ class PersonAgentSpec
           }
         }
       )
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
+
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(matsimConfig)
@@ -329,9 +332,6 @@ class PersonAgentSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
-
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       population.getPersonAttributes.putAttribute(
         person.getId.toString,
@@ -457,8 +457,6 @@ class PersonAgentSpec
           }
         }
       )
-
-      val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
 
       val busId = Id.createVehicleId("my_bus")
       val bus = new BeamVehicle(
