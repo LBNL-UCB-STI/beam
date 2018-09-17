@@ -314,7 +314,7 @@ class RideHailManager(
           rideHailResourceAllocationManager.handleRideCancellationReply(ev)
 
         case None =>
-          log.error(s"request not found: ${ev}")
+          log.error(s"request not found: $ev")
       }
 
     case NotifyIterationEnds() =>
@@ -773,10 +773,7 @@ class RideHailManager(
           .mapTo[RoutingResponse]
       } {
         val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
-          .filter(
-            x => x.tripClassifier.equals(RIDE_HAIL)
-          )
-          .headOption
+          .find(x => x.tripClassifier.equals(RIDE_HAIL))
 
         itinOpt match {
           case Some(itin) =>
