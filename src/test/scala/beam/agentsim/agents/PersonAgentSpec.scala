@@ -91,7 +91,7 @@ class PersonAgentSpec
     theServices
   }
 
-  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
+  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
@@ -110,7 +110,7 @@ class PersonAgentSpec
   // Mock a transit driver (who has to be a child of a mock router)
   lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  lazy val router = system.actorOf(
+  private lazy val router = system.actorOf(
     Props(
       new Actor() {
         context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
@@ -124,7 +124,7 @@ class PersonAgentSpec
     "router"
   )
 
-  lazy val parkingManager = system.actorOf(
+  private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
@@ -256,32 +256,32 @@ class PersonAgentSpec
       // The agent will ask for a route, and we provide it.
       expectMsgType[RoutingRequest]
       personActor ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                BeamLeg(
-                  28800,
-                  BeamMode.WALK,
-                  100,
-                  BeamPath(
-                    Vector(1, 2),
-                    None,
-                    SpaceTime(0.0, 0.0, 28800),
-                    SpaceTime(1.0, 1.0, 28900),
-                    1000.0
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 100L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1, 2),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    distanceInM = 1000D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                ZERO,
-                true
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       // The agent will ask for a ride, and we will answer.
@@ -407,19 +407,19 @@ class PersonAgentSpec
       personActor ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                embodyRequest.leg.copy(duration = 1000),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                ZERO,
-                true
+                beamLeg = embodyRequest.leg.copy(duration = 1000),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -617,54 +617,54 @@ class PersonAgentSpec
 
       val request = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                BeamLeg(
-                  28800,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    SpaceTime(new Coord(167138.4, 1117), 28800),
-                    1.0
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 0L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    distanceInM = 1D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                ZERO,
-                false
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = false
               ),
               busLeg,
               busLeg2,
               tramLeg,
               EmbodiedBeamLeg(
-                BeamLeg(
-                  30600,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    1.0
+                beamLeg = BeamLeg(
+                  startTime = 30600,
+                  mode = BeamMode.WALK,
+                  duration = 0L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    distanceInM = 1D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                ZERO,
-                false
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       events.expectMsgType[ModeChoiceEvent]
