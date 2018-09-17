@@ -124,6 +124,8 @@ class BeamRouter(
 
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
 
+  private var traveTimeOpt: Option[TravelTime] = None
+
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
@@ -142,6 +144,7 @@ class BeamRouter(
       }
       localInit.pipeTo(sender)
     case msg: UpdateTravelTime =>
+      traveTimeOpt = Some(msg.travelTime)
       if (!services.beamConfig.beam.cluster.enabled) {
         metricsPrinter ! Print(
           Seq(
@@ -160,6 +163,11 @@ class BeamRouter(
       }
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
+    case GetTravelTime =>
+      traveTimeOpt match{
+        case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
+        case None =>  sender ! R5Network(transportNetwork)
+      }
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
       remoteNodes = state.members.collect {
@@ -348,8 +356,7 @@ class BeamRouter(
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           services.vehicles += (tripVehId -> vehicle)
-          val transitDriverId =
-            TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
@@ -360,8 +367,7 @@ class BeamRouter(
             vehicle,
             legs
           )
-          val transitDriver =
-            context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
           scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
         }
     }

@@ -221,12 +221,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       transitSchedule = newTransitSchedule
       askForMoreWork
 
-    case GetTravelTime =>
-      maybeTravelTime match {
-        case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
-        case None             => sender ! R5Network(transportNetwork)
-      }
-      askForMoreWork
     case request: RoutingRequest =>
       msgs += 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
