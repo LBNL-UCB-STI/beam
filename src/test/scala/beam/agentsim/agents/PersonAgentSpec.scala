@@ -130,6 +130,8 @@ class PersonAgentSpec
     "ParkingManager"
   )
 
+  private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
+
   case class TestTrigger(tick: Double) extends Trigger
 
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
@@ -272,7 +274,7 @@ class PersonAgentSpec
                     distanceInM = 1000D
                   )
                 ),
-                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
                 cost = ZERO,
@@ -410,7 +412,7 @@ class PersonAgentSpec
             legs = Vector(
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(duration = 1000),
-                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
                 cost = ZERO,
@@ -597,25 +599,25 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamSvc,
-          _ => modeChoiceCalculator,
-          scheduler,
-          networkCoordinator.transportNetwork,
-          self,
-          self,
-          parkingManager,
-          eventsManager,
-          population,
-          household.getId,
-          household,
-          Map(),
-          new Coord(0.0, 0.0)
+          beamServices = beamSvc,
+          modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
+          schedulerRef = scheduler,
+          transportNetwork = networkCoordinator.transportNetwork,
+          router = self,
+          rideHailManager = self,
+          parkingManager = parkingManager,
+          eventsManager = eventsManager,
+          population = population,
+          id = household.getId,
+          household = household,
+          vehicles = Map(),
+          homeCoord = new Coord(0.0, 0.0)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
-      val request = expectMsgType[RoutingRequest]
+      val request6 = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -633,7 +635,7 @@ class PersonAgentSpec
                     distanceInM = 1D
                   )
                 ),
-                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
                 cost = ZERO,
@@ -655,7 +657,7 @@ class PersonAgentSpec
                     distanceInM = 1D
                   )
                 ),
-                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
                 cost = ZERO,
