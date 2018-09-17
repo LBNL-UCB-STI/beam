@@ -109,7 +109,7 @@ class PersonAgentSpec
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
-  lazy val transitDriverProps = Props(new ForwardActor(self))
+  private lazy val transitDriverProps = Props(new ForwardActor(self))
 
   private val router = system.actorOf(
     Props(
@@ -136,7 +136,6 @@ class PersonAgentSpec
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-
   private val matsimConfig = configBuilder.buildMatSamConf()
 
   describe("A PersonAgent") {
