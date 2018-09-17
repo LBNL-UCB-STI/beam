@@ -20,7 +20,7 @@ import beam.agentsim.agents.PersonAgentSpec.ZERO
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, ScheduleTrigger, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -53,18 +53,20 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import org.scalatest.mockito.MockitoSugar
 
 class PersonAgentSpec
-  extends TestKit(
-    ActorSystem(
-      name = "PersonAgentSpec",
-      config = ConfigFactory.parseString(
-        """
+    extends TestKit(
+      ActorSystem(
+        name = "PersonAgentSpec",
+        config = ConfigFactory
+          .parseString(
+            """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         """
-      ).withFallback(testConfig("test/input/beamville/beam.conf"))
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf"))
+      )
     )
-  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -324,8 +326,12 @@ class PersonAgentSpec
       )
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle = new BeamVehicle(
-        vehicleId, new Powertrain(0.0), None, BeamVehicleType
-          .defaultCarBeamVehicleType, None, None
+        vehicleId,
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None,
+        None
       )
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
