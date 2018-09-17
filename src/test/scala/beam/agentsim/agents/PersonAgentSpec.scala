@@ -132,8 +132,6 @@ class PersonAgentSpec
 
   private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
 
-  case class TestTrigger(tick: Double) extends Trigger
-
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
   describe("A PersonAgent") {
