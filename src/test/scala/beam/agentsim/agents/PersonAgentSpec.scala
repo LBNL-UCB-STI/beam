@@ -78,16 +78,17 @@ class PersonAgentSpec
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
-  lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices]
+  private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
+
+    val theServices = mock[BeamServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    val geo = new GeoUtilsImpl(theServices)
-    when(theServices.geo).thenReturn(geo)
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+
     theServices
   }
 
@@ -104,7 +105,7 @@ class PersonAgentSpec
       cost: BigDecimal,
       time: BigDecimal,
       numTransfers: Int
-    ): Double = 0.0
+    ): Double = 0D
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
