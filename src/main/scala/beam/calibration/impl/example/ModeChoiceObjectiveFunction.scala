@@ -28,10 +28,11 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
     if (comparisonType == ErrorComparisonType.AbsoluteError) {
       compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc))
+    } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity) {
+      compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(runDataFileLoc).size * 0.1
     } else {
       compareStatsRMSPE(benchmarkData, getStatsFromFile(runDataFileLoc))
     }
-
   }
 
   def compareStatsAbsolutError(
@@ -126,5 +127,5 @@ object ModeChoiceObjectiveFunction {
 }
 
 object ErrorComparisonType extends Enumeration {
-  val RMSPE, AbsoluteError = Value
+  val RMSPE, AbsoluteError, AbsoluteErrorWithPreferenceForModeDiversity = Value
 }

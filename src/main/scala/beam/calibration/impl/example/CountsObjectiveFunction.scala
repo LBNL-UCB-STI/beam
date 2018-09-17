@@ -15,7 +15,7 @@ object CountsObjectiveFunction {
     using(Source.fromFile(fileLoc)) { source =>
       val records = source.getLines().drop(1).map { _.split("\t") }.toSeq
       records
-        .map(record => CountData(record(1), record(3).toDouble))
+        .map(record => CountData(record(1), record(6).toDouble))
         .groupBy(count => count.stationId)
     }
   }
