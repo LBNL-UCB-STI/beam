@@ -23,6 +23,7 @@ public class PersonTravelTimeStats implements IGraphStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
+    private static final String otherMode = "others";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
@@ -52,7 +53,7 @@ public class PersonTravelTimeStats implements IGraphStats {
 
             int maxHour = hoursList.get(hoursList.size() - 1);
             double[] travelTimes = new double[maxHour + 1];
-            for (int i = 0; i < maxHour; i++) {
+            for (int i = 0; i <= maxHour; i++) {
 
                 List<Double> hourData = times.get(i);
                 Double average = 0d;
@@ -136,12 +137,12 @@ public class PersonTravelTimeStats implements IGraphStats {
     }
 
     private void processPersonArrivalEvent(Event event) {
-        String mode = ((PersonArrivalEvent) event).getLegMode();
+        PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent) event;
+        Id<Person> personId = personArrivalEvent.getPersonId();
+        String mode = personArrivalEvent.getLegMode();
 
         Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
         if (departureEvents != null) {
-            PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent) event;
-            Id<Person> personId = personArrivalEvent.getPersonId();
             PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
             if (personDepartureEvent != null) {
                 int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
@@ -165,6 +166,43 @@ public class PersonTravelTimeStats implements IGraphStats {
                 hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
                 departureEvents.remove(personId);
                 personLastDepartureEvents.put(mode, departureEvents);
+            }
+            else {
+                Set<String> modeSet = personLastDepartureEvents.keySet();
+                String selectedMode = null;
+                //Modeset is very small list hence we can iterate them
+                for (String mayBeMode : modeSet) {
+                    Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
+                    if (lastDepartureEvents.get(personId) != null) {
+                        personDepartureEvent = lastDepartureEvents.get(personId);
+                        selectedMode = mayBeMode;
+                        break;
+                    }
+                }
+                if (personDepartureEvent != null) {
+                    int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                    Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
+                    if (hourlyPersonTravelTimesPerMode == null) {
+                        hourlyPersonTravelTimesPerMode = new HashMap<>();
+                        List<Double> travelTimes = new ArrayList<>();
+                        travelTimes.add(travelTime);
+                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                    } else {
+                        List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
+                        if (travelTimes == null) {
+                            travelTimes = new ArrayList<>();
+                            travelTimes.add(travelTime);
+                        } else {
+                            travelTimes.add(travelTime);
+                        }
+                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                    }
+                    hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
+                    Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
+                    departureEventsList.remove(personId);
+                    personLastDepartureEvents.put(selectedMode, departureEventsList);
+                }
             }
         }
     }
