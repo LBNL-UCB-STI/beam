@@ -2,22 +2,26 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
+import scala.collection.{mutable, JavaConverters}
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.Await
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
+import akka.testkit.TestActors.ForwardActor
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
+import beam.agentsim.agents.PersonAgentSpec.ZERO
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, ScheduleTrigger, StartSchedule}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
@@ -30,10 +34,10 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.plansampling.PlansSampler
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
@@ -45,12 +49,8 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.Await
-import PersonAgentSpec.ZERO
+import org.scalatest.mockito.MockitoSugar
 
 class PersonAgentSpec
   extends TestKit(
