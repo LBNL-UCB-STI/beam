@@ -70,13 +70,11 @@ class PersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val beamConfig = BeamConfig(system.settings.config)
+  private lazy val beamConfig = BeamConfig(system.settings.config)
 
-  private val dummyAgentId = Id.createPersonId("dummyAgent")
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val personRefs = TrieMap[Id[Person], ActorRef]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val randomSeed: Int = 4771
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
   lazy val beamSvc: BeamServices = {
@@ -460,20 +458,20 @@ class PersonAgentSpec
       val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
 
       val bus = new BeamVehicle(
-        Id.createVehicleId("my_bus"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        id = Id.createVehicleId("my_bus"),
+        powerTrain = new Powertrain(0.0),
+        initialMatsimAttributes = None,
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        fuelLevelInJoules = None,
+        refuelRateLimitInJoulesPerSecond = None
       )
       val tram = new BeamVehicle(
-        Id.createVehicleId("my_tram"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        id = Id.createVehicleId("my_tram"),
+        powerTrain = new Powertrain(0.0),
+        initialMatsimAttributes = None,
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        fuelLevelInJoules = None,
+        refuelRateLimitInJoulesPerSecond = None
       )
 
       vehicles.put(bus.getId, bus)
@@ -481,10 +479,10 @@ class PersonAgentSpec
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
-          28800,
-          BeamMode.BUS,
-          600,
-          BeamPath(
+          startTime = 28800,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
             Vector(),
             Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
             SpaceTime(new Coord(166321.9, 1568.87), 28800),
@@ -492,18 +490,18 @@ class PersonAgentSpec
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = Id.createVehicleId("my_bus"),
+        asDriver = false,
+        passengerSchedule = None,
+        cost = BigDecimal(0),
+        unbecomeDriverOnCompletion = false
       )
       val busLeg2 = EmbodiedBeamLeg(
-        BeamLeg(
-          29400,
-          BeamMode.BUS,
-          600,
-          BeamPath(
+        beamLeg = BeamLeg(
+          startTime = 29400,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
             Vector(),
             Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
             SpaceTime(new Coord(167138.4, 1117), 29400),
@@ -511,30 +509,30 @@ class PersonAgentSpec
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = Id.createVehicleId("my_bus"),
+        asDriver = false,
+        passengerSchedule = None,
+        cost = BigDecimal(0),
+        unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
-        BeamLeg(
-          30000,
-          BeamMode.TRAM,
-          600,
-          BeamPath(
-            Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            SpaceTime(new Coord(190000.4, 1300), 30600),
-            1.0
+        beamLeg = BeamLeg(
+          startTime = 30000,
+          mode = BeamMode.TRAM,
+          duration = 600,
+          travelPath = BeamPath(
+            linkIds = Vector(),
+            transitStops = Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
+            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            distanceInM = 1.0
           )
         ),
-        Id.createVehicleId("my_tram"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = Id.createVehicleId("my_tram"),
+        asDriver = false,
+        passengerSchedule = None,
+        cost = BigDecimal(0),
+        unbecomeDriverOnCompletion = false
       )
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
