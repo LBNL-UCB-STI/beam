@@ -24,7 +24,6 @@ else
 
     to_copy="../to_copy"
     source_exp_dir="$to_copy"/"$exp_id"
-    target_exp_dir="$source_exp_dir"_"$dir_date"
     source_suggestions_dir="$source_exp_dir"/suggestions
 
     sudo mkdir $to_copy
@@ -32,7 +31,6 @@ else
     sudo mkdir $source_suggestions_dir
 
     echo "source_exp_dir: $source_exp_dir";
-    echo "target_exp_dir: $target_exp_dir";
     echo "suggestions dir: $source_suggestions_dir";
 
     for d in */ ; do
@@ -70,7 +68,7 @@ else
        echo "Empty source directory $sourceExperimentDir"
        exit 0
     else
-        echo "Copying the files... from $source_dir"
+        echo "Copying the files... from $sourceExperimentDir"
         sudo scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $sourceExperimentDir ubuntu@$2:~/sigoptResults/
         echo "Copying completed..."
         sudo mv "$sourceExperimentDir" "$copiedExperiementDir"
