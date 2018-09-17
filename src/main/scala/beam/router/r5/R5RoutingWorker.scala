@@ -190,7 +190,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               firstMsgTime = None
               msgs = 0
             }
-            log.info(
+            log.debug(
               "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
               rate,
               firstMsgTime
