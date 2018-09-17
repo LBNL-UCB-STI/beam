@@ -110,7 +110,7 @@ class PersonAgentSpec
   // Mock a transit driver (who has to be a child of a mock router)
   lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  private lazy val router = system.actorOf(
+  private val router = system.actorOf(
     Props(
       new Actor() {
         context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
