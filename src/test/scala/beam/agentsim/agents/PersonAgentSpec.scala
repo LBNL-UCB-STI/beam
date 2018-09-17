@@ -16,7 +16,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, Reservati
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, ScheduleTrigger, StartSchedule}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -34,7 +34,7 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
+import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
@@ -47,22 +47,23 @@ import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 class PersonAgentSpec
-    extends TestKit(
-      ActorSystem(
-        "PersonAgentSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
-      )
+  extends TestKit(
+    ActorSystem(
+      name = "PersonAgentSpec",
+      config = ConfigFactory.parseString(
+        """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        """
+      ).withFallback(testConfig("test/input/beamville/beam.conf"))
     )
+  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -71,12 +72,12 @@ class PersonAgentSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
 
-  val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
-  val personRefs = TrieMap[Id[Person], ActorRef]()
-  val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  val randomSeed: Int = 4771
-  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  private val dummyAgentId = Id.createPersonId("dummyAgent")
+  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
+  private val personRefs = TrieMap[Id[Person], ActorRef]()
+  private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  private val randomSeed: Int = 4771
+  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
   lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices]
@@ -94,8 +95,11 @@ class PersonAgentSpec
   lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
+
     override val beamServices: BeamServices = beamSvc
+
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+
     override def utilityOf(
       mode: BeamMode,
       cost: BigDecimal,
@@ -108,13 +112,16 @@ class PersonAgentSpec
   lazy val transitDriverProps = Props(new ForwardActor(self))
 
   lazy val router = system.actorOf(
-    Props(new Actor() {
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-      override def receive: Receive = {
-        case _ =>
+    Props(
+      new Actor() {
+        context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
+        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
+
+        override def receive: Receive = {
+          case _ =>
+        }
       }
-    }),
+    ),
     "router"
   )
 
@@ -132,11 +139,13 @@ class PersonAgentSpec
 
     it("should allow scheduler to set the first activity") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
+      )
       val scheduler =
         TestActorRef[BeamAgentScheduler](
           SchedulerProps(
@@ -179,11 +188,13 @@ class PersonAgentSpec
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
+      )
       val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
       val matsimConfig = configBuilder.buildMatSamConf()
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -299,15 +310,20 @@ class PersonAgentSpec
 
     it("should know how to take a car trip when it's already in its plan") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
+      )
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
+      val beamVehicle = new BeamVehicle(
+        vehicleId, new Powertrain(0.0), None, BeamVehicleType
+          .defaultCarBeamVehicleType, None, None
+      )
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -426,22 +442,23 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
-    ignore("should know how to take a walk_transit trip when it's already in its plan") {
+    it("should know how to take a walk_transit trip when it's already in its plan") {
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
       // So we put the Events on a separate channel to avoid a non-deterministically failing test.
       val events = new TestProbe(system)
-      val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          events.ref ! event
+      val eventsManager: EventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            events.ref ! event
+          }
         }
-      })
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
+      )
 
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+      val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
+
       val bus = new BeamVehicle(
         Id.createVehicleId("my_bus"),
         new Powertrain(0.0),
