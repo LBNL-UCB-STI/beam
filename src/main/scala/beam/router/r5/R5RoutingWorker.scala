@@ -6,7 +6,6 @@ import java.util
 import java.util.UUID
 import java.util.concurrent.Executors
 
-import akka.actor.Status.Success
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
@@ -39,7 +38,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
-import kamon.Kamon
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
