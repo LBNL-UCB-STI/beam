@@ -105,8 +105,8 @@ To replaces the text pointers with the actual files run the following command(if
    $ git lfs pull
    Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
    
-GIT-LFS Configuration
-^^^^^^^^^^^^^^^^^^^^^
+Keeping Production Data out of Master Branch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
 
