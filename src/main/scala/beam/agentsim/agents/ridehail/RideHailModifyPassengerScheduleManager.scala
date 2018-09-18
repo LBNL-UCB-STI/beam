@@ -206,7 +206,8 @@ class RideHailModifyPassengerScheduleManager(
               log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
           }
         } else if (log.isErrorEnabled) {
-          val str = reservationModifyPassengerScheduleStatus.map(a => "reservation requests:" + a.toString)
+          val str = reservationModifyPassengerScheduleStatus
+            .map(a => "reservation requests:" + a.toString)
             .mkString(System.lineSeparator())
           log.error(
             s"""
@@ -288,8 +289,7 @@ class RideHailModifyPassengerScheduleManager(
 
     val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.filter(
       x =>
-        x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail
-          .allocationManager.timeoutInSeconds
+        x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
     )
 
     if (badTriggers.nonEmpty) {
@@ -494,8 +494,7 @@ class RideHailModifyPassengerScheduleManager(
             val passengerSchduleLastLeg = passengerSchedule.schedule.toVector.last._1
             val endTime = beamLeg.endTime
 
-            if (beamLeg.endTime != passengerSchduleLastLeg.endTime && status.interruptOrigin == InterruptOrigin
-              .RESERVATION) {
+            if (beamLeg.endTime != passengerSchduleLastLeg.endTime && status.interruptOrigin == InterruptOrigin.RESERVATION) {
               // ignore, because this checkin is for a reposition and not the current Reservation
               log.debug(
                 "checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn
@@ -517,9 +516,9 @@ class RideHailModifyPassengerScheduleManager(
               // only something new, if all undefined (no pending query)
               // TODO: double check if the following code will ever be executed as we are not buffering anymore resp. is it really needed and not handled somewhere else
               if (rideHailModifyPassengerScheduleStatusSet.nonEmpty && rideHailModifyPassengerScheduleStatusSet
-                .count(
-                  _.status == InterruptMessageStatus.UNDEFINED
-                ) == rideHailModifyPassengerScheduleStatusSet.size) {
+                    .count(
+                      _.status == InterruptMessageStatus.UNDEFINED
+                    ) == rideHailModifyPassengerScheduleStatusSet.size) {
                 sendInterruptMessage(rideHailModifyPassengerScheduleStatusSet.head)
               }
             }

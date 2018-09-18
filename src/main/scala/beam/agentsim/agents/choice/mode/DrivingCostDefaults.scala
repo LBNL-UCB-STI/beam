@@ -38,11 +38,12 @@ object DrivingCostDefaults {
             .map(_.beamLeg.travelPath.distanceInM)
             .sum
 
-          val cost = if(null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
-            (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
-          } else {
-            0 //TODO
-          }
+          val cost =
+            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
+              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+            } else {
+              0 //TODO
+            }
           BigDecimal(cost)
         case _ =>
           BigDecimal(0)

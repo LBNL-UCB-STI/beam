@@ -189,9 +189,9 @@ class TransitInitializer(
       )
       //There has to be a default one defined
       services.vehicleTypes.getOrElse(
-          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-          BeamVehicleType.defaultTransitBeamVehicleType
-        )
+        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
+        BeamVehicleType.defaultTransitBeamVehicleType
+      )
     }
   }
 
@@ -213,7 +213,7 @@ class TransitInitializer(
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
-        val beamVehicleId = BeamVehicle.createId(transitVehId)//, Some(mode.toString)
+        val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
 
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,

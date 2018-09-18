@@ -286,52 +286,52 @@ class BeamMobsim @Inject()(
 
             val rideHailName = s"rideHailAgent-${person.getId}"
 
-              val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
-              //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+            val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
+            //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
-              val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
-              val ridehailBeamVehicleType = beamServices
-                .vehicleTypes
-                .get(ridehailBeamVehicleTypeId)
-                .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
+            val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+            val ridehailBeamVehicleType = beamServices.vehicleTypes
+              .get(ridehailBeamVehicleTypeId)
+              .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
 
-              val rideHailAgentPersonId: Id[RideHailAgent] =
-                Id.create(rideHailName, classOf[RideHailAgent])
+            val rideHailAgentPersonId: Id[RideHailAgent] =
+              Id.create(rideHailName, classOf[RideHailAgent])
 
-              val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
-                .map(new Powertrain(_))
-                .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+              .map(new Powertrain(_))
+              .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
-              val rideHailBeamVehicle = new BeamVehicle(
-                rideHailVehicleId,
-                powertrain,
-                None,
-                ridehailBeamVehicleType,
-                Some(1.0), None
-              )
-              beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
-              rideHailBeamVehicle.registerResource(rideHailManager)
+            val rideHailBeamVehicle = new BeamVehicle(
+              rideHailVehicleId,
+              powertrain,
+              None,
+              ridehailBeamVehicleType,
+              Some(1.0),
+              None
+            )
+            beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+            rideHailBeamVehicle.registerResource(rideHailManager)
 
-              rideHailManager ! BeamVehicleStateUpdate(
-                rideHailBeamVehicle.getId,
-                rideHailBeamVehicle.getState()
-              )
+            rideHailManager ! BeamVehicleStateUpdate(
+              rideHailBeamVehicle.getId,
+              rideHailBeamVehicle.getState()
+            )
 
-              val rideHailAgentProps = RideHailAgent.props(
-                beamServices,
-                scheduler,
-                transportNetwork,
-                eventsManager,
-                parkingManager,
-                rideHailAgentPersonId,
-                rideHailBeamVehicle,
-                rideInitialLocation
-              )
-              val rideHailAgentRef: ActorRef =
-                context.actorOf(rideHailAgentProps, rideHailName)
-              context.watch(rideHailAgentRef)
-              scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
-              rideHailAgents += rideHailAgentRef
+            val rideHailAgentProps = RideHailAgent.props(
+              beamServices,
+              scheduler,
+              transportNetwork,
+              eventsManager,
+              parkingManager,
+              rideHailAgentPersonId,
+              rideHailBeamVehicle,
+              rideInitialLocation
+            )
+            val rideHailAgentRef: ActorRef =
+              context.actorOf(rideHailAgentProps, rideHailName)
+            context.watch(rideHailAgentRef)
+            scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
+            rideHailAgents += rideHailAgentRef
 
             rideHailinitialLocationSpatialPlot
               .addString(StringToPlot(s"${person.getId}", rideInitialLocation, Color.RED, 20))
