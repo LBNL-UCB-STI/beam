@@ -19,9 +19,7 @@ trait EventsFileHandlingCommon {
         listResult = line.split(",")(positionID) :: listResult
       }
     }
-
-    return listResult
-
+    listResult
   }
 
   def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {

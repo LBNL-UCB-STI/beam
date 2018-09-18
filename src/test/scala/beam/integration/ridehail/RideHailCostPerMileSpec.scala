@@ -5,6 +5,10 @@ import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{Matchers, WordSpecLike}
 
+/**
+  * Created by fdariasm on 29/08/2017
+  *
+  */
 class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing defaultCostPerMile value" must {

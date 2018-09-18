@@ -39,7 +39,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
 
       val samps = for (i <- 1 until 100) yield mnl.sampleAlternative(alts, rand).get
 
-      samps.filter(_.equals("walk")).length > 50 should be(true)
+      samps.count(_.equals("walk")) > 50 should be(true)
     }
   }
 }

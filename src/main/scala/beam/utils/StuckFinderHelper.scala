@@ -26,7 +26,7 @@ class StuckFinderHelper[K] {
 
   def add(time: Long, key: K): Unit = {
     map.get(key) match {
-      case Some(x) =>
+      case Some(_) =>
       // TODO Key is already there. What shall we do?!
       // 1 => Skip adding
       // 2 => Change map to be K -> List to store all different timestamps

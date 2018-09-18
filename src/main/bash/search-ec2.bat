@@ -96,12 +96,9 @@ goto :init
          if defined search_word             echo search_word:        "%search_word%"
     )
 
-
     for /f "tokens=1,2 delims=, " %%a in (%host_csv%) do (
         echo Results from host: %%a
-        ssh -i "%%b" ubuntu@%%a ec2metadata --instance-id
         ssh -i "%%b" ubuntu@%%a grep %search_word% %search_path%
-
     )
 
 :end

@@ -4,10 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.calibration.impl.example.ErrorComparisonType;
-import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
+import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.jfree.data.category.CategoryDataset;
 import org.matsim.api.core.v01.Scenario;
@@ -68,11 +65,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             Scenario scenario, BeamConfig beamConfig) {
+                                             BeamServices services, BeamConfig beamConfig) {
         this(beamConfig);
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
     }
 
     // helper methods

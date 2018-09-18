@@ -1,6 +1,6 @@
 package beam.calibration.utils
 
-import beam.calibration.{SigoptExperimentData}
+import beam.calibration.SigoptExperimentData
 import com.sigopt.Sigopt
 import com.typesafe.scalalogging.LazyLogging
 
