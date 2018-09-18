@@ -65,7 +65,7 @@ object PersonTravelTimeStatsGraphSpec {
         personTravelTime = updateDepartureTime(evn.asInstanceOf[PersonDepartureEvent])
       case evn if evn.getEventType.equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE) =>
         counter = updateCounterTime(evn.asInstanceOf[PersonArrivalEvent])
-      case evn: PersonArrivalEvent =>
+     case evn: PersonArrivalEvent =>
         counter = updateCounterTime(evn)
       case evn: PersonDepartureEvent =>
         personTravelTime = updateDepartureTime(evn)
@@ -74,27 +74,43 @@ object PersonTravelTimeStatsGraphSpec {
 
     private def updateDepartureTime(evn: PersonDepartureEvent): Map[(String, String), Double] = {
       val mode = evn.getLegMode
+      if(mode.contains("driver")){
+        return personTravelTime
+      }
       val personId = evn.getPersonId.toString
       val time = evn.getTime
       personTravelTime + ((mode, personId) -> time)
     }
 
     private def updateCounterTime(evn: PersonArrivalEvent): Seq[(String, Double)] = {
-      val mode = evn.getLegMode
+      var mode = evn.getLegMode
       val personId = evn.getPersonId.toString
-      val modeTime = personTravelTime
+      var modeTime = personTravelTime
         .get(mode -> personId)
         .map { time =>
           val travelTime = (evn.getTime - time) / 60
           mode -> travelTime
         }
-      personTravelTime = personTravelTime - (mode -> personId)
-      modeTime.fold(counter)(items => counter :+ items)
+
+      modeTime match {
+        case Some(_) =>{
+          personTravelTime = personTravelTime - (mode -> personId)
+          modeTime.fold(counter)(items => counter :+ items)
+
+        }
+        case None =>{
+          val ((mode, person), time) = personTravelTime.filterKeys(_._2.equals(personId)).last
+
+          personTravelTime = personTravelTime - (mode -> personId)
+          counter :+ ("others" -> (evn.getTime - time) / 60)
+        }
+      }
     }
 
     def counterValue: Seq[(String, Double)] = counter
 
     def isEmpty: Boolean = personTravelTime.isEmpty
+
   }
 }
 
@@ -136,8 +152,10 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
                   .setScale(3, RoundingMode.HALF_UP)
                   .toDouble
             }
+
             handler.isEmpty shouldBe true
             modes shouldEqual all
+
           }
         }
       }
