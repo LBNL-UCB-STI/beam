@@ -2,8 +2,8 @@ package beam.sim
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
@@ -15,7 +15,7 @@ import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
+import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -41,17 +41,13 @@ class TransitInitializer(
    *
    */
   def initMap: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
-    val activeServicesToday =
-      transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
-    val stopToStopStreetSegmentCache =
-      mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips =
-      transportNetwork.transitLayer.tripPatterns.asScala.toStream
+    val start = System.currentTimeMillis()
+    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
+    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
+    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
-      val route =
-        transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode =
-        Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
         .sliding(2)
         .map {
@@ -65,10 +61,8 @@ class TransitInitializer(
               ) match {
                 case Some(streetSeg) =>
                   val edges = streetSeg.getEdges.asScala
-                  val startEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
                   (departureTime: Long, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
@@ -119,10 +113,8 @@ class TransitInitializer(
               }
             } else {
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-              val startEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
-              val endEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
+              val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
+              val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
               (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
@@ -175,7 +167,10 @@ class TransitInitializer(
       case (tripVehId, (route, legs)) =>
         createTransitVehicle(tripVehId, route, legs)
     }
-    logger.info(s"Finished Transit initialization trips, ${transitData.length}")
+    val end = System.currentTimeMillis()
+    logger.info(
+      s"Initialized transit trips in ${(end - start)} ms. Keys: ${transitScheduleToCreate.keySet.size}, Values: ${transitScheduleToCreate.values.size}"
+    )
     transitScheduleToCreate
   }
 
