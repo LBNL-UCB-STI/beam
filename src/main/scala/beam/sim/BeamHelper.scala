@@ -406,6 +406,8 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
     }
+    //beam.agentsim.populationAdjustment="className" with default DefaultPopulationAdjustment
+
   }
 
 }
