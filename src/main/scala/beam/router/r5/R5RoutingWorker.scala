@@ -246,7 +246,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
-      val travelTime = (time: Long, linkId: Int) =>
+      val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
           case Some(matsimTravelTime) =>
             matsimTravelTime
@@ -255,14 +255,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 time.toDouble,
                 null,
                 null
-              )
-              .toLong
+              ).toInt
           case None =>
             val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
             (edge.getLengthM / edge.calculateSpeed(
               new ProfileRequest,
               StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
-            )).toLong
+            )).toInt
       }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
@@ -274,7 +273,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamTrip(
             Vector(
               EmbodiedBeamLeg(
-                leg.copy(duration = duration.toLong),
+                leg.copy(duration = duration.toInt),
                 vehicleId,
                 asDriver = true,
                 None,
@@ -537,7 +536,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         LegMode.WALK
       }
       val walkToVehicleDuration =
-        maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0l).toInt
+        maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0)
       val time = routingRequest.departureTime match {
         case time: DiscreteTime =>
           WindowTime(
@@ -621,7 +620,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             val tripStartTime = beamServices.dates.toBaseMidnightSeconds(
               itinerary.startTime,
               transportNetwork.transitLayer.routes.size() == 0
-            )
+            ).toInt
 
             val legsWithFares = mutable.ArrayBuffer.empty[(BeamLeg, Double)]
             maybeWalkToVehicle.foreach(walkLeg => {
@@ -629,7 +628,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // this covers the various contingencies for doing this.
               val delayStartTime =
                 Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
-              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toLong), 0.0))
+              legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toInt), 0.0))
             })
 
             val access = option.access.get(itinerary.connection.access)
@@ -669,7 +668,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             }
 
             if (isTransit) {
-              var arrivalTime: Long = Long.MinValue
+              var arrivalTime: Int = Int.MinValue
               /*
              Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
              assuming that: For each transit in option there is a TransitJourneyID in connection
@@ -700,7 +699,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   arrivalTime = beamServices.dates.toBaseMidnightSeconds(
                     segmentPattern.toArrivalTime.get(transitJourneyID.time),
                     isTransit
-                  )
+                  ).toInt
                   if (transitSegment.middle != null) {
                     legsWithFares += (
                       (
@@ -831,7 +830,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private def buildStreetPath(
     segment: StreetSegment,
-    tripStartTime: Long,
+    tripStartTime: Int,
     mode: StreetMode
   ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
@@ -848,7 +847,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       mode,
       transportNetwork.streetLayer
     )
-    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0L)(_ + _) // note we exclude the first link to keep with MATSim convention
+    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _) // note we exclude the first link to keep with MATSim convention
     val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _) // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
@@ -868,12 +867,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
   private def buildStreetPath(
     linksTimesDistances: LinksTimesDistances,
-    tripStartTime: Long
+    tripStartTime: Int
   ): BeamPath = {
-    val startLoc =
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.head)
-    val endLoc =
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
+    val startLoc = beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.head)
+    val endLoc = beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
     BeamPath(
       linksTimesDistances.linkIds,
       None,
@@ -881,7 +878,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.foldLeft(0L)(_ + _)
+        tripStartTime + linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _)
       ),
       linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
@@ -998,7 +995,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
-  private def travelTimeByLinkCalculator(time: Long, linkId: Int, mode: StreetMode): Long = {
+  private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
         matsimTravelTime
@@ -1008,12 +1005,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             null,
             null
           )
-          .toLong
+          .toInt
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
         val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-        tt
+        tt.toInt
     }
   }
 
@@ -1242,32 +1239,15 @@ object R5RoutingWorker {
     egressMode: LegMode
   )
 
-  def createBushwackingBeamLeg(atTime: Long, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
+  def createBushwackingBeamLeg(atTime: Int, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
     val beelineDistanceInMeters = beamServices.geo.distInMeters(start, end)
-    val bushwhackingTime =
-      Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-    createBushwackingBeamLeg(atTime, bushwhackingTime, start, end, beelineDistanceInMeters)
+    val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, start, end, beelineDistanceInMeters)
   }
 
-  def createBushwackingBeamLeg(
-    atTime: Long,
-    duration: Long,
-    start: Location,
-    end: Location,
-    distance: Double
-  ): BeamLeg = {
-    BeamLeg(
-      atTime,
-      WALK,
-      duration,
-      BeamPath(
-        Vector(),
-        None,
-        SpaceTime(start, atTime),
-        SpaceTime(end, atTime + duration),
-        distance
-      )
-    )
+  def createBushwackingBeamLeg(atTime: Int, duration: Int, start: Location, end: Location, distance: Double): BeamLeg = {
+    val path = BeamPath(Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
+    BeamLeg(atTime, WALK, duration, path)
   }
 
   def createBushwackingTrip(

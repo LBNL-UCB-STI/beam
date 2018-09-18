@@ -37,7 +37,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      SpaceTime(0, 0, 0),
+      SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
     )
@@ -61,7 +61,7 @@ trait ChoosesMode {
   when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusResponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
       choosesModeData.personData.currentTourMode match {
         case Some(mode) =>
@@ -73,11 +73,7 @@ trait ChoosesMode {
 
       val bodyStreetVehicle = StreetVehicle(
         bodyId,
-<<<<<<< HEAD
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get),
-=======
         currentPersonLocation,
->>>>>>> origin/master
         WALK,
         asDriver = true
       )
@@ -414,7 +410,7 @@ trait ChoosesMode {
           leg =>
             leg.copy(
               leg.beamLeg
-                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.toInt)
+                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
@@ -453,7 +449,7 @@ trait ChoosesMode {
         _
         ) =>
       val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(

@@ -10,7 +10,8 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.vehicles.Vehicle
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -120,17 +121,16 @@ class BeamVehicle(
     *
     * @return refuelingDuration
     */
-  def refuelingSessionDurationAndEnergyInJoules(): (Int, Double) = {
+  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
     stall match {
       case Some(theStall) =>
-        val (t, e) = ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
+        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
           refuelRateLimitInJoulesPerSecond,
           None
         )
-        (t.toInt, e)
       case None =>
         (0, 0.0) // if we are not parked, no refueling can occur
     }
