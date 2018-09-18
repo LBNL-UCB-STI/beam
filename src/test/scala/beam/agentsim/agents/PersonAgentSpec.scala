@@ -157,8 +157,8 @@ class PersonAgentSpec
         TestActorRef[BeamAgentScheduler](
           SchedulerProps(
             beamConfig,
-            stopTick = 11.0,
-            maxWindow = 10.0,
+            stopTick = 11,
+            maxWindow = 10,
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
@@ -185,7 +185,7 @@ class PersonAgentSpec
       )
 
       watch(personAgentRef)
-      scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), personAgentRef)
       scheduler ! StartSchedule(0)
       expectTerminated(personAgentRef)
       expectMsg(CompletionNotice(0, Vector()))
@@ -233,8 +233,8 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
-          maxWindow = 10.0,
+          stopTick = 1000000,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -270,7 +270,7 @@ class PersonAgentSpec
                 beamLeg = BeamLeg(
                   startTime = 28800,
                   mode = BeamMode.WALK,
-                  duration = 100L,
+                  duration = 100,
                   travelPath = BeamPath(
                     linkIds = Vector(1, 2),
                     transitStops = None,
@@ -381,8 +381,8 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
-          maxWindow = 10.0,
+          stopTick = 1000000,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -574,8 +574,8 @@ class PersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 1000000.0,
-          maxWindow = 10.0,
+          stopTick = 1000000,
+          maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -628,7 +628,7 @@ class PersonAgentSpec
                 beamLeg = BeamLeg(
                   startTime = 28800,
                   mode = BeamMode.WALK,
-                  duration = 0L,
+                  duration = 0,
                   travelPath = BeamPath(
                     linkIds = Vector(),
                     transitStops = None,
@@ -650,7 +650,7 @@ class PersonAgentSpec
                 beamLeg = BeamLeg(
                   startTime = 30600,
                   mode = BeamMode.WALK,
-                  duration = 0L,
+                  duration = 0,
                   travelPath = BeamPath(
                     linkIds = Vector(),
                     transitStops = None,
