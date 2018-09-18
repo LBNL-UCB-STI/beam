@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -192,10 +193,13 @@ class RideHailAgent(
               theVehicle.id
             )
           )
+          parkingManager ! CheckInResource(theVehicle.stall.get.id, None)
+          val whenWhere = Some(SpaceTime(theVehicle.stall.get.location, tick.toLong))
+          theVehicle.unsetParkingStall()
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
-              Some(SpaceTime(theVehicle.stall.get.location, tick.toLong)),
+              whenWhere,
               data.passengerSchedule,
               theVehicle.getState(),
               _currentTriggerId

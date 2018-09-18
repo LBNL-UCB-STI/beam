@@ -114,6 +114,10 @@ trait ChoosesParking extends {
       //cost
       //location
 
+      if (id.equals("501900-2013001147754-0-3400175")) {
+        val i = 0
+      }
+
       val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {

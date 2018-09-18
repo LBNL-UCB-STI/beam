@@ -34,34 +34,45 @@ exp.file <- pp(exp.dir,'runs/experiments.csv')
 plots.dir <- pp(exp.dir,'plots/')
 make.dir(plots.dir)
 exp <- data.table(read.csv(exp.file))
-factors <- as.character(sapply(sapply(str_split(exp$experimentalGroup[1],"__")[[1]],str_split,"_"),function(x){ x[1] }))
+if('experimentalGroup'%in%names(exp)){
+  exp[,':='(run=experimentalGroup,experimentalGroup=NULL)]
+}
+factors <- as.character(sapply(sapply(str_split(exp$run[1],"__")[[1]],str_split,"_"),function(x){ x[1] }))
 
 levels <- list()
 for(fact in factors){
   levels[[fact]] <- streval(pp('u(exp$',fact,')'))
 }
 
-grp <- exp$experimentalGroup[1]
+grp <- exp$run[1]
 evs <- list()
+wait.times <- list()
 for(run.i in 1:nrow(exp)){
-  grp <-  exp$experimentalGroup[run.i]
+  grp <-  exp$run[run.i]
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
-  output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_','output')
+  output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_',ifelse(file.exists(pp(run.dir,'output')),'output',''))
   last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,output.dir,'/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
-  if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
+  #if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
   events.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
   ev <- csv2rdata(events.csv)
   ev[,run:=grp]
+  wait.times.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.rideHailIndividualWaitingTimes.csv')
+  wait.time <- csv2rdata(wait.times.csv)
+  wait.time[,run:=grp]
   for(fact in factors){
     if(fact %in% names(ev))stop(pp('Factor name "',fact,'" also a column name in events.csv, please change factor name in experiments.csv'))
     the.level <- streval(pp('exp$',fact,'[run.i]'))
     streval(pp('ev[,',fact,':="',the.level,'"]'))
+    streval(pp('wait.time[,',fact,':="',the.level,'"]'))
   }
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice','RefuelEvent','PersonEntersVehicle')]
+  wait.times[[length(wait.times)+1]] <- wait.time
 }
 ev <- rbindlist(evs,use.names=T,fill=T)
 rm('evs')
 setkey(ev,type)
+wait.time <- rbindlist(wait.times,use.names=T,fill=T)
+rm('wait.times')
 scale_fill_manual(values = colours)
 
 
@@ -96,9 +107,6 @@ both[,hour:=floor(time/3600)]
 enters <- ev[type=='PersonEntersVehicle'  & substr(vehicle,1,5)=='rideH' & substr(person,1,5)!='rideH',.(person,vehicle,run)]
 #length(u(enters$person))
 
-if('experimentalGroup'%in%names(exp)){
-  exp[,':='(run=experimentalGroup,experimentalGroup=NULL)]
-}
 
 enters.sum <- enters[,.(n.trips.with.passenger=.N,n.unique.passengers=length(u(person))),by='run']
 
@@ -124,15 +132,23 @@ ref.sum <- ref[,.(n.charge.sessions=.N,
                   min.kwh=min(kwh)
                   ),by='run']
 
-all.sum <- join.on(join.on(rh.sum,enters.sum,'run','run'),ref.sum,'run','run')
+wait.sum <- wait.time[,.(percentile=c(50,75,95,99),minutes=quantile(waitingTimeInSeconds,c(.5,.75,.95,.99),na.rm=T)/60),by='run']
+wait.sum <- cast(wait.sum,run ~ percentile,value='minutes')
+names(wait.sum) <- c('run',pp("customer.wait.",tail(names(wait.sum),-1),"th.percentile"))
+
+all.sum <- join.on(join.on(join.on(rh.sum,enters.sum,'run','run'),ref.sum,'run','run'),data.table(wait.sum),'run','run')
 all.sum <- join.on(all.sum,exp,'run','run',names(exp)[!names(exp)%in%names(all.sum)])
 
 all.m <- melt(all.sum,id.vars=c(names(exp)))
 
-p <- ggplot(melt(all.sum,id.vars=c(names(exp))),aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
+p <- ggplot(all.m,aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
 pdf.scale <- 1.5
 ggsave(pp(plots.dir,'summary-ride-hail-metrics-by-run.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 write.csv(all.sum,file=pp(plots.dir,'summary-ride-hail-metrics.csv'))
+
+p <- ggplot(all.m[variable%in%c('n.charge.sessions','n.unique.vehicles.that.charge','n.trips.with.passenger','vmt.per.vehicle','n.charge.sessions','customer.wait.50th.percentile','customer.wait.99th.percentile','deadhead.vmt.fraction')],aes(x=run,y=value))+geom_bar(stat='identity')+facet_wrap(~variable,scales='free_y')+theme(axis.text.x = element_text(angle = 35, hjust = 1))
+pdf.scale <- 1.5
+ggsave(pp(plots.dir,'summary-ride-hail-metrics-abbrev.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
 save(all.sum,exp,file=pp(plots.dir,'summary-metrics.Rdata'))
 
