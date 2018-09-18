@@ -3,15 +3,18 @@ package beam.sim.population
 import java.util.Random
 
 import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Population}
 
-class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
+class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment with LazyLogging {
   override def update(population: Population): Population = {
 
     removeMode(population, "car")
 
     assignModeUniformDistribution(population, "car", 0.5)
+
+    logModes(population)
 
     population
   }
@@ -49,5 +52,13 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
           )
       }
     }
+  }
+
+  def logModes(population: Population): Unit = {
+    import scala.collection.JavaConverters._
+    logger.info("Modes' Availability:")
+    population.getPersons.keySet().asScala.map(personId =>
+      population.getPersonAttributes.getAttribute(personId.toString, "available-modes").toString.split(",")
+    ).toList.flatten.groupBy(identity).mapValues(_.size).foreach(t => logger.info(t.toString()))
   }
 }
