@@ -402,8 +402,8 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
     }
-    //beam.agentsim.populationAdjustment="className" with default DefaultPopulationAdjustment
-    val populationAdjustmentClass = ""
+
+    val populationAdjustmentClass = beamConfig.beam.agentsim.populationAdjustment
     val populationAdjustment = try {
       Class
         .forName(populationAdjustmentClass)
