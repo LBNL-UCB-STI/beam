@@ -81,9 +81,9 @@ object PersonTravelTimeStatsGraphSpec {
     }
 
     private def updateCounterTime(evn: PersonArrivalEvent): Seq[(String, Double)] = {
-      var mode = evn.getLegMode
+      val mode = evn.getLegMode
       val personId = evn.getPersonId.toString
-      var modeTime = personTravelTime
+      val modeTime = personTravelTime
         .get(mode -> personId)
         .map { time =>
           val travelTime = (evn.getTime - time) / 60
