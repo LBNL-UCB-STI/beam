@@ -90,18 +90,15 @@ object PersonTravelTimeStatsGraphSpec {
           mode -> travelTime
         }
 
-      modeTime match {
-        case Some(_) =>{
-          personTravelTime = personTravelTime - (mode -> personId)
-          modeTime.fold(counter)(items => counter :+ items)
-
-        }
+      val (modeValue, modeTimeMap) = modeTime match {
+        case Some(item) => (mode, item)
         case None =>{
-          val ((mode, person), time) = personTravelTime.filterKeys(_._2.equals(personId)).last
-          personTravelTime = personTravelTime - (mode -> personId)
-          counter :+ ("others" -> (evn.getTime - time) / 60)
+          val ((mode, _), time) = personTravelTime.filterKeys(_._2.equals(personId)).last
+          (mode, ("others" -> (evn.getTime - time) / 60))
         }
       }
+      personTravelTime = personTravelTime - (modeValue -> personId)
+      counter :+ modeTimeMap
     }
 
     def counterValue: Seq[(String, Double)] = counter
