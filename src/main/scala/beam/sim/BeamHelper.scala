@@ -1,13 +1,11 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, Paths}
-import java.util
+import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-import org.matsim.core.api.experimental.events.EventsManager
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -17,16 +15,17 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
+import beam.utils.{BashUtils, BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
@@ -225,9 +224,9 @@ trait BeamHelper extends LazyLogging {
       }
     )
 
-  def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true) = {
+  def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
     val parsedArgs = argsParser.parse(args, init = Arguments()) match {
-      case Some(parsedArgs) => parsedArgs
+      case Some(pArgs) => pArgs
       case None =>
         throw new IllegalArgumentException(
           "Arguments provided were unable to be parsed. See above for reasoning."
@@ -249,7 +248,7 @@ trait BeamHelper extends LazyLogging {
       case _ =>
         val (_, outputDirectory) = runBeamWithConfig(config)
         val props = new Properties()
-        props.setProperty("commitHash", LoggingUtil.getCommitHash)
+        props.setProperty("commitHash", BashUtils.getCommitHash)
         props.setProperty("configFile", configLocation)
         val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
         props.store(out, "Simulation out put props.")
@@ -267,11 +266,11 @@ trait BeamHelper extends LazyLogging {
             )
           )
         }
-        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"))
+        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"), StandardCopyOption.REPLACE_EXISTING)
     }
   }
 
-  def runClusterWorkerUsing(config: TypesafeConfig) = {
+  def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
       .parseString(s"""
                       |akka.cluster.roles = [compute]
@@ -292,12 +291,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -344,9 +338,15 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.agentsim.simulationName,
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
+
     LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+
+    logger.info(s"Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
+    val outConf = Paths.get(outputDirectory, "beam.conf")
+    Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
+    logger.info(s"Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -414,6 +414,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
+
 }
 
 case class MapStringDouble(data: Map[String, Double])
@@ -426,13 +427,13 @@ case class Arguments(
   seedAddress: Option[String] = None,
   useLocalWorker: Option[Boolean] = None
 ) {
-  val useCluster = clusterType.isDefined
+  val useCluster: Boolean = clusterType.isDefined
 }
 
 sealed trait ClusterType
 case object Master extends ClusterType {
-  override def toString() = "master"
+  override def toString = "master"
 }
 case object Worker extends ClusterType {
-  override def toString() = "worker"
+  override def toString = "worker"
 }
