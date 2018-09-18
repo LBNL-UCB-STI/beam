@@ -17,12 +17,12 @@ class TrajectoryTest extends FlatSpec with Matchers {
     val start = trajectory.location(0)
     val end = trajectory.location(4)
     val middle = trajectory.location(2)
-    val otherPoint = trajectory.location(2)
+    val otherPoint = trajectory.location(3)
 
     start.loc should ===(new Coord(0.0, 0.0))
     end.loc should ===(new Coord(4.0, 4.0))
     middle.loc should ===(new Coord(2.0, 2.0))
-    otherPoint.loc should ===(new Coord(2.5, 2.5))
+    otherPoint.loc should ===(new Coord(3.0, 3.0))
 
     val path = trajectory.computePath(2)
     //XXX: trajectory operation in Cartesian coord system
