@@ -1,5 +1,6 @@
 package beam.agentsim.agents
 
+import java.util
 import java.util.concurrent.TimeUnit
 
 import scala.collection.{mutable, JavaConverters}
@@ -20,7 +21,7 @@ import beam.agentsim.agents.PersonAgentSpec.ZERO
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, ScheduleTrigger, StartSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -36,7 +37,7 @@ import beam.utils.plansampling.PlansSampler
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Node}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
@@ -204,11 +205,20 @@ class PersonAgentSpec
         }
       )
 
-      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val household = householdsFactory.createHousehold(hoseHoldDummyId)
-      val population = PopulationUtils.createPopulation(matsimConfig)
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity.setEndTime(28800) // 8:00:00 AM
+
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      workActivity.setEndTime(61200) //5:00:00 PM
+
+      val plan = PopulationUtils.getFactory.createPlan()
+      plan.addActivity(homeActivity)
+      plan.addActivity(workActivity)
 
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      person.addPlan(plan)
+
+      val population = PopulationUtils.createPopulation(matsimConfig)
       population.getPersonAttributes.putAttribute(
         person.getId.toString,
         PlansSampler.availableModeString,
@@ -216,20 +226,29 @@ class PersonAgentSpec
       )
       population.getPersonAttributes
         .putAttribute(person.getId.toString, "valueOfTime", 15.0)
-      val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setEndTime(28800) // 8:00:00 AM
-      plan.addActivity(homeActivity)
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      workActivity.setEndTime(61200) //5:00:00 PM
-      plan.addActivity(workActivity)
-      person.addPlan(plan)
       population.addPerson(person)
+
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+
+      println("$$$$:" + matsimConfig)
+      val scenario: MutableScenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       scenario.setPopulation(population)
       scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
+
+      try {
+        // TODO: it says the following nodes are already created
+        //      scenario.getNetwork.removeNode(Id.createNodeId(0))
+        //      scenario.getNetwork.removeNode(Id.createNodeId(1))
+        //      scenario.getNetwork.removeNode(Id.createNodeId(10))
+        //      scenario.getNetwork.removeNode(Id.createNodeId(100))
+        ScenarioUtils.loadScenario(scenario)
+      } catch {
+        case _ =>
+      }
+
       when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
+
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
@@ -241,19 +260,19 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamSvc,
-          _ => modeChoiceCalculator,
-          scheduler,
-          networkCoordinator.transportNetwork,
-          self,
-          self,
-          parkingManager,
-          eventsManager,
-          population,
-          household.getId,
-          household,
-          Map(),
-          new Coord(0.0, 0.0)
+          beamServices = beamSvc,
+          modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
+          schedulerRef = scheduler,
+          transportNetwork = networkCoordinator.transportNetwork,
+          router = self,
+          rideHailManager = self,
+          parkingManager = parkingManager,
+          eventsManager = eventsManager,
+          population = population,
+          id = household.getId,
+          household = household,
+          vehicles = Map(),
+          homeCoord = new Coord(0.0, 0.0)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -261,7 +280,7 @@ class PersonAgentSpec
       scheduler ! StartSchedule(0)
 
       // The agent will ask for a route, and we provide it.
-      expectMsgType[RoutingRequest]
+      expectMsgType[RideHailRequest]
       personActor ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -292,7 +311,7 @@ class PersonAgentSpec
       )
 
       // The agent will ask for a ride, and we will answer.
-      val inquiry = expectMsgType[RideHailRequest]
+      val inquiry = expectMsgType[RoutingRequest].asInstanceOf[RideHailRequest]
       personActor ! RideHailResponse(inquiry, None, None)
 
       expectMsgType[ModeChoiceEvent]
