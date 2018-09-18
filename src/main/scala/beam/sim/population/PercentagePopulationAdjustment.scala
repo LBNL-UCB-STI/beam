@@ -9,9 +9,9 @@ import org.matsim.api.core.v01.population.{Person, Population}
 class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
   override def update(population: Population): Population = {
 
-    removeMode(population,"car")
+    removeMode(population, "car")
 
-    assignModeUniformDistribution(population, "car",0.5)
+    assignModeUniformDistribution(population, "car", 0.5)
 
     population
   }
@@ -37,10 +37,10 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
   def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val numPop = population.getPersons.size()
-    rand.ints(0, numPop).distinct().limit((numPop*pct).toLong).forEach { num =>
+    rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
       val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
       val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
-      if(!existsMode(population, personId, mode)) {
+      if (!existsMode(population, personId, mode)) {
         population.getPersonAttributes
           .putAttribute(
             personId,
