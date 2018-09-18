@@ -10,6 +10,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
 }
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailModifyPassengerScheduleManager}
 import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig
@@ -68,13 +69,6 @@ class OutOfServiceVehicleManager(
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
-  def handleModifyPassengerScheduleAck(
-    vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger]
-  ): Unit = {
-    releaseTrigger(vehicleId, triggersToSchedule)
-  }
-
   def releaseTrigger(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
@@ -91,8 +85,11 @@ class OutOfServiceVehicleManager(
 
 }
 
+case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
+
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
   tick: Double,
   vehicleId: Id[Vehicle],
+  stall: ParkingStall
 )

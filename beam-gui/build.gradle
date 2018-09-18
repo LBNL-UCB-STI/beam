@@ -15,7 +15,7 @@ distributions {
             }
             into('input') {
                 from('../test/input') {
-                    include 'beamville/**', 'sf-light/**', 'dtd/**'
+                    include 'beamville/**', 'sf-light/**', 'common/**', 'dtd/**'
                     exclude '**/output/**'
                 }
             }

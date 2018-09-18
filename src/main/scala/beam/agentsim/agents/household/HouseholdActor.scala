@@ -165,7 +165,7 @@ object HouseholdActor {
           .getIncome,
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
-          .map( id => vehicles(id) )
+          .map(id => vehicles(id))
           .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
@@ -210,7 +210,6 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
     val personAttributes: ObjectAttributes = population.getPersonAttributes
     household.members.foreach { person =>
-
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       val personId = person.getId
@@ -262,14 +261,14 @@ object HouseholdActor {
       )
       context.watch(personRef)
 
-
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
         BeamVehicleType.defaultHumanBodyBeamVehicleType,
-        None, None
+        None,
+        None
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
@@ -287,7 +286,7 @@ object HouseholdActor {
       * Available [[Vehicle]]s in [[Household]].
       */
     val _vehicles: Vector[Id[BeamVehicle]] =
-      vehicles.keys.toVector//.map(x => Id.createVehicleId(x))
+      vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
 
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
@@ -329,11 +328,12 @@ object HouseholdActor {
       case NotifyVehicleResourceIdle(
           vehId: Id[BeamVehicle],
           whenWhere,
-          passengerSchedule,
-          fuelLevel,
-          None
+          _,
+          _,
+          _
           ) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
+        log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
 
       case NotifyResourceInUse(vehId: Id[BeamVehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
