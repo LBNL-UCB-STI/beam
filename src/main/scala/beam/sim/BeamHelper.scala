@@ -6,7 +6,6 @@ import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-import org.matsim.core.api.experimental.events.EventsManager
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -15,17 +14,19 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
+import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
@@ -286,12 +287,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -407,9 +403,20 @@ trait BeamHelper extends LazyLogging {
       }
     }
     //beam.agentsim.populationAdjustment="className" with default DefaultPopulationAdjustment
+    val populationAdjustmentClass = ""
+    val populationAdjustment = try {
+      Class
+        .forName(populationAdjustmentClass)
+        .getDeclaredConstructors()(0)
+        .newInstance(beamConfig)
+        .asInstanceOf[PopulationAdjustment]
+    } catch {
+      case e: Exception =>
+        throw new IllegalStateException(s"Unknown PopulationAdjustment: $populationAdjustmentClass", e)
+    }
 
+    populationAdjustment.update(scenario.getPopulation)
   }
-
 }
 
 case class MapStringDouble(data: Map[String, Double])

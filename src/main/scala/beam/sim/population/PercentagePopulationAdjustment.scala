@@ -1,19 +1,45 @@
 package beam.sim.population
 
+import java.util.Random
+
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.population.Population
-import org.matsim.utils.objectattributes.ObjectAttributes
 
-class PercentagePopulationAdjustment extends PopulationAdjustment {
-  override def update(population: Population, personAttributes: ObjectAttributes): (Population, ObjectAttributes) = {
+class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
+  override def update(population: Population): Population = {
 
-    //removeMode(personAttributes,"car");
+    removeMode(population,"car")
 
-    //assignModeUniformDistribution("car",0.5,personAttributes,population);
+    assignModeUniformDistribution(population, "car",0.5);
 
-    (population, personAttributes)
+    population
+  }
+
+  // remove mode from all attributes
+  def removeMode(population: Population, modeToRemove: String): Unit = {
+    population.getPersons.keySet().forEach { person =>
+      val modes = population.getPersonAttributes.getAttribute(person.toString, "available-modes").toString
+      population.getPersonAttributes
+        .putAttribute(
+          person.toString,
+          "available-modes",
+          modes.split(",").filterNot(_.equalsIgnoreCase(modeToRemove)).mkString(",")
+        )
+    }
+  }
+
+  def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
+    val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+    val numPop = population.getPersons.size()
+    rand.ints((numPop * pct).toLong, 1, numPop +1).forEach { num =>
+      val modes = population.getPersonAttributes.getAttribute(num.toString, "available-modes").toString
+      population.getPersonAttributes
+        .putAttribute(
+          num.toString,
+          "available-modes",
+          s"$modes,$mode"
+        )
+    }
+
   }
 }
-// Method 1: remove mode from all attributes -> method
-
-// Method 2: set modeUniformDistribution (mode: String, pct: double)
-// use as seed for random numbers: beamConfig.matsim.modules.global.randomSeed
