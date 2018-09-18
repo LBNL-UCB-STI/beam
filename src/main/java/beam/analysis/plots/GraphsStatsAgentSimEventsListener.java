@@ -4,6 +4,8 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.calibration.impl.example.ErrorComparisonType;
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.jfree.data.category.CategoryDataset;
