@@ -1,13 +1,11 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
-  PersonTravelTimeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
 import beam.analysis.plots.PersonTravelTimeStats
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
+import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
@@ -100,7 +98,6 @@ object PersonTravelTimeStatsGraphSpec {
         }
         case None =>{
           val ((mode, person), time) = personTravelTime.filterKeys(_._2.equals(personId)).last
-
           personTravelTime = personTravelTime - (mode -> personId)
           counter :+ ("others" -> (evn.getTime - time) / 60)
         }
@@ -174,7 +171,9 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             graph
           }
         },
-        baseConfig
+        baseConfig.withValue("beam.outputs.events.overrideWritingLevels",
+          ConfigValueFactory.fromAnyRef("org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE , org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE"))
+
       ).run()
     }
   }
