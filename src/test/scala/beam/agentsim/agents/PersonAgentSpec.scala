@@ -2,22 +2,26 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
+import scala.collection.{mutable, JavaConverters}
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.Await
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
+import akka.testkit.TestActors.ForwardActor
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
+import beam.agentsim.agents.PersonAgentSpec.ZERO
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
@@ -30,11 +34,11 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.plansampling.PlansSampler
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
+import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
@@ -45,25 +49,22 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.Await
-
-/**
-  * Created by sfeygin on 2/7/17.
-  */
 class PersonAgentSpec
     extends TestKit(
       ActorSystem(
-        "PersonAgentSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
+        name = "PersonAgentSpec",
+        config = ConfigFactory
+          .parseString(
+            """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        """
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf"))
       )
     )
     with FunSpecLike
@@ -72,74 +73,86 @@ class PersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val beamConfig = BeamConfig(system.settings.config)
+  private lazy val beamConfig = BeamConfig(system.settings.config)
 
-  val dummyAgentId = Id.createPersonId("dummyAgent")
-  val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
-  val personRefs = TrieMap[Id[Person], ActorRef]()
-  val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  val randomSeed: Int = 4771
-  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
+  private val personRefs = TrieMap[Id[Person], ActorRef]()
+  private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
-  lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices]
+  private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
+
+    val theServices = mock[BeamServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    val geo = new GeoUtilsImpl(theServices)
-    when(theServices.geo).thenReturn(geo)
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+
     theServices
   }
 
-  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
+  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
+
     override val beamServices: BeamServices = beamSvc
+
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+
     override def utilityOf(
       mode: BeamMode,
       cost: BigDecimal,
       time: BigDecimal,
       numTransfers: Int
-    ): Double = 0.0
+    ): Double = 0D
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
-  lazy val transitDriverProps = Props(new ForwardActor(self))
+  private lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  lazy val router = system.actorOf(
-    Props(new Actor() {
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-      override def receive: Receive = {
-        case _ =>
+  private val router = system.actorOf(
+    Props(
+      new Actor() {
+        context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
+        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
+
+        override def receive: Receive = {
+          case _ =>
+        }
       }
-    }),
+    ),
     "router"
   )
 
-  lazy val parkingManager = system.actorOf(
+  private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
 
-  case class TestTrigger(tick: Double) extends Trigger
+  private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
 
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
+  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
+  private val matsimConfig = configBuilder.buildMatSamConf()
+
   describe("A PersonAgent") {
+
+    val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
     it("should allow scheduler to set the first activity") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
+      )
       val scheduler =
         TestActorRef[BeamAgentScheduler](
           SchedulerProps(
@@ -149,7 +162,7 @@ class PersonAgentSpec
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
@@ -180,17 +193,19 @@ class PersonAgentSpec
 
     // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
     // TODO: probably test needs to be updated due to update in rideHailManager
+
     ignore("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
+      )
+
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(matsimConfig)
 
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
@@ -248,32 +263,32 @@ class PersonAgentSpec
       // The agent will ask for a route, and we provide it.
       expectMsgType[RoutingRequest]
       personActor ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                BeamLeg(
-                  28800,
-                  BeamMode.WALK,
-                  100,
-                  BeamPath(
-                    Vector(1, 2),
-                    None,
-                    SpaceTime(0.0, 0.0, 28800),
-                    SpaceTime(1.0, 1.0, 28900),
-                    1000.0
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 100L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1, 2),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    distanceInM = 1000D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                true
+                beamVehicleId = dummyAgentVehicleId,
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       // The agent will ask for a ride, and we will answer.
@@ -302,21 +317,25 @@ class PersonAgentSpec
 
     it("should know how to take a car trip when it's already in its plan") {
       val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          self ! event
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
         }
-      })
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+      )
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0),None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
+      val beamVehicle = new BeamVehicle(
+        vehicleId,
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None,
+        None
+      )
       vehicles.put(vehicleId, beamVehicle)
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
 
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       population.getPersonAttributes.putAttribute(
@@ -394,19 +413,19 @@ class PersonAgentSpec
       personActor ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                embodyRequest.leg.copy(duration = 1000),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                true
+                beamLeg = embodyRequest.leg.copy(duration = 1000),
+                beamVehicleId = dummyAgentVehicleId,
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -429,37 +448,38 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
-    ignore("should know how to take a walk_transit trip when it's already in its plan") {
+    it("should know how to take a walk_transit trip when it's already in its plan") {
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
       // So we put the Events on a separate channel to avoid a non-deterministically failing test.
       val events = new TestProbe(system)
-      val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(new BasicEventHandler {
-        override def handleEvent(event: Event): Unit = {
-          events.ref ! event
+      val eventsManager: EventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            events.ref ! event
+          }
         }
-      })
-      val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-      val matsimConfig = configBuilder.buildMatSamConf()
-
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val bus = new BeamVehicle(
-        Id.createVehicleId("my_bus"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
       )
+
+      val busId = Id.createVehicleId("my_bus")
+      val bus = new BeamVehicle(
+        id = busId,
+        powerTrain = new Powertrain(0.0),
+        initialMatsimAttributes = None,
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        fuelLevelInJoules = None,
+        refuelRateLimitInJoulesPerSecond = None
+      )
+      val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
-        Id.createVehicleId("my_tram"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        id = tramId,
+        powerTrain = new Powertrain(0.0),
+        initialMatsimAttributes = None,
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        fuelLevelInJoules = None,
+        refuelRateLimitInJoulesPerSecond = None
       )
 
       vehicles.put(bus.getId, bus)
@@ -467,63 +487,63 @@ class PersonAgentSpec
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
-          28800,
-          BeamMode.BUS,
-          600,
-          BeamPath(
+          startTime = 28800,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
             Vector(),
-            Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
+            Some(TransitStopsInfo(1, busId, 2)),
             SpaceTime(new Coord(166321.9, 1568.87), 28800),
             SpaceTime(new Coord(167138.4, 1117), 29400),
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = busId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = ZERO,
+        unbecomeDriverOnCompletion = false
       )
       val busLeg2 = EmbodiedBeamLeg(
-        BeamLeg(
-          29400,
-          BeamMode.BUS,
-          600,
-          BeamPath(
+        beamLeg = BeamLeg(
+          startTime = 29400,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
             Vector(),
-            Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
+            Some(TransitStopsInfo(2, busId, 3)),
             SpaceTime(new Coord(167138.4, 1117), 29400),
             SpaceTime(new Coord(180000.4, 1200), 30000),
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = busId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = ZERO,
+        unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
-        BeamLeg(
-          30000,
-          BeamMode.TRAM,
-          600,
-          BeamPath(
-            Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            SpaceTime(new Coord(190000.4, 1300), 30600),
-            1.0
+        beamLeg = BeamLeg(
+          startTime = 30000,
+          mode = BeamMode.TRAM,
+          duration = 600,
+          travelPath = BeamPath(
+            linkIds = Vector(),
+            transitStops = Some(TransitStopsInfo(3, tramId, 4)),
+            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
+            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            distanceInM = 1.0
           )
         ),
-        Id.createVehicleId("my_tram"),
-        false,
-        None,
-        BigDecimal(0),
-        false
+        beamVehicleId = tramId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = ZERO,
+        unbecomeDriverOnCompletion = false
       )
 
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       population.getPersonAttributes.putAttribute(
@@ -581,74 +601,74 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamSvc,
-          _ => modeChoiceCalculator,
-          scheduler,
-          networkCoordinator.transportNetwork,
-          self,
-          self,
-          parkingManager,
-          eventsManager,
-          population,
-          household.getId,
-          household,
-          Map(),
-          new Coord(0.0, 0.0)
+          beamServices = beamSvc,
+          modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
+          schedulerRef = scheduler,
+          transportNetwork = networkCoordinator.transportNetwork,
+          router = self,
+          rideHailManager = self,
+          parkingManager = parkingManager,
+          eventsManager = eventsManager,
+          population = population,
+          id = household.getId,
+          household = household,
+          vehicles = Map(),
+          homeCoord = new Coord(0.0, 0.0)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
-      val request = expectMsgType[RoutingRequest]
+      val request6 = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
-            Vector(
+            legs = Vector(
               EmbodiedBeamLeg(
-                BeamLeg(
-                  28800,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    SpaceTime(new Coord(167138.4, 1117), 28800),
-                    1.0
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 0L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    distanceInM = 1D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                false
+                beamVehicleId = dummyAgentVehicleId,
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = false
               ),
               busLeg,
               busLeg2,
               tramLeg,
               EmbodiedBeamLeg(
-                BeamLeg(
-                  30600,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    1.0
+                beamLeg = BeamLeg(
+                  startTime = 30600,
+                  mode = BeamMode.WALK,
+                  duration = 0L,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    distanceInM = 1D
                   )
                 ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                false
+                beamVehicleId = dummyAgentVehicleId,
+                asDriver = true,
+                passengerSchedule = None,
+                cost = ZERO,
+                unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID()
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -736,4 +756,8 @@ class PersonAgentSpec
     shutdown()
   }
 
+}
+
+object PersonAgentSpec {
+  val ZERO: BigDecimal = BigDecimal(0)
 }

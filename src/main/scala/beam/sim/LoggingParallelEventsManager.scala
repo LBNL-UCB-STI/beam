@@ -19,7 +19,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
     tryLog("processEvent", eventManager.processEvent(event))
     val processed = numOfEvents.incrementAndGet()
     if (processed % threshold == 0)
-      logger.info(s"Processed next $threshold events. Total: $processed")
+      logger.debug(s"Processed next $threshold events. Total: $processed")
   }
 
   override def addHandler(handler: EventHandler): Unit = {
@@ -44,7 +44,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
   }
   override def finishProcessing(): Unit = {
     tryLog("finishProcessing", eventManager.finishProcessing())
-    logger.info(s"Overall processed events: ${numOfEvents.get()}")
+    logger.debug(s"Overall processed events: ${numOfEvents.get()}")
   }
 
   private def tryLog(what: String, body: => Unit): Unit = {

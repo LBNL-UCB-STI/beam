@@ -31,7 +31,6 @@ import org.scalatest.{BeforeAndAfterAll, Ignore, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
 class WarmStartRoutingSpec
     extends TestKit(
       ActorSystem(

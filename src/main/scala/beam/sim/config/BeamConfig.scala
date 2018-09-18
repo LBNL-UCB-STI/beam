@@ -543,15 +543,32 @@ object BeamConfig {
 
     case class Calibration(
       meanToCountsWeightRatio: scala.Double,
+      mode: BeamConfig.Beam.Calibration.Mode,
       objectiveFunction: java.lang.String
     )
 
     object Calibration {
+      case class Mode(
+        benchmarkFileLoc: java.lang.String
+      )
+
+      object Mode {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Mode = {
+          BeamConfig.Beam.Calibration.Mode(
+            benchmarkFileLoc = if (c.hasPathOrNull("benchmarkFileLoc")) c.getString("benchmarkFileLoc") else ""
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration = {
         BeamConfig.Beam.Calibration(
           meanToCountsWeightRatio =
             if (c.hasPathOrNull("meanToCountsWeightRatio")) c.getDouble("meanToCountsWeightRatio") else 0.5,
+          mode = BeamConfig.Beam.Calibration.Mode(
+            if (c.hasPathOrNull("mode")) c.getConfig("mode")
+            else com.typesafe.config.ConfigFactory.parseString("mode{}")
+          ),
           objectiveFunction =
             if (c.hasPathOrNull("objectiveFunction")) c.getString("objectiveFunction")
             else "ModeChoiceObjectiveFunction"

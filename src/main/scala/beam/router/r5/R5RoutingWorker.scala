@@ -6,6 +6,7 @@ import java.util
 import java.util.UUID
 import java.util.concurrent.Executors
 
+import akka.actor.Status.Success
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
@@ -38,7 +39,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.network.Network
+import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
@@ -99,12 +100,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap[Id[BeamVehicle], BeamVehicle]()
-        val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-        val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-          BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
-        val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-          BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+        val fuelTypes: TrieMap[Id[FuelType], FuelType] = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+        val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] = BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+        val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
         override def startNewIteration: Unit = throw new Exception("???")
 
@@ -205,7 +203,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               firstMsgTime = None
               msgs = 0
             }
-            log.info(
+            log.debug(
               "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
               rate,
               firstMsgTime
@@ -355,7 +353,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-    log.debug(profileRequest.toString)
+//    log.debug(profileRequest.toString)
     val result = try {
       getPlan(profileRequest)
     } catch {
@@ -369,7 +367,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
-    log.debug(routingRequest.toString)
+//    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
@@ -427,18 +425,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               )
             }
           if (profileResponse.options.isEmpty) {
-            return Nil // Cannot walk to vehicle, so no options from this vehicle.
-          }
-          val streetSegment = profileResponse.options.get(0).access.get(0)
-          val theTravelPath = buildStreetPath(streetSegment, time.atTime, StreetMode.WALK)
-          Some(
-            BeamLeg(
-              time.atTime,
-              mapLegMode(LegMode.WALK),
-              theTravelPath.duration,
-              travelPath = theTravelPath
+            Some(R5RoutingWorker.createBushwackingBeamLeg(time.atTime, from, to, beamServices))
+          } else {
+            val streetSegment = profileResponse.options.get(0).access.get(0)
+            val theTravelPath = buildStreetPath(streetSegment, time.atTime, StreetMode.WALK)
+            Some(
+              BeamLeg(
+                time.atTime,
+                mapLegMode(LegMode.WALK),
+                theTravelPath.duration,
+                travelPath = theTravelPath
+              )
             )
-          )
+          }
         } else {
           Some(dummyWalk(time.atTime))
         }
@@ -802,10 +801,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        log.debug("Adding dummy walk route with maximum street time.")
+//        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
-          new Coord(routingRequest.origin.getX, routingRequest.origin.getY),
-          new Coord(routingRequest.destination.getX, routingRequest.destination.getY),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
           routingRequest.departureTime.atTime,
           maybeBody.get.id,
           beamServices
@@ -1241,6 +1240,34 @@ object R5RoutingWorker {
     egressMode: LegMode
   )
 
+  def createBushwackingBeamLeg(atTime: Long, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
+    val beelineDistanceInMeters = beamServices.geo.distInMeters(start, end)
+    val bushwhackingTime =
+      Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    createBushwackingBeamLeg(atTime, bushwhackingTime, start, end, beelineDistanceInMeters)
+  }
+
+  def createBushwackingBeamLeg(
+    atTime: Long,
+    duration: Long,
+    start: Location,
+    end: Location,
+    distance: Double
+  ): BeamLeg = {
+    BeamLeg(
+      atTime,
+      WALK,
+      duration,
+      BeamPath(
+        Vector(),
+        None,
+        SpaceTime(start, atTime),
+        SpaceTime(end, atTime + duration),
+        distance
+      )
+    )
+  }
+
   def createBushwackingTrip(
     origin: Location,
     dest: Location,
@@ -1248,24 +1275,10 @@ object R5RoutingWorker {
     bodyId: Id[Vehicle],
     beamServices: BeamServices
   ): EmbodiedBeamTrip = {
-    val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
-    val bushwhackingTime =
-      Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          BeamLeg(
-            atTime,
-            WALK,
-            bushwhackingTime,
-            BeamPath(
-              Vector(),
-              None,
-              SpaceTime(origin, atTime),
-              SpaceTime(dest, atTime + bushwhackingTime),
-              beelineDistanceInMeters
-            )
-          ),
+          createBushwackingBeamLeg(atTime, origin, dest, beamServices),
           bodyId,
           asDriver = true,
           None,
