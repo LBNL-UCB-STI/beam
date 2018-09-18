@@ -237,10 +237,10 @@ class ZonalParkingManager(
           pooledResources.find {
             case (attr, values) =>
               attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
-                attr.parkingType == preferredType &&
-                attr.reservedFor.equals(reservedFor) &&
-                values.numStalls > 0 &&
-                values.feeInCents == 0
+              attr.parkingType == preferredType &&
+              attr.reservedFor.equals(reservedFor) &&
+              values.numStalls > 0 &&
+              values.feeInCents == 0
           }
       }
       val maybeDominantSpot = maybeFoundStall match {
@@ -338,7 +338,8 @@ class ZonalParkingManager(
   }
 
   def selectPublicStall(inquiry: ParkingInquiry, startSearchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
+    val nearbyTazsWithDistances =
+      findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
       Vector(FlatFee, Block).flatMap { pricingModel =>
         val attrib =
