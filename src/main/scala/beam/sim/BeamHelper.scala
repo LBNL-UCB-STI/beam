@@ -403,18 +403,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val populationAdjustmentClass = beamConfig.beam.agentsim.populationAdjustment
-    val populationAdjustment = try {
-      Class
-        .forName(populationAdjustmentClass)
-        .getDeclaredConstructors()(0)
-        .newInstance(beamConfig)
-        .asInstanceOf[PopulationAdjustment]
-    } catch {
-      case e: Exception =>
-        throw new IllegalStateException(s"Unknown PopulationAdjustment: $populationAdjustmentClass", e)
-    }
-
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamConfig.beam.agentsim.populationAdjustment, beamConfig)
     populationAdjustment.update(scenario.getPopulation)
   }
 }
