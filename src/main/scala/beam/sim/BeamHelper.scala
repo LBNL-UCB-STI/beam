@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -266,7 +267,11 @@ trait BeamHelper extends LazyLogging {
             )
           )
         }
-        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"), StandardCopyOption.REPLACE_EXISTING)
+        Files.copy(
+          Paths.get(configLocation),
+          Paths.get(outputDirectory, "beam.conf"),
+          StandardCopyOption.REPLACE_EXISTING
+        )
     }
   }
 
@@ -291,7 +296,12 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -413,7 +423,6 @@ trait BeamHelper extends LazyLogging {
       }
     }
   }
-
 
 }
 
