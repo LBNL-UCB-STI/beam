@@ -32,7 +32,7 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
   def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val numPop = population.getPersons.size()
-    rand.ints((numPop * pct).toLong, 0, numPop).forEach { num =>
+    rand.ints(0, numPop).distinct().limit((numPop*pct).toLong).forEach { num =>
       val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
       val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
       population.getPersonAttributes
