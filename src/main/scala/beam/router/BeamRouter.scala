@@ -164,9 +164,9 @@ class BeamRouter(
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
-      traveTimeOpt match{
+      traveTimeOpt match {
         case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
-        case None =>  sender ! R5Network(transportNetwork)
+        case None             => sender ! R5Network(transportNetwork)
       }
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
