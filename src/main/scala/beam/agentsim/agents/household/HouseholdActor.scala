@@ -328,11 +328,12 @@ object HouseholdActor {
       case NotifyVehicleResourceIdle(
           vehId: Id[BeamVehicle],
           whenWhere,
-          passengerSchedule,
-          fuelLevel,
-          None
+          _,
+          _,
+          _
           ) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
+        log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
 
       case NotifyResourceInUse(vehId: Id[BeamVehicle], whenWhere) =>
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))

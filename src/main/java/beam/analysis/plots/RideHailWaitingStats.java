@@ -171,7 +171,9 @@ public class RideHailWaitingStats implements IGraphStats {
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
 
-            if (rideHailWaiting.containsKey(personId.toString())) {
+            // This rideHailVehicle check is put here again to remove the non rideHail vehicleId which were coming due the
+            // another occurrence of modeChoice event because of replanning event.
+            if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
