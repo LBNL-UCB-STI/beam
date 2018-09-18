@@ -11,7 +11,7 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
 
     removeMode(population,"car")
 
-    assignModeUniformDistribution(population, "car",0.5);
+    assignModeUniformDistribution(population, "car",0.5)
 
     population
   }
@@ -29,19 +29,25 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
     }
   }
 
+  def existsMode(population: Population, personId: String, modeToCheck: String): Boolean = {
+    val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
+    modes.split(",").contains(modeToCheck)
+  }
+
   def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val numPop = population.getPersons.size()
     rand.ints(0, numPop).distinct().limit((numPop*pct).toLong).forEach { num =>
       val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
       val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
-      population.getPersonAttributes
-        .putAttribute(
-          personId,
-          "available-modes",
-          s"$modes,$mode"
-        )
+      if(!existsMode(population, personId, mode)) {
+        population.getPersonAttributes
+          .putAttribute(
+            personId,
+            "available-modes",
+            s"$modes,$mode"
+          )
+      }
     }
-
   }
 }
