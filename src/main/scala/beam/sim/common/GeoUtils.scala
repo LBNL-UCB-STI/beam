@@ -64,7 +64,7 @@ trait GeoUtils extends HasServices {
   }
 
   def coordOfR5Edge(streetLayer: StreetLayer, edgeId: Int): Coord = {
-    var theEdge = streetLayer.edgeStore.getCursor(edgeId)
+    val theEdge = streetLayer.edgeStore.getCursor(edgeId)
     new Coord(theEdge.getGeometry.getCoordinate.x, theEdge.getGeometry.getCoordinate.y)
   }
 

@@ -47,7 +47,7 @@ public class RealizedModeGraphTest {
     });
 
     @Before
-    public void setUpCRC() throws IOException {
+    public void setUpCRC() {
         createDummySimWithXML(new RealizedModeHandler(realizedModeStats));
         realizedModeStats.buildModesFrequencyDataset();
     }

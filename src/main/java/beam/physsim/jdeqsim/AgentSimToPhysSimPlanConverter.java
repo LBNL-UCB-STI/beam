@@ -2,8 +2,11 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
+import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
@@ -51,6 +54,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
+    private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -89,6 +93,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -128,6 +133,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
+
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
         if (beamConfig.beam().debug().debugEnabled()) {
@@ -143,9 +150,31 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         endSegment("jdeqsim-execution", "jdeqsim");
         log.info("JDEQSim End");
 
+
+        // TODO: add to async block (was creating race condition before in last iteartion, therefore moved here)
+        // some fix needed with async block?
+
+        if (this.controlerIO != null) {
+            try {
+            // TODO: handle case, when counts compare not available - provide hint, why we cannot produce
+            String outPath =
+                    controlerIO
+                            .getIterationFilename(iterationNumber, "countscompare.txt");
+            Double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
+            log.info("counts Error: " + countsError);
+            } catch (Exception e){
+                log.error("exception {}", e.getMessage());
+            }
+
+        }
+
         CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
             linkStatsGraph.clean();
+        });
+
+        CompletableFuture.runAsync(() -> {
+            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
         });
 
         if (writePhysSimEvents(iterationNumber)) {

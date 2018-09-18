@@ -13,8 +13,8 @@ class StuckFinderSpec extends WordSpec with Matchers {
   val threshold = Thresholds$Elm(100, classOf[InitializeTrigger].getCanonicalName)
 
   val stuckAgentDetectionCfg =
-    StuckAgentDetection(enabled = true, checkIntervalMs = 100, thresholds = List(threshold))
-  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), Actor.noSender, 1)
+    StuckAgentDetection(enabled = true, defaultTimeoutMs = 100, checkIntervalMs = 100, thresholds = List(threshold))
+  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1.0), 1L), Actor.noSender, 1)
 
   "A StuckFinder" should {
     "return true" when {

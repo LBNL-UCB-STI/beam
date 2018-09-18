@@ -18,7 +18,11 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
   RideHailAllocationManagerTimeout
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -282,28 +286,37 @@ class BeamMobsim @Inject()(
 
             val rideHailName = s"rideHailAgent-${person.getId}"
 
-            val rideHailVehicleId =
-              Id.createVehicleId(s"rideHailVehicle-${person.getId}")
-            val rideHailVehicle: Vehicle =
-              VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailVehicleType)
+            val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
+            //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
+
+            val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+            val ridehailBeamVehicleType = beamServices.vehicleTypes
+              .get(ridehailBeamVehicleTypeId)
+              .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
+
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
-            val engineInformation =
-              Option(rideHailVehicle.getType.getEngineInformation)
-            val vehicleAttribute =
-              Option(scenario.getVehicles.getVehicleAttributes)
-            val rideHailBeamVehicle = BeamVehicleUtils.makeCar(
-              rideHailVehicle,
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters,
+
+            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+              .map(new Powertrain(_))
+              .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
+            val rideHailBeamVehicle = new BeamVehicle(
+              rideHailVehicleId,
+              powertrain,
+              None,
+              ridehailBeamVehicleType,
+              Some(1.0),
               None
             )
-
             beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
             rideHailBeamVehicle.registerResource(rideHailManager)
+
             rideHailManager ! BeamVehicleStateUpdate(
               rideHailBeamVehicle.getId,
               rideHailBeamVehicle.getState()
             )
+
             val rideHailAgentProps = RideHailAgent.props(
               beamServices,
               scheduler,
@@ -433,7 +446,7 @@ class BeamMobsim @Inject()(
         private def cleanupVehicle(): Unit = {
           // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
           scenario.getPopulation.getPersons.keySet().forEach { personId =>
-            val bodyVehicleId = HumanBodyVehicle.createId(personId)
+            val bodyVehicleId = BeamVehicle.createId(personId, Some("Body"))
             beamServices.vehicles -= bodyVehicleId
           }
         }

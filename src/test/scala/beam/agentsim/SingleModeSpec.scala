@@ -72,7 +72,7 @@ class SingleModeSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
+    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
@@ -116,7 +116,7 @@ class SingleModeSpec
         .values()
         .forEach(person => {
           person.getSelectedPlan.getPlanElements.asScala.collect {
-            case (leg: Leg) =>
+            case leg: Leg =>
               leg.setMode("walk")
           }
         })

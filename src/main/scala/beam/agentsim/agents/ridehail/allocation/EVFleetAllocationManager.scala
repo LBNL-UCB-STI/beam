@@ -1,9 +1,9 @@
-package beam.agentsim.agents.rideHail.allocation
+package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.ridehail.{ReserveRide, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.router.BeamRouter.Location
+import beam.router.Modes.BeamMode.RIDE_HAIL
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -34,7 +34,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       // Otherwise, we look through all routes returned and find the first one that
       // corresponds to an idle driver and use this as our agentLocation
       val maybeId = routeResponsesByDriver.keys.find(rideHailManager.getIdleVehicles.contains(_))
-      maybeId.map(rideHailManager.getIdleVehicles.get(_).get)
+      maybeId.map(rideHailManager.getIdleVehicles(_))
     }
     // If agentLoc None, we grab the closest Idle agents but filter out any with a range that
     // obviously cannot make the trip (range is less than 1.26xEuclidean distance. this factor is
@@ -46,7 +46,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         // go with nearest ETA
         findNearestByETAConsideringRange(
           vehicleAllocationRequest.request,
-          requestToExcludedDrivers.get(reqId).getOrElse(Set())
+          requestToExcludedDrivers.getOrElse(reqId, Set())
         )
       case _ =>
         agentLocationOpt
@@ -61,15 +61,21 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         if (rideHailManager
               .getVehicleState(agentLocation.vehicleId)
               .remainingRangeInM < routingResponses.get
-              .map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
+              .map(
+                _.itineraries
+                  .filter(_.tripClassifier == RIDE_HAIL)
+                  .headOption
+                  .map(_.beamLegs().map(_.travelPath.distanceInM).sum)
+                  .getOrElse(Double.MaxValue)
+              )
               .sum) {
           requestToExcludedDrivers.put(
             reqId,
-            requestToExcludedDrivers.get(reqId).getOrElse(Set()) + agentLocation.vehicleId
+            requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId
           )
           findNearestByETAConsideringRange(
             vehicleAllocationRequest.request,
-            requestToExcludedDrivers.get(reqId).getOrElse(Set())
+            requestToExcludedDrivers.getOrElse(reqId, Set())
           ) match {
             case Some(newAgentLoc) =>
               makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)

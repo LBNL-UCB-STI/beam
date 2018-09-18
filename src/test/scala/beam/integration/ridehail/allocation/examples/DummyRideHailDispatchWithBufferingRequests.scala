@@ -55,7 +55,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
             )
 
             println(
-              s" new vehicle assigned:${rhl.vehicleId}, tick: ${tick}, person: ${request.customer.personId}"
+              s" new vehicle assigned:${rhl.vehicleId}, tick: $tick, person: ${request.customer.personId}"
             )
 
             rideHailManager.removeDummyRequest(request)

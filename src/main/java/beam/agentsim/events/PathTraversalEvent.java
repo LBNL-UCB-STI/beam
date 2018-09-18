@@ -1,5 +1,6 @@
 package beam.agentsim.events;
 
+import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.router.RoutingModel;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
@@ -51,9 +52,9 @@ public class PathTraversalEvent extends Event {
     private final double endX;
     private final double endY;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
-        this(time, vehicleId, vehicleType.getDescription(), beamLeg.mode().value(), numPass, endLegFuelLevel,
-                vehicleType.getCapacity() != null ? vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom() : 0,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
+        this(time, vehicleId, vehicleType.vehicleCategory(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+                (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
                 beamLeg.travelPath().startPoint().loc().getX(), beamLeg.travelPath().startPoint().loc().getY(), beamLeg.travelPath().endPoint().loc().getX(),
