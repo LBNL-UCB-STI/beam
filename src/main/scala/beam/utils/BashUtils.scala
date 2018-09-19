@@ -32,15 +32,12 @@ object BashUtils {
     val runtime = Runtime.getRuntime
     try {
       val process = runtime.exec(command)
-      try {
-        val reader = new BufferedReader(new InputStreamReader(process.getInputStream))
-        try reader.readLine
-        finally if (reader != null) reader.close()
-      }
+      val reader = new BufferedReader(new InputStreamReader(process.getInputStream))
+      try reader.readLine
+      finally if (reader != null) reader.close()
     } catch {
       case _: Exception =>
         null //for the env where command is not recognized
-
     }
   }
 }
