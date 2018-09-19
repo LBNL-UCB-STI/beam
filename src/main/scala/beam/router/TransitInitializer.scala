@@ -64,7 +64,7 @@ class TransitInitializer(
                   val edges = streetSeg.getEdges.asScala
                   val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
                   val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
-                  (departureTime: Long, _: Int, vehicleId: Id[Vehicle]) =>
+                  (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
@@ -86,7 +86,7 @@ class TransitInitializer(
                     .getCursor(edgeIds.head)
                   val endEdge = transportNetwork.streetLayer.edgeStore
                     .getCursor(edgeIds.last)
-                  (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+                  (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
@@ -116,7 +116,7 @@ class TransitInitializer(
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
               val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
               val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+              (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
                   Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
@@ -154,10 +154,10 @@ class TransitInitializer(
             case Array((departureTimeFrom, from), (_, to)) =>
               val duration = tripSchedule.arrivals(to) - departureTimeFrom
               legs += BeamLeg(
-                departureTimeFrom.toLong,
+                departureTimeFrom,
                 mode,
                 duration,
-                transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId)
+                transitPaths(from)(departureTimeFrom, duration, tripVehId)
               )
           }
           (tripVehId, (route, legs))

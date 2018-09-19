@@ -37,7 +37,7 @@ class PassengerScheduleTest
       val vehicleId: Id[Vehicle] = Id.createVehicleId("dummyVehicle")
       val passengerPersonId: Id[Person] = Id.createPersonId("passengerPerson")
 
-      val leg = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
+      val leg = BeamLeg(0, WALK, 1, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
         .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg))
@@ -52,9 +52,9 @@ class PassengerScheduleTest
       val vehicleId: Id[Vehicle] = Id.createVehicleId("dummyVehicle")
       val passengerPersonId: Id[Person] = Id.createPersonId("passengerPerson")
 
-      val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
-      val leg2 = BeamLeg(1L, WALK, 1L, EmptyBeamPath.path)
-      val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
+      val leg1 = BeamLeg(0, WALK, 1, EmptyBeamPath.path)
+      val leg2 = BeamLeg(1, WALK, 1, EmptyBeamPath.path)
+      val leg3 = BeamLeg(2, WALK, 1, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
         .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
@@ -81,9 +81,9 @@ class PassengerScheduleTest
       val vehicleId2: Id[Vehicle] = Id.createVehicleId("dummyVehicle2")
       val passengerPersonId2: Id[Person] = Id.createPersonId("passengerPerson2")
 
-      val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
-      val leg2 = BeamLeg(1L, WALK, 1L, EmptyBeamPath.path)
-      val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
+      val leg1 = BeamLeg(0, WALK, 1, EmptyBeamPath.path)
+      val leg2 = BeamLeg(1, WALK, 1, EmptyBeamPath.path)
+      val leg3 = BeamLeg(2, WALK, 1, EmptyBeamPath.path)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
         .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))

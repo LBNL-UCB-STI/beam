@@ -1,7 +1,7 @@
 package beam.agentsim.scheduler
 
 trait Trigger {
-  def tick: Double
+  def tick: Int
 }
 
 object Trigger {
