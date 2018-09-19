@@ -23,11 +23,11 @@ import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router.{Modes, RoutingModel}
+import beam.router.{Modes, RoutingModel, TransitInitializer}
+import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
-import beam.sim.{BeamServices, TransitInitializer}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
@@ -106,7 +106,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
-        override def startNewIteration: Unit = throw new Exception("???")
+        override def startNewIteration(): Unit = throw new Exception("???")
 
         override protected def injector: Injector = throw new Exception("???")
 
@@ -152,20 +152,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private val distanceThresholdToIgnoreWalking =
     beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
-  val numOfThreads =
-    if (Runtime.getRuntime().availableProcessors() <= 2) 1
-    else Runtime.getRuntime().availableProcessors() - 2
+  val numOfThreads: Int =
+    if (Runtime.getRuntime.availableProcessors() <= 2) 1
+    else Runtime.getRuntime.availableProcessors() - 2
   implicit val executionContext: ExecutionContext =
     ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
 
-  val tickTask =
+  val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   var msgs: Long = 0
   var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
-    Runtime.getRuntime().availableProcessors(),
+    Runtime.getRuntime.availableProcessors(),
     numOfThreads
   )
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
@@ -187,7 +187,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     })
 
   override def preStart(): Unit = {
-    askForMoreWork
+    askForMoreWork()
   }
 
   // Let the dispatcher on which the Future in receive will be running
@@ -215,11 +215,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     case WorkAvailable =>
       workAssigner = sender
-      askForMoreWork
+      askForMoreWork()
 
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
-      askForMoreWork
+      askForMoreWork()
 
     case request: RoutingRequest =>
       msgs += 1
@@ -236,14 +236,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         case _ =>
       }
       eventualResponse pipeTo sender
-      askForMoreWork
+      askForMoreWork()
     case UpdateTravelTime(travelTime) =>
       if (!beamServices.beamConfig.beam.cluster.enabled) {
         log.info(s"{} UpdateTravelTime", getNameAndHashCode)
         maybeTravelTime = Some(travelTime)
         cache.invalidateAll()
       }
-      askForMoreWork
+      askForMoreWork()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Int, linkId: Int) =>
@@ -286,10 +286,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         ),
         embodyRequestId
       )
-      askForMoreWork
+      askForMoreWork()
   }
 
-  private def askForMoreWork =
+  private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
   def updateLegWithCurrentTravelTime(leg: BeamLeg): BeamLeg = {
@@ -574,7 +574,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val indexFromEnd = Math.min(
             Math.max(
               theLinkIds.reverse
-                .map(lengthOfLink(_))
+                .map(lengthOfLink)
                 .scanLeft(0.0)(_ + _)
                 .indexWhere(
                   _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
@@ -1221,7 +1221,7 @@ object R5RoutingWorker {
   ) =
     Props(
       new R5RoutingWorker(
-        new WorkerParameters(
+        WorkerParameters(
           beamServices,
           transportNetwork,
           network,

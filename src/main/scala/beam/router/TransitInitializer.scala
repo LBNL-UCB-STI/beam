@@ -1,14 +1,15 @@
-package beam.sim
+package beam.router
+
 import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.RoutingModel.{BeamLeg, BeamPath, TransitStopsInfo, WindowTime}
+import beam.sim.BeamServices
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -169,7 +170,10 @@ class TransitInitializer(
     }
     val end = System.currentTimeMillis()
     logger.info(
-      s"Initialized transit trips in ${(end - start)} ms. Keys: ${transitScheduleToCreate.keySet.size}, Values: ${transitScheduleToCreate.values.size}"
+      "Initialized transit trips in {} ms. Keys: {}, Values: {}",
+      end - start,
+      transitScheduleToCreate.keySet.size,
+      transitScheduleToCreate.values.size
     )
     transitScheduleToCreate
   }
@@ -220,10 +224,11 @@ class TransitInitializer(
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>
-        logger.error(mode + " is not supported yet")
+        logger.error("{} is not supported yet", mode)
         None
     }
   }
+
   private def routeTransitPathThroughStreets(
     fromStopIdx: Int,
     toStopIdx: Int
@@ -280,6 +285,7 @@ class TransitInitializer(
       None
     }
   }
+
   private def resolveFirstLastTransitEdges(stopIdxs: Int*): Vector[Int] = {
     val edgeIds: Vector[Int] = stopIdxs
       .map { stopIdx =>
@@ -308,17 +314,20 @@ class TransitInitializer(
       .distinct
     edgeIds
   }
+
   private def limitedWarn(stopIdx: Int): Unit = {
     if (numStopsNotFound < 5) {
-      logger.warn(s"Stop $stopIdx not linked to street network.")
+      logger.warn("Stop {} not linked to street network.", stopIdx)
       numStopsNotFound = numStopsNotFound + 1
     } else if (numStopsNotFound == 5) {
       logger.warn(
-        s"Stop $stopIdx not linked to street network. Further warnings messages will be suppressed"
+        "Stop {} not linked to street network. Further warnings messages will be suppressed",
+        stopIdx
       )
       numStopsNotFound = numStopsNotFound + 1
     }
   }
+
   private def createDummyEdge(): Int = {
     val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38, -122)
     val toVert =
@@ -327,6 +336,7 @@ class TransitInitializer(
       .addStreetPair(fromVert, toVert, 1000, -1)
       .getEdgeIndex
   }
+
   private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
     val toVert = transportNetwork.streetLayer.vertexStore
       .addVertex(stopVertex.getLat + 0.001, stopVertex.getLon + 0.001)

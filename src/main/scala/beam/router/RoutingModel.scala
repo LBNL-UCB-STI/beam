@@ -1,6 +1,5 @@
 package beam.router
 
-//import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
