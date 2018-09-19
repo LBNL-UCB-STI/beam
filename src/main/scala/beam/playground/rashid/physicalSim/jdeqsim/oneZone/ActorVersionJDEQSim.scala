@@ -17,20 +17,20 @@ object ActorVersionJDEQSim {
 
         val scenario = ScenarioUtils.loadScenario(config)
 
-        //val eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
-        //val eventsManager = new AkkaEventHandlerAdapter()
-        //val countEnterLinkEvents = new CountEnterLinkEvents()
-        //eventsManager.addHandler(countEnterLinkEvents)
-        //eventsManager.initProcessing()
+      //val eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
+      //val eventsManager = new AkkaEventHandlerAdapter()
+      //val countEnterLinkEvents = new CountEnterLinkEvents()
+      //eventsManager.addHandler(countEnterLinkEvents)
+      //eventsManager.initProcessing()
 
-        //val jdeqSimConfigGroup = new JDEQSimConfigGroup()
-        //val jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
+      //val jdeqSimConfigGroup = new JDEQSimConfigGroup()
+      //val jdeqSimulation = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager)
 
-        //jdeqSimulation.run()
+      //jdeqSimulation.run()
 
-        //eventsManager.finishProcessing()
+      //eventsManager.finishProcessing()
 
-        //println(countEnterLinkEvents.getLinkEnterCount())
+      //println(countEnterLinkEvents.getLinkEnterCount())
       case i: Int => println("Number: " + i)
     }
   }

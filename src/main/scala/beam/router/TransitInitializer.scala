@@ -42,17 +42,13 @@ class TransitInitializer(
    *
    */
   def initMap: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
-    val activeServicesToday =
-      transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
-    val stopToStopStreetSegmentCache =
-      mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips =
-      transportNetwork.transitLayer.tripPatterns.asScala.toStream
+    val start = System.currentTimeMillis()
+    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
+    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
+    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
-      val route =
-        transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode =
-        Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
         .sliding(2)
         .map {
@@ -66,10 +62,8 @@ class TransitInitializer(
               ) match {
                 case Some(streetSeg) =>
                   val edges = streetSeg.getEdges.asScala
-                  val startEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
                   (departureTime: Long, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
@@ -120,10 +114,8 @@ class TransitInitializer(
               }
             } else {
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-              val startEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
-              val endEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
+              val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
+              val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
               (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
@@ -176,7 +168,13 @@ class TransitInitializer(
       case (tripVehId, (route, legs)) =>
         createTransitVehicle(tripVehId, route, legs)
     }
-    logger.info(s"Finished Transit initialization trips, ${transitData.length}")
+    val end = System.currentTimeMillis()
+    logger.info(
+      "Initialized transit trips in {} ms. Keys: {}, Values: {}",
+      end - start,
+      transitScheduleToCreate.keySet.size,
+      transitScheduleToCreate.values.size
+    )
     transitScheduleToCreate
   }
 
@@ -190,9 +188,9 @@ class TransitInitializer(
       )
       //There has to be a default one defined
       services.vehicleTypes.getOrElse(
-          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-          BeamVehicleType.defaultTransitBeamVehicleType
-        )
+        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
+        BeamVehicleType.defaultTransitBeamVehicleType
+      )
     }
   }
 
@@ -214,7 +212,7 @@ class TransitInitializer(
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
-        val beamVehicleId = BeamVehicle.createId(transitVehId)//, Some(mode.toString)
+        val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
 
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,
@@ -226,10 +224,11 @@ class TransitInitializer(
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>
-        logger.error(mode + " is not supported yet")
+        logger.error("{} is not supported yet", mode)
         None
     }
   }
+
   private def routeTransitPathThroughStreets(
     fromStopIdx: Int,
     toStopIdx: Int
@@ -286,6 +285,7 @@ class TransitInitializer(
       None
     }
   }
+
   private def resolveFirstLastTransitEdges(stopIdxs: Int*): Vector[Int] = {
     val edgeIds: Vector[Int] = stopIdxs
       .map { stopIdx =>
@@ -314,17 +314,20 @@ class TransitInitializer(
       .distinct
     edgeIds
   }
+
   private def limitedWarn(stopIdx: Int): Unit = {
     if (numStopsNotFound < 5) {
-      logger.warn(s"Stop $stopIdx not linked to street network.")
+      logger.warn("Stop {} not linked to street network.", stopIdx)
       numStopsNotFound = numStopsNotFound + 1
     } else if (numStopsNotFound == 5) {
       logger.warn(
-        s"Stop $stopIdx not linked to street network. Further warnings messages will be suppressed"
+        "Stop {} not linked to street network. Further warnings messages will be suppressed",
+        stopIdx
       )
       numStopsNotFound = numStopsNotFound + 1
     }
   }
+
   private def createDummyEdge(): Int = {
     val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38, -122)
     val toVert =
@@ -333,6 +336,7 @@ class TransitInitializer(
       .addStreetPair(fromVert, toVert, 1000, -1)
       .getEdgeIndex
   }
+
   private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
     val toVert = transportNetwork.streetLayer.vertexStore
       .addVertex(stopVertex.getLat + 0.001, stopVertex.getLon + 0.001)

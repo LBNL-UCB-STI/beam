@@ -3,15 +3,12 @@ package beam.calibration
 import java.nio.file.{Path, Paths}
 
 import scala.collection.{mutable, JavaConverters}
-
 import org.matsim.core.config.{Config => MatsimConfig}
-
 import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
-
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
-import beam.calibration.impl.example.{CountsObjectiveFunction, ModeChoiceObjectiveFunction}
+import beam.calibration.impl.example.{CountsObjectiveFunction, ErrorComparisonType, ModeChoiceObjectiveFunction}
 import beam.sim.BeamHelper
 import beam.utils.reflection.ReflectionUtils
 
@@ -80,11 +77,26 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
           .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
-    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction")) {
+    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_RMSPE")) {
       val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
-        .evaluateFromRun(outpath.toAbsolutePath.toString)
+        .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
+    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_AbsolutError")) {
+      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
+        .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.AbsoluteError)
+    } else if (objectiveFunctionClassName.equals(
+                 "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
+               )) {
+      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
+        .evaluateFromRun(
+          outpath.toAbsolutePath.toString,
+          ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity
+        )
     } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction")) {
       var outpath = Paths.get(
         GraphsStatsAgentSimEventsListener.CONTROLLER_IO
@@ -95,7 +107,7 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
       val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
       outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       val modesObjVal = new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
-        .evaluateFromRun(outpath.toAbsolutePath.toString)
+        .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
 
       val meanToCountsWeightRatio: Double = {
         experimentData.baseConfig.getDouble("beam.calibration.meanToCountsWeightRatio")

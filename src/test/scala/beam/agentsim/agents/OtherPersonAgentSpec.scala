@@ -47,7 +47,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -128,7 +128,6 @@ class OtherPersonAgentSpec
   )
 
   private lazy val networkCoordinator = new NetworkCoordinator(config)
-
 
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
@@ -289,7 +288,7 @@ class OtherPersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
-          (_) => modeChoiceCalculator,
+          _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
           self,

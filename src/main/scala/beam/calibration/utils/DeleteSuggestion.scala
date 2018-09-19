@@ -23,9 +23,8 @@ object DeleteSuggestion extends LazyLogging {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) =>
         _experiment.suggestions().delete(suggestionId).call()
-      case None => {
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
@@ -62,15 +61,40 @@ object DeleteSuggestion extends LazyLogging {
     }
   }
 
+  def deleteAllOpenSuggestions(experimentId: String) = {
+
+    BeamSigoptTuner.fetchExperiment(experimentId) match {
+      case Some(_experiment) => {
+
+        if (_experiment.suggestions().list().call().getData.size() > 0)
+          _experiment.suggestions().list().call().getData.forEach { d =>
+            {
+              if (d.getState == "open") {
+                logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
+                _experiment.suggestions().delete(d.getId).call()
+              }
+            }
+          } else
+          logger.info(s"Experiement with id $experimentId has no suggestion")
+      }
+      case None => {
+        logger.info(s"Experiment with id $experimentId not found")
+      }
+    }
+  }
+
   def main(args: Array[String]): Unit = {
 
-    val experimentId = "52024"
-    val suggestionId = "21233364";
+//    val experimentId = "52024"
+//    val suggestionId = "21233364";
+//    listSuggestions(experimentId)
+//    deleteSuggestion(experimentId, suggestionId)
+//    listSuggestions(experimentId)
 
+    ///
+    val experimentId = "52783"
     listSuggestions(experimentId)
+    deleteAllOpenSuggestions(experimentId)
 
-    deleteSuggestion(experimentId, suggestionId)
-
-    listSuggestions(experimentId)
   }
 }
