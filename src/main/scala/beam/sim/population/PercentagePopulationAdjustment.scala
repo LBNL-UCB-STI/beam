@@ -3,12 +3,13 @@ package beam.sim.population
 import java.util.Random
 
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Person, Population}
 
 class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
 
-  override def updatePopulation(population: Population): Population = {
+  override def updatePopulation(scenario: Scenario): Population = {
+    val population = scenario.getPopulation
 
     removeModeAll(population, "car")
 
@@ -22,15 +23,7 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
     val numPop = population.getPersons.size()
     rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
       val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString
-      val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
-      if (!existsMode(population, personId, mode)) {
-        population.getPersonAttributes
-          .putAttribute(
-            personId,
-            "available-modes",
-            s"$modes,$mode"
-          )
-      }
+      addMode(population, personId, mode)
     }
   }
 }

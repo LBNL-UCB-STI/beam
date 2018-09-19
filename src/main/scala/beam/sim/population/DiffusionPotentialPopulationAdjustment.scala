@@ -1,42 +1,106 @@
 package beam.sim.population
 
+import java.util.Random
+
 import beam.sim.config.BeamConfig
-import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Population
+import beam.sim.population.DiffusionPotentialPopulationAdjustment._
+import org.joda.time.DateTime
+import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.households.Household
 
-class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment with LazyLogging {
-  override def updatePopulation(population: Population): Population = {
+class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
+  val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
 
-    adjustPopulationByDiffusionPotential(population, "ride_hail")
+  override def updatePopulation(scenario: Scenario): Population = {
+    val population = scenario.getPopulation
+
+    removeModeAll(population, "ride_hail")
+
+    adjustPopulationByDiffusionPotential(scenario, "ride_hail")
 
     population
   }
 
-  def adjustPopulationByDiffusionPotential(population: Population, mode: String): Unit = {
+  def adjustPopulationByDiffusionPotential(scenario: Scenario, mode: String): Unit = {
+    val population = scenario.getPopulation
 
-    population.getPersons.keySet().forEach { key =>
-      val personId = key.toString
-      val diffPotential = if (mode.toLowerCase.contains("ride_hail"))
-        computeRideHailDiffusionPotential(population, personId)
-      else
-        computeAutomatedVehicleDiffusionPotential(population, personId)
+    scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
+      val personId = person.getId.toString
 
-      if (diffPotential > 0) {
-        removeMode(population, personId, mode)
+      val diffPotential =
+      // if (mode.toLowerCase.contains("ride_hail"))
+//        computeRideHailDiffusionPotential(scenario, personId)
+//      else
+        computeAutomatedVehicleDiffusionPotential(scenario, person)
+
+      if (diffPotential == 1) {
+        addMode(population, personId, mode)
       }
     }
   }
 
-  def computeRideHailDiffusionPotential(population: Population, personId: String): Double = {
-    0
+  def computeRideHailDiffusionPotential(scenario: Scenario, personId: String): Double = {
+    val age = 1985
+
+    val p = age * (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0)
+
+    if (p > rand.nextInt(1)) 1 else 0
   }
 
-  def computeAutomatedVehicleDiffusionPotential(population: Population, personId: String): Double = {
-    0
+  def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
+    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
+    val sex = person.getAttributes.getAttribute("sex").toString
+    val income = findHousehold(scenario, person.getId).getIncome.getIncome.toInt
+
+    val p = (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
+      (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
+      (if (isFemale(sex)) -0.2513 else 0)
+
+    if (p > rand.nextInt(1)) 1 else 0
+  }
+
+  def findHousehold(scenario: Scenario, personId: Id[Person]): Household = {
+    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+    while (itrHouseholds.hasNext) {
+      val household = itrHouseholds.next()
+      if (household.getMemberIds.contains(personId)) return household
+    }
+    null
   }
 }
 
 object DiffusionPotentialPopulationAdjustment {
+  lazy val currentYear: Int = DateTime.now().year().get()
+
+  def isBornIn40s(age: Int): Boolean = {
+    age >= currentYear - 1940 && age < currentYear - 1950
+  }
+
+  def isBornIn80s(age: Int): Boolean = {
+    age >= currentYear - 1980 && age < currentYear - 1990
+  }
+
+  def isBornIn90s(age: Int): Boolean = {
+    age >= currentYear - 1990 && age < currentYear - 2000
+  }
+
+  def isIncome75to150K(income: Int): Boolean = {
+    income >= 75000 && income < 150000
+  }
+
+  def isIncome150to200K(income: Int): Boolean = {
+    income >= 150000 && income < 200000
+  }
+
+  def isIncomeAbove200K(income: Int): Boolean = {
+    income >= 200000
+  }
+
+  def isFemale(sex: String): Boolean = {
+    sex.equalsIgnoreCase("F")
+  }
+
   val dependentVariables = Map(
     "RIDE_HAIL_SINGLE" -> Map(
       "1980" -> 0.2654,
