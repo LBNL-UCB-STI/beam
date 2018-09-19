@@ -20,11 +20,11 @@ object BeamAgent {
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Int])
 
 }
 
-case class InitializeTrigger(tick: Double) extends Trigger
+case class InitializeTrigger(tick: Int) extends Trigger
 
 trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
@@ -35,7 +35,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Double] = None
+  protected var _currentTick: Option[Int] = None
 
   onTermination {
     case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
@@ -51,7 +51,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
   }
 
-  def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {
+  def holdTickAndTriggerId(tick: Int, triggerId: Long): Unit = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
       throw new IllegalStateException(
         s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
@@ -61,7 +61,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
     _currentTriggerId = Some(triggerId)
   }
 
-  def releaseTickAndTriggerId(): (Double, Long) = {
+  def releaseTickAndTriggerId(): (Int, Long) = {
     val theTuple = (_currentTick.get, _currentTriggerId.get)
     _currentTick = None
     _currentTriggerId = None

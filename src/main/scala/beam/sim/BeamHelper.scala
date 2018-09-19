@@ -146,7 +146,8 @@ trait BeamHelper extends LazyLogging {
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes"               -> util.Arrays.asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+                "akka.cluster.seed-nodes" -> java.util.Arrays
+                  .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
