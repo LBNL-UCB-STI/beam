@@ -1,13 +1,11 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
-  PersonTravelTimeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
 import beam.analysis.plots.PersonTravelTimeStats
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
+import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
@@ -65,7 +63,7 @@ object PersonTravelTimeStatsGraphSpec {
         personTravelTime = updateDepartureTime(evn.asInstanceOf[PersonDepartureEvent])
       case evn if evn.getEventType.equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE) =>
         counter = updateCounterTime(evn.asInstanceOf[PersonArrivalEvent])
-      case evn: PersonArrivalEvent =>
+     case evn: PersonArrivalEvent =>
         counter = updateCounterTime(evn)
       case evn: PersonDepartureEvent =>
         personTravelTime = updateDepartureTime(evn)
@@ -74,6 +72,9 @@ object PersonTravelTimeStatsGraphSpec {
 
     private def updateDepartureTime(evn: PersonDepartureEvent): Map[(String, String), Double] = {
       val mode = evn.getLegMode
+      if(mode.contains("driver")){
+        return personTravelTime
+      }
       val personId = evn.getPersonId.toString
       val time = evn.getTime
       personTravelTime + ((mode, personId) -> time)
@@ -88,13 +89,22 @@ object PersonTravelTimeStatsGraphSpec {
           val travelTime = (evn.getTime - time) / 60
           mode -> travelTime
         }
-      personTravelTime = personTravelTime - (mode -> personId)
-      modeTime.fold(counter)(items => counter :+ items)
+
+      val (modeValue, modeTimeMap) = modeTime match {
+        case Some(item) => (mode, item)
+        case None =>{
+          val ((mode, _), time) = personTravelTime.filterKeys(_._2.equals(personId)).last
+          (mode, ("others" -> (evn.getTime - time) / 60))
+        }
+      }
+      personTravelTime = personTravelTime - (modeValue -> personId)
+      counter :+ modeTimeMap
     }
 
     def counterValue: Seq[(String, Double)] = counter
 
     def isEmpty: Boolean = personTravelTime.isEmpty
+
   }
 }
 
@@ -136,8 +146,10 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
                   .setScale(3, RoundingMode.HALF_UP)
                   .toDouble
             }
+
             handler.isEmpty shouldBe true
             modes shouldEqual all
+
           }
         }
       }
@@ -156,7 +168,9 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             graph
           }
         },
-        baseConfig
+        baseConfig.withValue("beam.outputs.events.overrideWritingLevels",
+          ConfigValueFactory.fromAnyRef("org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE , org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE"))
+
       ).run()
     }
   }
