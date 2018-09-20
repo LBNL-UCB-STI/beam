@@ -47,11 +47,14 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
+    if (isBornIn90s(age))// if above 18
     //TODO: Distance to PD
-    (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
-      (if (isIncomeAbove200K(income)) 0.1252 else 0) +
-      (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
-      0.1947 // Constant
+      (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
+        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
+        (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+        0.1947 // Constant
+    else
+      0
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
@@ -60,10 +63,13 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     val sex = person.getAttributes.getAttribute("sex").toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
+    if(isBornIn90s(age)) //if above 18
     (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
       (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
       (if (isFemale(sex)) -0.2513 else 0) +
       0.4558 // Constant
+    else
+      0
   }
 }
 
