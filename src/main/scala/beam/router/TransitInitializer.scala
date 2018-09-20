@@ -1,9 +1,9 @@
 package beam.sim
 import java.util
 import java.util.Collections
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
@@ -15,7 +15,8 @@ import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
+import org.matsim.vehicles.{Vehicle, Vehicles}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -39,18 +40,14 @@ class TransitInitializer(
    * be used to decide what type of vehicle to assign
    *
    */
-  def initMap: Map[Id[Vehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
-    val activeServicesToday =
-      transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
-    val stopToStopStreetSegmentCache =
-      mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips =
-      transportNetwork.transitLayer.tripPatterns.asScala.toStream
+  def initMap: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
+    val start = System.currentTimeMillis()
+    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
+    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
+    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
-      val route =
-        transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode =
-        Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
         .sliding(2)
         .map {
@@ -64,10 +61,8 @@ class TransitInitializer(
               ) match {
                 case Some(streetSeg) =>
                   val edges = streetSeg.getEdges.asScala
-                  val startEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge =
-                    transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
                   (departureTime: Long, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
@@ -118,10 +113,8 @@ class TransitInitializer(
               }
             } else {
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-              val startEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
-              val endEdge =
-                transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
+              val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
+              val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
               (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
@@ -154,7 +147,7 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
-          val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
+          val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
           val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
           tripSchedule.departures.zipWithIndex.sliding(2).foreach {
             case Array((departureTimeFrom, from), (_, to)) =>
@@ -174,8 +167,27 @@ class TransitInitializer(
       case (tripVehId, (route, legs)) =>
         createTransitVehicle(tripVehId, route, legs)
     }
-    logger.info(s"Finished Transit initialization trips, ${transitData.length}")
+    val end = System.currentTimeMillis()
+    logger.info(
+      s"Initialized transit trips in ${(end - start)} ms. Keys: ${transitScheduleToCreate.keySet.size}, Values: ${transitScheduleToCreate.values.size}"
+    )
     transitScheduleToCreate
+  }
+
+  private def getVehicleType(vehicleTypeId: Id[BeamVehicleType], mode: Modes.BeamMode): BeamVehicleType = {
+    if (services.vehicleTypes.contains(vehicleTypeId)) {
+      services.vehicleTypes(vehicleTypeId)
+    } else {
+      logger.debug(
+        "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
+        vehicleTypeId.toString
+      )
+      //There has to be a default one defined
+      services.vehicleTypes.getOrElse(
+        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
+        BeamVehicleType.defaultTransitBeamVehicleType
+      )
+    }
   }
 
   def createTransitVehicle(
@@ -186,34 +198,26 @@ class TransitInitializer(
     val mode =
       Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId =
-      Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
-    val vehicleType =
-      if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
-        transitVehicles.getVehicleTypes.get(vehicleTypeId)
-      } else {
-        logger.debug(
-          "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-          vehicleTypeId.toString
-        )
-        transitVehicles.getVehicleTypes.get(
-          Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType])
-        )
-      }
+      Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[BeamVehicleType])
+
+    val vehicleType = getVehicleType(vehicleTypeId, mode)
+
     mode match {
       case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
-        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
-        matSimTransitVehicle.getType.setDescription(mode.value)
-        val consumption = Option(vehicleType.getEngineInformation)
-          .map(_.getGasConsumption)
-          .getOrElse(Powertrain.AverageMilesPerGallon)
+        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoule)
+          .map(new Powertrain(_))
+          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
+        val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
+
         val vehicle: BeamVehicle = new BeamVehicle(
-          Powertrain.PowertrainFromMilesPerGallon(consumption),
-          matSimTransitVehicle,
-          TransitVehicle,
+          beamVehicleId,
+          powertrain,
           None,
+          vehicleType,
           None,
           None
-        )
+        ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>
         logger.error(mode + " is not supported yet")

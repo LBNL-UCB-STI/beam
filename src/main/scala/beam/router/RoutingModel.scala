@@ -1,7 +1,7 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+//import beam.agentsim.agents.vehicles.BeamVehicleType.{HumanBodyVehicle, RideHailVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
@@ -136,7 +136,9 @@ object RoutingModel {
     unbecomeDriverOnCompletion: Boolean
   ) {
 
-    val isRideHail: Boolean = RideHailVehicle.isVehicleType(beamVehicleId)
+    val isHumanBodyVehicle: Boolean =
+      BeamVehicleType.isHumanVehicle(beamVehicleId)
+    val isRideHail: Boolean = BeamVehicleType.isRidehailVehicle(beamVehicleId)
   }
 
   def traverseStreetLeg(
@@ -162,31 +164,31 @@ object RoutingModel {
     }
   }
 
-  def traverseStreetLeg_opt(leg: BeamLeg, vehicleId: Id[Vehicle]): Iterator[Event] = {
-    if (leg.travelPath.linkIds.size >= 2) {
-      val links = leg.travelPath.linkIds
-      val eventsSize = 2 * (links.length - 1)
-      val events = new Array[Event](eventsSize)
-      var curr: Int = 0
-      val timeAtNode = leg.startTime
-      var arrIdx: Int = 0
-      while (curr < links.length - 1) {
-        val from = links(curr)
-        val to = links(curr + 1)
-
-        events.update(arrIdx, new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
-        arrIdx += 1
-
-        events.update(arrIdx, new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
-        arrIdx += 1
-
-        curr += 1
-      }
-      events.toIterator
-    } else {
-      Iterator.empty
-    }
-  }
+//  def traverseStreetLeg_opt(leg: BeamLeg, vehicleId: Id[Vehicle]): Iterator[Event] = {
+//    if (leg.travelPath.linkIds.size >= 2) {
+//      val links = leg.travelPath.linkIds
+//      val eventsSize = 2 * (links.length - 1)
+//      val events = new Array[Event](eventsSize)
+//      var curr: Int = 0
+//      val timeAtNode = leg.startTime
+//      var arrIdx: Int = 0
+//      while (curr < links.length - 1) {
+//        val from = links(curr)
+//        val to = links(curr + 1)
+//
+//        events.update(arrIdx, new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
+//        arrIdx += 1
+//
+//        events.update(arrIdx, new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
+//        arrIdx += 1
+//
+//        curr += 1
+//      }
+//      events.toIterator
+//    } else {
+//      Iterator.empty
+//    }
+//  }
 
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],

@@ -57,7 +57,7 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent.tell(
-      ModifyPassengerSchedule(passengerSchedules.get(vehicleId).get),
+      ModifyPassengerSchedule(passengerSchedules(vehicleId)),
       rideHailManagerActor
     )
     rideHailAgent.tell(Resume(), rideHailManagerActor)

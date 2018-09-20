@@ -20,11 +20,9 @@ goto :init
     echo.  -target_cert target_cert_path
     echo.  -target_host target_host_dns
     echo.  -source_folder source_folder_to_copy
-    echo.  -a action
     echo.
     echo Example:
     echo   %__BAT_NAME% -h dns.csv -target_cert [PATH_TO_CERT_FILE] -target_host [TARGET_HOST_DNS] -source_folder [SOURCE_FOLDER_TO_COPY]
-    echo   %__BAT_NAME% -h dns.csv -target_cert [PATH_TO_CERT_FILE] -target_host [TARGET_HOST_DNS] -source_folder [SOURCE_FOLDER_TO_COPY] -a action
     goto :eof
 
 :version
@@ -62,8 +60,6 @@ goto :init
     set "target_host_dns="
     set "source_folder_to_copy="
 
-    set "action="
-
 :parse
     if "%~1"=="" goto :validate
 
@@ -84,7 +80,6 @@ goto :init
     if /i "%~1"=="-target_cert"         set "target_cert_path=%~2"         & shift & shift & goto :parse
     if /i "%~1"=="-target_host"         set "target_host_dns=%~2"         & shift & shift & goto :parse
     if /i "%~1"=="-source_folder"         set "source_folder_to_copy=%~2"         & shift & shift & goto :parse
-    if /i "%~1"=="-a"         set "action=%~2"         & shift & shift & goto :parse
 
     shift
     goto :parse
@@ -110,28 +105,18 @@ goto :init
          if defined target_cert_path        echo target_cert_path:   "%target_cert_path%"
          if defined target_host_dns         echo target_host_dns:   "%target_host_dns%"
          if defined source_folder         echo source_folder_to_copy:   "%source_folder_to_copy%"
-         if defined action                  echo action:        "%action%"
     )
 
     for /f "tokens=1,2 delims=, " %%a in (%host_csv%) do (
-
-
         echo Results from host: %%a
+        scp -i "%%b" -r "%target_cert_path%" ubuntu@%%a:~/.ssh/result_host_cert.pem
+        scp -i "%%b" -r copyAllFilesFromRunningExperiment.sh ubuntu@%%a:~/copyAllFilesFromRunningExperiment.sh
+        ssh -i "%%b" ubuntu@%%a chmod +x copyAllFilesFromRunningExperiment.sh
+        ssh -i "%%b" ubuntu@%%a "~/copyAllFilesFromRunningExperiment.sh %source_folder_to_copy% %target_host_dns% &"
 
-        if defined action (
-            if "%action%" == "list-suggestions" (
-                echo Going to print list of suggestions from: %%a
-                ssh -i "%%b" ubuntu@%%a "cd git/beam/production/application-sfbay/calibration/experiments/*/suggestions && ls"
-            )
-        )
-
-        if not defined action (
-            scp -i "%%b" -r "%target_cert_path%" ubuntu@%%a:~/.ssh/result_host_cert.pem
-            scp -i "%%b" -r copyAllFilesFromRunningExperiment.sh ubuntu@%%a:~/copyAllFilesFromRunningExperiment.sh
-            ssh -i "%%b" ubuntu@%%a chmod +x copyAllFilesFromRunningExperiment.sh
-            ssh -i "%%b" ubuntu@%%a "~/copyAllFilesFromRunningExperiment.sh %source_folder_to_copy% %target_host_dns% &"
-        )
-
+        REM ssh -i "%%b" ubuntu@%%a chmod 600 ~/.ssh/result_host_cert.pem
+        REM ssh -i "%%b" ubuntu@%%a scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r "%source_folder_to_copy%" ubuntu@%target_host_dns%:~/sigoptResults/
+        REM ssh -i "%target_cert_path%" ubuntu@%target_host_dns% ls sigoptResults
     )
 
 :end
@@ -160,5 +145,4 @@ goto :init
     set "target_cert_path="
     set "target_host_dns="
     set "source_folder_to_copy="
-    set "action="
     goto :eof

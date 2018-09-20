@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util
 
@@ -149,12 +149,12 @@ class ZonalParkingManager(
       val maybeFoundStalls = tazsWithDists
         .find {
           case (taz, _) =>
-            pooledResources.find {
+            pooledResources.exists {
               case (attr, values) =>
                 attr.tazId.equals(taz.tazId) &&
                 attr.reservedFor.equals(reservedFor) &&
                 values.numStalls > 0
-            }.isDefined
+            }
         }
         .map {
           case (taz, _) =>
@@ -237,10 +237,10 @@ class ZonalParkingManager(
           pooledResources.find {
             case (attr, values) =>
               attr.tazId.equals(nearbyTazsWithDistances.head._1.tazId) &&
-                attr.parkingType == preferredType &&
-                attr.reservedFor.equals(reservedFor) &&
-                values.numStalls > 0 &&
-                values.feeInCents == 0
+              attr.parkingType == preferredType &&
+              attr.reservedFor.equals(reservedFor) &&
+              values.numStalls > 0 &&
+              values.feeInCents == 0
           }
       }
       val maybeDominantSpot = maybeFoundStall match {
@@ -338,7 +338,8 @@ class ZonalParkingManager(
   }
 
   def selectPublicStall(inquiry: ParkingInquiry, startSearchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
+    val nearbyTazsWithDistances =
+      findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
       Vector(FlatFee, Block).flatMap { pricingModel =>
         val attrib =
@@ -455,7 +456,9 @@ class ZonalParkingManager(
   ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
+      val destinationFile = new File(writeDestinationPath)
+      destinationFile.getParentFile.mkdirs()
+      mapWriter = new CsvMapWriter(new FileWriter(destinationFile), CsvPreference.STANDARD_PREFERENCE)
 
       val header = Array[String](
         "taz",

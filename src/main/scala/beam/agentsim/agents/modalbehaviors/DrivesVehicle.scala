@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -141,7 +142,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new VehicleLeavesTrafficEvent(
                   tick,
                   id.asInstanceOf[Id[Person]],
-                  null,
+                  Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
                   data.currentVehicle.head,
                   "car",
                   0.0
@@ -151,7 +152,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new PathTraversalEvent(
                   tick,
                   currentVehicleUnderControl,
-                  beamServices.vehicles(currentVehicleUnderControl).getType,
+                  beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   currentLeg,
                   fuelConsumed,
@@ -325,7 +326,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new PathTraversalEvent(
                   stopTick,
                   currentVehicleUnderControl,
-                  beamServices.vehicles(currentVehicleUnderControl).getType,
+                  beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
                   data.passengerSchedule.schedule(currentLeg).riders.size,
                   updatedBeamLeg,
                   fuelConsumed,
@@ -399,21 +400,27 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           new VehicleEntersTrafficEvent(
             tick,
             Id.createPersonId(id),
-            null,
+            Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
             data.currentVehicle.head,
             "car",
             1.0
           )
         )
         // Produce link events for this trip (the same ones as in PathTraversalEvent).
-        // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-        // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+        //TODO make sure the traveTimes here are updating with each iteration
         val beamLeg = data.passengerSchedule.schedule
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
+        val travelTime = (time: Long, linkId: Int) => {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          (edge.getLengthM / edge.calculateSpeed(
+            new ProfileRequest,
+            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
+          )).toLong
+        }
         RoutingModel
-          .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
+          .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)
           .foreach(eventsManager.processEvent)
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)
@@ -593,7 +600,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + ${stateName}")
+      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + $stateName")
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
     //stay()
@@ -605,8 +612,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     req: ReservationRequest,
     vehicle: BeamVehicle
   ) = {
-    val vehicleCap = vehicle.getType.getCapacity
-    val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
+//    val vehicleCap = vehicle.getType
+    val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
     }

@@ -24,10 +24,10 @@ object MatsimConversionTool extends App {
     val conversionConfig = ConversionConfig(config)
 
     val network = NetworkUtils.createNetwork()
-    println(s"Network file ${conversionConfig.matsimNetworkFile}")
+//    println(s"Network file ${conversionConfig.matsimNetworkFile}")
     new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
-    MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
+    MatsimPlanConversion.generateScenarioData(conversionConfig)
     generateTazDefaults(conversionConfig, network)
     generateOsmFilteringCommand(conversionConfig, network)
   } else {
@@ -40,7 +40,7 @@ object MatsimConversionTool extends App {
     val outputFile = s"${cf.scenarioDirectory}/r5/${cf.scenarioName}.osm.pbf"
     val commandOut =
       s"""
-         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
+         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=$outputFile
       """.stripMargin
 
     println(s"Run following format to clip open street data file to network boundaries if required")
