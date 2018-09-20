@@ -145,7 +145,8 @@ trait BeamHelper extends LazyLogging {
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes"               -> util.Arrays.asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+                "akka.cluster.seed-nodes" -> java.util.Arrays
+                  .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
@@ -266,7 +267,11 @@ trait BeamHelper extends LazyLogging {
             )
           )
         }
-        Files.copy(Paths.get(configLocation), Paths.get(outputDirectory, "beam.conf"), StandardCopyOption.REPLACE_EXISTING)
+        Files.copy(
+          Paths.get(configLocation),
+          Paths.get(outputDirectory, "beam.conf"),
+          StandardCopyOption.REPLACE_EXISTING
+        )
     }
   }
 
@@ -291,7 +296,12 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -413,7 +423,6 @@ trait BeamHelper extends LazyLogging {
       }
     }
   }
-
 
 }
 
