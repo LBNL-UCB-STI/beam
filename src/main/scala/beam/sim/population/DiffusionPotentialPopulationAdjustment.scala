@@ -63,13 +63,10 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     val sex = person.getAttributes.getAttribute("sex").toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    if(isBornIn90s(age)) //if above 18
     (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
       (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
       (if (isFemale(sex)) -0.2513 else 0) +
       0.4558 // Constant
-    else
-      0
   }
 }
 
@@ -77,15 +74,15 @@ object DiffusionPotentialPopulationAdjustment {
   lazy val currentYear: Int = DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
-    currentYear - age < 1950
+    currentYear - age >= 1940 && currentYear - age < 1950
   }
 
   def isBornIn80s(age: Int): Boolean = {
-    currentYear - age < 1990
+    currentYear - age >= 1980 && currentYear - age < 1990
   }
 
   def isBornIn90s(age: Int): Boolean = {
-    currentYear - age < 2000
+    currentYear - age >= 1990 && currentYear - age < 2000
   }
 
   def isIncome75to150K(income: Int): Boolean = {
