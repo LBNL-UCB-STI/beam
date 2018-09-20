@@ -72,11 +72,11 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
     val pd = activities.find(isWork).getOrElse(activities.find(isSchool).getOrElse(maxDurationActivity.getOrElse(home)))
 
-    activityDistance(home, pd) * 1.4
+    activityDistanceInMiles(home, pd) * 1.4
   }
 
-  def activityDistance(orig: Activity, dest: Activity): Double = {
-    geo.distInMeters(orig.getCoord, dest.getCoord)
+  def activityDistanceInMiles(orig: Activity, dest: Activity): Double = {
+    geo.distInMeters(orig.getCoord, dest.getCoord) * 0.000621371
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
