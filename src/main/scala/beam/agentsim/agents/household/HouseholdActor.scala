@@ -6,7 +6,6 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
@@ -273,7 +272,7 @@ object HouseholdActor {
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
 
-      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
+      schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
       beamServices.personRefs += ((personId, personRef))
 
     }
@@ -451,7 +450,7 @@ object HouseholdActor {
 
       //Initial locations and trajectories
       //Initialize all vehicles to have a stationary trajectory starting at time zero
-      val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
+      val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
 
       for { veh <- _vehicles } yield {
         //TODO following mode should match exhaustively
