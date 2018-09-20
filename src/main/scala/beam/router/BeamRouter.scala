@@ -11,6 +11,7 @@ import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 //import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -161,6 +162,12 @@ class BeamRouter(
         })
         localNodes.foreach(_.forward(msg))
       }
+    case LinkEvents(events) =>
+      log.debug("Received LinkEvents with {} events", events.size)
+      events.foreach { e =>
+        val matsimEvent = e.toMatsimEvent
+        eventsManager.processEvent(matsimEvent)
+      }
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
@@ -302,6 +309,8 @@ class BeamRouter(
         )
         outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
         worker ! work
+      case m: GenerateLinkLeaveEnterEvents =>
+        worker ! m
       case _ =>
         log.warning(
           "Forwarding work via {} instead of telling because it isn't a handled type - {}",
@@ -367,7 +376,8 @@ class BeamRouter(
             vehicle,
             legs
           )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          val v = transitDriverId.toString
+          val transitDriver = context.actorOf(transitDriverAgentProps, v)
           scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
         }
     }
@@ -381,6 +391,13 @@ object BeamRouter {
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    id: UUID = UUID.randomUUID()
+  )
+  // TODO FIXME Better naming
+  case class GenerateLinkLeaveEnterEvents
+  (
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     id: UUID = UUID.randomUUID()
@@ -431,6 +448,20 @@ object BeamRouter {
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
   }
+
+  // TODO FIX ME `isEnter`
+  case class LinkEvent(time: Double, vehicleId: String, linkId: String, isEnter: Boolean) {
+    def toMatsimEvent: Event = {
+      if (isEnter) {
+        new LinkEnterEvent(time, Id.createVehicleId(vehicleId), Id.createLinkId(linkId))
+      }
+      else {
+        new LinkLeaveEvent(time, Id.createVehicleId(vehicleId), Id.createLinkId(linkId))
+      }
+    }
+  }
+
+  case class LinkEvents(events: Seq[LinkEvent])
 
   def props(
     beamServices: BeamServices,

@@ -149,7 +149,7 @@ object RoutingModel {
     if (leg.travelPath.linkIds.size >= 2) {
       val links = leg.travelPath.linkIds.view
       val fullyTraversedLinks = links.drop(1).dropRight(1)
-      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) =
+      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int): Long =
         enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
       val events = new ArrayBuffer[Event]()

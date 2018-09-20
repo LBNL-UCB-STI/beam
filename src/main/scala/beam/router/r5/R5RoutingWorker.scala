@@ -38,6 +38,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -264,17 +265,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
             )).toLong
       }
-      val duration = RoutingModel
-        .traverseStreetLeg(leg, vehicleId, travelTime)
-        .maxBy(e => e.getTime)
-        .getTime - leg.startTime
+      val linkLeaveEnterEvents = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime)
+      val durationOpt = getDuration(leg, linkLeaveEnterEvents)
+      log.info("EmbodyWithCurrentTravelTime: Generated {} events. Duration: {}", linkLeaveEnterEvents.size,
+        durationOpt)
 
+      val legWithNewDuration = durationOpt.map { d => leg.copy(duration = d.toLong) }.getOrElse(leg)
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             Vector(
               EmbodiedBeamLeg(
-                leg.copy(duration = duration.toLong),
+                legWithNewDuration,
                 vehicleId,
                 asDriver = true,
                 None,
@@ -287,8 +289,30 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         embodyRequestId
       )
       askForMoreWork
+
+    case GenerateLinkLeaveEnterEvents(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
+      val now = ZonedDateTime.now(ZoneOffset.UTC)
+      val mode = leg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString
+      val travelTime = (time: Long, linkId: Int) => travelTimeByLinkCalculator(time, linkId, StreetMode.valueOf(mode))
+      val linkLeaveEnterEvents: Array[LinkEvent] = (RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map {
+        case event if event.isInstanceOf[LinkLeaveEvent] =>
+          val leave = event.asInstanceOf[LinkLeaveEvent]
+          LinkEvent(leave.getTime, leave.getVehicleId.toString, leave.getLinkId.toString, isEnter = false)
+        case event if event.isInstanceOf[LinkEnterEvent] =>
+          val enter = event.asInstanceOf[LinkEnterEvent]
+          LinkEvent(enter.getTime, enter.getVehicleId.toString, enter.getLinkId.toString, isEnter = true)
+      }).toArray
+      log.debug("GenerateLinkLeaveEnterEvents: Generated {} events", linkLeaveEnterEvents.length)
+      sender ! LinkEvents(linkLeaveEnterEvents)
+      askForMoreWork
   }
 
+  private def getDuration(leg: BeamLeg, events: Iterator[Event]): Option[Double] = {
+    if (events.isEmpty) None
+    else {
+      Some(events.maxBy(e => e.getTime).getTime - leg.startTime)
+    }
+  }
   private def askForMoreWork =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
