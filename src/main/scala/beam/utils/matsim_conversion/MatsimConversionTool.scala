@@ -17,7 +17,7 @@ import scala.collection.JavaConverters._
 
 object MatsimConversionTool extends App {
 
-  if (null != args && args.length > 0) {
+  if (null != args && args.nonEmpty) {
     val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
 
     val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
