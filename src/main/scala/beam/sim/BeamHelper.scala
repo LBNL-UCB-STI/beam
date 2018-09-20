@@ -3,6 +3,7 @@ package beam.sim
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.Properties
+import java.util.{Arrays => JavaArrays}
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -145,7 +146,7 @@ trait BeamHelper extends LazyLogging {
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes"               -> util.Arrays.asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+                "akka.cluster.seed-nodes"               -> JavaArrays.asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
