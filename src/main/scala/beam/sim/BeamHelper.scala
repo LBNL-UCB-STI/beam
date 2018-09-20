@@ -360,14 +360,14 @@ trait BeamHelper extends LazyLogging {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
-    samplePopulation(scenario, beamConfig, matsimConfig)
-
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       module(config, scenario, networkCoordinator)
     )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+
+    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
     beamServices.controler.run()
 

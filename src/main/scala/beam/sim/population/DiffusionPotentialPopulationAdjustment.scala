@@ -122,15 +122,15 @@ object DiffusionPotentialPopulationAdjustment {
     sex.equalsIgnoreCase("F")
   }
 
-  def isHome(activity: Activity) = {
+  def isHome(activity: Activity): Boolean = {
     activity.getType.equalsIgnoreCase("Home")
   }
 
-  def isWork(activity: Activity) = {
+  def isWork(activity: Activity): Boolean = {
     activity.getType.equalsIgnoreCase("Work")
   }
 
-  def isSchool(activity: Activity) = {
+  def isSchool(activity: Activity): Boolean = {
     activity.getType.equalsIgnoreCase("School")
   }
 
