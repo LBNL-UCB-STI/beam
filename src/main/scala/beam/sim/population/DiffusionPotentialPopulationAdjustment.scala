@@ -19,9 +19,9 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    removeModeAll(population, "ride_hail", "ride_hail_transit")
+    removeModeAll(population, RIDE_HAIL, RIDE_HAIL_TRANSIT)
 
-    adjustPopulationByDiffusionPotential(scenario, "ride_hail", "ride_hail_transit")
+    adjustPopulationByDiffusionPotential(scenario, RIDE_HAIL, RIDE_HAIL_TRANSIT)
 
     population
   }
@@ -33,7 +33,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
       val personId = person.getId.toString
 
       val diffPotential = computeRideHailDiffusionPotential(scenario, person)
-//        computeAutomatedVehicleDiffusionPotential(scenario, person)
+      //        computeAutomatedVehicleDiffusionPotential(scenario, person)
 
       if (diffPotential > rand.nextDouble()) {
         modes.foreach(mode =>
@@ -45,9 +45,9 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
 
-    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
+    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
 
-    if (age > 18) {  // if above 18
+    if (age > 18) { // if above 18
 
       lazy val household = findHousehold(scenario, person.getId)
       val income = household.fold(0)(_.getIncome.getIncome.toInt)
@@ -56,23 +56,11 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
       (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
         (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
         (if (isIncomeAbove200K(income)) 0.1252 else 0) +
-        (if(distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if(distanceToPD > 20 && distanceToPD <=50) 0.0687 else 0) +
+        (if (distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if (distanceToPD > 20 && distanceToPD <= 50) 0.0687 else 0) +
         0.1947 // Constant
     } else {
       0
     }
-  }
-
-  def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    lazy val household = findHousehold(scenario, person.getId)
-    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
-    val sex = person.getAttributes.getAttribute("sex").toString
-    val income = household.fold(0)(_.getIncome.getIncome.toInt)
-
-    (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
-      (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
-      (if (isFemale(sex)) -0.2513 else 0) +
-      0.4558 // Constant
   }
 
   def getDistanceToPD(plan: Plan): Double = {
@@ -90,9 +78,26 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   def activityDistance(orig: Activity, dest: Activity): Double = {
     geo.distInMeters(orig.getCoord, dest.getCoord)
   }
+
+  def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
+    lazy val household = findHousehold(scenario, person.getId)
+    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
+    val sex = person.getAttributes.getAttribute(PERSON_SEX).toString
+    val income = household.fold(0)(_.getIncome.getIncome.toInt)
+
+    (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
+      (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
+      (if (isFemale(sex)) -0.2513 else 0) +
+      0.4558 // Constant
+  }
 }
 
 object DiffusionPotentialPopulationAdjustment {
+  val PERSON_AGE = "age"
+  val PERSON_SEX = "sex"
+  val RIDE_HAIL = "ride_hail"
+  val RIDE_HAIL_TRANSIT = "ride_hail_transit"
+
   lazy val currentYear: Int = DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
@@ -136,21 +141,12 @@ object DiffusionPotentialPopulationAdjustment {
   }
 
   def activityDuration(activities: List[Activity]): Double = {
-    if(activities.size < 2) 0 else activities(1).getEndTime - activities.head.getEndTime
+    if (activities.size < 2) 0 else activities(1).getEndTime - activities.head.getEndTime
   }
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {
     household.getMemberIds.asScala.exists(m =>
-      findPerson(population, m).forall(_.getAttributes.getAttribute("age").asInstanceOf[Int] < 8))
-  }
-
-  def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
-    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-    while (itrHouseholds.hasNext) {
-      val household = itrHouseholds.next()
-      if (household.getMemberIds.contains(personId)) return Some(household)
-    }
-    None
+      findPerson(population, m).forall(_.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8))
   }
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
@@ -158,6 +154,15 @@ object DiffusionPotentialPopulationAdjustment {
     while (itrPerson.hasNext) {
       val person = itrPerson.next()
       if (person.getId.equals(personId)) return Some(person)
+    }
+    None
+  }
+
+  def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
+    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+    while (itrHouseholds.hasNext) {
+      val household = itrHouseholds.next()
+      if (household.getMemberIds.contains(personId)) return Some(household)
     }
     None
   }
