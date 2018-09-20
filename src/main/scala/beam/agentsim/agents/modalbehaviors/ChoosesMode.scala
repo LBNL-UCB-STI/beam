@@ -37,7 +37,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      SpaceTime(0.0, 0.0, 0l),
+      SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
     )
@@ -61,7 +61,7 @@ trait ChoosesMode {
   when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusResponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
       choosesModeData.personData.currentTourMode match {
         case Some(mode) =>
@@ -131,7 +131,7 @@ trait ChoosesMode {
 
       def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
-        val startWithWaitBuffer = 600 + departTime.atTime.toLong
+        val startWithWaitBuffer = 600 + departTime.atTime
         val currentSpaceTime =
           SpaceTime(currentPersonLocation.loc, startWithWaitBuffer)
         val theRequest = RoutingRequest(
@@ -212,7 +212,7 @@ trait ChoosesMode {
                   val leg = BeamLeg(
                     departTime.atTime,
                     mode,
-                    l.getTravelTime.toLong,
+                    l.getTravelTime.toInt,
                     BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
@@ -410,7 +410,7 @@ trait ChoosesMode {
           leg =>
             leg.copy(
               leg.beamLeg
-                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.longValue())
+                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
@@ -449,7 +449,7 @@ trait ChoosesMode {
         _
         ) =>
       val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong)
+        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(

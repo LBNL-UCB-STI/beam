@@ -5,13 +5,14 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
-//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+
+import scala.collection.immutable
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -23,7 +24,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
-import beam.sim.{BeamServices, TransitInitializer}
+import beam.sim.BeamServices
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
@@ -33,7 +34,7 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 class BeamRouter(
   services: BeamServices,
@@ -52,9 +53,9 @@ class BeamRouter(
   type WorkId = UUID
   type TimeSent = ZonedDateTime
 
-  val clearRoutedOutstandingWorkEnabled = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+  val clearRoutedOutstandingWorkEnabled: Boolean = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
 
-  val secondsToWaitToClearRoutedOutstandingWork =
+  val secondsToWaitToClearRoutedOutstandingWork: Int =
     services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
 
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
@@ -73,10 +74,10 @@ class BeamRouter(
   // TODO Fix me!
   val servicePath = "/user/statsServiceProxy"
 
-  val clusterOption =
+  val clusterOption: Option[Cluster] =
     if (services.beamConfig.beam.cluster.enabled) Some(Cluster(context.system)) else None
 
-  val servicePathElements = servicePath match {
+  val servicePathElements: immutable.Seq[String] = servicePath match {
     case RelativeActorPath(elements) => elements
     case _ =>
       throw new IllegalArgumentException(
@@ -86,7 +87,7 @@ class BeamRouter(
 
   var remoteNodes = Set.empty[Address]
   var localNodes = Set.empty[ActorRef]
-  implicit val ex = context.system.dispatcher
+  implicit val ex: ExecutionContextExecutor = context.system.dispatcher
   log.info("BeamRouter: {}", self.path)
 
   override def preStart(): Unit = {
@@ -99,12 +100,10 @@ class BeamRouter(
 
   val tick = "work-pull-tick"
 
-  val tickTask =
+  val tickTask: Cancellable =
     context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  private val config = services.beamConfig.beam.routing
 
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
@@ -128,18 +127,17 @@ class BeamRouter(
 
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
-      if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
+      if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
-    case InitTransit(scheduler, parkingManager, id) =>
+    case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
         val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         metricsPrinter ! Subscribe("histogram", "**")
-        localNodes.map {
-          case localWorker =>
-            localWorker ! TransitInited(transits)
-            Success(s"local worker '$localWorker' inited")
+        localNodes.map { localWorker =>
+          localWorker ! TransitInited(transits)
+          Success(s"local worker '$localWorker' inited")
         }
       }
       localInit.pipeTo(sender)
@@ -173,7 +171,7 @@ class BeamRouter(
       remoteNodes = state.members.collect {
         case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
       }
-      if (isWorkAvailable) notifyWorkersOfAvailableWork
+      if (isWorkAvailable) notifyWorkersOfAvailableWork()
     case MemberUp(m) if m.hasRole("compute") =>
       log.info("MemberUp[compute]: {}", m)
       remoteNodes += m.address
@@ -212,14 +210,14 @@ class BeamRouter(
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
-          notifyWorkersOfAvailableWork
+          notifyWorkersOfAvailableWork()
           availableWorkWithOriginalSender.enqueue((work, originalSender))
         } else {
-          val worker: Worker = removeAndReturnFirstAvailableWorker
+          val worker: Worker = removeAndReturnFirstAvailableWorker()
           sendWorkTo(worker, work, originalSender, "Receive CatchAll")
         }
       } else { //Use existing work first
-        if (!isWorkerAvailable) notifyWorkersOfAvailableWork //Shouldn't need this but it should be relatively idempotent
+        if (!isWorkerAvailable) notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
         availableWorkWithOriginalSender.enqueue((work, originalSender))
       }
   }
@@ -231,7 +229,7 @@ class BeamRouter(
   private def isWorkAndNoAvailableWorkers: Boolean =
     isWorkAvailable && !isWorkerAvailable
 
-  private def notifyWorkersOfAvailableWork: Unit = {
+  private def notifyWorkersOfAvailableWork(): Unit = {
     remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! WorkAvailable)
     localNodes.foreach(_ ! WorkAvailable)
   }
@@ -276,7 +274,7 @@ class BeamRouter(
   private def notifyNewWorkerIfWorkAvailable(
     workerAddress: => Address,
     receivePath: => String
-  ) = {
+  ): Unit = {
     if (isWorkAvailable) {
       val worker = workerFrom(workerAddress)
       log.debug("Sending WorkAvailable via {}: {}", receivePath, worker)
@@ -289,7 +287,7 @@ class BeamRouter(
     work: Any,
     originalSender: OriginalSender,
     receivePath: => String
-  ) = {
+  ): Unit = {
     work match {
       case routingRequest: RoutingRequest =>
         outstandingWorkIdToOriginalSenderMap.put(routingRequest.staticRequestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
@@ -312,7 +310,7 @@ class BeamRouter(
     }
   }
 
-  private def pipeResponseToOriginalSender(routingResp: RoutingResponse) =
+  private def pipeResponseToOriginalSender(routingResp: RoutingResponse): Unit =
     outstandingWorkIdToOriginalSenderMap.remove(routingResp.staticRequestId) match {
       case Some(originalSender) => originalSender ! routingResp
       case None =>
@@ -322,7 +320,7 @@ class BeamRouter(
         )
     }
 
-  private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse) =
+  private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse): Unit =
     outstandingWorkIdToTimeSent.remove(routingResp.staticRequestId) match {
       case Some(timeSent) =>
         val secondsSinceSent = timeSent.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
@@ -335,7 +333,7 @@ class BeamRouter(
       case None => //No matching id. No need to log since this is more for analysis
     }
 
-  private def removeAndReturnFirstAvailableWorker: Worker = {
+  private def removeAndReturnFirstAvailableWorker(): Worker = {
     val worker = availableWorkers.head
     availableWorkers.remove(worker)
     worker
@@ -368,7 +366,7 @@ class BeamRouter(
             legs
           )
           val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }
   }

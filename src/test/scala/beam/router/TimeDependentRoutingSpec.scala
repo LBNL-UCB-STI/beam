@@ -209,7 +209,7 @@ class TimeDependentRoutingSpec
       // Like a one-person iterated dynamic traffic assignment.
       def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
 
-      def longerTravelTimes(enterTime: Long, linkId: Int) = 2000
+      def longerTravelTimes(enterTime: Int, linkId: Int) = 2000
 
       def experiencedTotalTravelTime =
         (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000

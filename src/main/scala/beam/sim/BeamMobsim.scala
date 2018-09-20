@@ -129,7 +129,7 @@ class BeamMobsim @Inject()(
           Props(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
-            Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
+            Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime).toInt,
             beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
             new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
@@ -330,7 +330,7 @@ class BeamMobsim @Inject()(
             val rideHailAgentRef: ActorRef =
               context.actorOf(rideHailAgentProps, rideHailName)
             context.watch(rideHailAgentRef)
-            scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
+            scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
             rideHailAgents += rideHailAgentRef
 
             rideHailinitialLocationSpatialPlot
@@ -429,11 +429,11 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          val timerTrigger = RideHailAllocationManagerTimeout(0.0)
+          val timerTrigger = RideHailAllocationManagerTimeout(0)
           val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
           scheduler ! timerMessage
 
-          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0.0), rideHailManager)
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0), rideHailManager)
           log.info(s"rideHailManagerTimerScheduled")
         }
 
