@@ -15,14 +15,14 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    removeModeAll(population, "ride_hail")
+    removeModeAll(population, "ride_hail", "ride_hail_transit")
 
-    adjustPopulationByDiffusionPotential(scenario, "ride_hail")
+    adjustPopulationByDiffusionPotential(scenario, "ride_hail", "ride_hail_transit")
 
     population
   }
 
-  def adjustPopulationByDiffusionPotential(scenario: Scenario, mode: String): Unit = {
+  def adjustPopulationByDiffusionPotential(scenario: Scenario, modes: String*): Unit = {
     val population = scenario.getPopulation
 
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
@@ -34,8 +34,10 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
       //      else
         computeAutomatedVehicleDiffusionPotential(scenario, person)
 
-      if (diffPotential == 1) {
-        addMode(population, personId, mode)
+      if (diffPotential > rand.nextDouble()) {
+        modes.foreach(mode =>
+          addMode(population, personId, mode)
+        )
       }
     }
   }
@@ -45,11 +47,11 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    val p = (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
+    //TODO: Distance to PD
+    (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
       (if (isIncomeAbove200K(income)) 0.1252 else 0) +
-      (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0)
-
-    if (p > rand.nextInt(1)) 1 else 0
+      (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+      0.1947 // Constant
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
@@ -58,11 +60,10 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     val sex = person.getAttributes.getAttribute("sex").toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    val p = (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
+    (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
       (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
-      (if (isFemale(sex)) -0.2513 else 0)
-
-    if (p > rand.nextInt(1)) 1 else 0
+      (if (isFemale(sex)) -0.2513 else 0) +
+      0.4558 // Constant
   }
 }
 
@@ -70,15 +71,15 @@ object DiffusionPotentialPopulationAdjustment {
   lazy val currentYear: Int = DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
-    age >= currentYear - 1940 && age < currentYear - 1950
+    currentYear - age < 1950
   }
 
   def isBornIn80s(age: Int): Boolean = {
-    age >= currentYear - 1980 && age < currentYear - 1990
+    currentYear - age < 1990
   }
 
   def isBornIn90s(age: Int): Boolean = {
-    age >= currentYear - 1990 && age < currentYear - 2000
+    currentYear - age < 2000
   }
 
   def isIncome75to150K(income: Int): Boolean = {
@@ -121,7 +122,7 @@ object DiffusionPotentialPopulationAdjustment {
     None
   }
 
-  val /*dependentVariables = Map(
+  /*val dependentVariables = Map(
     "RIDE_HAIL_SINGLE" -> Map(
       "1980" -> 0.2654,
       "1990" -> 0.2706,

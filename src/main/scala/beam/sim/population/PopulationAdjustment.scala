@@ -33,27 +33,31 @@ trait PopulationAdjustment extends LazyLogging {
     }
   }
 
-  protected def removeMode(population: Population, personId: String, modeToRemove: String): Unit = {
+  protected def removeMode(population: Population, personId: String, modeToRemove: String*): Unit = {
 
     val modes = population.getPersonAttributes.getAttribute(personId, "available-modes").toString
-    population.getPersonAttributes
-      .putAttribute(
-        personId,
-        "available-modes",
-        modes.split(",").filterNot(_.equalsIgnoreCase(modeToRemove)).mkString(",")
-      )
+    modeToRemove.foreach(mode =>
+      population.getPersonAttributes
+        .putAttribute(
+          personId,
+          "available-modes",
+          modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+        )
+    )
   }
 
   // remove mode from all attributes
-  protected def removeModeAll(population: Population, modeToRemove: String): Unit = {
+  protected def removeModeAll(population: Population, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { person =>
       val modes = population.getPersonAttributes.getAttribute(person.toString, "available-modes").toString
-      population.getPersonAttributes
-        .putAttribute(
-          person.toString,
-          "available-modes",
-          modes.split(",").filterNot(_.equalsIgnoreCase(modeToRemove)).mkString(",")
-        )
+      modeToRemove.foreach(mode =>
+        population.getPersonAttributes
+          .putAttribute(
+            person.toString,
+            "available-modes",
+            modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+          )
+      )
     }
   }
 
