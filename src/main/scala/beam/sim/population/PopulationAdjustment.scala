@@ -1,6 +1,6 @@
 package beam.sim.population
 
-import beam.sim.config.BeamConfig
+import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
@@ -75,20 +75,20 @@ object PopulationAdjustment {
   val PERCENTAGE_ADJUSTMENT = "PERCENTAGE_ADJUSTMENT"
   val DIFFUSION_POTENTIAL_ADJUSTMENT = "DIFFUSION_POTENTIAL_ADJUSTMENT"
 
-  def getPopulationAdjustment(adjKey: String, beamConfig: BeamConfig): PopulationAdjustment = {
-    adjKey match {
+  def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
+    beamServices.beamConfig.beam.agentsim.populationAdjustment match {
       case DEFAULT_ADJUSTMENT =>
-        new DefaultPopulationAdjustment(beamConfig)
+        new DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
-        new PercentagePopulationAdjustment(beamConfig)
+        new PercentagePopulationAdjustment(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
-        new DiffusionPotentialPopulationAdjustment(beamConfig)
+        new DiffusionPotentialPopulationAdjustment(beamServices)
       case adjClass =>
         try {
           Class
             .forName(adjClass)
             .getDeclaredConstructors()(0)
-            .newInstance(beamConfig)
+            .newInstance(beamServices)
             .asInstanceOf[PopulationAdjustment]
         } catch {
           case e: Exception =>

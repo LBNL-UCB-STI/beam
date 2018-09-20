@@ -2,15 +2,19 @@ package beam.sim.population
 
 import java.util.Random
 
-import beam.sim.config.BeamConfig
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import beam.sim.population.DiffusionPotentialPopulationAdjustment._
 import org.joda.time.DateTime
-import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
-class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
-  val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+import scala.collection.JavaConverters._
+
+class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+  val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val geo: GeoUtils = beamServices.geo
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
@@ -28,10 +32,7 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
 
-      val diffPotential =
-      // if (mode.toLowerCase.contains("ride_hail"))
-      //        computeRideHailDiffusionPotential(scenario, personId)
-      //      else
+      val diffPotential = // computeRideHailDiffusionPotential(scenario, person)
         computeAutomatedVehicleDiffusionPotential(scenario, person)
 
       if (diffPotential > rand.nextDouble()) {
@@ -43,22 +44,27 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
   }
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    val household = findHousehold(scenario, person.getId)
-    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
-    val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    if (isBornIn90s(age))// if above 18
-    //TODO: Distance to PD
+    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
+
+    if (isBornIn90s(age)) {
+      // if above 18
+      lazy val household = findHousehold(scenario, person.getId)
+      val income = household.fold(0)(_.getIncome.getIncome.toInt)
+      val distanceToPD = getDistanceToPD(person.getPlans.get(0))
+
       (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
         (if (isIncomeAbove200K(income)) 0.1252 else 0) +
         (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+        (if(distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if(distanceToPD > 20 && distanceToPD <=50) 0.0687 else 0) +
         0.1947 // Constant
-    else
+    } else {
       0
+    }
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    val household = findHousehold(scenario, person.getId)
+    lazy val household = findHousehold(scenario, person.getId)
     val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
     val sex = person.getAttributes.getAttribute("sex").toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
@@ -67,6 +73,21 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
       (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
       (if (isFemale(sex)) -0.2513 else 0) +
       0.4558 // Constant
+  }
+
+  def getDistanceToPD(plan: Plan): Double = {
+    lazy val activities = plan.getPlanElements.asScala.map(_.asInstanceOf[Activity])
+
+    lazy val home = activities.find(isHome)
+
+    lazy val maxDistance = activities.filterNot(a => isHome(a) || isWork(a) || isSchool(a)).
+      map(findDistance).max
+
+    def findDistance(p: Activity) = {
+      geo.distInMeters(home.get.getCoord, p.getCoord)
+    }
+
+    activities.find(isWork).fold(activities.find(isSchool).fold(maxDistance)(findDistance))(findDistance)
   }
 }
 
@@ -101,8 +122,19 @@ object DiffusionPotentialPopulationAdjustment {
     sex.equalsIgnoreCase("F")
   }
 
+  def isHome(activity: Activity) = {
+    activity.getType.equalsIgnoreCase("Home")
+  }
+
+  def isWork(activity: Activity) = {
+    activity.getType.equalsIgnoreCase("Work")
+  }
+
+  def isSchool(activity: Activity) = {
+    activity.getType.equalsIgnoreCase("School")
+  }
+
   def hasChildUnder8(household: Household, population: Population): Boolean = {
-    import scala.collection.JavaConverters._
     household.getMemberIds.asScala.exists(m =>
       findPerson(population, m).forall(_.getAttributes.getAttribute("age").asInstanceOf[Int] < 8))
   }

@@ -380,7 +380,8 @@ trait BeamHelper extends LazyLogging {
   def samplePopulation(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
-    matsimConfig: Config
+    matsimConfig: Config,
+    beamServices: BeamServices
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
@@ -419,7 +420,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamConfig.beam.agentsim.populationAdjustment, beamConfig)
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
   }
 }
