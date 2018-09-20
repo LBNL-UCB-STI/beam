@@ -68,7 +68,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
     lazy val home = activities.find(isHome).head
 
-    lazy val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).headOption
+    lazy val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).lastOption
 
     val pd = activities.find(isWork).getOrElse(activities.find(isSchool).getOrElse(maxDurationActivity.getOrElse(home)))
 
