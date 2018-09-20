@@ -1,12 +1,18 @@
 package beam.analysis.plots;
 
+import beam.agentsim.agents.vehicles.BeamVehicle;
+import beam.agentsim.agents.vehicles.BeamVehicleType;
+import beam.agentsim.agents.vehicles.FuelType;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.sim.BeamServices$;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
+import org.matsim.api.core.v01.Id;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
+import scala.collection.concurrent.TrieMap;
 
 import java.nio.file.Paths;
 
@@ -22,7 +28,11 @@ public class GraphTestUtil {
     static final String OTHERS = "others";
 
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
-    private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/test/input/beamville/transitVehicles.xml";
+
+    private static final String FUEL_TYPES_FILE_PATH = BASE_PATH + "/test/input/beamville/beamFuelTypes.csv";
+    private static final String VEHICLE_TYPE_FILE_PATH = BASE_PATH + "/test/input/beamville/vehicleTypes.csv";
+
+//    private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/test/input/beamville/transitVehicles.xml";
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
     static boolean simRunFlag = false;
     private static BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf"));
@@ -34,7 +44,14 @@ public class GraphTestUtil {
     }
 
     public synchronized static void createDummySimWithXML(BasicEventHandler handler) {
-        PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
+
+        TrieMap<Id<FuelType>, FuelType> fuelTypes = BeamServices$.MODULE$.readFuelTypeFile(FUEL_TYPES_FILE_PATH);
+        TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicleTypes = BeamServices$.MODULE$.readBeamVehicleTypeFile(VEHICLE_TYPE_FILE_PATH, fuelTypes);
+//        TrieMap<Id<BeamVehicle>, BeamVehicle> privateVehicles = BeamServices$.MODULE$.readVehiclesFile(PRIVATE_VEHICLES_FILE_PATH, vehicleTypes);
+
+//        PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(vehicleTypes);
+
         events = EventsUtils.createEventsManager();
         events.addHandler(handler);
         MatsimEventsReader reader = new MatsimEventsReader(events);
