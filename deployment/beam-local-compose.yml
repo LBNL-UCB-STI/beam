@@ -1,17 +1,47 @@
 version: '3'
 services:
 
-  beam-simulation:
+  beam-worker-1:
     image: beammodel/beam
-    hostname: beam_worker
+    hostname: beam-worker1
     ports:
       - "2552"
     volumes:
-      - "../test/input/sf-light:/opt/config/simulation"
+      - "../test/input/beamville:/opt/config/simulation"
       - "../test/input/common:/opt/config/common"
+      - "../test/input/dtd:/opt/config/dtd"
       - "../output/docker:/opt/output:rw"
-    command: ["--config",  "/opt/config/simulation/sf-light.conf"]
+    command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "worker", "--node-host", "beam-worker-1", "--node-port", "2552", "--seed-address", "beam-master:2552"]
     environment:
       BEAM_OUTPUT: "/opt/output"
-    deploy:
-      replicas: 1
+
+  beam-worker-2:
+    image: beammodel/beam
+    hostname: beam-worker1
+    ports:
+    - "2552"
+    volumes:
+    - "../test/input/beamville:/opt/config/simulation"
+    - "../test/input/common:/opt/config/common"
+    - "../test/input/dtd:/opt/config/dtd"
+    - "../output/docker:/opt/output:rw"
+    command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "worker", "--node-host", "beam-worker-2", "--node-port", "2552", "--seed-address", "beam-master:2552"]
+    environment:
+      BEAM_OUTPUT: "/opt/output"
+
+  beam-master:
+    image: beammodel/beam
+    hostname: beam-master
+    ports:
+      - "2552"
+    volumes:
+      - "../test/input/beamville:/opt/config/simulation"
+      - "../test/input/common:/opt/config/common"
+      - "../test/input/dtd:/opt/config/dtd"
+      - "../output/docker:/opt/output:rw"
+    command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "master", "--node-host", "beam-master", "--node-port", "2552", "--seed-address", "beam-master:2552"]
+    environment:
+      BEAM_OUTPUT: "/opt/output"
+    depends_on:
+      - beam-worker-1
+      - beam-worker-2
