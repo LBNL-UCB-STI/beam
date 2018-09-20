@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -406,14 +407,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         // Produce link events for this trip (the same ones as in PathTraversalEvent).
-        // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-        // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+        //TODO make sure the traveTimes here are updating with each iteration
         val beamLeg = data.passengerSchedule.schedule
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
+        val travelTime = (time: Long, linkId: Int) => {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          (edge.getLengthM / edge.calculateSpeed(
+            new ProfileRequest,
+            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.get.toString)
+          )).toLong
+        }
         RoutingModel
-          .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
+          .traverseStreetLeg(beamLeg, data.currentVehicle.head,travelTime)
           .foreach(eventsManager.processEvent)
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)
