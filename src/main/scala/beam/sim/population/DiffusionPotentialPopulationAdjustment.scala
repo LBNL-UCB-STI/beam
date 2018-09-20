@@ -32,8 +32,8 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
 
-      val diffPotential = // computeRideHailDiffusionPotential(scenario, person)
-        computeAutomatedVehicleDiffusionPotential(scenario, person)
+      val diffPotential = computeRideHailDiffusionPotential(scenario, person)
+//        computeAutomatedVehicleDiffusionPotential(scenario, person)
 
       if (diffPotential > rand.nextDouble()) {
         modes.foreach(mode =>
@@ -47,15 +47,15 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
     val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
 
-    if (isBornIn90s(age)) {
-      // if above 18
+    if (age > 18) {  // if above 18
+
       lazy val household = findHousehold(scenario, person.getId)
       val income = household.fold(0)(_.getIncome.getIncome.toInt)
       val distanceToPD = getDistanceToPD(person.getPlans.get(0))
 
       (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
-        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
         (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
         (if(distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if(distanceToPD > 20 && distanceToPD <=50) 0.0687 else 0) +
         0.1947 // Constant
     } else {
@@ -78,16 +78,17 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   def getDistanceToPD(plan: Plan): Double = {
     lazy val activities = plan.getPlanElements.asScala.map(_.asInstanceOf[Activity])
 
-    lazy val home = activities.find(isHome)
+    lazy val home = activities.find(isHome).head
 
-    lazy val maxDistance = activities.filterNot(a => isHome(a) || isWork(a) || isSchool(a)).
-      map(findDistance).max
+    lazy val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).headOption
 
-    def findDistance(p: Activity) = {
-      geo.distInMeters(home.get.getCoord, p.getCoord)
-    }
+    val pd = activities.find(isWork).getOrElse(activities.find(isSchool).getOrElse(maxDurationActivity.getOrElse(home)))
 
-    activities.find(isWork).fold(activities.find(isSchool).fold(maxDistance)(findDistance))(findDistance)
+    activityDistance(home, pd) * 1.4
+  }
+
+  def activityDistance(orig: Activity, dest: Activity): Double = {
+    geo.distInMeters(orig.getCoord, dest.getCoord)
   }
 }
 
@@ -132,6 +133,10 @@ object DiffusionPotentialPopulationAdjustment {
 
   def isSchool(activity: Activity): Boolean = {
     activity.getType.equalsIgnoreCase("School")
+  }
+
+  def activityDuration(activities: List[Activity]): Double = {
+    if(activities.size < 2) 0 else activities(1).getEndTime - activities.head.getEndTime
   }
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {
