@@ -412,12 +412,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val travelTime = (time: Long, linkId: Int) => {
+        val travelTime = (time: Int, linkId: Int) => {
           val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
           (edge.getLengthM / edge.calculateSpeed(
             new ProfileRequest,
             StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
-          )).toLong
+          )).toInt
         }
         RoutingModel
           .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)

@@ -31,7 +31,7 @@ object BashUtils {
   private def readCommandResponse(command: String) = {
     val runtime = Runtime.getRuntime
     try {
-      val process = runtime.exec(command) 
+      val process = runtime.exec(command)
       try {
         val reader = new BufferedReader(new InputStreamReader(process.getInputStream))
         try reader.readLine
