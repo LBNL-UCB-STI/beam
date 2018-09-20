@@ -172,15 +172,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static double getFuelConsumptionInMJ(String vehicleId, String mode, String fuelString, double lengthInMeters, String vehicleType) {
         // initialize Fuel
         Double fuel = CONST_NUM_ZERO;
-        if (fuelString.contains("NA")) {
-            if (vehicleId.contains("rideHail")) {
-                fuel = CAR_FUEL_ECONOMY_IN_LITER_PER_METER * lengthInMeters;
-                // fix for ride hailing vehicles
-            } else if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
+        if (vehicleId.contains("body")) {
+            if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
                 if (lengthInMeters > 0) {
                     DebugLib.emptyFunctionForSettingBreakPoint();
                 }
-
                 fuel = WALKING_ENERGY_IN_JOULE_PER_METER * lengthInMeters; // in Joule
             } else {
                 DebugLib.stopSystemAndReportInconsistency();
@@ -192,6 +188,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         if (vehicleId.contains("rideHail")) {
             vehicleType = "TNC";
         }
+
 
 
         boolean isElectricEnergy = isElectricEnergy(vehicleId, mode);
