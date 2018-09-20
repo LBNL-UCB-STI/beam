@@ -142,7 +142,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new VehicleLeavesTrafficEvent(
                   tick,
                   id.asInstanceOf[Id[Person]],
-                  null,
+                  Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
                   data.currentVehicle.head,
                   "car",
                   0.0
@@ -400,7 +400,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           new VehicleEntersTrafficEvent(
             tick,
             Id.createPersonId(id),
-            null,
+            Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
             data.currentVehicle.head,
             "car",
             1.0
