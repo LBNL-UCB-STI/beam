@@ -416,11 +416,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
           (edge.getLengthM / edge.calculateSpeed(
             new ProfileRequest,
-            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.get.toString)
+            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
           )).toLong
         }
         RoutingModel
-          .traverseStreetLeg(beamLeg, data.currentVehicle.head,travelTime)
+          .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)
           .foreach(eventsManager.processEvent)
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)

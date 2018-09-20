@@ -34,8 +34,7 @@ object BashUtils {
       val process = runtime.exec(command)
       try {
         val reader = new BufferedReader(new InputStreamReader(process.getInputStream))
-        try
-          reader.readLine
+        try reader.readLine
         finally if (reader != null) reader.close()
       }
     } catch {
