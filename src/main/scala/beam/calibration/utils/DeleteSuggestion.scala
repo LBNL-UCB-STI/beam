@@ -82,7 +82,6 @@ object DeleteSuggestion extends LazyLogging {
       }
     }
   }
-<<<<<<< HEAD
 
   def main(args: Array[String]): Unit = {
 
@@ -92,17 +91,6 @@ object DeleteSuggestion extends LazyLogging {
 //    deleteSuggestion(experimentId, suggestionId)
 //    listSuggestions(experimentId)
 
-=======
-
-  def main(args: Array[String]): Unit = {
-
-//    val experimentId = "52024"
-//    val suggestionId = "21233364";
-//    listSuggestions(experimentId)
-//    deleteSuggestion(experimentId, suggestionId)
-//    listSuggestions(experimentId)
-
->>>>>>> cs/#613-link-events-4ci
     ///
     val experimentId = "52783"
     listSuggestions(experimentId)
