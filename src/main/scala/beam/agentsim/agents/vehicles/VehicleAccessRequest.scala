@@ -15,19 +15,19 @@ object Reservation {
 }
 
 case class ReservationRequest(
-  requestId: Id[ReservationRequest],
-  departFrom: BeamLeg,
-  arriveAt: BeamLeg,
-  passengerVehiclePersonId: VehiclePersonId
-)
+                               requestId: Id[ReservationRequest],
+                               departFrom: BeamLeg,
+                               arriveAt: BeamLeg,
+                               passengerVehiclePersonId: VehiclePersonId
+                             )
 
 object ReservationRequest {
 
   def apply(
-    departFrom: BeamLeg,
-    arriveAt: BeamLeg,
-    passengerVehiclePersonId: VehiclePersonId
-  ): ReservationRequest =
+             departFrom: BeamLeg,
+             arriveAt: BeamLeg,
+             passengerVehiclePersonId: VehiclePersonId
+           ): ReservationRequest =
     ReservationRequest(
       Reservation.nextReservationId,
       departFrom,
@@ -37,17 +37,17 @@ object ReservationRequest {
 }
 
 case class ReservationResponse(
-  requestId: Id[ReservationRequest],
-  response: Either[ReservationError, ReserveConfirmInfo],
-  reservedMode: BeamMode
-)
+                                requestId: Id[ReservationRequest],
+                                response: Either[ReservationError, ReserveConfirmInfo],
+                                reservedMode: BeamMode
+                              )
 
 case class ReserveConfirmInfo(
-  departFrom: BeamLeg,
-  arriveAt: BeamLeg,
-  passengerVehiclePersonId: VehiclePersonId,
-  triggersToSchedule: Vector[ScheduleTrigger] = Vector()
-)
+                               departFrom: BeamLeg,
+                               arriveAt: BeamLeg,
+                               passengerVehiclePersonId: VehiclePersonId,
+                               triggersToSchedule: Vector[ScheduleTrigger] = Vector()
+                             )
 
 case object AccessErrorCodes {
 
@@ -86,4 +86,5 @@ case object AccessErrorCodes {
   case object VehicleFullError extends ReservationError {
     override def errorCode: ReservationErrorCode = ResourceCapacityExhausted
   }
+
 }

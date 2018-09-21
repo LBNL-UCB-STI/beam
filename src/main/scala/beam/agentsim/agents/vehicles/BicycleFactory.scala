@@ -1,8 +1,9 @@
 package beam.agentsim.agents.vehicles
+
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters
@@ -24,7 +25,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
         Id.create(beamVehicleType.vehicleTypeId, classOf[BeamVehicleType]),
         beamVehicleType
       )
-    )
+      )
 
     // Add bicycles to household (all for now)
     JavaConverters
@@ -61,7 +62,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
             None
           )
         )
-      )
+        )
 
     }
   }

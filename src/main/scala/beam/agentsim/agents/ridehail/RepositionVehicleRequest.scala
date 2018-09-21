@@ -6,8 +6,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 case class RepositionVehicleRequest(
-  passengerSchedule: PassengerSchedule,
-  tick: Double,
-  vehicleId: Id[Vehicle],
-  rideHailAgent: ActorRef
-)
+                                     passengerSchedule: PassengerSchedule,
+                                     tick: Double,
+                                     vehicleId: Id[Vehicle],
+                                     rideHailAgent: ActorRef
+                                   )
