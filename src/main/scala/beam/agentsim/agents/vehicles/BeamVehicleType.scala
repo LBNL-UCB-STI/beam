@@ -149,7 +149,6 @@ object BeamVehicleType {
       case "BIKE" => BIKE
       case "RIDE_HAIL" => RIDE_HAIL
       case "CAR" => CAR
-      case "CAR" => CAR
       case _ => NONE
     }
   }

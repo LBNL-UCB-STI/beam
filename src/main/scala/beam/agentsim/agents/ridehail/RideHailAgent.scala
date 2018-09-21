@@ -370,7 +370,7 @@ class RideHailAgent(
               theVehicle.manager.foreach(
                 _ ! nextIdle
               )
-
+            case None =>
           }
 
         case None =>

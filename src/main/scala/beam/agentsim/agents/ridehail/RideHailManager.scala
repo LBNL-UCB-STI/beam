@@ -301,18 +301,19 @@ class RideHailManager(
       surgePricingManager.incrementIteration()
       sender ! Unit // return empty object to blocking caller
 
-    case RegisterResource(vehId: Id[Vehicle]) =>
+    case RegisterResource(vId) =>
+      val vehId = vId.asInstanceOf[Id[Vehicle]]
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
     case ev@NotifyVehicleResourceIdle(
-    vehicleId: Id[Vehicle],
+    vId,
     whenWhereOpt,
     passengerSchedule,
     beamVehicleState,
     triggerId
     ) =>
       log.debug("RHM.NotifyVehicleResourceIdle: {}", ev)
-
+      val vehicleId = vId.asInstanceOf[Id[Vehicle]]
       val whenWhere = whenWhereOpt.getOrElse(getRideHailAgentLocation(vehicleId).currentLocation)
 
       updateLocationOfAgent(vehicleId, whenWhere, getServiceStatusOf(vehicleId))
@@ -368,7 +369,8 @@ class RideHailManager(
         }
       }
 
-    case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
+    case NotifyResourceInUse(vId, whenWhere) =>
+      val vehId = vId.asInstanceOf[Id[Vehicle]]
       updateLocationOfAgent(vehId, whenWhere, InService)
 
     case BeamVehicleStateUpdate(id, beamVehicleState) =>
@@ -377,7 +379,8 @@ class RideHailManager(
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
 
-    case CheckInResource(vehicleId: Id[Vehicle], whenWhere) =>
+    case CheckInResource(vId, whenWhere) =>
+      val vehicleId = vId.asInstanceOf[Id[Vehicle]]
       updateLocationOfAgent(vehicleId, whenWhere.get, Available)
 
       if (whenWhere.get.time == 0) {
