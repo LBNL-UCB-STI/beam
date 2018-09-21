@@ -75,7 +75,7 @@ class BeamVehicle(
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
       BecomeDriverOfVehicleSuccess
-    } else if (driver.get == newDriverRef) {
+    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
       NewDriverAlreadyControllingVehicle
     } else {
       DriverAlreadyAssigned(driver.get)
