@@ -350,7 +350,9 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
+    LoggingUtil.detachOldFileLogger()
     LoggingUtil.createFileLogger(outputDirectory)
+
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
