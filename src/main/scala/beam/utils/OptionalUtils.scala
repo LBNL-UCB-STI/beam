@@ -1,5 +1,7 @@
 package beam.utils
 
+import scala.language.implicitConversions
+
 object OptionalUtils {
   import java.util.Optional
 
@@ -17,7 +19,7 @@ object OptionalUtils {
     /**
       * Transform this Option to an equivalent Java Optional
       */
-    def toOptional: Optional[T] = Optional.ofNullable(opt.orNull.asInstanceOf[T])
+    def toOptional: Optional[T] = if (opt.isDefined) Optional.of(opt.get) else Optional.empty()
   }
 
   class RichOptional[T](opt: Optional[T]) {
