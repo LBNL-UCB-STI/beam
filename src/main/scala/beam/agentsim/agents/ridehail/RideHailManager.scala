@@ -212,7 +212,7 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
   )
-  private val modifyPassengerScheduleManager =
+  val modifyPassengerScheduleManager =
     new RideHailModifyPassengerScheduleManager(
       log,
       self,
