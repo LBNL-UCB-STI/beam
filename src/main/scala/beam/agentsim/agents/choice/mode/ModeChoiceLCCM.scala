@@ -35,10 +35,10 @@ import beam.sim.BeamServices
   * TODO pass TourType so correct model can be applied
   */
 class ModeChoiceLCCM(
-  val beamServices: BeamServices,
-  val lccm: LatentClassChoiceModel,
-  attributesOfIndividual: Option[AttributesOfIndividual]
-) extends ModeChoiceCalculator {
+                      val beamServices: BeamServices,
+                      val lccm: LatentClassChoiceModel,
+                      attributesOfIndividual: Option[AttributesOfIndividual]
+                    ) extends ModeChoiceCalculator {
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
@@ -47,10 +47,10 @@ class ModeChoiceLCCM(
   }
 
   private def choose(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: Option[AttributesOfIndividual],
-    tourType: TourType
-  ): Option[EmbodiedBeamTrip] = {
+                      alternatives: IndexedSeq[EmbodiedBeamTrip],
+                      attributesOfIndividual: Option[AttributesOfIndividual],
+                      tourType: TourType
+                    ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
@@ -70,14 +70,14 @@ class ModeChoiceLCCM(
         attributesOfIndividual match {
           case Some(theAttributes) =>
             val theParams: Map[String, BigDecimal] = Map(
-              "income"        -> theAttributes.householdAttributes.householdIncome,
+              "income" -> theAttributes.householdAttributes.householdIncome,
               "householdSize" -> theAttributes.householdAttributes.householdSize,
               "male" -> (if (theAttributes.isMale) {
-                           1.0
-                         } else {
-                           0.0
-                         }),
-              "numCars"  -> theAttributes.householdAttributes.numCars,
+                1.0
+              } else {
+                0.0
+              }),
+              "numCars" -> theAttributes.householdAttributes.numCars,
               "numBikes" -> theAttributes.householdAttributes.numBikes
             )
             AlternativeAttributes("dummy", theParams)
@@ -134,10 +134,59 @@ class ModeChoiceLCCM(
   def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double =
     0.0
 
+  def sampleMode(
+                  alternatives: IndexedSeq[EmbodiedBeamTrip],
+                  conditionedOnModalityStyle: String,
+                  tourType: TourType
+                ): Option[String] = {
+    val bestInGroup = altsToBestInGroup(alternatives, tourType)
+    val modeChoiceInputData = bestInGroup.map { alt =>
+      val theParams = Map(
+        "cost" -> alt.cost,
+        "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
+      )
+      AlternativeAttributes(alt.mode.value, theParams)
+    }
+    lccm
+      .modeChoiceModels(tourType)(conditionedOnModalityStyle)
+      .sampleAlternative(modeChoiceInputData, new Random())
+  }
+
+  def utilityAcrossModalityStyles(
+                                   embodiedBeamTrip: EmbodiedBeamTrip,
+                                   tourType: TourType
+                                 ): Map[String, Double] = {
+    lccm
+      .classMembershipModels(tourType)
+      .alternativeParams
+      .keySet
+      .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
+      .toMap
+  }
+
+  def utilityOf(
+                 embodiedBeamTrip: EmbodiedBeamTrip,
+                 conditionedOnModalityStyle: String,
+                 tourType: TourType
+               ): Double = {
+    val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
+
+    utilityOf(
+      best.mode,
+      conditionedOnModalityStyle,
+      tourType,
+      best.cost,
+      scaleTimeByVot(
+        best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
+        Some(best.mode)
+      )
+    )
+  }
+
   def altsToBestInGroup(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    tourType: TourType
-  ): Vector[ModeChoiceData] = {
+                         alternatives: IndexedSeq[EmbodiedBeamTrip],
+                         tourType: TourType
+                       ): Vector[ModeChoiceData] = {
     val transitFareDefaults: Seq[BigDecimal] =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults: Seq[BigDecimal] =
@@ -207,62 +256,13 @@ class ModeChoiceLCCM(
     bestInGroup.toVector
   }
 
-  def sampleMode(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    conditionedOnModalityStyle: String,
-    tourType: TourType
-  ): Option[String] = {
-    val bestInGroup = altsToBestInGroup(alternatives, tourType)
-    val modeChoiceInputData = bestInGroup.map { alt =>
-      val theParams = Map(
-        "cost" -> alt.cost,
-        "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
-      )
-      AlternativeAttributes(alt.mode.value, theParams)
-    }
-    lccm
-      .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .sampleAlternative(modeChoiceInputData, new Random())
-  }
-
-  def utilityAcrossModalityStyles(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    tourType: TourType
-  ): Map[String, Double] = {
-    lccm
-      .classMembershipModels(tourType)
-      .alternativeParams
-      .keySet
-      .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
-      .toMap
-  }
-
   def utilityOf(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    conditionedOnModalityStyle: String,
-    tourType: TourType
-  ): Double = {
-    val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
-
-    utilityOf(
-      best.mode,
-      conditionedOnModalityStyle,
-      tourType,
-      best.cost,
-      scaleTimeByVot(
-        best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
-        Some(best.mode)
-      )
-    )
-  }
-
-  def utilityOf(
-    mode: BeamMode,
-    conditionedOnModalityStyle: String,
-    tourType: TourType,
-    cost: BigDecimal,
-    time: BigDecimal
-  ): Double = {
+                 mode: BeamMode,
+                 conditionedOnModalityStyle: String,
+                 tourType: TourType,
+                 cost: BigDecimal,
+                 time: BigDecimal
+               ): Double = {
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
@@ -276,24 +276,24 @@ class ModeChoiceLCCM(
 object ModeChoiceLCCM {
 
   case class ModeChoiceData(
-    mode: BeamMode,
-    tourType: TourType,
-    vehicleTime: BigDecimal,
-    walkTime: BigDecimal,
-    waitTime: BigDecimal,
-    bikeTime: BigDecimal,
-    cost: BigDecimal,
-    index: Int = -1
-  )
+                             mode: BeamMode,
+                             tourType: TourType,
+                             vehicleTime: BigDecimal,
+                             walkTime: BigDecimal,
+                             waitTime: BigDecimal,
+                             bikeTime: BigDecimal,
+                             cost: BigDecimal,
+                             index: Int = -1
+                           )
 
   case class ClassMembershipData(
-    tourType: TourType,
-    surplus: Double,
-    income: Double,
-    householdSize: Double,
-    isMale: Double,
-    numCars: Double,
-    numBikes: Double
-  )
+                                  tourType: TourType,
+                                  surplus: Double,
+                                  income: Double,
+                                  householdSize: Double,
+                                  isMale: Double,
+                                  numCars: Double,
+                                  numBikes: Double
+                                )
 
 }

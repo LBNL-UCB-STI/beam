@@ -1,15 +1,11 @@
 package beam.agentsim.agents.choice.logit
 
-import java.lang
-import java.lang.Double._
-
 import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
 import scala.beans.BeanProperty
-import scala.collection.immutable
 import scala.util.Random
 
 /**
@@ -18,9 +14,9 @@ import scala.util.Random
 case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) extends LazyLogging {
 
   def sampleAlternative(
-    alternatives: Vector[AlternativeAttributes],
-    random: Random
-  ): Option[String] = {
+                         alternatives: Vector[AlternativeAttributes],
+                         random: Random
+                       ): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
@@ -42,6 +38,15 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
     }
   }
 
+  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
+    //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+    //    if(util == Double.NaN){
+    //      val i = 0
+    //    }
+    util
+  }
+
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     if (!alternativeParams.contains(alternative.alternativeName)) {
       -1E100
@@ -58,8 +63,8 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
                 theParam._2.paramValue.toDouble
             }
           } else if (theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase(
-                       "asc"
-                     )) {
+            "asc"
+          )) {
             theParam._2.paramValue.toDouble
           } else {
             -1E100
@@ -69,15 +74,6 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
         .sum
     }
 
-  }
-
-  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
-//    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-//    if(util == Double.NaN){
-//      val i = 0
-//    }
-    util
   }
 }
 
@@ -102,16 +98,6 @@ object MultinomialLogit {
     })
   }
 
-  class MnlData(
-    @BeanProperty var alternative: String = "COMMON",
-    @BeanProperty var paramName: String = "",
-    @BeanProperty var paramType: String = "",
-    @BeanProperty var paramValue: Double = Double.NaN
-  ) extends Cloneable {
-    override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
-  }
-  import org.supercsv.cellprocessor.ift.CellProcessor
-
   private def getProcessors = {
     Array[CellProcessor](
       new NotNull, // alt
@@ -119,6 +105,17 @@ object MultinomialLogit {
       new NotNull, // type
       new Optional(new ParseDouble()) // value
     )
+  }
+
+  import org.supercsv.cellprocessor.ift.CellProcessor
+
+  class MnlData(
+                 @BeanProperty var alternative: String = "COMMON",
+                 @BeanProperty var paramName: String = "",
+                 @BeanProperty var paramType: String = "",
+                 @BeanProperty var paramValue: Double = Double.NaN
+               ) extends Cloneable {
+    override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
   }
 }
 
@@ -128,15 +125,13 @@ case class AlternativeParams(alternativeName: String, params: Map[String, Utilit
 object AlternativeParams {
   def empty: AlternativeParams = AlternativeParams("", Map())
 }
+
 case class UtilityParam(paramName: String, paramValue: BigDecimal, paramType: UtilityParamType)
 
 // Alternative attributes
 case class AlternativeAttributes(alternativeName: String, attributes: Map[String, BigDecimal])
 
 object UtilityParam {
-  sealed trait UtilityParamType
-  case object Intercept extends UtilityParamType
-  case object Multiplier extends UtilityParamType
 
   def StringToUtilityParamType(str: String): UtilityParamType = {
     str.toLowerCase match {
@@ -148,4 +143,10 @@ object UtilityParam {
         throw new RuntimeException(s"Unknown Utility Parameter Type $str")
     }
   }
+
+  sealed trait UtilityParamType
+
+  case object Intercept extends UtilityParamType
+
+  case object Multiplier extends UtilityParamType
 }

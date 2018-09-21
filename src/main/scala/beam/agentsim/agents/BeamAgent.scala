@@ -14,13 +14,13 @@ object BeamAgent {
   // states
   trait BeamAgentState
 
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Int])
+
   case object Uninitialized extends BeamAgentState
 
   case object Initialized extends BeamAgentState
 
   case object Finish
-
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Int])
 
 }
 
@@ -30,15 +30,15 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
+  protected var _currentTriggerId: Option[Long] = None
+
+  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected var _currentTick: Option[Int] = None
 
   def id: Id[_]
 
-  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
-  protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Int] = None
-
   onTermination {
-    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
+    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
       reason match {
         case FSM.Shutdown =>
           log.error(
@@ -70,22 +70,6 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def logPrefix(): String
 
-  def getPrefix: String = {
-    val tickStr = _currentTick match {
-      case Some(theTick) =>
-        s"Tick:${theTick.toString} "
-      case None =>
-        ""
-    }
-    val triggerStr = _currentTriggerId match {
-      case Some(theTriggerId) =>
-        s"TriggId:${theTriggerId.toString} "
-      case None =>
-        ""
-    }
-    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
-  }
-
   def logInfo(msg: => String): Unit = {
     log.info("{} {}", getPrefix, msg)
   }
@@ -100,6 +84,22 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def logDebug(msg: => String): Unit = {
     log.debug("{} {}", getPrefix, msg)
+  }
+
+  def getPrefix: String = {
+    val tickStr = _currentTick match {
+      case Some(theTick) =>
+        s"Tick:${theTick.toString} "
+      case None =>
+        ""
+    }
+    val triggerStr = _currentTriggerId match {
+      case Some(theTriggerId) =>
+        s"TriggId:${theTriggerId.toString} "
+      case None =>
+        ""
+    }
+    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
   }
 
 }

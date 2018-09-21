@@ -1,9 +1,6 @@
 package beam.agentsim.agents.parking
 
-import java.util.concurrent.TimeUnit
-
 import akka.pattern.{ask, pipe}
-import akka.util.Timeout
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -12,27 +9,27 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.{LeavingParkingEvent, ParkEvent, SpaceTime}
+import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, WALK}
-import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RoutingModel.{DiscreteTime, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import tscfg.model.DURATION
 
-import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 /**
   * BEAM
   */
 object ChoosesParking {
+
   case object ChoosingParkingSpot extends BeamAgentState
+
   case object ReleasingParkingSpot extends BeamAgentState
+
 }
 
 trait ChoosesParking extends {
@@ -64,7 +61,7 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, data@BasePersonData(_, _, _, _, _, _, _, _, _)) =>
       val (tick, _) = releaseTickAndTriggerId()
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
@@ -74,16 +71,16 @@ trait ChoosesParking extends {
           beamServices.vehicles(data.currentVehicle.head).stall.get.id,
           None
         )
-//        val tick: Double = _currentTick.getOrElse(0)
+        //        val tick: Double = _currentTick.getOrElse(0)
         val nextLeg = data.passengerSchedule.schedule.head._1
         val distance = beamServices.geo.distInMeters(
           stall.location,
           nextLeg.travelPath.endPoint.loc
         ) //nextLeg.travelPath.endPoint.loc
-        val cost = stall.cost
+      val cost = stall.cost
         val energyCharge: Double = 0.0 //TODO
-        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
-        val score = calculateScore(distance, cost, energyCharge, timeCost)
+      val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+      val score = calculateScore(distance, cost, energyCharge, timeCost)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
       veh.unsetParkingStall()
@@ -114,10 +111,6 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      if (id.equals("501900-2013001147754-0-3400175")) {
-        val i = 0
-      }
-
       val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
@@ -143,7 +136,7 @@ trait ChoosesParking extends {
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
-          DiscreteTime(currentPoint.time.toInt),
+          DiscreteTime(currentPoint.time),
           Vector(),
           Vector(carStreetVeh, bodyStreetVeh)
         )
@@ -152,7 +145,7 @@ trait ChoosesParking extends {
         val futureStall2DestinationResponse = router ? RoutingRequest(
           beamServices.geo.utm2Wgs(stall.location),
           finalPoint.loc,
-          DiscreteTime(currentPoint.time.toInt),
+          DiscreteTime(currentPoint.time),
           Vector(),
           Vector(
             StreetVehicle(
@@ -165,7 +158,7 @@ trait ChoosesParking extends {
         )
 
         val responses = for {
-          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
+          vehicle2StallResponse <- futureVehicle2StallResponse.mapTo[RoutingResponse]
           stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
@@ -174,9 +167,9 @@ trait ChoosesParking extends {
         stay using data
       }
     case Event(
-        responses: (RoutingResponse, RoutingResponse),
-        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
-        ) =>
+    responses: (RoutingResponse, RoutingResponse),
+    data@BasePersonData(_, _, _, _, _, _, _, _, _)
+    ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
@@ -236,9 +229,9 @@ trait ChoosesParking extends {
   }
 
   def calculateScore(
-    walkingDistance: Double,
-    cost: Double,
-    energyCharge: Double,
-    valueOfTime: BigDecimal
-  ): Double = -cost - energyCharge
+                      walkingDistance: Double,
+                      cost: Double,
+                      energyCharge: Double,
+                      valueOfTime: BigDecimal
+                    ): Double = -cost - energyCharge
 }

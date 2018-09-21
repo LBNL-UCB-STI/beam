@@ -1,8 +1,5 @@
 package beam.agentsim.agents.modalbehaviors
 
-import scala.collection.mutable
-import scala.util.Random
-
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
@@ -12,12 +9,14 @@ import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAI
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
+import scala.collection.mutable
 import scala.util.Random
 
 /**
   * BEAM
   */
 trait ModeChoiceCalculator extends HasServices {
+
   import ModeChoiceCalculator._
 
   implicit lazy val random: Random = new Random(
@@ -34,33 +33,13 @@ trait ModeChoiceCalculator extends HasServices {
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
-    mutable.Map[VotType, BigDecimal](
-      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
-      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-    )
+  mutable.Map[VotType, BigDecimal](
+    DefaultVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+    GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+  )
 
-  /**
-    * Converts [[BeamMode BeamModes]] into their appropriate [[VotType VotTypes]].
-    *
-    * This level of indirection is used in order ot abstract the
-    *  details of the VOT logic from the business logic.
-    *
-    * @param beamMode The [[BeamMode]] to convert.
-    * @return the target [[VotType]].
-    */
-  // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
-  // matching enforced by sealed traits.
-  private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
-    case Some(CAR)                                        => DriveVot
-    case Some(WALK)                                       => WalkVot
-    case Some(BIKE)                                       => BikeVot
-    case Some(WALK_TRANSIT)                               => WalkToTransitVot
-    case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
-    case Some(RIDE_HAIL)                                  => RideHailVot
-    case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
-    case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
-    case Some(_)                                          => GeneralizedVot
-    case None                                             => DefaultVot
+  def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
+    time / 3600 * getVot(beamMode)
   }
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
@@ -71,18 +50,39 @@ trait ModeChoiceCalculator extends HasServices {
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
     )
 
-//  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
-//    val votType = matchMode2Vot(beamMode)
-//    if (!votType.equals(DefaultVot))
-//      Some(valuesOfTime += votType -> value)
-//    else {
-//      None
-//    }
-//  }
+  //  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
+  //    val votType = matchMode2Vot(beamMode)
+  //    if (!votType.equals(DefaultVot))
+  //      Some(valuesOfTime += votType -> value)
+  //    else {
+  //      None
+  //    }
+  //  }
 
-  def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
-    time / 3600 * getVot(beamMode)
+  /**
+    * Converts [[BeamMode BeamModes]] into their appropriate [[VotType VotTypes]].
+    *
+    * This level of indirection is used in order ot abstract the
+    * details of the VOT logic from the business logic.
+    *
+    * @param beamMode The [[BeamMode]] to convert.
+    * @return the target [[VotType]].
+    */
+  // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
+  // matching enforced by sealed traits.
+  private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
+    case Some(CAR) => DriveVot
+    case Some(WALK) => WalkVot
+    case Some(BIKE) => BikeVot
+    case Some(WALK_TRANSIT) => WalkToTransitVot
+    case Some(DRIVE_TRANSIT) => DriveToTransitVot
+    case Some(RIDE_HAIL) => RideHailVot
+    case a@Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
+    case Some(RIDE_HAIL_TRANSIT) => RideHailVot
+    case Some(_) => GeneralizedVot
+    case None => DefaultVot
   }
+
   ///~
 
   def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
@@ -101,19 +101,6 @@ trait ModeChoiceCalculator extends HasServices {
 }
 
 object ModeChoiceCalculator {
-
-  sealed trait VotType
-  case object DefaultVot extends VotType
-  case object GeneralizedVot extends VotType
-
-  // TODO: Implement usage of mode-specific VotTypes defined below
-  case object DriveVot extends VotType
-  case object OnTransitVot extends VotType
-  case object WalkVot extends VotType
-  case object WalkToTransitVot extends VotType // Separate from walking
-  case object DriveToTransitVot extends VotType
-  case object RideHailVot extends VotType // No separate ride hail to transit VOT
-  case object BikeVot extends VotType
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
@@ -157,5 +144,26 @@ object ModeChoiceCalculator {
           new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
+
+  sealed trait VotType
+
+  case object DefaultVot extends VotType
+
+  case object GeneralizedVot extends VotType
+
+  // TODO: Implement usage of mode-specific VotTypes defined below
+  case object DriveVot extends VotType
+
+  case object OnTransitVot extends VotType
+
+  case object WalkVot extends VotType
+
+  case object WalkToTransitVot extends VotType // Separate from walking
+
+  case object DriveToTransitVot extends VotType
+
+  case object RideHailVot extends VotType // No separate ride hail to transit VOT
+
+  case object BikeVot extends VotType
 
 }

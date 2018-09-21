@@ -14,11 +14,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -42,24 +38,25 @@ import scala.concurrent.duration._
   */
 object PersonAgent {
 
+  type VehicleStack = Vector[Id[Vehicle]]
   val timeToChooseMode: Double = 0.0
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
 
   def props(
-    scheduler: ActorRef,
-    services: BeamServices,
-    modeChoiceCalculator: ModeChoiceCalculator,
-    transportNetwork: TransportNetwork,
-    router: ActorRef,
-    rideHailManager: ActorRef,
-    parkingManager: ActorRef,
-    eventsManager: EventsManager,
-    personId: Id[PersonAgent],
-    household: Household,
-    plan: Plan,
-    humanBodyVehicleId: Id[Vehicle]
-  ): Props = {
+             scheduler: ActorRef,
+             services: BeamServices,
+             modeChoiceCalculator: ModeChoiceCalculator,
+             transportNetwork: TransportNetwork,
+             router: ActorRef,
+             rideHailManager: ActorRef,
+             parkingManager: ActorRef,
+             eventsManager: EventsManager,
+             personId: Id[PersonAgent],
+             household: Household,
+             plan: Plan,
+             humanBodyVehicleId: Id[Vehicle]
+           ): Props = {
     Props(
       new PersonAgent(
         scheduler,
@@ -77,6 +74,8 @@ object PersonAgent {
     )
   }
 
+  sealed trait Traveling extends BeamAgentState
+
   trait PersonData extends DrivingData
 
   trait DrivingData {
@@ -89,6 +88,7 @@ object PersonAgent {
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData
 
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData
+
     def hasParkingBehaviors: Boolean
   }
 
@@ -108,35 +108,38 @@ object PersonAgent {
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
         legEndsAt
       )
+
     override def hasParkingBehaviors: Boolean = false
   }
 
-  type VehicleStack = Vector[Id[Vehicle]]
-
   case class BasePersonData(
-    currentActivityIndex: Int = 0,
-    currentTrip: Option[EmbodiedBeamTrip] = None,
-    restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
-    currentVehicle: VehicleStack = Vector(),
-    currentTourMode: Option[BeamMode] = None,
-    currentTourPersonalVehicle: Option[Id[Vehicle]] = None,
-    passengerSchedule: PassengerSchedule = PassengerSchedule(),
-    currentLegPassengerScheduleIndex: Int = 0,
-    hasDeparted: Boolean = false
-  ) extends PersonData {
+                             currentActivityIndex: Int = 0,
+                             currentTrip: Option[EmbodiedBeamTrip] = None,
+                             restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
+                             currentVehicle: VehicleStack = Vector(),
+                             currentTourMode: Option[BeamMode] = None,
+                             currentTourPersonalVehicle: Option[Id[Vehicle]] = None,
+                             passengerSchedule: PassengerSchedule = PassengerSchedule(),
+                             currentLegPassengerScheduleIndex: Int = 0,
+                             hasDeparted: Boolean = false
+                           ) extends PersonData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 
     override def withCurrentLegPassengerScheduleIndex(
-      currentLegPassengerScheduleIndex: Int
-    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+                                                       currentLegPassengerScheduleIndex: Int
+                                                     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = true
   }
 
-  case object PerformingActivity extends BeamAgentState
+  case class ActivityStartTrigger(tick: Int) extends Trigger
 
-  sealed trait Traveling extends BeamAgentState
+  case class ActivityEndTrigger(tick: Int) extends Trigger
+
+  case class PersonDepartureTrigger(tick: Int) extends Trigger
+
+  case object PerformingActivity extends BeamAgentState
 
   case object ChoosingMode extends Traveling
 
@@ -164,51 +167,62 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
-  case class ActivityStartTrigger(tick: Int) extends Trigger
-
-  case class ActivityEndTrigger(tick: Int) extends Trigger
-
-  case class PersonDepartureTrigger(tick: Int) extends Trigger
-
 }
 
 class PersonAgent(
-  val scheduler: ActorRef,
-  val beamServices: BeamServices,
-  val modeChoiceCalculator: ModeChoiceCalculator,
-  val transportNetwork: TransportNetwork,
-  val router: ActorRef,
-  val rideHailManager: ActorRef,
-  val eventsManager: EventsManager,
-  override val id: Id[PersonAgent],
-  val matsimPlan: Plan,
-  val bodyId: Id[Vehicle],
-  val parkingManager: ActorRef
-) extends DrivesVehicle[PersonData]
-    with ChoosesMode
-    with ChoosesParking
-    with Stash {
+                   val scheduler: ActorRef,
+                   val beamServices: BeamServices,
+                   val modeChoiceCalculator: ModeChoiceCalculator,
+                   val transportNetwork: TransportNetwork,
+                   val router: ActorRef,
+                   val rideHailManager: ActorRef,
+                   val eventsManager: EventsManager,
+                   override val id: Id[PersonAgent],
+                   val matsimPlan: Plan,
+                   val bodyId: Id[Vehicle],
+                   val parkingManager: ActorRef
+                 ) extends DrivesVehicle[PersonData]
+  with ChoosesMode
+  with ChoosesParking
+  with Stash {
+
+  val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
+  val myUnhandled: StateFunction = {
+    case Event(TriggerWithId(NotifyLegStartTrigger(_, _, _), _), _) =>
+      stash()
+      stay
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, _, _), _), _) =>
+      stash()
+      stay
+    case Event(NotifyResourceInUse(_, _), _) =>
+      stay()
+    case Event(RegisterResource(_), _) =>
+      stay()
+    case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
+      stay()
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(
+        Failure(
+          "Timeout - this probably means this agent was not getting a reply it was expecting."
+        )
+      )
+    case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
+      stop
+  }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
-  val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
+  startWith(Uninitialized, BasePersonData())
 
   def scaleTimeByValueOfTime(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal =
     modeChoiceCalculator.scaleTimeByVot(time, beamMode)
-
-  startWith(Uninitialized, BasePersonData())
-
-  def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg)
-    else Right(_experiencedBeamPlan.activities(ind))
-  }
-
-  def currentActivity(data: BasePersonData): Activity =
-    _experiencedBeamPlan.activities(data.currentActivityIndex)
-
-  def nextActivity(data: BasePersonData): Either[String, Activity] = {
-    activityOrMessage(data.currentActivityIndex + 1, "plan finished")
-  }
 
   def currentTour(data: BasePersonData): Tour = {
     stateName match {
@@ -217,6 +231,13 @@ class PersonAgent(
       case _ =>
         _experiencedBeamPlan.getTourContaining(nextActivity(data).right.get)
     }
+  }
+
+  def currentActivity(data: BasePersonData): Activity =
+    _experiencedBeamPlan.activities(data.currentActivityIndex)
+
+  def nextActivity(data: BasePersonData): Either[String, Activity] = {
+    activityOrMessage(data.currentActivityIndex + 1, "plan finished")
   }
 
   when(Uninitialized) {
@@ -273,11 +294,11 @@ class PersonAgent(
 
     /**
       * Callback from [[ChoosesMode]]
-     **/
+      **/
     case Event(
-        TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-        data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false)
-        ) =>
+    TriggerWithId(PersonDepartureTrigger(tick), triggerId),
+    data@BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false)
+    ) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
@@ -302,33 +323,27 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
     case Event(
-        TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-        BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true)
-        ) =>
+    TriggerWithId(PersonDepartureTrigger(tick), triggerId),
+    BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true)
+    ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
       logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
 
-  def handleSuccessfulReservation(
-    triggersToSchedule: Vector[ScheduleTrigger],
-    data: BasePersonData
-  ): FSM.State[BeamAgentState, PersonData] = {
-    val (_, triggerId) = releaseTickAndTriggerId()
-    log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
-    scheduler ! CompletionNotice(triggerId, triggersToSchedule)
-    goto(Waiting) using data
-
+  def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
+    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg)
+    else Right(_experiencedBeamPlan.activities(ind))
   }
 
   when(WaitingForReservationConfirmation) {
     case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     case Event(
-        ReservationResponse(_, Left(firstErrorResponse), _),
-        data @ BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _)
-        ) =>
+    ReservationResponse(_, Left(firstErrorResponse), _),
+    data@BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
+    ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
@@ -339,9 +354,9 @@ class PersonAgent(
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     case Event(
-        RideHailResponse(_, _, Some(error), _),
-        data @ BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _)
-        ) =>
+    RideHailResponse(_, _, Some(error), _),
+    data@BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
+    ) =>
       logDebug(s"replanning because ${error.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
@@ -357,16 +372,16 @@ class PersonAgent(
      */
 
     case Event(
-        TriggerWithId(NotifyLegStartTrigger(_, _, _), triggerId),
-        BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _)
-        ) if currentLeg.beamVehicleId == currentVehicle.head =>
+    TriggerWithId(NotifyLegStartTrigger(_, _, _), triggerId),
+    BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _)
+    ) if currentLeg.beamVehicleId == currentVehicle.head =>
       logDebug(s"Already on vehicle: ${currentVehicle.head}")
       goto(Moving) replying CompletionNotice(triggerId)
 
     case Event(
-        TriggerWithId(NotifyLegStartTrigger(tick, _, vehicleToEnter), triggerId),
-        data @ BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _)
-        ) =>
+    TriggerWithId(NotifyLegStartTrigger(tick, _, vehicleToEnter), triggerId),
+    data@BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _)
+    ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
@@ -379,18 +394,18 @@ class PersonAgent(
      * Learn as passenger that leg is ending
      */
     case Event(
-        TriggerWithId(NotifyLegEndTrigger(_, _, _), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
-        ) if restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
+    TriggerWithId(NotifyLegEndTrigger(_, _, _), triggerId),
+    data@BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
+    ) if restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
       // The next vehicle is the same as current so just update state and go to Waiting
       goto(Waiting) replying CompletionNotice(triggerId) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip
       )
 
     case Event(
-        TriggerWithId(NotifyLegEndTrigger(tick, _, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
-        ) =>
+    TriggerWithId(NotifyLegEndTrigger(tick, _, vehicleToExit), triggerId),
+    data@BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
+    ) =>
       // The next vehicle is different from current so we exit the current vehicle
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
@@ -404,16 +419,13 @@ class PersonAgent(
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_), data: BasePersonData) =>
-      if (id.equals("501900-2013001147754-0-3400175")) {
-        val i = 0
-      }
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)
         theVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle match {
           case Some(nextNotify) =>
-//            context.parent ! nextNotify
+            //            context.parent ! nextNotify
             theVehicle.manager.foreach(
               _ ! nextNotify
             )
@@ -435,9 +447,9 @@ class PersonAgent(
 
   when(ReadyToChooseParking, stateTimeout = Duration.Zero) {
     case Event(
-        StateTimeout,
-        data @ BasePersonData(_, _, currentLeg :: theRestOfCurrentTrip, _, _, _, _, _, _)
-        ) =>
+    StateTimeout,
+    data@BasePersonData(_, _, _ :: theRestOfCurrentTrip, _, _, _, _, _, _)
+    ) =>
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(restOfCurrentTrip = theRestOfCurrentTrip)
   }
@@ -460,12 +472,12 @@ class PersonAgent(
     * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
     * of activity
     * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
-   **/
+    **/
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
-        StateTimeout,
-        data @ BasePersonData(_, _, nextLeg :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
-        ) if nextLeg.asDriver =>
+    StateTimeout,
+    data@BasePersonData(_, _, nextLeg :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
+    ) if nextLeg.asDriver =>
       val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(
         _.beamVehicleId == nextLeg.beamVehicleId
       )
@@ -532,8 +544,8 @@ class PersonAgent(
           )
         )
       }
-    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
-        if nextLeg.beamLeg.startTime < _currentTick.get =>
+    case Event(StateTimeout, data@BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
+      if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our ride hail portion.
       logWarn(
@@ -545,7 +557,7 @@ class PersonAgent(
         isWithinTripReplanning = true
       )
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
-        if nextLeg.beamLeg.mode.isTransit =>
+      if nextLeg.beamLeg.mode.isTransit =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
@@ -557,11 +569,11 @@ class PersonAgent(
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
-        if nextLeg.isRideHail =>
+      if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
-      val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
+      val departAt = DiscreteTime(legSegment.head.beamLeg.startTime)
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
@@ -588,25 +600,25 @@ class PersonAgent(
       goto(Waiting)
 
     case Event(
-        StateTimeout,
-        data @ BasePersonData(
-          currentActivityIndex,
-          Some(currentTrip),
-          _,
-          _,
-          currentTourMode,
-          currentTourPersonalVehicle,
-          _,
-          _,
-          _
-        )
-        ) =>
+    StateTimeout,
+    data@BasePersonData(
+    currentActivityIndex,
+    Some(currentTrip),
+    _,
+    _,
+    currentTourMode,
+    currentTourPersonalVehicle,
+    _,
+    _,
+    _
+    )
+    ) =>
       nextActivity(data) match {
         case Right(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
           val endTime =
             if (activity.getEndTime >= tick && Math
-                  .abs(activity.getEndTime) < Double.PositiveInfinity) {
+              .abs(activity.getEndTime) < Double.PositiveInfinity) {
               activity.getEndTime
             } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
               tick
@@ -671,34 +683,15 @@ class PersonAgent(
       }
   }
 
-  val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(NotifyLegStartTrigger(_, _, _), _), _) =>
-      stash()
-      stay
-    case Event(TriggerWithId(NotifyLegEndTrigger(_, _, _), _), _) =>
-      stash()
-      stay
-    case Event(NotifyResourceInUse(_, _), _) =>
-      stay()
-    case Event(RegisterResource(_), _) =>
-      stay()
-    case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
-      stay()
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(StateTimeout, _) =>
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      stop(
-        Failure(
-          "Timeout - this probably means this agent was not getting a reply it was expecting."
-        )
-      )
-    case Event(Finish, _) =>
-      if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }
-      stop
+  def handleSuccessfulReservation(
+                                   triggersToSchedule: Vector[ScheduleTrigger],
+                                   data: BasePersonData
+                                 ): FSM.State[BeamAgentState, PersonData] = {
+    val (_, triggerId) = releaseTickAndTriggerId()
+    log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+    scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+    goto(Waiting) using data
+
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

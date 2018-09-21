@@ -6,34 +6,21 @@ import org.matsim.households.{Household, Households}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 case class HouseholdMembershipAllocator(
-  households: Households,
-  implicit val population: org.matsim.api.core.v01.population.Population
-) {
+                                         households: Households,
+                                         implicit val population: org.matsim.api.core.v01.population.Population
+                                       ) {
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
   val memberships: Map[Id[Person], Household] = allocateMembership()
+  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
+    TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
   def lookupMemberRank(id: Id[Person]): Option[Int] =
     memberships(id).lookupMemberRank(id)
-
-  private def allocateMembership(): Map[Id[Person], Household] = {
-    JavaConverters
-      .mapAsScalaMap(households.getHouseholds)
-      .flatMap({
-        case (_, hh) =>
-          JavaConverters
-            .asScalaBuffer(hh.getMemberIds)
-            .map(personId => personId -> hh)
-      })
-      .toMap
-  }
-
-  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
-    TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
   def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {
 
@@ -59,5 +46,17 @@ case class HouseholdMembershipAllocator(
         }
       )
       .get(personId)
+  }
+
+  private def allocateMembership(): Map[Id[Person], Household] = {
+    JavaConverters
+      .mapAsScalaMap(households.getHouseholds)
+      .flatMap({
+        case (_, hh) =>
+          JavaConverters
+            .asScalaBuffer(hh.getMemberIds)
+            .map(personId => personId -> hh)
+      })
+      .toMap
   }
 }
