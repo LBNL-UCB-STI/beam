@@ -40,7 +40,6 @@ object BashUtils {
     } catch {
       case _: Exception =>
         null //for the env where command is not recognized
-
     }
   }
 }

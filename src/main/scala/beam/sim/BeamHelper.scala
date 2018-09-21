@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -239,7 +240,6 @@ trait BeamHelper extends LazyLogging {
       "config is a required value, and must yield a valid config."
     )
     val configLocation = parsedArgs.configLocation.get
-
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
