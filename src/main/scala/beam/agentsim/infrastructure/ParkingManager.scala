@@ -11,36 +11,39 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 abstract class ParkingManager(
-  parkingStockAttributes: ParkingStockAttributes
-) extends Actor
-    with ResourceManager[ParkingStall] {}
+                               parkingStockAttributes: ParkingStockAttributes
+                             ) extends Actor
+  with ResourceManager[ParkingStall] {}
 
 object ParkingManager {
+
   case class ParkingInquiry(
-    customerId: Id[PersonAgent],
-    customerLocationUtm: Location,
-    destinationUtm: Location,
-    activityType: String,
-    valueOfTime: Double,
-    chargingPreference: ChargingPreference,
-    arrivalTime: Long,
-    parkingDuration: Double,
-    reservedFor: ReservedParkingType = ParkingStall.Any
-  ) {
+                             customerId: Id[PersonAgent],
+                             customerLocationUtm: Location,
+                             destinationUtm: Location,
+                             activityType: String,
+                             valueOfTime: Double,
+                             chargingPreference: ChargingPreference,
+                             arrivalTime: Long,
+                             parkingDuration: Double,
+                             reservedFor: ReservedParkingType = ParkingStall.Any
+                           ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
 
   case class DepotParkingInquiry(
-    vehicleId: Id[Vehicle],
-    customerLocationUtm: Location,
-    reservedFor: ReservedParkingType
-  ) {
+                                  vehicleId: Id[Vehicle],
+                                  customerLocationUtm: Location,
+                                  reservedFor: ReservedParkingType
+                                ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
+
   case class DepotParkingInquiryResponse(maybeStall: Option[ParkingStall], requestId: Int)
 
   case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int)
 
   // Use this to pass data from CSV or config file into the manager
   case class ParkingStockAttributes(numSpacesPerTAZ: Int)
+
 }

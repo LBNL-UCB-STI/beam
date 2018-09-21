@@ -6,7 +6,6 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource._
-import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 
@@ -14,15 +13,19 @@ import scala.concurrent.ExecutionContext
 
 object Resource {
 
+  sealed trait CheckInResourceAck
+
+  trait NotifyResourceIdle {
+    def resourceId: Id[_]
+
+    def whenWhere: Option[SpaceTime]
+  }
+
   case class RegisterResource(resourceId: Id[_])
 
   case class UnRegisterResource(resourceId: Id[_])
 
   case class CheckInResource(resourceId: Id[_], whenWhere: Option[SpaceTime])
-
-  sealed trait CheckInResourceAck
-
-  case object CheckInSuccess extends CheckInResourceAck
 
   case class CheckInFailure(msg: String) extends CheckInResourceAck
 
@@ -30,12 +33,9 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  trait NotifyResourceIdle {
-    def resourceId: Id[_]
-    def whenWhere: Option[SpaceTime]
-  }
-
   case class AssignManager(managerRef: ActorRef)
+
+  case object CheckInSuccess extends CheckInResourceAck
 
 }
 

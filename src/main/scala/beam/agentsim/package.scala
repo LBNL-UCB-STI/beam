@@ -2,13 +2,11 @@ package beam
 
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.ridehail.RideHailAgent
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters
 import scala.language.implicitConversions
 
 /**
@@ -26,9 +24,9 @@ package object agentsim {
 
   implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
 
-  implicit def beamVehicleMaptoMatsimVehicleMap(
-    beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
-  ): Map[Id[BeamVehicle], BeamVehicle] = {
+  implicit def beamVehicleMap2MatsimVehicleMap(
+                                                beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
+                                              ): Map[Id[BeamVehicle], BeamVehicle] = {
     beamVehicleMap.map({ case (vid, veh) => (vid, veh) })
   }
 
