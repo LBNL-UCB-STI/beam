@@ -750,7 +750,7 @@ class RideHailManager(
       }
 
     case DepotParkingInquiryResponse(None, requestId) =>
-      val vehId = parkingInquiryCache.get(requestId).get.vehicleId
+      val vehId = parkingInquiryCache(requestId).vehicleId
       log.debug(
         "No parking stall found, ride hail vehicle {} stranded",
         vehId
@@ -895,7 +895,7 @@ class RideHailManager(
     } else if (outOfServiceRideHailVehicles.contains(vehicleId)) {
       OutOfService
     } else {
-      log.error(s"Vehicle ${vehicleId} does not have a service status, assuming out of service")
+      log.error(s"Vehicle {} does not have a service status, assuming out of service", vehicleId)
       OutOfService
     }
   }

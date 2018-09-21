@@ -24,7 +24,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
   import context._
 
   def receive = {
-    case Subscribe(category, selection) if (Metrics.isMetricsEnable) =>
+    case Subscribe(category, selection) if Metrics.isMetricsEnable =>
       Kamon.metrics.subscribe(category, selection, self)
       become(subscribed)
     case _ =>
