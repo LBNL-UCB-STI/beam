@@ -253,8 +253,6 @@ case class TNCIterationStats(
 
     val maxDistanceInMeters = 500
 
-    val startTimeBin = getTimeBin(tick)
-
     val tmp = rideHailStats.map(
       tazId =>
         (
@@ -411,7 +409,7 @@ case class TNCIterationStats(
       .toVector
   }
 
-  private def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
+  def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
     log.debug("vehicle located at TAZs:")
     rideHailAgentLocations.foreach(
       x =>
@@ -562,7 +560,7 @@ case class TNCIterationStats(
 
     // add how many idle vehicles available
     // sort according to score
-    ???
+    null
   }
 
   def logMap(): Unit = {

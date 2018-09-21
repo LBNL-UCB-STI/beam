@@ -3,7 +3,6 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -16,7 +15,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
 
 /**
   * numberOfRides: -> passengers =1 (sum of rides)
@@ -420,7 +418,7 @@ class TNCIterationsStatsCollector(
     vehicles.clear()
   }
 
-  private def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
+  def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
     val lastCoord = (
       lastEvent.getAttributes
         .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)

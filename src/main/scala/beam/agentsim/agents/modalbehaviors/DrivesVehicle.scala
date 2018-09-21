@@ -118,7 +118,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     currentVehicleUnderControl,
                     Some(beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)),
                     data.passengerSchedule,
-                    theVehicle.getState(),
+                    theVehicle.getState,
                     Some(triggerId)
                   )
                 )
@@ -302,7 +302,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   currentVehicleUnderControl,
                   Some(beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint)),
                   data.passengerSchedule,
-                  theVehicle.getState(),
+                  theVehicle.getState,
                   _currentTriggerId
                 )
               )
@@ -588,7 +588,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       sender() ! BeamVehicleStateUpdate(
         currentVehicleUnderControl.id,
-        currentVehicleUnderControl.getState()
+        currentVehicleUnderControl.getState
       )
       stay()
 

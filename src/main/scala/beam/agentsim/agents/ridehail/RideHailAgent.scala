@@ -142,7 +142,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle
         .becomeDriver(self) match {
-        case DriverAlreadyAssigned(currentDriver) =>
+        case DriverAlreadyAssigned(_) =>
           stop(
             Failure(
               s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
@@ -201,7 +201,7 @@ class RideHailAgent(
               currentVehicleUnderControl,
               whenWhere,
               data.passengerSchedule,
-              theVehicle.getState(),
+              theVehicle.getState,
               _currentTriggerId
             )
           )
@@ -218,9 +218,7 @@ class RideHailAgent(
 //          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
-          if (sessionDuration < 0) {
-            val i = 0
-          }
+
           stay() replying CompletionNotice(
             triggerId,
             Vector(
@@ -312,7 +310,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stay replying CompletionNotice(triggerId)
 
-    case ev @ Event(IllegalTriggerGoToError(reason), data) =>
+    case ev @ Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop(Failure(reason))
 
@@ -359,7 +357,7 @@ class RideHailAgent(
 
       nextNotifyVehicleResourceIdle match {
 
-        case Some(nextNotifyVehicleResourceIdle) =>
+        case Some(nextIdle) =>
           stateData.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
               val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
@@ -371,15 +369,15 @@ class RideHailAgent(
                 )
               )
 
-              if (_currentTriggerId != nextNotifyVehicleResourceIdle.triggerId) {
+              if (_currentTriggerId != nextIdle.triggerId) {
                 log.error(
-                  s"_currentTriggerId(${_currentTriggerId}) and nextNotifyVehicleResourceIdle.triggerId(${nextNotifyVehicleResourceIdle.triggerId}) don't match - vehicleId($currentVehicleUnderControl)"
+                  s"_currentTriggerId(${_currentTriggerId}) and nextNotifyVehicleResourceIdle.triggerId(${nextIdle.triggerId}) don't match - vehicleId($currentVehicleUnderControl)"
                 )
                 //assert(false)
               }
 
               theVehicle.manager.foreach(
-                _ ! nextNotifyVehicleResourceIdle
+                _ ! nextIdle
               )
 
           }

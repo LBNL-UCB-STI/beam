@@ -126,52 +126,11 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def sortEvents(): Unit = {
 
-    rideHailEvents = rideHailEvents.sorted(compareEventsV3)
+    rideHailEvents = rideHailEvents.sorted(compareEvents)
   }
 
-  private def compareEventsV1(e1: Event, e2: Event): Boolean = {
-    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
 
-      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-
-      if (e1Depart != e2Depart) {
-
-        return e1Depart < e1Depart
-
-      } else {
-        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-
-        return e1Arrival < e2Arrival
-      }
-    }
-
-    e1.getTime < e2.getTime
-  }
-
-  private def compareEventsV2(e1: Event, e2: Event): Boolean = {
-    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
-
-      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-
-      if (e1Depart != e2Depart) {
-
-        e1Depart < e1Depart
-
-      } else {
-        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-
-        e1Arrival < e2Arrival
-      }
-    } else {
-      e1.getTime < e2.getTime
-    }
-  }
-
-  private def compareEventsV3(e1: Event, e2: Event): Int = {
+  private def compareEvents(e1: Event, e2: Event): Int = {
     val t1 = e1.getAttributes
       .getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}")
       .toDouble

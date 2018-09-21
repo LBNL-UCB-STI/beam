@@ -65,16 +65,16 @@ object RideHailManager {
   val dummyID: Id[RideHailRequest] =
     Id.create("dummyInquiryId", classOf[RideHailRequest])
 
-  val INITIAL_RIDEHAIL_LOCATION_HOME = "HOME"
-  val INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
-  val INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
-  val INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
+  val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
+  val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
+  val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
+  val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
 
   def nextRideHailInquiryId: Id[RideHailRequest] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailRequest])
   }
 
-  val dummyRideHailVehicleId = Id.createVehicleId("dummyRideHailVehicle")
+  val dummyRideHailVehicleId: Id[Vehicle] = Id.createVehicleId("dummyRideHailVehicle")
 
   case class NotifyIterationEnds()
 
@@ -86,7 +86,7 @@ object RideHailManager {
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
   ) {
-    override def toString(): String =
+    override def toString: String =
       s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
   }
 
@@ -110,8 +110,8 @@ object RideHailManager {
     currentLocation: SpaceTime
   ) {
 
-    def toStreetVehicle(): StreetVehicle = {
-      StreetVehicle(vehicleId, currentLocation, CAR, true)
+    def toStreetVehicle: StreetVehicle = {
+      StreetVehicle(vehicleId, currentLocation, CAR, asDriver = true)
     }
   }
   case class RideHailAgentETA(
@@ -765,7 +765,7 @@ class RideHailManager(
         destination = stall.location,
         departureTime = DiscreteTime(agentLocation.currentLocation.time.toInt),
         transitModes = Vector(),
-        streetVehicles = Vector(agentLocation.toStreetVehicle())
+        streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
 

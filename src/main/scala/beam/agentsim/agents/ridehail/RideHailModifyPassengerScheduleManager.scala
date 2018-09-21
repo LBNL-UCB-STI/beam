@@ -31,7 +31,7 @@ class RideHailModifyPassengerScheduleManager(
     mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
   var nextCompleteNoticeRideHailAllocationTimeout: Option[CompletionNotice] = None
   var numberOfOutStandingmodifyPassengerScheduleAckForRepositioning: Int = 0
-  val resourcesNotCheckedIn_onlyForDebugging = mutable.Set[Id[Vehicle]]()
+  val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set[Id[Vehicle]]()
 
   private def add(
     rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus
@@ -50,7 +50,7 @@ class RideHailModifyPassengerScheduleManager(
     listBuffer += rideHailModifyPassengerScheduleStatus
   }
 
-  private def getWithInterruptId(
+  def getWithInterruptId(
     interruptId: Id[Interrupt]
   ): Option[RideHailModifyPassengerScheduleStatus] = {
     interruptIdToModifyPassengerScheduleStatus.get(interruptId)
@@ -97,12 +97,6 @@ class RideHailModifyPassengerScheduleManager(
       passengerScheduleStatus.rideHailAgent,
       Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick)
     )
-  }
-
-  private def printVehicleVariables(status: RideHailModifyPassengerScheduleStatus): Unit = {
-    //    log.debug("vehicleId status - vehicleId(" + status.vehicleId + ")")
-    //    log.debug("vehicleIdToModifyPassengerScheduleStatus: " + status.vehicleId + ")")
-    vehicleIdToModifyPassengerScheduleStatus.get(status.vehicleId)
   }
 
   private def sendModifyPassengerScheduleMessage(
@@ -310,7 +304,7 @@ class RideHailModifyPassengerScheduleManager(
       "new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=" + numberOfOutStandingmodifyPassengerScheduleAckForRepositioning
     )
 
-    if (!triggersToSchedule.isEmpty) {
+    if (triggersToSchedule.nonEmpty) {
       val vehicleId: Id[Vehicle] = Id.create(
         triggersToSchedule.head.agent.path.name.replace("rideHailAgent", "rideHailVehicle"),
         classOf[Vehicle]
@@ -404,7 +398,7 @@ class RideHailModifyPassengerScheduleManager(
       interruptMessageStatus
     )
 
-    val withVehicleIdStats = getWithVehicleIds(vehicleId)
+    getWithVehicleIds(vehicleId)
     val processInterrupt = noPendingReservations(vehicleId)
     add(rideHailModifyPassengerScheduleStatus)
 
@@ -431,16 +425,6 @@ class RideHailModifyPassengerScheduleManager(
         result = stats.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
       }
 
-    if (result) {
-      val a = getWithVehicleIds(vehicleId)
-        .filter(_.interruptOrigin == InterruptOrigin.RESERVATION)
-        .head
-        .modifyPassengerSchedule
-        .updatedPassengerSchedule
-      val b = passengerSchedule
-      DebugLib.emptyFunctionForSettingBreakPoint()
-    }
-
     result
   }
 
@@ -458,7 +442,7 @@ class RideHailModifyPassengerScheduleManager(
     passengerSchedule: Option[PassengerSchedule]
   ): Unit = {
     passengerSchedule match {
-      case Some(passengerSchedule) =>
+      case Some(schedule) =>
         var rideHailModifyPassengerScheduleStatusSet = getWithVehicleIds(vehicleId)
         var deleteItems = mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]()
         //        log.debug(
@@ -470,7 +454,7 @@ class RideHailModifyPassengerScheduleManager(
         val listSizeAtStart = rideHailModifyPassengerScheduleStatusSet.size
 
         rideHailModifyPassengerScheduleStatusSet.foreach { status =>
-          if (status.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule) {
+          if (status.modifyPassengerSchedule.updatedPassengerSchedule == schedule) {
             assert(status.status == InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT)
             deleteItems += status
           }
@@ -491,10 +475,10 @@ class RideHailModifyPassengerScheduleManager(
           if (availableIn.get.time > 0) {
             val beamLeg =
               status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.toVector.last._1
-            val passengerSchduleLastLeg = passengerSchedule.schedule.toVector.last._1
-            val endTime = beamLeg.endTime
+            val passengerScheduleLastLeg = schedule.schedule.toVector.last._1
 
-            if (beamLeg.endTime != passengerSchduleLastLeg.endTime && status.interruptOrigin == InterruptOrigin.RESERVATION) {
+
+            if (beamLeg.endTime != passengerScheduleLastLeg.endTime && status.interruptOrigin == InterruptOrigin.RESERVATION) {
               // ignore, because this checkin is for a reposition and not the current Reservation
               log.debug(
                 "checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn

@@ -1,13 +1,9 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
-import beam.sim.{BeamServices, HasServices}
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.{BeamServices, HasServices}
 import com.google.inject.Inject
-import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.misc.Time
 
 import scala.collection.JavaConverters._

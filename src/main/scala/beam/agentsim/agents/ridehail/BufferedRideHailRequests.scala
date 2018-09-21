@@ -21,7 +21,7 @@ class BufferedRideHailRequests(
     this.triggerId = triggerId
   }
 
-  def getTick(): Double = { tick }
+  def getTick: Double = { tick }
 
   //println(s"creating BufferedRideHailRequests, tick: $tick")
 
@@ -67,7 +67,7 @@ class BufferedRideHailRequests(
 
   def isBufferedRideHailRequestProcessingOver: Boolean = {
 
-    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.size == 0
+    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.isEmpty
   }
 
   def tryClosingBufferedRideHailRequestWaive(): Unit = {

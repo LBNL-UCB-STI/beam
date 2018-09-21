@@ -48,7 +48,7 @@ class RideHailNetworkAPI {
   }
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
-    getLinks() match {
+    getLinks match {
       case Some(links) =>
         Some(links.get(Id.createLinkId(linkId.toString)).getFreespeed)
       case None => None
@@ -93,7 +93,7 @@ class RideHailNetworkAPI {
   }
 
   // TODO: make integers
-  def getLinks(): Option[util.Map[Id[Link], _ <: Link]] = {
+  def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
     matsimNetwork match {
       case Some(network) => Some(network.getLinks)
       case None          => None

@@ -7,6 +7,8 @@ import beam.utils.DebugLib
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.core.api.experimental.events.EventsManager
 
+import scala.collection.mutable.ArrayBuffer
+
 class RideHailIterationHistoryActor(
   eventsManager: EventsManager,
   beamServices: BeamServices,
@@ -19,8 +21,7 @@ class RideHailIterationHistoryActor(
 
   // TODO: how get a reference of RideHailIterationHistoryActor to the rideHailManager?
 
-  val rideHailIterationStatsHistory =
-    scala.collection.mutable.ArrayBuffer[TNCIterationStats]()
+  val rideHailIterationStatsHistory: ArrayBuffer[TNCIterationStats] = ArrayBuffer()
 
   def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] = {
     if (rideHailIterationStatsHistory.size >= 2) {
@@ -32,7 +33,7 @@ class RideHailIterationHistoryActor(
     }
   }
 
-  def receive = {
+  def receive: Receive = {
 
     case GetCurrentIterationRideHailStats => //tNCIterationsStatsCollector.rideHailStats // received message from RideHailManager
       val stats = oszilationAdjustedTNCIterationStats()

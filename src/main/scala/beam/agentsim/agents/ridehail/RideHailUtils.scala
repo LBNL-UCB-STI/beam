@@ -64,7 +64,7 @@ object RideHailUtils {
   }
 
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
-    val travelTime = (time: Int, linkId: Int) => {
+    val travelTime = (_: Int, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(
         new ProfileRequest,
@@ -78,7 +78,7 @@ object RideHailUtils {
       .max - leg.startTime
   }
 
-  private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
+  def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
     // TODO: implement following solution following along links
     /*
     var currentTime=beamLeg.startTime

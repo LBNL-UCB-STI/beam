@@ -82,15 +82,15 @@ class BeamVehicle(
     }
   }
 
-  def setReservedParkingStall(newStall: Option[ParkingStall]) = {
+  def setReservedParkingStall(newStall: Option[ParkingStall]): Unit = {
     reservedStall = newStall
   }
 
-  def useParkingStall(newStall: ParkingStall) = {
+  def useParkingStall(newStall: ParkingStall): Unit = {
     stall = Some(newStall)
   }
 
-  def unsetParkingStall() = {
+  def unsetParkingStall(): Unit = {
     stall = None
   }
 
@@ -136,7 +136,7 @@ class BeamVehicle(
     }
   }
 
-  def getState(): BeamVehicleState =
+  def getState: BeamVehicleState =
     BeamVehicleState(
       fuelLevelInJoules.getOrElse(Double.NaN),
       fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
