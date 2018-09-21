@@ -297,7 +297,7 @@ class BeamMobsim @Inject()(
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
 
-            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
               .map(new Powertrain(_))
               .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 

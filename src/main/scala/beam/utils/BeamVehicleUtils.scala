@@ -15,7 +15,7 @@ object BeamVehicleUtils {
 
     val bvt = BeamVehicleType.defaultBicycleBeamVehicleType
     val beamVehicleId = BeamVehicle.createId(id, Some("bike"))
-    val powertrain = Option(bvt.primaryFuelConsumptionInJoule)
+    val powertrain = Option(bvt.primaryFuelConsumptionInJoulePerMeter)
       .map(new Powertrain(_))
       .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
     new BeamVehicle(

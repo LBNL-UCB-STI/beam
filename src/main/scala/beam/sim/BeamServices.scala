@@ -6,29 +6,25 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
 import beam.utils.{DateUtils, FileUtils}
-import beam.utils.matsim_conversion.ShapeUtils.CsvTaz
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
-import org.supercsv.io.{CsvMapReader, ICsvMapReader}
+import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -130,7 +126,7 @@ object BeamServices {
         val vehicleTypeIdString = line.get("vehicleTypeId")
         val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
+        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
         val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None, None)
         acc += ((vehicleId, beamVehicle))
@@ -143,8 +139,19 @@ object BeamServices {
         val fuelIdString = line.get("fuelTypeId")
         val fuelTypeId = Id.create(fuelIdString, classOf[FuelType])
         val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
-        val fuelType = FuelType(fuelIdString, priceInDollarsPerMJoule)
+
+        val fuelType = FuelType(getFuelTypeId(fuelIdString), priceInDollarsPerMJoule)
         z += ((fuelTypeId, fuelType))
+    }
+  }
+
+  private def getFuelTypeId(fuelType: String): FuelTypeId = {
+    fuelType match {
+      case "gasoline" => BeamVehicleType.Gasoline
+      case "diesel" => BeamVehicleType.Diesel
+      case "electricity" => BeamVehicleType.Electricity
+      case "biodiesel" => BeamVehicleType.Biodiesel
+      case _ => throw new RuntimeException("Invalid fuel type id")
     }
   }
 
@@ -164,15 +171,16 @@ object BeamServices {
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
         val secondaryFuelTypeId = line.get("secondaryFuelType")
-        val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType])).get
-        val secondaryFuelConsumptionInJoule = line.get("secondaryFuelConsumptionInJoulePerMeter").toDouble
-        val secondaryFuelCapacityInJoule = line.get("secondaryFuelCapacityInJoule").toDouble
-        val automationLevel = line.get("automationLevel")
-        val maxVelocity = line.get("maxVelocity").toDouble
-        val passengerCarUnit = line.get("passengerCarUnit")
-        val rechargeLevel2RateLimitInWatts = line.get("rechargeLevel2RateLimitInWatts").toDouble
-        val rechargeLevel3RateLimitInWatts = line.get("rechargeLevel3RateLimitInWatts").toDouble
-        val vehicleCategory = line.get("vehicleCategory")
+        val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType]))
+        val secondaryFuelConsumptionInJoule = Option(line.get("secondaryFuelConsumptionInJoulePerMeter").toDouble)
+        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule").toDouble)
+        val automationLevel = Option(line.get("automationLevel"))
+        val maxVelocity = Option(line.get("maxVelocity").toDouble)
+        val passengerCarUnit = Option(line.get("passengerCarUnit").toDouble).getOrElse(1d)
+        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts").toDouble)
+        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts").toDouble)
+        val vehicleCategoryString = Option(line.get("vehicleCategory"))
+        val vehicleCategory = vehicleCategoryString.map(getVehicleCategory)
 
         val bvt = BeamVehicleType(
           vIdString,
@@ -193,6 +201,15 @@ object BeamServices {
           vehicleCategory
         )
         z += ((vehicleTypeId, bvt))
+    }
+  }
+
+  private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
+    vehicleCategory match {
+      case "car" => BeamVehicleType.Car
+      case "bike" => BeamVehicleType.Bike
+      case "ridehail" => BeamVehicleType.RideHail
+      case _ => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 

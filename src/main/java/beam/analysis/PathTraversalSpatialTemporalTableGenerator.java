@@ -223,7 +223,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
             BeamVehicleType vehicleType = vehicles.get(vehicleTypeId).get();
 
-            String vehicleFuelType = vehicleType.primaryFuelType().fuelTypeId();
+            String vehicleFuelType = vehicleType.primaryFuelType().fuelTypeId().toString();
 
             if (vehicleFuelType.equalsIgnoreCase(BIODIESEL)) {
                 return NATURAL_GAS;

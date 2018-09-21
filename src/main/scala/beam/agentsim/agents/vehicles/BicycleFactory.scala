@@ -45,7 +45,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
       val bicycleId: Id[BeamVehicle] = BeamVehicle.createId(id, Some("bike"))
       household.getVehicleIds.add(bicycleId)
 
-      val powertrain = Option(beamVehicleType.primaryFuelConsumptionInJoule)
+      val powertrain = Option(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
         .map(new Powertrain(_))
         .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 

@@ -3,6 +3,7 @@ package beam.utils.matsim_conversion
 import java.io.FileWriter
 import java.util
 
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.utils.FileUtils
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -204,7 +205,7 @@ object VehiclesDataConversion extends App {
   def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]) = {
     val beamVehTypesPath = scenarioDirectory + "/vehicleTypes.csv"
 
-    writeCsvFile(beamVehTypesPath, beamVehicleTypes ++ vehicleTypes, beamVehicleTypeTitles)
+    writeCsvFile(beamVehTypesPath, vehicleTypes, beamVehicleTypeTitles)
   }
 
   def generateVehicleTypesFromSource(vehicleTypeSeq: NodeSeq): Seq[Seq[String]] = {
@@ -223,13 +224,16 @@ object VehiclesDataConversion extends App {
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
+      val litersPerMeter = (vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble
+      val joulesPerMeter = Powertrain.litersPerMeterToJoulesPerMeter(fuelType, litersPerMeter)
+
       Seq(
         id,
         seatingCap,
         standingCap,
         length,
         fuelType,
-        "2",
+        joulesPerMeter.toString,
         "4",
         "gasoline",
         "80",

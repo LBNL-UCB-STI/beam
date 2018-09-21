@@ -165,10 +165,10 @@ object HouseholdActor {
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")),
+          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("car")),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("bike"))
+          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("bike"))
       )
     }
   }
