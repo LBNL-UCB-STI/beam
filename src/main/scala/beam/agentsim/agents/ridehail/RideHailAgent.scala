@@ -150,7 +150,7 @@ class RideHailAgent(
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          vehicle.checkInResource(Some(SpaceTime(initialLocation, tick.toLong)), context.dispatcher)
+          vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
           eventsManager.processEvent(
             new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
           )
@@ -194,7 +194,7 @@ class RideHailAgent(
             )
           )
           parkingManager ! CheckInResource(theVehicle.stall.get.id, None)
-          val whenWhere = Some(SpaceTime(theVehicle.stall.get.location, tick.toLong))
+          val whenWhere = Some(SpaceTime(theVehicle.stall.get.location, tick))
           theVehicle.unsetParkingStall()
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
@@ -224,7 +224,7 @@ class RideHailAgent(
           stay() replying CompletionNotice(
             triggerId,
             Vector(
-              ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration, tick, energyDelivered), self)
+              ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
             )
           )
         case None =>

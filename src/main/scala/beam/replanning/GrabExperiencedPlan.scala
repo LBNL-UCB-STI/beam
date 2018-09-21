@@ -40,6 +40,7 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
       attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
       person.addPlan(experiencedPlan)
+      person.setSelectedPlan(experiencedPlan)
     } else {
       person.addPlan(person.getSelectedPlan)
     }

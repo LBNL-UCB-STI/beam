@@ -15,7 +15,7 @@ object RideHailUtils {
 
   def getUpdatedBeamLegAfterStopDriving(
     originalBeamLeg: BeamLeg,
-    stopTime: Double,
+    stopTime: Int,
     transportNetwork: TransportNetwork
   ): BeamLeg = {
 
@@ -51,7 +51,7 @@ object RideHailUtils {
         }
       }
 
-      val updatedEndPoint = SpaceTime(endPointLocation, stopTime.toLong)
+      val updatedEndPoint = SpaceTime(endPointLocation, stopTime)
 
       val updatedTravelPath = originalBeamLeg.travelPath.copy(
         linkIds = linkIds.toVector,
@@ -59,17 +59,17 @@ object RideHailUtils {
         distanceInM = updatedDistanceInMeters
       )
 
-      originalBeamLeg.copy(duration = duration.toLong, travelPath = updatedTravelPath)
+      originalBeamLeg.copy(duration = duration, travelPath = updatedTravelPath)
     }
   }
 
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
-    val travelTime = (time: Long, linkId: Int) => {
+    val travelTime = (time: Int, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(
         new ProfileRequest,
         StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
-      )).toLong
+      )).toInt
     }
 
     RoutingModel

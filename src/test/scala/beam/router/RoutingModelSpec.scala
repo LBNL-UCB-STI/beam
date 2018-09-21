@@ -10,7 +10,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class RoutingModelSpec extends FlatSpec with Matchers {
 
   it should "produce link events from a typical car leg, given a constant travel time function" in {
-    def travelTime(enterTime: Long, linkId: Int) = 1000
+    def travelTime(enterTime: Int, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
       BeamLeg(
@@ -40,7 +40,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
   }
 
   it should "produce link events from a typical car leg, given a travel time function with congestion later in the day" in {
-    def travelTime(enterTime: Long, linkId: Int) =
+    def travelTime(enterTime: Int, linkId: Int) =
       if (enterTime < 2000) 1000 else 2000
 
     val leg = EmbodiedBeamLeg(
@@ -71,7 +71,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
   }
 
   it should "produce just one pair of link events for a leg which crosses just one node, spending no time" in {
-    def travelTime(enterTime: Long, linkId: Int) = 1000
+    def travelTime(enterTime: Int, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
       BeamLeg(
@@ -95,7 +95,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
   }
 
   it should "produce an empty sequence of link events from a car leg which stays on one link" in {
-    def travelTime(enterTime: Long, linkId: Int) = 1000
+    def travelTime(enterTime: Int, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
@@ -113,7 +113,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
   }
 
   it should "produce an empty sequence of link events from a car leg which is empty" in {
-    def travelTime(enterTime: Long, linkId: Int) = 1000
+    def travelTime(enterTime: Int, linkId: Int) = 1000
 
     val leg = EmbodiedBeamLeg(
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
@@ -131,7 +131,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
   }
 
   it should "produce travel and distance estimates from links that match router" in {
-    def travelTime(enterTime: Long, linkId: Int) = 1000
+    def travelTime(enterTime: Int, linkId: Int) = 1000
     val leg = EmbodiedBeamLeg(
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
