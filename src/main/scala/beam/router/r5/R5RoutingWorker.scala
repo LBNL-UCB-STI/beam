@@ -104,7 +104,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
           BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-          BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+          BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes,
+            beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters)
 
         override def startNewIteration: Unit = throw new Exception("???")
 

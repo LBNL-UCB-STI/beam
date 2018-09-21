@@ -210,15 +210,14 @@ class TransitInitializer(
 
         val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
 
-        val defaultVehicleRange = 500e3
-        val fuelCapacityInJoules = defaultVehicleRange * powertrain.estimateConsumptionInJoules(1)
+        val fuelCapacityInJoules =  services.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters *  powertrain.estimateConsumptionInJoules(1)
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,
           powertrain,
           None,
           vehicleType,
-          Some(defaultVehicleRange),
-          Some(defaultVehicleRange)
+          Some(fuelCapacityInJoules),
+          Some(fuelCapacityInJoules)
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>

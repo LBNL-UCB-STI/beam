@@ -289,7 +289,7 @@ class BeamMobsim @Inject()(
             val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
             //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
-            val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+            val ridehailBeamVehicleTypeId = Id.create("BEV", classOf[BeamVehicleType])
             val ridehailBeamVehicleType = beamServices.vehicleTypes
               .get(ridehailBeamVehicleTypeId)
               .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
@@ -301,13 +301,15 @@ class BeamMobsim @Inject()(
               .map(new Powertrain(_))
               .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
+            val fuelCapacityInJoules =  beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters *  powertrain.estimateConsumptionInJoules(1)
+
             val rideHailBeamVehicle = new BeamVehicle(
               rideHailVehicleId,
               powertrain,
               None,
               ridehailBeamVehicleType,
-              Some(1.0),
-              None
+              Some(fuelCapacityInJoules),
+              Some(fuelCapacityInJoules)
             )
             beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
             rideHailBeamVehicle.registerResource(rideHailManager)

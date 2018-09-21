@@ -84,7 +84,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+    BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes,
+      beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters)
 
   var matsimServices: MatsimServices = _
 
@@ -120,7 +121,8 @@ object BeamServices {
 
   def readVehiclesFile(
     filePath: String,
-    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType] ,
+    vehicleRange : Double
   ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
@@ -132,7 +134,9 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None, None)
+        val fuelCapacityInJoules =  vehicleRange *  powerTrain.estimateConsumptionInJoules(1)
+
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, Some(fuelCapacityInJoules), Some(fuelCapacityInJoules))
         acc += ((vehicleId, beamVehicle))
     }
   }
