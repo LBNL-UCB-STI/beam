@@ -7,18 +7,9 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  EndLegTrigger,
-  EndRefuelTrigger,
-  StartLegTrigger,
-  StartRefuelTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -37,15 +28,15 @@ object RideHailAgent {
   val idPrefix: String = "rideHailAgent"
 
   def props(
-    services: BeamServices,
-    scheduler: ActorRef,
-    transportNetwork: TransportNetwork,
-    eventsManager: EventsManager,
-    parkingManager: ActorRef,
-    rideHailAgentId: Id[RideHailAgent],
-    vehicle: BeamVehicle,
-    location: Coord
-  ) =
+             services: BeamServices,
+             scheduler: ActorRef,
+             transportNetwork: TransportNetwork,
+             eventsManager: EventsManager,
+             parkingManager: ActorRef,
+             rideHailAgentId: Id[RideHailAgent],
+             vehicle: BeamVehicle,
+             location: Coord
+           ) =
     Props(
       new RideHailAgent(
         rideHailAgentId,
@@ -59,82 +50,102 @@ object RideHailAgent {
       )
     )
 
-  case class RideHailAgentData(
-    currentVehicle: VehicleStack = Vector(),
-    passengerSchedule: PassengerSchedule = PassengerSchedule(),
-    currentLegPassengerScheduleIndex: Int = 0
-  ) extends DrivingData {
-    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
-      copy(passengerSchedule = newPassengerSchedule)
-
-    override def withCurrentLegPassengerScheduleIndex(
-      currentLegPassengerScheduleIndex: Int
-    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
-
-    override def hasParkingBehaviors: Boolean = false
+  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[RoutingModel.EmbodiedBeamLeg] = {
+    chosenTrip.legs.filter(l => isRideHailLeg(l))
   }
 
   def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
   }
 
-  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[RoutingModel.EmbodiedBeamLeg] = {
-    chosenTrip.legs.filter(l => isRideHailLeg(l))
+  case class RideHailAgentData(
+                                currentVehicle: VehicleStack = Vector(),
+                                passengerSchedule: PassengerSchedule = PassengerSchedule(),
+                                currentLegPassengerScheduleIndex: Int = 0
+                              ) extends DrivingData {
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
+      copy(passengerSchedule = newPassengerSchedule)
+
+    override def withCurrentLegPassengerScheduleIndex(
+                                                       currentLegPassengerScheduleIndex: Int
+                                                     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+
+    override def hasParkingBehaviors: Boolean = false
   }
-
-  case object Idle extends BeamAgentState
-
-  case object IdleInterrupted extends BeamAgentState
 
   // triggerId is included to facilitate debugging
   case class NotifyVehicleResourceIdleReply(
-    triggerId: Option[Long],
-    newTriggers: Seq[ScheduleTrigger]
-  )
+                                             triggerId: Option[Long],
+                                             newTriggers: Seq[ScheduleTrigger]
+                                           )
 
   case class ModifyPassengerSchedule(
-    updatedPassengerSchedule: PassengerSchedule,
-    msgId: Option[Int] = None
-  )
+                                      updatedPassengerSchedule: PassengerSchedule,
+                                      msgId: Option[Int] = None
+                                    )
 
   case class ModifyPassengerScheduleAck(
-    msgId: Option[Int] = None,
-    triggersToSchedule: Seq[ScheduleTrigger],
-    vehicleId: Id[Vehicle]
-  )
+                                         msgId: Option[Int] = None,
+                                         triggersToSchedule: Seq[ScheduleTrigger],
+                                         vehicleId: Id[Vehicle]
+                                       )
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Double)
 
   case class Resume()
 
   case class InterruptedAt(
-    interruptId: Id[Interrupt],
-    passengerSchedule: PassengerSchedule,
-    currentPassengerScheduleIndex: Int,
-    vehicleId: Id[Vehicle],
-    tick: Double
-  )
+                            interruptId: Id[Interrupt],
+                            passengerSchedule: PassengerSchedule,
+                            currentPassengerScheduleIndex: Int,
+                            vehicleId: Id[Vehicle],
+                            tick: Double
+                          )
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
+
+  case object Idle extends BeamAgentState
+
+  case object IdleInterrupted extends BeamAgentState
 
 }
 
 class RideHailAgent(
-  override val id: Id[RideHailAgent],
-  val scheduler: ActorRef,
-  vehicle: BeamVehicle,
-  initialLocation: Coord,
-  val eventsManager: EventsManager,
-  val parkingManager: ActorRef,
-  val beamServices: BeamServices,
-  val transportNetwork: TransportNetwork
-) extends BeamAgent[RideHailAgentData]
-    with DrivesVehicle[RideHailAgentData]
-    with Stash {
+                     override val id: Id[RideHailAgent],
+                     val scheduler: ActorRef,
+                     vehicle: BeamVehicle,
+                     initialLocation: Coord,
+                     val eventsManager: EventsManager,
+                     val parkingManager: ActorRef,
+                     val beamServices: BeamServices,
+                     val transportNetwork: TransportNetwork
+                   ) extends BeamAgent[RideHailAgentData]
+  with DrivesVehicle[RideHailAgentData]
+  with Stash {
+
+  val myUnhandled: StateFunction = {
+
+    case ev@Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stay replying CompletionNotice(triggerId)
+
+    case ev@Event(IllegalTriggerGoToError(reason), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop(Failure(reason))
+
+    case ev@Event(Finish, _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop
+
+    case event@Event(_, _) =>
+      log.error(
+        "unhandled event: {} in state [ {} ] - vehicle( {} )", event.toString, stateName, vehicle.id.toString
+      )
+      stay()
+
+  }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
-
-  override def logPrefix(): String = s"RideHailAgent $id: "
 
   startWith(Uninitialized, RideHailAgentData())
 
@@ -146,7 +157,7 @@ class RideHailAgent(
           stop(
             Failure(
               s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
-              s"but driver ${vehicle.driver.get} already assigned."
+                s"but driver ${vehicle.driver.get} already assigned."
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
@@ -161,22 +172,22 @@ class RideHailAgent(
   }
 
   when(Idle) {
-    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
-    case ev @ Event(
-          NotifyVehicleResourceIdleReply(
-            triggerId: Option[Long],
-            newTriggers: Seq[ScheduleTrigger]
-          ),
-          _
-        ) =>
+    case ev@Event(
+    NotifyVehicleResourceIdleReply(
+    triggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+    ),
+    _
+    ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
-    case ev @ Event(
-          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
-          data
-        ) =>
+    case ev@Event(
+    TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+    data
+    ) =>
       log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       data.currentVehicle.headOption match {
@@ -210,12 +221,12 @@ class RideHailAgent(
           log.debug("currentVehicleUnderControl not found")
           stay() replying CompletionNotice(triggerId, Vector())
       }
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
+    case ev@Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-//          theVehicle.useParkingStall(stall)
+          //          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
 
@@ -232,7 +243,7 @@ class RideHailAgent(
   }
 
   when(IdleInterrupted) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+    case ev@Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
@@ -253,83 +264,63 @@ class RideHailAgent(
         triggerToSchedule,
         vehicle.id
       )
-    case ev @ Event(Resume(), _) =>
+    case ev@Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
-    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+    case ev@Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
-    case ev @ Event(
-          NotifyVehicleResourceIdleReply(
-            triggerId: Option[Long],
-            newTriggers: Seq[ScheduleTrigger]
-          ),
-          _
-        ) =>
+    case ev@Event(
+    NotifyVehicleResourceIdleReply(
+    triggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+    ),
+    _
+    ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
+    case ev@Event(PassengerScheduleEmptyMessage(_), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[RideHailAgentData]
-    case ev @ Event(Interrupt(_, _), _) =>
+    case ev@Event(Interrupt(_, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
+    case ev@Event(PassengerScheduleEmptyMessage(_), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[RideHailAgentData]
-    case ev @ Event(ModifyPassengerSchedule(_, _), _) =>
+    case ev@Event(ModifyPassengerSchedule(_, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-    case ev @ Event(Resume(), _) =>
+    case ev@Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-    case ev @ Event(Interrupt(_, _), _) =>
+    case ev@Event(Interrupt(_, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
   }
 
-  val myUnhandled: StateFunction = {
-
-    case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stay replying CompletionNotice(triggerId)
-
-    case ev @ Event(IllegalTriggerGoToError(reason), _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stop(Failure(reason))
-
-    case ev @ Event(Finish, _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stop
-
-    case event @ Event(_, _) =>
-      log.error(
-        s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle(" + vehicle.id.toString + ")"
-      )
-      stay()
-
-  }
+  override def logPrefix(): String = s"RideHailAgent $id: "
 
   def handleNotifyVehicleResourceIdleReply(
-    receivedtriggerId: Option[Long],
-    newTriggers: Seq[ScheduleTrigger]
-  ): State = {
+                                            receivedtriggerId: Option[Long],
+                                            newTriggers: Seq[ScheduleTrigger]
+                                          ): State = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -371,7 +362,7 @@ class RideHailAgent(
 
               if (_currentTriggerId != nextIdle.triggerId) {
                 log.error(
-                  s"_currentTriggerId(${_currentTriggerId}) and nextNotifyVehicleResourceIdle.triggerId(${nextIdle.triggerId}) don't match - vehicleId($currentVehicleUnderControl)"
+                  "_currentTriggerId({}) and nextNotifyVehicleResourceIdle.triggerId({}) don't match - vehicleId({})", _currentTriggerId, nextIdle.triggerId, currentVehicleUnderControl
                 )
                 //assert(false)
               }

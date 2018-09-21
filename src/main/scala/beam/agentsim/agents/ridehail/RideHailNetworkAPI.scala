@@ -55,6 +55,14 @@ class RideHailNetworkAPI {
     }
   }
 
+  // TODO: make integers
+  def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
+    matsimNetwork match {
+      case Some(network) => Some(network.getLinks)
+      case None => None
+    }
+  }
+
   def getFromLinkIds(linkId: Int): Vector[Int] = {
     convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
   }
@@ -92,18 +100,10 @@ class RideHailNetworkAPI {
     matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getToNode.getCoord
   }
 
-  // TODO: make integers
-  def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
-    matsimNetwork match {
-      case Some(network) => Some(network.getLinks)
-      case None          => None
-    }
-  }
-
   def getClosestLink(coord: Coord): Option[Link] = {
     matsimNetwork match {
       case Some(network) => Some(NetworkUtils.getNearestLink(network, coord));
-      case None          => None
+      case None => None
     }
   }
 

@@ -10,10 +10,10 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistoryActor(
-  eventsManager: EventsManager,
-  beamServices: BeamServices,
-  transportNetwork: TransportNetwork
-) extends Actor {
+                                     eventsManager: EventsManager,
+                                     beamServices: BeamServices,
+                                     transportNetwork: TransportNetwork
+                                   ) extends Actor {
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
@@ -22,16 +22,6 @@ class RideHailIterationHistoryActor(
   // TODO: how get a reference of RideHailIterationHistoryActor to the rideHailManager?
 
   val rideHailIterationStatsHistory: ArrayBuffer[TNCIterationStats] = ArrayBuffer()
-
-  def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] = {
-    if (rideHailIterationStatsHistory.size >= 2) {
-      val lastElement = rideHailIterationStatsHistory.last
-      val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
-      Some(TNCIterationStats.merge(lastElement, secondLastElement))
-    } else {
-      rideHailIterationStatsHistory.lastOption
-    }
-  }
 
   def receive: Receive = {
 
@@ -53,18 +43,33 @@ class RideHailIterationHistoryActor(
       DebugLib.emptyFunctionForSettingBreakPoint()
     // TODO: add logger!
   }
+
+  def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] = {
+    if (rideHailIterationStatsHistory.size >= 2) {
+      val lastElement = rideHailIterationStatsHistory.last
+      val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
+      Some(TNCIterationStats.merge(lastElement, secondLastElement))
+    } else {
+      rideHailIterationStatsHistory.lastOption
+    }
+  }
 }
 
 object RideHailIterationHistoryActor {
 
+  def props(
+             eventsManager: EventsManager,
+             beamServices: BeamServices,
+             transportNetwork: TransportNetwork
+           ) =
+    Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
+
   case class UpdateRideHailStats(rideHailStats: TNCIterationStats)
 
   case class AddTNCHistoryData(
-    tncIdleTimes: Set[WaitingEvent],
-    passengerWaitingTimes: Set[WaitingEvent]
-  )
-
-  case object GetCurrentIterationRideHailStats
+                                tncIdleTimes: Set[WaitingEvent],
+                                passengerWaitingTimes: Set[WaitingEvent]
+                              )
 
   case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
 
@@ -72,10 +77,5 @@ object RideHailIterationHistoryActor {
 
   case class CollectRideHailStats()
 
-  def props(
-    eventsManager: EventsManager,
-    beamServices: BeamServices,
-    transportNetwork: TransportNetwork
-  ) =
-    Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
+  case object GetCurrentIterationRideHailStats
 }

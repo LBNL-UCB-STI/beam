@@ -10,30 +10,29 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class BufferedRideHailRequests(
-  val scheduler: ActorRef
-) {
+                                val scheduler: ActorRef
+                              ) {
 
+  // these are the vehicleIds with which we are overwriting things
+  private val setOfReplacementVehicles =
+    mutable.Set[Id[Vehicle]]()
+  var numberOfOverwriteRequestsOpen: Int = 0
   private var tick: Double = _
   private var triggerId: Long = _
+
+  //println(s"creating BufferedRideHailRequests, tick: $tick")
+  // TODO: make private (don't allow external access to these)
+  // the completion triggers for the current timeout
+  private var nextBufferedTriggerMessages = Vector[BeamAgentScheduler.ScheduleTrigger]()
 
   def newTimeout(tick: Double, triggerId: Long): Unit = {
     this.tick = tick
     this.triggerId = triggerId
   }
 
-  def getTick: Double = { tick }
-
-  //println(s"creating BufferedRideHailRequests, tick: $tick")
-
-  // TODO: make private (don't allow external access to these)
-  // the completion triggers for the current timeout
-  private var nextBufferedTriggerMessages = Vector[BeamAgentScheduler.ScheduleTrigger]()
-
-  // these are the vehicleIds with which we are overwriting things
-  private val setOfReplacementVehicles =
-    mutable.Set[Id[Vehicle]]()
-
-  var numberOfOverwriteRequestsOpen: Int = 0
+  def getTick: Double = {
+    tick
+  }
 
   def setNumberOfOverwriteRequests(numRequests: Integer): Unit = {
     numberOfOverwriteRequestsOpen = numRequests
@@ -65,17 +64,17 @@ class BufferedRideHailRequests(
     nextBufferedTriggerMessages = nextBufferedTriggerMessages ++ messages
   }
 
-  def isBufferedRideHailRequestProcessingOver: Boolean = {
-
-    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.isEmpty
-  }
-
   def tryClosingBufferedRideHailRequestWaive(): Unit = {
 
     if (isBufferedRideHailRequestProcessingOver) {
       closingBufferedRideHailRequestWaive()
     }
 
+  }
+
+  def isBufferedRideHailRequestProcessingOver: Boolean = {
+
+    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.isEmpty
   }
 
   def closingBufferedRideHailRequestWaive(): Unit = {

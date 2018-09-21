@@ -18,6 +18,24 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
     collectRideHailEvents(event)
   }
 
+  private def collectRideHailEvents(event: Event) = {
+
+    event.getEventType match {
+      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
+        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
+          rideHailEvents += event
+
+      case PathTraversalEvent.EVENT_TYPE =>
+        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+        if (vehicle.contains("rideHail"))
+          rideHailEvents += event
+
+      case _ =>
+    }
+  }
+
   override def reset(iteration: Int): Unit = {
     //TODO: fix execution for last iteration
     collectAbnormalities()
@@ -46,7 +64,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             if (events.nonEmpty) {
               vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(
-                s".RideHail: vehicle $vehicle already has person and another enters - $event"
+                ".RideHail: vehicle {} already has person and another enters - {}", vehicle, event
               )
             }
 
@@ -63,13 +81,13 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
               case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
-                logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
+                logger.debug("RideHail: vehicle {} with zero passenger - {}", vehicle, event)
 
               // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
               case None if numPassengers > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
                 logger.debug(
-                  s"RideHail: vehicle $vehicle with $numPassengers passenger but no enterVehicle encountered - $event"
+                  "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}", vehicle, numPassengers, event
                 )
 
               case _ =>
@@ -92,36 +110,18 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               case None =>
             }
           case _ =>
-      }
+        }
     )
 
     vehicleEvents.foreach(
       _._2.foreach(
-        event => logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")
+        event => logger.debug("RideHail: Person enters vehicle but no leaves event encountered. {}", event)
       )
     )
 
     rideHailEvents.clear()
 
     vehicleAbnormalities
-  }
-
-  private def collectRideHailEvents(event: Event) = {
-
-    event.getEventType match {
-      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
-        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
-        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
-          rideHailEvents += event
-
-      case PathTraversalEvent.EVENT_TYPE =>
-        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-        if (vehicle.contains("rideHail"))
-          rideHailEvents += event
-
-      case _ =>
-    }
   }
 
   private def sortEvents(): Unit = {
