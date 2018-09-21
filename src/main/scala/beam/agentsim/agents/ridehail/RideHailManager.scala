@@ -160,6 +160,7 @@ object RideHailManager {
   case object InService extends RideHailServiceStatus
 
   case object OutOfService extends RideHailServiceStatus
+
 }
 
 // TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager

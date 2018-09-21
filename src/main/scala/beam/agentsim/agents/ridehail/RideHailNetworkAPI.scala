@@ -67,10 +67,6 @@ class RideHailNetworkAPI {
     convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
   }
 
-  def getToLinkIds(linkId: Int): Vector[Int] = {
-    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
-  }
-
   def convertLinkIdsToVector(set: util.Set[Id[Link]]): Vector[Int] = {
 
     val iterator = set.iterator
@@ -86,6 +82,10 @@ class RideHailNetworkAPI {
 
   private def getMATSimLink(linkId: Int): Link = {
     matsimNetwork.get.getLinks.get(Id.createLinkId(linkId))
+  }
+
+  def getToLinkIds(linkId: Int): Vector[Int] = {
+    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
   }
 
   def getLinkCoord(linkId: Int): Coord = {

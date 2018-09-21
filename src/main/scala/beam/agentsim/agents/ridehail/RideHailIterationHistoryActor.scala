@@ -78,4 +78,5 @@ object RideHailIterationHistoryActor {
   case class CollectRideHailStats()
 
   case object GetCurrentIterationRideHailStats
+
 }

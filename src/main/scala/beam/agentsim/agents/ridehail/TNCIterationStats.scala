@@ -410,16 +410,6 @@ case class TNCIterationStats(
       .toVector
   }
 
-  private def getTimeBin(time: Double): Int = {
-    (time / timeBinSizeInSec).toInt
-  }
-
-  def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
-
-    val tazBins = rideHailStats.get(tazId.toString)
-    tazBins.flatMap(bins => bins(timeBin))
-  }
-
   def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
     log.debug("vehicle located at TAZs:")
     rideHailAgentLocations.foreach(
@@ -499,6 +489,29 @@ case class TNCIterationStats(
     RideHailStatsEntry.aggregate(stats)
   }
 
+  def getAggregatedRideHailStats(
+                                  tazId: Id[TAZ],
+                                  startTime: Double,
+                                  endTime: Double
+                                ): RideHailStatsEntry = {
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+
+    RideHailStatsEntry.aggregate(
+      (startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList
+    )
+  }
+
+  private def getTimeBin(time: Double): Int = {
+    (time / timeBinSizeInSec).toInt
+  }
+
+  def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
+
+    val tazBins = rideHailStats.get(tazId.toString)
+    tazBins.flatMap(bins => bins(timeBin))
+  }
+
   def getWithDifferentMap(
                            differentMap: Map[String, List[Option[RideHailStatsEntry]]]
                          ): TNCIterationStats = {
@@ -535,19 +548,6 @@ case class TNCIterationStats(
     }
 
     result
-  }
-
-  def getAggregatedRideHailStats(
-                                  tazId: Id[TAZ],
-                                  startTime: Double,
-                                  endTime: Double
-                                ): RideHailStatsEntry = {
-    val startTimeBin = getTimeBin(startTime)
-    val endTimeBin = getTimeBin(endTime)
-
-    RideHailStatsEntry.aggregate(
-      (startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList
-    )
   }
 
   // TODO: implement according to description
