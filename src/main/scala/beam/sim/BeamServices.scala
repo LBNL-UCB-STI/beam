@@ -170,15 +170,15 @@ object BeamServices {
         val primaryFuelType = fuelTypeMap.get(Id.create(primaryFuelTypeId, classOf[FuelType])).get
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
-        val secondaryFuelTypeId = line.get("secondaryFuelType")
-        val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType]))
-        val secondaryFuelConsumptionInJoule = Option(line.get("secondaryFuelConsumptionInJoulePerMeter").toDouble)
-        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule").toDouble)
+        val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
+        val secondaryFuelType = secondaryFuelTypeId.flatMap(sid => fuelTypeMap.get(Id.create(sid, classOf[FuelType])))
+        val secondaryFuelConsumptionInJoule = Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
+        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
         val automationLevel = Option(line.get("automationLevel"))
-        val maxVelocity = Option(line.get("maxVelocity").toDouble)
-        val passengerCarUnit = Option(line.get("passengerCarUnit").toDouble).getOrElse(1d)
-        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts").toDouble)
-        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts").toDouble)
+        val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
+        val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
+        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
+        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategoryString = Option(line.get("vehicleCategory"))
         val vehicleCategory = vehicleCategoryString.map(getVehicleCategory)
 

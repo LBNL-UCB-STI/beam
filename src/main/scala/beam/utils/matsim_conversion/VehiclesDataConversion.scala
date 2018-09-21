@@ -14,10 +14,12 @@ object VehiclesDataConversion extends App {
 
   val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
 
+  //TODO
   val beamFuelTypes = Seq(
     Seq("gasoline", "0.03"),
     Seq("diesel", "0.02"),
-    Seq("electricity", "0.01")
+    Seq("electricity", "0.01"),
+    Seq("biodieasel", "0.01")
   )
 
   val beamVehicleTypeTitles = Seq(
@@ -37,135 +39,6 @@ object VehiclesDataConversion extends App {
     "rechargeLevel2RateLimitInWatts",
     "rechargeLevel3RateLimitInWatts",
     "vehicleCategory"
-  )
-
-  val beamVehicleTypes = Seq(
-    Seq(
-      "CAR-1",
-      "4",
-      "0",
-      "4.5",
-      "gasoline",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "60",
-      "unit",
-      "50",
-      "40",
-      "CAR"
-    ),
-    Seq(
-      "SUV-2",
-      "6",
-      "0",
-      "5.5",
-      "gasoline",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "SUV"
-    ),
-    Seq(
-      "BUS-DEFAULT",
-      "50",
-      "50",
-      "12",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-BUS"
-    ),
-    Seq(
-      "SUBWAY-DEFAULT",
-      "50",
-      "50",
-      "12",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-SUBWAY"
-    ),
-    Seq(
-      "TRAM-DEFAULT",
-      "50",
-      "50",
-      "7.5",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-TRAM"
-    ),
-    Seq(
-      "RAIL-DEFAULT",
-      "50",
-      "50",
-      "7.5",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-RAIL"
-    ),
-    Seq(
-      "CABLE_CAR-DEFAULT",
-      "50",
-      "50",
-      "7.5",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-CABLE_CAR"
-    ),
   )
 
   val beamVehicleTitles = Seq(
@@ -235,15 +108,15 @@ object VehiclesDataConversion extends App {
         fuelType,
         joulesPerMeter.toString,
         "4",
-        "gasoline",
-        "80",
-        "3",
-        "level",
-        "60",
-        "unit",
-        "50",
-        "40",
-        "CAR"
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       )
     }
   }
