@@ -6,12 +6,12 @@ import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.misc.Time
-import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -86,9 +86,7 @@ class TNCIterationsStatsCollector(
                                    beamServices: BeamServices,
                                    rideHailIterationHistoryActor: ActorRef,
                                    transportNetwork: TransportNetwork
-                                 ) extends BasicEventHandler {
-  private val log =
-    LoggerFactory.getLogger(classOf[TNCIterationsStatsCollector])
+                                 ) extends BasicEventHandler with LazyLogging {
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
@@ -195,13 +193,13 @@ class TNCIterationsStatsCollector(
     // Ride Hail Vehicles that never encounter any path traversal with some passenger
     // val numIdleVehicles = vehicles.count(_._2 < 1)
 
-    log.info(
+    logger.info(
       "{} rideHail vehicles (out of {}) were never moved and {} vehicles were moved without a passenger, during whole day.", numAlwaysIdleVehicles, vehicles.size, numIdleVehiclesWithoutPassenger
     )
-    log.info(
+    logger.info(
       "Ride hail vehicles with no passengers: {}", vehicles.filter(_._2 == 0).keys.mkString(", ")
     )
-    log.info(
+    logger.info(
       "Ride hail vehicles that never moved: {}", vehicles.filter(_._2 == -1).keys.mkString(", ")
     )
   }
@@ -270,7 +268,7 @@ class TNCIterationsStatsCollector(
     }
   }
 
-  def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent) = {
+  def isSameCoords(currentEvent: PathTraversalEvent, lastEvent: PathTraversalEvent): Boolean = {
     val lastCoord = (
       lastEvent.getAttributes
         .get(PathTraversalEvent.ATTRIBUTE_END_COORDINATE_X)
@@ -422,7 +420,7 @@ class TNCIterationsStatsCollector(
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
-    log.debug(
+    logger.debug(
       "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})", startTazId, endTazId, startBin, endingBin, currentEvent.getAttributes
         .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
     )
@@ -446,7 +444,7 @@ class TNCIterationsStatsCollector(
         ((endingBin + 1) until startBin).map((_, endTazId)).toMap
 
       case None =>
-        log.debug("{} -> {} -> {}", vehicleId, startTazId, coord)
+        logger.debug("{} -> {} -> {}", vehicleId, startTazId, coord)
 
         if (startBin > 0) {
           (0 until startBin).map((_, startTazId)).toMap

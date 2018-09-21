@@ -7,12 +7,12 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils.DebugLib
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.ml.clustering.{Clusterable, KMeansPlusPlusClusterer}
 import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -23,9 +23,7 @@ case class TNCIterationStats(
                               tazTreeMap: TAZTreeMap,
                               timeBinSizeInSec: Double,
                               numberOfTimeBins: Int
-                            ) {
-
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
+                            ) extends LazyLogging {
   //logMap()
   private val maxRadiusInMeters = 10 * 1000
 
@@ -59,7 +57,7 @@ case class TNCIterationStats(
                   beamServices: BeamServices
                 ): Vector[(Id[vehicles.Vehicle], Location)] = {
 
-    // log.debug("whichCoordToRepositionTo.start=======================")
+    // logger.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
@@ -102,7 +100,7 @@ case class TNCIterationStats(
       val listOfTazInRadius =
         tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
 
-      //  log.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
+      //  logger.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
 
       if (listOfTazInRadius.size() > 0) {
         DebugLib.emptyFunctionForSettingBreakPoint()
@@ -135,7 +133,7 @@ case class TNCIterationStats(
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
-                //  log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+                //  logger.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
                 if (waitingTimeScore > 0) {
                   DebugLib.emptyFunctionForSettingBreakPoint()
@@ -188,7 +186,7 @@ case class TNCIterationStats(
             val mapping =
               new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
             scoredTAZInRadius.foreach { tazScore =>
-              //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
+              //logger.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
 
               mapping.add(
                 new WeightPair(
@@ -236,7 +234,7 @@ case class TNCIterationStats(
       vehicleToCoordAssignment
     }).flatten.toVector
 
-    // log.debug("whichCoordToRepositionTo.end=======================")
+    // logger.debug("whichCoordToRepositionTo.end=======================")
 
     result
   }
@@ -411,10 +409,10 @@ case class TNCIterationStats(
   }
 
   def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
-    log.debug("vehicle located at TAZs:")
+    logger.debug("vehicle located at TAZs:")
     rideHailAgentLocations.foreach(
       x =>
-        log.debug(
+        logger.debug(
           "s{} -> {}", x.vehicleId, tazTreeMap.getTAZ(x.currentLocation.loc.getX, x.currentLocation.loc.getY).tazId
         )
     )
@@ -440,7 +438,7 @@ case class TNCIterationStats(
     }
 
     if (circleRadiusInMeters != updatedRadius) {
-      log.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
+      logger.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
     updatedRadius
@@ -563,7 +561,7 @@ case class TNCIterationStats(
   }
 
   def logMap(): Unit = {
-    log.debug("TNCIterationStats:")
+    logger.debug("TNCIterationStats:")
 
     var columns = "index\t\t aggregate \t\t"
     val aggregates: ArrayBuffer[RideHailStatsEntry] =
@@ -571,7 +569,7 @@ case class TNCIterationStats(
     rideHailStats.foreach(rhs => {
       columns = columns + rhs._1 + "\t\t"
     })
-    log.debug(columns)
+    logger.debug(columns)
 
     for (i <- 1 until numberOfTimeBins) {
       columns = ""
@@ -584,7 +582,7 @@ case class TNCIterationStats(
         columns = columns + entry + "\t\t"
       })
       columns = i + "\t\t" + aggregates(i) + "\t\t" + columns
-      log.debug(columns)
+      logger.debug(columns)
     }
 
   }
