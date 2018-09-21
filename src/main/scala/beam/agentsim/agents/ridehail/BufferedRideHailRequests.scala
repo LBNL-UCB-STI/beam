@@ -30,9 +30,7 @@ class BufferedRideHailRequests(
     this.triggerId = triggerId
   }
 
-  def getTick: Double = {
-    tick
-  }
+  def getTick: Double = tick
 
   def setNumberOfOverwriteRequests(numRequests: Integer): Unit = {
     numberOfOverwriteRequestsOpen = numRequests
