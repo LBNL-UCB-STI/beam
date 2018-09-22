@@ -32,8 +32,12 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
 
-      val diffPotential = limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
-      //        computeAutomatedVehicleDiffusionPotential(scenario, person)
+      val diffPotential =
+      if(beamServices.beamConfig.beam.agentsim.populationAdjustment.equalsIgnoreCase(PopulationAdjustment.DIFFUSION_POTENTIAL_ADJUSTMENT_RH)){
+        limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
+      }else{
+        limitToZeroOne(computeAutomatedVehicleDiffusionPotential(scenario, person))
+      }
 
       if (diffPotential > rand.nextDouble()) {
         modes.foreach(mode =>

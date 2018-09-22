@@ -75,7 +75,8 @@ trait PopulationAdjustment extends LazyLogging {
 object PopulationAdjustment {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val PERCENTAGE_ADJUSTMENT = "PERCENTAGE_ADJUSTMENT"
-  val DIFFUSION_POTENTIAL_ADJUSTMENT = "DIFFUSION_POTENTIAL_ADJUSTMENT"
+  val DIFFUSION_POTENTIAL_ADJUSTMENT_RH = "DIFFUSION_POTENTIAL_ADJUSTMENT_RIDE_HAIL"
+  val DIFFUSION_POTENTIAL_ADJUSTMENT_AV = "DIFFUSION_POTENTIAL_ADJUSTMENT_AV"
   val AVAILABLE_MODES = "available-modes"
 
   def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
@@ -84,7 +85,7 @@ object PopulationAdjustment {
         new DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
         new PercentagePopulationAdjustment(beamServices)
-      case DIFFUSION_POTENTIAL_ADJUSTMENT =>
+      case DIFFUSION_POTENTIAL_ADJUSTMENT_RH | DIFFUSION_POTENTIAL_ADJUSTMENT_AV =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case adjClass =>
         try {
