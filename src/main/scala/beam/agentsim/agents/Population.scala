@@ -24,28 +24,28 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
 class Population(
-                  val scenario: Scenario,
-                  val beamServices: BeamServices,
-                  val scheduler: ActorRef,
-                  val transportNetwork: TransportNetwork,
-                  val router: ActorRef,
-                  val rideHailManager: ActorRef,
-                  val parkingManager: ActorRef,
-                  val eventsManager: EventsManager
-                ) extends Actor
-  with ActorLogging {
+  val scenario: Scenario,
+  val beamServices: BeamServices,
+  val scheduler: ActorRef,
+  val transportNetwork: TransportNetwork,
+  val router: ActorRef,
+  val rideHailManager: ActorRef,
+  val parkingManager: ActorRef,
+  val eventsManager: EventsManager
+) extends Actor
+    with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
   override val supervisorStrategy: OneForOneStrategy =
-  OneForOneStrategy(maxNrOfRetries = 0) {
-    case _: Exception => Stop
-    case _: AssertionError => Stop
-  }
+    OneForOneStrategy(maxNrOfRetries = 0) {
+      case _: Exception      => Stop
+      case _: AssertionError => Stop
+    }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer[ActorRef]()
@@ -91,13 +91,13 @@ class Population(
         Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
           //TODO a good example where projection should accompany the data
           if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx") == null) {
+                .getAttribute(household.getId.toString, "homecoordx") == null) {
             log.error(
               s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
             )
           }
           if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+                .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
             log.error(
               s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
             )
@@ -182,9 +182,9 @@ object Population {
   val refuelRateLimitInWatts: Option[_] = None
 
   def getVehiclesFromHousehold(
-                                household: Household,
-                                beamServices: BeamServices
-                              ): Map[Id[BeamVehicle], BeamVehicle] = {
+    household: Household,
+    beamServices: BeamServices
+  ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles: Iterable[Id[Vehicle]] =
       JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
 
@@ -197,22 +197,22 @@ object Population {
       .map({ id =>
         makeHouseholdVehicle(beamServices.privateVehicles, id) match {
           case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
-          case Left(e) => throw e
+          case Left(e)        => throw e
         }
       })
       .toMap
   }
 
   def props(
-             scenario: Scenario,
-             services: BeamServices,
-             scheduler: ActorRef,
-             transportNetwork: TransportNetwork,
-             router: ActorRef,
-             rideHailManager: ActorRef,
-             parkingManager: ActorRef,
-             eventsManager: EventsManager
-           ): Props = {
+    scenario: Scenario,
+    services: BeamServices,
+    scheduler: ActorRef,
+    transportNetwork: TransportNetwork,
+    router: ActorRef,
+    rideHailManager: ActorRef,
+    parkingManager: ActorRef,
+    eventsManager: EventsManager
+  ): Props = {
     Props(
       new Population(
         scenario,

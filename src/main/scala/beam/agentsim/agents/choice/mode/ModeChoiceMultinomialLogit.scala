@@ -18,7 +18,7 @@ import scala.util.Random
   * BEAM
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
-  extends ModeChoiceCalculator {
+    extends ModeChoiceCalculator {
 
   var expectedMaximumUtility: Double = 0.0
 
@@ -30,9 +30,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
 
       val bestInGroup =
-        modeCostTimeTransfers groupBy (_.mode) map {
-          case (_, group) => group minBy timeAndCost
-        }
+      modeCostTimeTransfers groupBy (_.mode) map {
+        case (_, group) => group minBy timeAndCost
+      }
 
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, BigDecimal] =
@@ -69,8 +69,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def altsToModeCostTimeTransfers(
-                                   alternatives: IndexedSeq[EmbodiedBeamTrip]
-                                 ): IndexedSeq[ModeCostTimeTransfer] = {
+    alternatives: IndexedSeq[EmbodiedBeamTrip]
+  ): IndexedSeq[ModeCostTimeTransfer] = {
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
@@ -82,10 +82,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val totalCost = altAndIdx._1.tripClassifier match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL =>
           (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case RIDE_HAIL_TRANSIT =>
           (altAndIdx._1.legs.view
             .filter(_.beamLeg.mode.isTransit)
@@ -93,11 +93,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
             .sum + transitFareDefaults(
             altAndIdx._2
           )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            (altAndIdx._1.legs.view
-              .filter(_.isRideHail)
-              .map(_.cost)
-              .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          (altAndIdx._1.legs.view
+            .filter(_.isRideHail)
+            .map(_.cost)
+            .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
+          bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
         case CAR =>
           altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
             altAndIdx._2
@@ -141,16 +141,16 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def utilityOf(
-                 mode: BeamMode,
-                 cost: BigDecimal,
-                 time: BigDecimal,
-                 numTransfers: Int = 0
-               ): Double = {
+    mode: BeamMode,
+    cost: BigDecimal,
+    time: BigDecimal,
+    numTransfers: Int = 0
+  ): Double = {
     val variables =
       Map(
         "transfer" -> BigDecimal(numTransfers),
-        "cost" -> cost,
-        "time" -> scaleTimeByVot(time, Option(mode))
+        "cost"     -> cost,
+        "time"     -> scaleTimeByVot(time, Option(mode))
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
@@ -198,11 +198,11 @@ object ModeChoiceMultinomialLogit {
   }
 
   case class ModeCostTimeTransfer(
-                                   mode: BeamMode,
-                                   cost: BigDecimal,
-                                   scaledTime: BigDecimal,
-                                   numTransfers: Int,
-                                   index: Int = -1
-                                 )
+    mode: BeamMode,
+    cost: BigDecimal,
+    scaledTime: BigDecimal,
+    numTransfers: Int,
+    index: Int = -1
+  )
 
 }

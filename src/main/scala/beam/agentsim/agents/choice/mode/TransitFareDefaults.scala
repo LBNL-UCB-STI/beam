@@ -15,10 +15,10 @@ object TransitFareDefaults {
   // USD per boarding
   // Source: http://www.vitalsigns.mtc.ca.gov/transit-cost-effectiveness
   val faresByMode: Map[BeamMode, Double] = Map(
-    BUS -> 0.99,
+    BUS    -> 0.99,
     SUBWAY -> 3.43,
-    FERRY -> 6.87,
-    RAIL -> 4.52
+    FERRY  -> 6.87,
+    RAIL   -> 4.52
   )
 
   def estimateTransitFares(alternatives: IndexedSeq[EmbodiedBeamTrip]): IndexedSeq[BigDecimal] = {

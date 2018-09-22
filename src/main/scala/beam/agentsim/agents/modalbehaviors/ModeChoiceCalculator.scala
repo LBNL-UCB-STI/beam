@@ -33,10 +33,10 @@ trait ModeChoiceCalculator extends HasServices {
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
-  mutable.Map[VotType, BigDecimal](
-    DefaultVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
-    GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-  )
+    mutable.Map[VotType, BigDecimal](
+      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+    )
 
   def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
     time / 3600 * getVot(beamMode)
@@ -71,16 +71,16 @@ trait ModeChoiceCalculator extends HasServices {
   // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
   // matching enforced by sealed traits.
   private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
-    case Some(CAR) => DriveVot
-    case Some(WALK) => WalkVot
-    case Some(BIKE) => BikeVot
-    case Some(WALK_TRANSIT) => WalkToTransitVot
-    case Some(DRIVE_TRANSIT) => DriveToTransitVot
-    case Some(RIDE_HAIL) => RideHailVot
-    case a@Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
-    case Some(RIDE_HAIL_TRANSIT) => RideHailVot
-    case Some(_) => GeneralizedVot
-    case None => DefaultVot
+    case Some(CAR)                                        => DriveVot
+    case Some(WALK)                                       => WalkVot
+    case Some(BIKE)                                       => BikeVot
+    case Some(WALK_TRANSIT)                               => WalkToTransitVot
+    case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
+    case Some(RIDE_HAIL)                                  => RideHailVot
+    case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
+    case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
+    case Some(_)                                          => GeneralizedVot
+    case None                                             => DefaultVot
   }
 
   ///~

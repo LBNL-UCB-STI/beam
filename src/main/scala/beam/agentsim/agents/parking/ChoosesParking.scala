@@ -61,7 +61,7 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data@BasePersonData(_, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
       val (tick, _) = releaseTickAndTriggerId()
       val veh = beamServices
         .vehicles(data.currentVehicle.head)
@@ -77,10 +77,10 @@ trait ChoosesParking extends {
           stall.location,
           nextLeg.travelPath.endPoint.loc
         ) //nextLeg.travelPath.endPoint.loc
-      val cost = stall.cost
+        val cost = stall.cost
         val energyCharge: Double = 0.0 //TODO
-      val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
-      val score = calculateScore(distance, cost, energyCharge, timeCost)
+        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+        val score = calculateScore(distance, cost, energyCharge, timeCost)
         eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
       }
       veh.unsetParkingStall()
@@ -158,7 +158,7 @@ trait ChoosesParking extends {
         )
 
         val responses = for {
-          vehicle2StallResponse <- futureVehicle2StallResponse.mapTo[RoutingResponse]
+          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
           stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
@@ -167,13 +167,13 @@ trait ChoosesParking extends {
         stay using data
       }
     case Event(
-    responses: (RoutingResponse, RoutingResponse),
-    data@BasePersonData(_, _, _, _, _, _, _, _, _)
-    ) =>
+        res,
+        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
+        ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-
+      val responses = res.asInstanceOf[(RoutingResponse, RoutingResponse)]
       // If no car leg returned, then the person walks to the parking spot and we force an early exit
       // from the vehicle below.
       val leg1 = if (!responses._1.itineraries.exists(_.tripClassifier == CAR)) {
@@ -229,9 +229,9 @@ trait ChoosesParking extends {
   }
 
   def calculateScore(
-                      walkingDistance: Double,
-                      cost: Double,
-                      energyCharge: Double,
-                      valueOfTime: BigDecimal
-                    ): Double = -cost - energyCharge
+    walkingDistance: Double,
+    cost: Double,
+    energyCharge: Double,
+    valueOfTime: BigDecimal
+  ): Double = -cost - energyCharge
 }

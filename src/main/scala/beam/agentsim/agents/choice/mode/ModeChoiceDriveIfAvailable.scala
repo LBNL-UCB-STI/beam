@@ -27,9 +27,9 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
 
   override def utilityOf(
-                          mode: Modes.BeamMode,
-                          cost: BigDecimal,
-                          time: BigDecimal,
-                          numTransfers: Int
-                        ): Double = 0.0
+    mode: Modes.BeamMode,
+    cost: BigDecimal,
+    time: BigDecimal,
+    numTransfers: Int
+  ): Double = 0.0
 }

@@ -16,9 +16,9 @@ object BridgeTollDefaults {
   private var tollPrices: Map[Int, Double] = _ // TODO when it will be class, we can avoid this!
 
   def estimateBridgeFares(
-                           alternatives: IndexedSeq[EmbodiedBeamTrip],
-                           beamServices: BeamServices
-                         ): IndexedSeq[BigDecimal] = {
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    beamServices: BeamServices
+  ): IndexedSeq[BigDecimal] = {
 
     val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
     if (tollPrices == null) tollPrices = readTollPrices(tollPriceFile)
@@ -50,7 +50,7 @@ object BridgeTollDefaults {
         .fromFile(tollPricesFile)
         .getLines()
         .map(_.split(","))
-        .filterNot(_ (0).equalsIgnoreCase("linkId"))
+        .filterNot(_(0).equalsIgnoreCase("linkId"))
         .map(t => t(0).toInt -> t(1).toDouble)
         .toMap
 

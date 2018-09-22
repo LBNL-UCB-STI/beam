@@ -38,7 +38,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
   def id: Id[_]
 
   onTermination {
-    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
+    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
       reason match {
         case FSM.Shutdown =>
           log.error(

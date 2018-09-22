@@ -11,9 +11,9 @@ object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
 
   def estimateDrivingCost(
-                           alternatives: IndexedSeq[EmbodiedBeamTrip],
-                           beamServices: BeamServices
-                         ): IndexedSeq[BigDecimal] = {
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    beamServices: BeamServices
+  ): IndexedSeq[BigDecimal] = {
 
     alternatives.map { alt =>
       alt.tripClassifier match {

@@ -175,7 +175,7 @@ class BeamPlan extends Plan {
     } else {
       throw new RuntimeException(
         "For compatibility with MATSim, a BeamPlan only supports addLeg during initialization " +
-          "but not after the BeamPlan plan has been created."
+        "but not after the BeamPlan plan has been created."
       )
     }
   }
@@ -186,7 +186,7 @@ class BeamPlan extends Plan {
     } else {
       throw new RuntimeException(
         "For compatibility with MATSim, a BeamPlan only supports addActivity during initialization " +
-          "but not after the BeamPlan plan has been created."
+        "but not after the BeamPlan plan has been created."
       )
     }
   }
@@ -201,7 +201,7 @@ class BeamPlan extends Plan {
     var personIdString = "undefined"
     if (this.getPerson != null) personIdString = this.getPerson.getId.toString
     "[score=" + scoreString + "]" + //				"[selected=" + PersonUtils.isSelected(this) + "]" +
-      "[nof_acts_legs=" + getPlanElements.size + "]" + "[type=" + planType + "]" + "[personId=" + personIdString + "]"
+    "[nof_acts_legs=" + getPlanElements.size + "]" + "[type=" + planType + "]" + "[personId=" + personIdString + "]"
   }
 
   override def getPerson: Person = this.person

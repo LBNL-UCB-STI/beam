@@ -3,6 +3,7 @@ package beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
+import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
 import scala.beans.BeanProperty
@@ -14,9 +15,9 @@ import scala.util.Random
 case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) extends LazyLogging {
 
   def sampleAlternative(
-                         alternatives: Vector[AlternativeAttributes],
-                         random: Random
-                       ): Option[String] = {
+    alternatives: Vector[AlternativeAttributes],
+    random: Random
+  ): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
@@ -63,8 +64,8 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
                 theParam._2.paramValue.toDouble
             }
           } else if (theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase(
-            "asc"
-          )) {
+                       "asc"
+                     )) {
             theParam._2.paramValue.toDouble
           } else {
             -1E100
@@ -107,14 +108,12 @@ object MultinomialLogit {
     )
   }
 
-  import org.supercsv.cellprocessor.ift.CellProcessor
-
   class MnlData(
-                 @BeanProperty var alternative: String = "COMMON",
-                 @BeanProperty var paramName: String = "",
-                 @BeanProperty var paramType: String = "",
-                 @BeanProperty var paramValue: Double = Double.NaN
-               ) extends Cloneable {
+    @BeanProperty var alternative: String = "COMMON",
+    @BeanProperty var paramName: String = "",
+    @BeanProperty var paramType: String = "",
+    @BeanProperty var paramValue: Double = Double.NaN
+  ) extends Cloneable {
     override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
   }
 }
