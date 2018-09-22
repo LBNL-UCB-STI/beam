@@ -10,8 +10,6 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
@@ -30,7 +28,6 @@ import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
-import beam.sim.{BeamServices, TransitInitializer}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
@@ -325,7 +322,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case GenerateLinkLeaveEnterEvents(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val mode = leg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString
-      val travelTime = (time: Long, linkId: Int) => travelTimeByLinkCalculator(time, linkId, StreetMode.valueOf(mode))
+      val travelTime = (time: Int, linkId: Int) => travelTimeByLinkCalculator(time, linkId, StreetMode.valueOf(mode))
       val linkLeaveEnterEvents: Array[LinkEvent] = (RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map {
         case event if event.isInstanceOf[LinkLeaveEvent] =>
           val leave = event.asInstanceOf[LinkLeaveEvent]
