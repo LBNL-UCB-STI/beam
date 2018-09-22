@@ -101,39 +101,19 @@ object BeamVehicleType {
       "TRANSIT"
     )
 
-  val defaultRidehailBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      "RIDEHAIL-TYPE-DEFAULT",
-      0,
-      0,
-      0,
-      null,
-      0,
-      0,
-      null,
-      0,
-      0,
-      null,
-      0,
-      null,
-      0,
-      0,
-      "RIDE_HAIL"
-    )
-
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "CAR-TYPE-DEFAULT",
+    4,
     0,
-    0,
-    0,
+    4.5,
+    new FuelType("gasoline",0.0),
+    3656.0,
+    3655980000.0,
     null,
     0,
     0,
     null,
-    0,
-    0,
-    null,
-    0,
+    60.0,
     null,
     0,
     0,
