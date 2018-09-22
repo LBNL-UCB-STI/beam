@@ -5,7 +5,7 @@
 
 ##############################################################################################################################################
 # LOAD LIBRARIES NEED BY THIS SCRIPT
-load.libraries(c('optparse','XML','stringr'),quietly=T)
+load.libraries(c('optparse','XML','stringr','rgdal','sp'),quietly=T)
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -34,7 +34,14 @@ the.file.rdata <- pp(head(str_split(the.file,'xml')[[1]],-1),'Rdata')
 
 dat <- xmlParse(file.path)
 
-nodes <- data.table(id=xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'id',default=NA),x=xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'x',default=NA),y=xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'y',default=NA))
+nodes <- data.table(id=xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'id',default=NA),x=as.numeric(xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'x',default=NA)),y=as.numeric(xpathSApply(dat,"/network/nodes/node", xmlGetAttr,'y',default=NA)))
+reproj.nodes <- nodes
+coordinates(reproj.nodes) <- ~ x+y
+proj4string(reproj.nodes) <-  CRS("+init=epsg:26910")
+reproj.nodes.wgs <- spTransform(reproj.nodes,CRS("+init=epsg:4326"))
+nodes[,lon:=coordinates(reproj.nodes.wgs)[,1]]
+nodes[,lat:=coordinates(reproj.nodes.wgs)[,2]]
+
 links <- data.table(id=xpathSApply(dat,"/network/links/link", xmlGetAttr,'id',default=NA),
                     from=xpathSApply(dat,"/network/links/link", xmlGetAttr,'from',default=NA),
                     to=xpathSApply(dat,"/network/links/link", xmlGetAttr,'to',default=NA),
