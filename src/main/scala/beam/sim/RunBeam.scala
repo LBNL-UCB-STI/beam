@@ -16,6 +16,7 @@ object RunBeam extends BeamHelper {
 
     runBeamUsing(args)
     logger.info("Exiting BEAM")
+    System.exit(0)
   }
 
 }
