@@ -182,7 +182,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + $stateName")
+      log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}",stateName)
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
     //stay()
@@ -204,7 +204,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       case Some(currentLeg) =>
         println(currentLeg)
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-          log.info(s"stopping vehicle: $id")
+          log.info("stopping vehicle: {}", id)
           goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
             success = true,
             requestId,
@@ -250,7 +250,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 )
               }
               log.debug(
-                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl) - tick($tick)"
+                "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})", nextNotifyVehicleResourceIdle, currentVehicleUnderControl, tick
               )
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -435,7 +435,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               )
 
               log.debug(
-                s"DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle"
+                "DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:{}", nextNotifyVehicleResourceIdle
               )
 
               eventsManager.processEvent(
