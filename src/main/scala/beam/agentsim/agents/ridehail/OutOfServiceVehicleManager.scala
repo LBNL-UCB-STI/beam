@@ -73,7 +73,7 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent ! NotifyVehicleResourceIdleReply(
-      triggerIds.get(vehicleId).get,
+      triggerIds(vehicleId),
       triggersToSchedule
     )
   }

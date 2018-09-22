@@ -895,7 +895,7 @@ class RideHailManager(
     } else if (outOfServiceRideHailVehicles.contains(vehicleId)) {
       OutOfService
     } else {
-      log.error(s"Vehicle ${vehicleId} does not have a service status, assuming out of service")
+      log.error(s"Vehicle {} does not have a service status, assuming out of service", vehicleId)
       OutOfService
     }
   }
