@@ -80,7 +80,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.router = router;
-
         this.beamConfig = beamConfig;
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         agentSimScenario = scenario;
