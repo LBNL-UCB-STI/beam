@@ -132,7 +132,7 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None, None)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, None)
         acc += ((vehicleId, beamVehicle))
     }
   }

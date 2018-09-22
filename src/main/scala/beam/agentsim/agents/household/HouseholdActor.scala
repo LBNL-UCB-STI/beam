@@ -266,7 +266,6 @@ object HouseholdActor {
         BeamVehicleType.powerTrainForHumanBody,
         None,
         BeamVehicleType.defaultHumanBodyBeamVehicleType,
-        None,
         None
       )
       newBodyVehicle.registerResource(personRef)

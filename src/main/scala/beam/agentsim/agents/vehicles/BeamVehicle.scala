@@ -32,15 +32,11 @@ class BeamVehicle(
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
-  var fuelLevelInJoules: Option[Double],
   val refuelRateLimitInJoulesPerSecond: Option[Double]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
-  /**
-    * Identifier for this vehicle
-    */
-//  val id: Id[BeamVehicle] = vehicleId
+  var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).

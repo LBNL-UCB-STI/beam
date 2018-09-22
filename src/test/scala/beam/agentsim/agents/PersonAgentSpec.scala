@@ -479,7 +479,6 @@ class PersonAgentSpec
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        fuelLevelInJoules = None,
         refuelRateLimitInJoulesPerSecond = None
       )
       val tramId = Id.createVehicleId("my_tram")
@@ -488,7 +487,6 @@ class PersonAgentSpec
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        fuelLevelInJoules = None,
         refuelRateLimitInJoulesPerSecond = None
       )
 
