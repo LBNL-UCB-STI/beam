@@ -25,36 +25,48 @@ factors:
     - name: taz-parking_S60_P50_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S60/taz-parking_S60_P50_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S60_P50_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S60/taz-parking_S60_P50_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
     - name: taz-parking_S60_P250_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S60/taz-parking_S60_P250_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S60_P250_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S60/taz-parking_S60_P250_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
     - name: taz-parking_S70_P50_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S70/taz-parking_S70_P50_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S70_P50_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S70/taz-parking_S70_P50_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
     - name: taz-parking_S70_P250_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S70/taz-parking_S70_P250_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S70_P250_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S70/taz-parking_S70_P250_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
     - name: taz-parking_S80_P50_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S80/taz-parking_S80_P50_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S80_P50_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S80/taz-parking_S80_P50_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
     - name: taz-parking_S80_P250_R75_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S80/taz-parking_S80_P250_R75_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV75"
     - name: taz-parking_S80_P250_R150_F10k
       params:
         beam.agentsim.taz.parking: "/home/ubuntu/git/beam/production/application-sfbay/parking/FCS_planning_results_S80/taz-parking_S80_P250_R150_F10k.csv"
+        beam.agentsim.agents.rideHail.vehicleTypeId: "BEV150"
