@@ -105,15 +105,17 @@ class BeamSim @Inject()(
 
     beamServices.matsimServices = event.getServices
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
-      eventsManager,
-      transportNetwork,
-      event.getServices.getControlerIO,
-      scenario,
-      beamServices.geo,
-      beamServices.beamRouter,
-      beamServices.beamConfig
-    )
+    if(!beamServices.beamConfig.beam.physsim.skipPhysSim) {
+      agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
+        eventsManager,
+        transportNetwork,
+        event.getServices.getControlerIO,
+        scenario,
+        beamServices.geo,
+        beamServices.beamRouter,
+        beamServices.beamConfig
+      )
+    }
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
       eventsManager,
@@ -182,6 +184,7 @@ class BeamSim @Inject()(
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
     Await.result(actorSystem.terminate(), Duration.Inf)
+    logger.info("Actor system shut down")
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)
     val outputFilesToDelete = Array(

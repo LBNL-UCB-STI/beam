@@ -15,7 +15,7 @@ object RunBeam extends BeamHelper {
      """.stripMargin)
 
     runBeamUsing(args)
-    logger.info("Exiting BEAM")
+    logger.info("Exiting BEAM ---")
   }
 
 }
