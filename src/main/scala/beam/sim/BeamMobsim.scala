@@ -138,6 +138,8 @@ class BeamMobsim @Inject()(
         context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
         context.watch(scheduler)
 
+        beamServices.vehicles.clear() // important to purge data from previous iteration
+
         private val envelopeInUTM =
           beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
         envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
@@ -392,7 +394,6 @@ class BeamMobsim @Inject()(
             startSegment("agentsim-events", "agentsim")
 
             cleanupRideHailingAgents()
-            cleanupVehicle()
             population ! Finish
             val future = rideHailManager.ask(NotifyIterationEnds())
             Await.ready(future, timeout.duration).value
@@ -441,14 +442,6 @@ class BeamMobsim @Inject()(
           rideHailAgents.foreach(_ ! Finish)
           rideHailAgents = new ArrayBuffer()
 
-        }
-
-        private def cleanupVehicle(): Unit = {
-          // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
-          scenario.getPopulation.getPersons.keySet().forEach { personId =>
-            val bodyVehicleId = BeamVehicle.createId(personId, Some("Body"))
-            beamServices.vehicles -= bodyVehicleId
-          }
         }
 
       }),
