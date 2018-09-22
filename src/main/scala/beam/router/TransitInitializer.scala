@@ -219,7 +219,6 @@ class TransitInitializer(
           powertrain,
           None,
           vehicleType,
-          None,
           None
         ) // TODO: implement fuel level later as needed
         Some(vehicle)

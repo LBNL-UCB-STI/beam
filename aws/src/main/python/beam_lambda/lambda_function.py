@@ -20,8 +20,6 @@ S3_PUBLISH_SCRIPT = '''
   -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
   -    sudo rm -rf output/*'''
 
-END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
-
 BRANCH_DEFAULT = 'master'
 
 COMMIT_DEFAULT = 'HEAD'
@@ -79,7 +77,6 @@ runcmd:
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
-  - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -210,7 +207,6 @@ def deploy_handler(event):
     shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
     sigopt_client_id = event.get('sigopt_client_id', os.environ['SIGOPT_CLIENT_ID'])
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
-    end_script = event.get('end_script', END_SCRIPT_DEFAULT)
 
     if instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
@@ -237,9 +233,6 @@ def deploy_handler(event):
         selected_script = EXECUTE_SCRIPT
         params = [ '"{args}"'.format(args=execute_args) ]
 
-    if end_script != END_SCRIPT_DEFAULT:
-        end_script = '/home/ubuntu/git/beam/sec/main/bash/' + end_script
-
     txt = ''
 
     if region not in regions:
@@ -254,7 +247,7 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)

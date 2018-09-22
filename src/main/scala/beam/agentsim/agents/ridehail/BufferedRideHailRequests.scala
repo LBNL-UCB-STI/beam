@@ -67,7 +67,7 @@ class BufferedRideHailRequests(
 
   def isBufferedRideHailRequestProcessingOver: Boolean = {
 
-    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.isEmpty
+    numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.size == 0
   }
 
   def tryClosingBufferedRideHailRequestWaive(): Unit = {

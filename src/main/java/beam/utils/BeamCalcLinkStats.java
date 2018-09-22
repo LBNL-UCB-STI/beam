@@ -160,41 +160,35 @@ public class BeamCalcLinkStats {
                         Link link = this.network.getLinks().get(linkId);
 
                         out.write(linkId.toString());
-                        writeCommaAndStr(out, link.getFromNode().getId().toString());
-
-                        writeCommaAndStr(out, link.getToNode().getId().toString());
+                        out.write("," + link.getFromNode().getId().toString());
+                        out.write("," + link.getToNode().getId().toString());
 
                         //WRITE HOUR
                         if (i < this.nofHours) {
-                            writeCommaAndStr(out, Double.toString(i));
+                            out.write("," + Double.toString(i));
                         } else {
-                            out.write(",");
-                            out.write( Double.toString(0));
-                            out.write(" - ");
-                            out.write(Double.toString(this.nofHours));
+                            out.write("," + Double.toString(0) + " - " + Double.toString(this.nofHours));
                         }
 
-                        writeCommaAndStr(out, Double.toString(link.getLength()));
-
-                        writeCommaAndStr(out, Double.toString(link.getFreespeed()));
-
-                        writeCommaAndStr(out, Double.toString(link.getCapacity()));
+                        out.write("," + Double.toString(link.getLength()));
+                        out.write("," + Double.toString(link.getFreespeed()));
+                        out.write("," + Double.toString(link.getCapacity()));
 
                         //WRITE STAT_TYPE
-                        writeCommaAndStr(out, statType[j]);
+                        out.write("," + statType[j]);
 
                         //WRITE VOLUME
                         if (j == SUM) {
-                            writeCommaAndStr(out, Double.toString((data.volumes[j][i]) / this.count));
+                            out.write("," + Double.toString((data.volumes[j][i]) / this.count));
                         } else {
-                            writeCommaAndStr(out, Double.toString(data.volumes[j][i]));
+                            out.write("," + Double.toString(data.volumes[j][i]));
                         }
 
                         //WRITE TRAVELTIME
 
                         if (j == MIN && i < this.nofHours) {
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            writeCommaAndStr(out, ttimesMin);
+                            out.write("," + ttimesMin);
 
                         } else if (j == SUM && i < this.nofHours) {
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
@@ -203,20 +197,21 @@ public class BeamCalcLinkStats {
                                 // use the value available or the minimum instead (min and max should be the same, =freespeed)
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum != 0.0) {
-                                    writeCommaAndStr(out, Double.toString(ttsum));
+                                    out.write("," + Double.toString(ttsum));
                                 } else {
-                                    writeCommaAndStr(out, ttimesMin);
+                                    out.write("," + ttimesMin);
                                 }
                             } else {
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum == 0) {
-                                    writeCommaAndStr(out, ttimesMin);
+                                    out.write("," + ttimesMin);
                                 } else {
-                                    writeCommaAndStr(out, Double.toString(ttsum / data.volumes[SUM][i]));
+                                    out.write("," + Double.toString(ttsum / data.volumes[SUM][i]));
                                 }
                             }
                         } else if (j == MAX && i < this.nofHours) {
-                            writeCommaAndStr(out, Double.toString(data.ttimes[MAX][i]));
+                            String ttimesMin = Double.toString(data.ttimes[MIN][i]);
+                            out.write("," + Double.toString(data.ttimes[MAX][i]));
                         }
                         out.write("\n");
                     }
@@ -237,10 +232,6 @@ public class BeamCalcLinkStats {
                 }
             }
         }
-    }
-    private void writeCommaAndStr(BufferedWriter out, String str) throws IOException{
-        out.write(',');
-        out.write(str);
     }
 
     private static class LinkData {

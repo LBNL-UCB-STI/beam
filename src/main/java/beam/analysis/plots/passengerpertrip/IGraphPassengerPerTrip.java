@@ -11,7 +11,6 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public interface IGraphPassengerPerTrip {
 
@@ -24,7 +23,7 @@ public interface IGraphPassengerPerTrip {
 
     String getLegendText(int i);
 
-    void collectEvent(Event event, Map<String, String> attributes);
+    void collectEvent(Event event);
 
     void process(IterationEndsEvent event) throws IOException;
     CategoryDataset getCategoryDataSet();

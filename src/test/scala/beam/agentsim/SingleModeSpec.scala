@@ -151,7 +151,7 @@ class SingleModeSpec
         .values()
         .forEach(person => {
           person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
+            case (leg: Leg) =>
               leg.setMode("walk_transit")
           }
         })
@@ -189,11 +189,11 @@ class SingleModeSpec
         .values()
         .forEach(person => {
           val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-            case activity: Activity if activity.getType == "Home" =>
+            case (activity: Activity) if activity.getType == "Home" =>
               Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-            case activity: Activity =>
+            case (activity: Activity) =>
               Seq(activity)
-            case leg: Leg =>
+            case (leg: Leg) =>
               Nil
           }.flatten
           if (newPlanElements.last.isInstanceOf[Leg]) {
@@ -201,9 +201,9 @@ class SingleModeSpec
           }
           person.getSelectedPlan.getPlanElements.clear()
           newPlanElements.foreach {
-            case activity: Activity =>
+            case (activity: Activity) =>
               person.getSelectedPlan.addActivity(activity)
-            case leg: Leg =>
+            case (leg: Leg) =>
               person.getSelectedPlan.addLeg(leg)
           }
         })

@@ -15,6 +15,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
+import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BashUtils, BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
@@ -239,7 +240,6 @@ trait BeamHelper extends LazyLogging {
       "config is a required value, and must yield a valid config."
     )
     val configLocation = parsedArgs.configLocation.get
-
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
@@ -297,12 +297,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -350,9 +345,7 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.detachOldFileLogger()
     LoggingUtil.createFileLogger(outputDirectory)
-
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
@@ -367,14 +360,14 @@ trait BeamHelper extends LazyLogging {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
-    samplePopulation(scenario, beamConfig, matsimConfig)
-
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       module(config, scenario, networkCoordinator)
     )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+
+    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
     beamServices.controler.run()
 
@@ -387,7 +380,8 @@ trait BeamHelper extends LazyLogging {
   def samplePopulation(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
-    matsimConfig: Config
+    matsimConfig: Config,
+    beamServices: BeamServices
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
@@ -425,8 +419,10 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
     }
-  }
 
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+    populationAdjustment.update(scenario)
+  }
 }
 
 case class MapStringDouble(data: Map[String, Double])

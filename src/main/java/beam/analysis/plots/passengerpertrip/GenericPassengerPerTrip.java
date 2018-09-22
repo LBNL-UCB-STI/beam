@@ -32,9 +32,11 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(Event event) {
 
         eventCounter++;
+
+        Map<String, String> attributes = event.getAttributes();
 
         int hour = getEventHour(event.getTime());
         maxHour = maxHour < hour ? hour : maxHour;

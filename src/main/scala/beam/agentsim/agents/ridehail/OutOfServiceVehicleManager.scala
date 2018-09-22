@@ -2,12 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  Interrupt,
-  ModifyPassengerSchedule,
-  NotifyVehicleResourceIdleReply,
-  Resume
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, NotifyVehicleResourceIdleReply, Resume}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailModifyPassengerScheduleManager}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.infrastructure.ParkingStall
@@ -78,7 +73,7 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent ! NotifyVehicleResourceIdleReply(
-      triggerIds(vehicleId),
+      triggerIds.get(vehicleId).get,
       triggersToSchedule
     )
   }

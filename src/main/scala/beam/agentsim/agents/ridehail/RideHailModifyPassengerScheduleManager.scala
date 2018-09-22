@@ -310,7 +310,7 @@ class RideHailModifyPassengerScheduleManager(
       "new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=" + numberOfOutStandingmodifyPassengerScheduleAckForRepositioning
     )
 
-    if (triggersToSchedule.nonEmpty) {
+    if (!triggersToSchedule.isEmpty) {
       val vehicleId: Id[Vehicle] = Id.create(
         triggersToSchedule.head.agent.path.name.replace("rideHailAgent", "rideHailVehicle"),
         classOf[Vehicle]
