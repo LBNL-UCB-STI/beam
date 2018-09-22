@@ -10,8 +10,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class BufferedRideHailRequests(
-                                val scheduler: ActorRef
-                              ) {
+  val scheduler: ActorRef
+) {
 
   // these are the vehicleIds with which we are overwriting things
   private val setOfReplacementVehicles =

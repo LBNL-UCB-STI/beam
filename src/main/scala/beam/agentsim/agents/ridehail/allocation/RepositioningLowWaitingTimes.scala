@@ -17,8 +17,8 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
 
 class RepositioningLowWaitingTimes(
-                                    val rideHailManager: RideHailManager
-                                  ) extends RideHailResourceAllocationManager(rideHailManager) {
+  val rideHailManager: RideHailManager
+) extends RideHailResourceAllocationManager(rideHailManager) {
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val tncIterationStats: Option[TNCIterationStats] = {
@@ -153,11 +153,11 @@ class RepositioningLowWaitingTimes(
             // spatialPlot.addPoint(PointToPlot(rideHailManager.getRideHailAgentLocation(vehToRepso.vehicleId).currentLocation.loc, Color.GREEN, 10))
             // }
 
-            val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry(tick, tick + 3600)
+            val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
               if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+                    .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(
@@ -275,9 +275,9 @@ class RepositioningLowWaitingTimes(
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-                                                                                     idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
-                                                                                     maxNumberOfVehiclesToReposition: Int
-                                                                                   ): Vector[RideHailAgentLocation] = {
+    idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
+    maxNumberOfVehiclesToReposition: Int
+  ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(
       rideHailAgentLocation =>
         rideHailManager.modifyPassengerScheduleManager
@@ -291,7 +291,8 @@ class RepositioningLowWaitingTimes(
 
     if (result.size < idleVehicles.values.size) {
       logger.debug(
-        "filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by {}", idleVehicles.values.size - result.size
+        "filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by {}",
+        idleVehicles.values.size - result.size
       )
     }
 

@@ -10,10 +10,10 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistoryActor(
-                                     eventsManager: EventsManager,
-                                     beamServices: BeamServices,
-                                     transportNetwork: TransportNetwork
-                                   ) extends Actor {
+  eventsManager: EventsManager,
+  beamServices: BeamServices,
+  transportNetwork: TransportNetwork
+) extends Actor {
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
@@ -58,18 +58,18 @@ class RideHailIterationHistoryActor(
 object RideHailIterationHistoryActor {
 
   def props(
-             eventsManager: EventsManager,
-             beamServices: BeamServices,
-             transportNetwork: TransportNetwork
-           ) =
+    eventsManager: EventsManager,
+    beamServices: BeamServices,
+    transportNetwork: TransportNetwork
+  ) =
     Props(new RideHailIterationHistoryActor(eventsManager, beamServices, transportNetwork))
 
   case class UpdateRideHailStats(rideHailStats: TNCIterationStats)
 
   case class AddTNCHistoryData(
-                                tncIdleTimes: Set[WaitingEvent],
-                                passengerWaitingTimes: Set[WaitingEvent]
-                              )
+    tncIdleTimes: Set[WaitingEvent],
+    passengerWaitingTimes: Set[WaitingEvent]
+  )
 
   case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
 

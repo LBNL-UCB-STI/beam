@@ -30,11 +30,11 @@ import scala.collection.mutable.ArrayBuffer
   * @param sumOfIdlingVehicles total number of idling vehicles
   */
 case class RideHailStatsEntry(
-                               sumOfRequestedRides: Long,
-                               sumOfWaitingTimes: Long,
-                               sumOfIdlingVehicles: Long,
-                               sumOfActivityEndEvents: Long
-                             ) {
+  sumOfRequestedRides: Long,
+  sumOfWaitingTimes: Long,
+  sumOfIdlingVehicles: Long,
+  sumOfActivityEndEvents: Long
+) {
 
   def aggregate(other: RideHailStatsEntry): RideHailStatsEntry =
     RideHailStatsEntry(
@@ -59,17 +59,18 @@ case class RideHailStatsEntry(
 }
 
 object RideHailStatsEntry {
+
   def aggregate(rideHailStats: List[Option[RideHailStatsEntry]]): RideHailStatsEntry =
     rideHailStats.flatten.reduceOption(aggregate).getOrElse(empty)
 
   def empty: RideHailStatsEntry = RideHailStatsEntry()
 
   def apply(
-             sumOfRequestedRides: Long = 0,
-             sumOfWaitingTimes: Long = 0,
-             sumOfIdlingVehicles: Long = 0,
-             sumOfActivityEndEvents: Long = 0
-           ): RideHailStatsEntry =
+    sumOfRequestedRides: Long = 0,
+    sumOfWaitingTimes: Long = 0,
+    sumOfIdlingVehicles: Long = 0,
+    sumOfActivityEndEvents: Long = 0
+  ): RideHailStatsEntry =
     new RideHailStatsEntry(
       sumOfRequestedRides,
       sumOfWaitingTimes,
@@ -82,11 +83,12 @@ object RideHailStatsEntry {
 }
 
 class TNCIterationsStatsCollector(
-                                   eventsManager: EventsManager,
-                                   beamServices: BeamServices,
-                                   rideHailIterationHistoryActor: ActorRef,
-                                   transportNetwork: TransportNetwork
-                                 ) extends BasicEventHandler with LazyLogging {
+  eventsManager: EventsManager,
+  beamServices: BeamServices,
+  rideHailIterationHistoryActor: ActorRef,
+  transportNetwork: TransportNetwork
+) extends BasicEventHandler
+    with LazyLogging {
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?
@@ -194,13 +196,18 @@ class TNCIterationsStatsCollector(
     // val numIdleVehicles = vehicles.count(_._2 < 1)
 
     logger.info(
-      "{} rideHail vehicles (out of {}) were never moved and {} vehicles were moved without a passenger, during whole day.", numAlwaysIdleVehicles, vehicles.size, numIdleVehiclesWithoutPassenger
+      "{} rideHail vehicles (out of {}) were never moved and {} vehicles were moved without a passenger, during whole day.",
+      numAlwaysIdleVehicles,
+      vehicles.size,
+      numIdleVehiclesWithoutPassenger
     )
     logger.info(
-      "Ride hail vehicles with no passengers: {}", vehicles.filter(_._2 == 0).keys.mkString(", ")
+      "Ride hail vehicles with no passengers: {}",
+      vehicles.filter(_._2 == 0).keys.mkString(", ")
     )
     logger.info(
-      "Ride hail vehicles that never moved: {}", vehicles.filter(_._2 == -1).keys.mkString(", ")
+      "Ride hail vehicles that never moved: {}",
+      vehicles.filter(_._2 == -1).keys.mkString(", ")
     )
   }
 
@@ -209,7 +216,7 @@ class TNCIterationsStatsCollector(
       val bins = vehicle._2
       bins.get(binIndex) match {
         case Some(taz) if taz == tazId => true
-        case _ => false
+        case _                         => false
       }
     })
   }
@@ -308,8 +315,8 @@ class TNCIterationsStatsCollector(
   }
 
   private def collectPersonEntersEvents(
-                                         personEntersVehicleEvent: PersonEntersVehicleEvent
-                                       ): Unit = {
+    personEntersVehicleEvent: PersonEntersVehicleEvent
+  ): Unit = {
 
     val attr = personEntersVehicleEvent.getAttributes
     val personId = attr.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
@@ -421,7 +428,12 @@ class TNCIterationsStatsCollector(
     val endingBin = getTimeBin(endTime)
 
     logger.debug(
-      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})", startTazId, endTazId, startBin, endingBin, currentEvent.getAttributes
+      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
+      startTazId,
+      endTazId,
+      startBin,
+      endingBin,
+      currentEvent.getAttributes
         .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
     )
 

@@ -64,7 +64,9 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
             if (events.nonEmpty) {
               vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(
-                ".RideHail: vehicle {} already has person and another enters - {}", vehicle, event
+                ".RideHail: vehicle {} already has person and another enters - {}",
+                vehicle,
+                event
               )
             }
 
@@ -87,7 +89,10 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               case None if numPassengers > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
                 logger.debug(
-                  "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}", vehicle, numPassengers, event
+                  "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}",
+                  vehicle,
+                  numPassengers,
+                  event
                 )
 
               case _ =>
@@ -110,7 +115,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
               case None =>
             }
           case _ =>
-        }
+      }
     )
 
     vehicleEvents.foreach(
@@ -128,7 +133,6 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
     rideHailEvents = rideHailEvents.sorted(compareEvents)
   }
-
 
   private def compareEvents(e1: Event, e2: Event): Int = {
     val t1 = e1.getAttributes

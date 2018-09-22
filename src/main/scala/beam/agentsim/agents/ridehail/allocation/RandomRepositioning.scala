@@ -6,7 +6,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-  extends RideHailResourceAllocationManager(rideHailManager) {
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse

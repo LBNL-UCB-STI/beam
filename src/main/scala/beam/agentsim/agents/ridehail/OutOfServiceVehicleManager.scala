@@ -2,7 +2,12 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
-import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, NotifyVehicleResourceIdleReply, Resume}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  Interrupt,
+  ModifyPassengerSchedule,
+  NotifyVehicleResourceIdleReply,
+  Resume
+}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -14,20 +19,20 @@ import scala.collection.mutable
 
 // TODO: remove params not needed!
 class OutOfServiceVehicleManager(
-                                  val log: LoggingAdapter,
-                                  val rideHailManagerActor: ActorRef,
-                                  val rideHailManager: RideHailManager
-                                ) {
+  val log: LoggingAdapter,
+  val rideHailManagerActor: ActorRef,
+  val rideHailManager: RideHailManager
+) {
 
   // TODO: refactor the following two later, e.g. into class
   val passengerSchedules: mutable.HashMap[Id[Vehicle], PassengerSchedule] = mutable.HashMap()
   val triggerIds: mutable.HashMap[Id[Vehicle], Option[Long]] = mutable.HashMap()
 
   def initiateMovementToParkingDepot(
-                                      vehicleId: Id[Vehicle],
-                                      passengerSchedule: PassengerSchedule,
-                                      tick: Double
-                                    ): Unit = {
+    vehicleId: Id[Vehicle],
+    passengerSchedule: PassengerSchedule,
+    tick: Double
+  ): Unit = {
     log.debug("initiateMovementToParkingDepot - vehicle: " + vehicleId)
 
     passengerSchedules.put(vehicleId, passengerSchedule)
@@ -46,8 +51,8 @@ class OutOfServiceVehicleManager(
   }
 
   def handleInterrupt(
-                       vehicleId: Id[Vehicle],
-                     ): Unit = {
+    vehicleId: Id[Vehicle],
+  ): Unit = {
 
     val rideHailAgent = rideHailManager
       .getRideHailAgentLocation(vehicleId)
@@ -62,9 +67,9 @@ class OutOfServiceVehicleManager(
   }
 
   def releaseTrigger(
-                      vehicleId: Id[Vehicle],
-                      triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
-                    ): Unit = {
+    vehicleId: Id[Vehicle],
+    triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+  ): Unit = {
     val rideHailAgent = rideHailManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
@@ -80,8 +85,8 @@ class OutOfServiceVehicleManager(
 case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
 
 case class MoveOutOfServiceVehicleToDepotParking(
-                                                  passengerSchedule: PassengerSchedule,
-                                                  tick: Double,
-                                                  vehicleId: Id[Vehicle],
-                                                  stall: ParkingStall
-                                                )
+  passengerSchedule: PassengerSchedule,
+  tick: Double,
+  vehicleId: Id[Vehicle],
+  stall: ParkingStall
+)

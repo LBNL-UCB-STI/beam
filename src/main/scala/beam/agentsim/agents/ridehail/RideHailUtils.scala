@@ -14,10 +14,10 @@ import scala.util.control.Breaks._
 object RideHailUtils {
 
   def getUpdatedBeamLegAfterStopDriving(
-                                         originalBeamLeg: BeamLeg,
-                                         stopTime: Int,
-                                         transportNetwork: TransportNetwork
-                                       ): BeamLeg = {
+    originalBeamLeg: BeamLeg,
+    stopTime: Int,
+    transportNetwork: TransportNetwork
+  ): BeamLeg = {
 
     if (stopTime < originalBeamLeg.startTime || stopTime >= originalBeamLeg.endTime) {
       originalBeamLeg
@@ -107,7 +107,7 @@ object RideHailUtils {
 
   // TODO: move to some utility class,   e.g. geo
   private def getDirectionCoordVector(startCoord: Coord, endCoord: Coord): Coord = {
-    new Coord((endCoord getX()) - startCoord.getX, endCoord.getY - startCoord.getY)
+    new Coord((endCoord getX ()) - startCoord.getX, endCoord.getY - startCoord.getY)
   }
 
   private def getCoord(startCoord: Coord, directionCoordVector: Coord): Coord = {

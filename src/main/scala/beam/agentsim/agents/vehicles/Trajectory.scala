@@ -15,6 +15,7 @@ object Trajectory {
 
   lazy val transformer: CoordinateTransformation = TransformationFactory
     .getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+
   @Inject
   var beamConfig: BeamConfig = _
 
@@ -92,8 +93,6 @@ class Trajectory(val path: Vector[SpaceTime]) {
   }
 
   protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
-    this.synchronized {
-      _path = _path ++ newTrajectory._path
-    }
+    _path ++= newTrajectory._path
   }
 }

@@ -17,8 +17,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   )
 
   def proposeVehicleAllocation(
-                                vehicleAllocationRequest: VehicleAllocationRequest
-                              ): VehicleAllocationResponse = {
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): VehicleAllocationResponse = {
     // closest request
     rideHailManager
       .getClosestIdleRideHailAgent(
@@ -34,10 +34,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   // TODO: is third argument really needed
   def updateVehicleAllocations(
-                                tick: Int,
-                                triggerId: Long,
-                                rideHailManager: RideHailManager
-                              ): Unit = {
+    tick: Int,
+    triggerId: Long,
+    rideHailManager: RideHailManager
+  ): Unit = {
     bufferedRideHailRequests.newTimeout(tick, triggerId)
 
     updateVehicleAllocations(tick, triggerId)
@@ -99,9 +99,9 @@ object RideHailResourceAllocationManager {
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
-             allocationManager: String,
-             rideHailManager: RideHailManager
-           ): RideHailResourceAllocationManager = {
+    allocationManager: String,
+    rideHailManager: RideHailManager
+  ): RideHailResourceAllocationManager = {
     allocationManager match {
       case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
         new DefaultRideHailResourceAllocationManager(rideHailManager)
@@ -131,21 +131,21 @@ object RideHailResourceAllocationManager {
 trait VehicleAllocationResponse
 
 case class RoutingRequiredToAllocateVehicle(
-                                             request: RideHailRequest,
-                                             routesRequired: List[RoutingRequest]
-                                           ) extends VehicleAllocationResponse
+  request: RideHailRequest,
+  routesRequired: List[RoutingRequest]
+) extends VehicleAllocationResponse
 
 case class VehicleAllocation(
-                              rideHailAgentLocation: RideHailAgentLocation,
-                              routingResponses: Option[List[RoutingResponse]]
-                            ) extends VehicleAllocationResponse
+  rideHailAgentLocation: RideHailAgentLocation,
+  routingResponses: Option[List[RoutingResponse]]
+) extends VehicleAllocationResponse
 
 case object NoVehicleAllocated extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(
-                                     request: RideHailRequest,
-                                     routingResponses: List[RoutingResponse]
-                                   )
+  request: RideHailRequest,
+  routingResponses: List[RoutingResponse]
+)
 
 //requestType: RideHailRequestType,
 //customer: VehiclePersonId,

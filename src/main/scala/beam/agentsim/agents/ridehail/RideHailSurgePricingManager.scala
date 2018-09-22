@@ -27,9 +27,9 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
   val timeBinSize
-  : Int = beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+    : Int = beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
   val numberOfCategories
-  : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+    : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
     .floor(Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1
@@ -40,6 +40,7 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
   val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
+
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
     beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
@@ -109,8 +110,8 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
   //Method to avoid code duplication
   private def updateForAllElements(
-                                    surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]]
-                                  )(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
+    surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]]
+  )(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
       for (j <- binArray.indices) {
         val surgePriceBin = binArray.apply(j)
@@ -201,8 +202,8 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
 // TODO put in companion object
 case class SurgePriceBin(
-                          previousIterationRevenue: Double,
-                          currentIterationRevenue: Double,
-                          previousIterationSurgePriceLevel: Double,
-                          currentIterationSurgePriceLevel: Double
-                        )
+  previousIterationRevenue: Double,
+  currentIterationRevenue: Double,
+  previousIterationSurgePriceLevel: Double,
+  currentIterationSurgePriceLevel: Double
+)

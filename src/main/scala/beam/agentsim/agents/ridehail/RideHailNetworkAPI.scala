@@ -59,7 +59,7 @@ class RideHailNetworkAPI {
   def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
     matsimNetwork match {
       case Some(network) => Some(network.getLinks)
-      case None => None
+      case None          => None
     }
   }
 
@@ -103,7 +103,7 @@ class RideHailNetworkAPI {
   def getClosestLink(coord: Coord): Option[Link] = {
     matsimNetwork match {
       case Some(network) => Some(NetworkUtils.getNearestLink(network, coord));
-      case None => None
+      case None          => None
     }
   }
 

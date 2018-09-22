@@ -13,23 +13,23 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-                            vehicleTypeId: String,
-                            seatingCapacity: Double,
-                            standingRoomCapacity: Double,
-                            lengthInMeter: Double,
-                            primaryFuelType: FuelType,
-                            primaryFuelConsumptionInJoule: Double,
-                            primaryFuelCapacityInJoule: Double,
-                            secondaryFuelType: FuelType,
-                            secondaryFuelConsumptionInJoule: Double,
-                            secondaryFuelCapacityInJoule: Double,
-                            automationLevel: String,
-                            maxVelocity: Double,
-                            passengerCarUnit: String,
-                            rechargeLevel2RateLimitInWatts: Double,
-                            rechargeLevel3RateLimitInWatts: Double,
-                            vehicleCategory: String
-                          ) {
+  vehicleTypeId: String,
+  seatingCapacity: Double,
+  standingRoomCapacity: Double,
+  lengthInMeter: Double,
+  primaryFuelType: FuelType,
+  primaryFuelConsumptionInJoule: Double,
+  primaryFuelCapacityInJoule: Double,
+  secondaryFuelType: FuelType,
+  secondaryFuelConsumptionInJoule: Double,
+  secondaryFuelCapacityInJoule: Double,
+  automationLevel: String,
+  maxVelocity: Double,
+  passengerCarUnit: String,
+  rechargeLevel2RateLimitInWatts: Double,
+  rechargeLevel3RateLimitInWatts: Double,
+  vehicleCategory: String
+) {
 
   def getCost(distance: Double): Double = {
     primaryFuelType.priceInDollarsPerMJoule * primaryFuelConsumptionInJoule * distance
@@ -39,6 +39,7 @@ case class BeamVehicleType(
 object BeamVehicleType {
 
   lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
+
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "BIKE-TYPE-DEFAULT",
     0,
@@ -57,6 +58,7 @@ object BeamVehicleType {
     0,
     "bicycle"
   )
+
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
       "BODY-TYPE-DEFAULT",
@@ -76,6 +78,7 @@ object BeamVehicleType {
       0,
       "Human"
     )
+
   //TODO
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
@@ -96,6 +99,7 @@ object BeamVehicleType {
       0,
       "TRANSIT"
     )
+
   val defaultRidehailBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
       "RIDEHAIL-TYPE-DEFAULT",
@@ -115,6 +119,7 @@ object BeamVehicleType {
       0,
       "RIDE_HAIL"
     )
+
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "CAR-TYPE-DEFAULT",
     0,
@@ -146,10 +151,10 @@ object BeamVehicleType {
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
     beamVehicle.beamVehicleType.vehicleCategory match {
       //TODO complete list
-      case "BIKE" => BIKE
+      case "BIKE"      => BIKE
       case "RIDE_HAIL" => RIDE_HAIL
-      case "CAR" => CAR
-      case _ => NONE
+      case "CAR"       => CAR
+      case _           => NONE
     }
   }
 }

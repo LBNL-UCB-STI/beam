@@ -9,12 +9,12 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 case class RideHailRequest(
-                            requestType: RideHailRequestType,
-                            customer: VehiclePersonId,
-                            pickUpLocation: Location,
-                            departAt: BeamTime,
-                            destination: Location
-                          ) {
+  requestType: RideHailRequestType,
+  customer: VehiclePersonId,
+  pickUpLocation: Location,
+  departAt: BeamTime,
+  destination: Location
+) {
 
   /**
     * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
