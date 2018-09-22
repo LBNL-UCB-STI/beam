@@ -32,7 +32,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
 
-      val diffPotential = computeRideHailDiffusionPotential(scenario, person)
+      val diffPotential = limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
       //        computeAutomatedVehicleDiffusionPotential(scenario, person)
 
       if (diffPotential > rand.nextDouble()) {
@@ -42,6 +42,8 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
       }
     }
   }
+
+  def limitToZeroOne(d: Double): Double = math.max(math.min(d,1.0),0.0)
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
 
@@ -64,11 +66,11 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   }
 
   def getDistanceToPD(plan: Plan): Double = {
-    lazy val activities = plan.getPlanElements.asScala.map(_.asInstanceOf[Activity])
+    val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity])
 
-    lazy val home = activities.find(isHome).head
+    val home = activities.find(isHome).head
 
-    lazy val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).lastOption
+    val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).lastOption
 
     val pd = activities.find(isWork).getOrElse(activities.find(isSchool).getOrElse(maxDurationActivity.getOrElse(home)))
 
@@ -98,7 +100,7 @@ object DiffusionPotentialPopulationAdjustment {
   val RIDE_HAIL = "ride_hail"
   val RIDE_HAIL_TRANSIT = "ride_hail_transit"
 
-  lazy val currentYear: Int = DateTime.now().year().get()
+  lazy val currentYear: Int = 2018 // Year of Whole Traveler SF Bay Survey // DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
     currentYear - age >= 1940 && currentYear - age < 1950
