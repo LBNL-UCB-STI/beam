@@ -32,28 +32,28 @@ import org.matsim.vehicles.Vehicle
   */
 object DrivesVehicle {
 
-  case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
+  case class StartLegTrigger(tick: Int, beamLeg: BeamLeg) extends Trigger
 
-  case class EndLegTrigger(tick: Double) extends Trigger
+  case class EndLegTrigger(tick: Int) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class NotifyLegEndTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class NotifyLegStartTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class StopDriving(tick: Double)
+  case class StopDriving(tick: Int)
 
   case class AddFuel(fuelInJoules: Double)
 
-  case class StartRefuelTrigger(tick: Double) extends Trigger
-  case class EndRefuelTrigger(tick: Double, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
+  case class StartRefuelTrigger(tick: Int) extends Trigger
+  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
   case object GetBeamVehicleState
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
-  case class StopDrivingIfNoPassengerOnBoard(tick: Double, requestId: Int)
+  case class StopDrivingIfNoPassengerOnBoard(tick: Int, requestId: Int)
 
-  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Double)
+  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
 
 }
 
@@ -65,7 +65,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
   private def handleStopDrivingIfNoPassengerOnBoard(
-    tick: Double,
+    tick: Int,
     requestId: Int,
     data: T
   ): State = {
@@ -411,9 +411,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
+<<<<<<< HEAD
 
         beamServices.beamRouter ! BeamRouter.GenerateLinkLeaveEnterEvents(beamLeg, data.currentVehicle.head)
 
+=======
+        val travelTime = (time: Int, linkId: Int) => {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          (edge.getLengthM / edge.calculateSpeed(
+            new ProfileRequest,
+            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
+          )).toInt
+        }
+        RoutingModel
+          .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)
+          .foreach(eventsManager.processEvent)
+>>>>>>> origin/cs/#496-deploy-ev-to-sfbay-4ci
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)
           .asInstanceOf[T] replying CompletionNotice(

@@ -34,7 +34,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   // TODO: is third argument really needed
   def updateVehicleAllocations(
-    tick: Double,
+    tick: Int,
     triggerId: Long,
     rideHailManager: RideHailManager
   ): Unit = {
@@ -60,7 +60,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   /*
     This method is called periodically
    */
-  def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
+  def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
     logger.trace("default implementation updateVehicleAllocations executed")
   }
 

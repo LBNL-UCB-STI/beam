@@ -105,15 +105,17 @@ class BeamSim @Inject()(
 
     beamServices.matsimServices = event.getServices
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
-      eventsManager,
-      transportNetwork,
-      event.getServices.getControlerIO,
-      scenario,
-      beamServices.geo,
-      beamServices.beamRouter,
-      beamServices.beamConfig
-    )
+    if(!beamServices.beamConfig.beam.physsim.skipPhysSim) {
+      agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
+        eventsManager,
+        transportNetwork,
+        event.getServices.getControlerIO,
+        scenario,
+        beamServices.geo,
+        beamServices.beamRouter,
+        beamServices.beamConfig
+      )
+    }
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
       eventsManager,
@@ -161,12 +163,16 @@ class BeamSim @Inject()(
         .tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
-    val physsimFuture = Future {
-      agentSimToPhysSimPlanConverter.startPhysSim(event)
-    }
+    if(beamServices.beamConfig.beam.physsim.skipPhysSim) {
+      Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
+    }else{
+      val physsimFuture = Future {
+        agentSimToPhysSimPlanConverter.startPhysSim(event)
+      }
 
-    // executing code blocks parallel
-    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+      // executing code blocks parallel
+      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+    }
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
@@ -178,6 +184,7 @@ class BeamSim @Inject()(
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
     Await.result(actorSystem.terminate(), Duration.Inf)
+    logger.info("Actor system shut down")
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)
     val outputFilesToDelete = Array(

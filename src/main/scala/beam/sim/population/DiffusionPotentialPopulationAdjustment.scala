@@ -2,22 +2,26 @@ package beam.sim.population
 
 import java.util.Random
 
-import beam.sim.config.BeamConfig
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import beam.sim.population.DiffusionPotentialPopulationAdjustment._
 import org.joda.time.DateTime
-import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
-class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
-  val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+import scala.collection.JavaConverters._
+
+class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+  val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val geo: GeoUtils = beamServices.geo
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    removeModeAll(population, "ride_hail", "ride_hail_transit")
+    removeModeAll(population, RIDE_HAIL, RIDE_HAIL_TRANSIT)
 
-    adjustPopulationByDiffusionPotential(scenario, "ride_hail", "ride_hail_transit")
+    adjustPopulationByDiffusionPotential(scenario, RIDE_HAIL, RIDE_HAIL_TRANSIT)
 
     population
   }
@@ -28,11 +32,8 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
 
-      val diffPotential =
-      // if (mode.toLowerCase.contains("ride_hail"))
-      //        computeRideHailDiffusionPotential(scenario, personId)
-      //      else
-        computeAutomatedVehicleDiffusionPotential(scenario, person)
+      val diffPotential = computeRideHailDiffusionPotential(scenario, person)
+      //        computeAutomatedVehicleDiffusionPotential(scenario, person)
 
       if (diffPotential > rand.nextDouble()) {
         modes.foreach(mode =>
@@ -43,49 +44,72 @@ class DiffusionPotentialPopulationAdjustment(beamConfig: BeamConfig) extends Pop
   }
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    val household = findHousehold(scenario, person.getId)
-    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
-    val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    if (isBornIn90s(age))// if above 18
-    //TODO: Distance to PD
+    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
+
+    if (age > 18) { // if above 18
+
+      lazy val household = findHousehold(scenario, person.getId)
+      val income = household.fold(0)(_.getIncome.getIncome.toInt)
+      val distanceToPD = getDistanceToPD(person.getPlans.get(0))
+
       (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
-        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
         (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
+        (if (distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if (distanceToPD > 20 && distanceToPD <= 50) 0.0687 else 0) +
         0.1947 // Constant
-    else
+    } else {
       0
+    }
+  }
+
+  def getDistanceToPD(plan: Plan): Double = {
+    lazy val activities = plan.getPlanElements.asScala.map(_.asInstanceOf[Activity])
+
+    lazy val home = activities.find(isHome).head
+
+    lazy val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).lastOption
+
+    val pd = activities.find(isWork).getOrElse(activities.find(isSchool).getOrElse(maxDurationActivity.getOrElse(home)))
+
+    activityDistanceInMiles(home, pd) * 1.4
+  }
+
+  def activityDistanceInMiles(orig: Activity, dest: Activity): Double = {
+    geo.distInMeters(orig.getCoord, dest.getCoord) * 0.000621371
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    val household = findHousehold(scenario, person.getId)
-    val age = person.getAttributes.getAttribute("age").asInstanceOf[Int]
-    val sex = person.getAttributes.getAttribute("sex").toString
+    lazy val household = findHousehold(scenario, person.getId)
+    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
+    val sex = person.getAttributes.getAttribute(PERSON_SEX).toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
-    if(isBornIn90s(age)) //if above 18
     (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
       (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
       (if (isFemale(sex)) -0.2513 else 0) +
       0.4558 // Constant
-    else
-      0
   }
 }
 
 object DiffusionPotentialPopulationAdjustment {
+  val PERSON_AGE = "age"
+  val PERSON_SEX = "sex"
+  val RIDE_HAIL = "ride_hail"
+  val RIDE_HAIL_TRANSIT = "ride_hail_transit"
+
   lazy val currentYear: Int = DateTime.now().year().get()
 
   def isBornIn40s(age: Int): Boolean = {
-    currentYear - age < 1950
+    currentYear - age >= 1940 && currentYear - age < 1950
   }
 
   def isBornIn80s(age: Int): Boolean = {
-    currentYear - age < 1990
+    currentYear - age >= 1980 && currentYear - age < 1990
   }
 
   def isBornIn90s(age: Int): Boolean = {
-    currentYear - age < 2000
+    currentYear - age >= 1990 && currentYear - age < 2000
   }
 
   def isIncome75to150K(income: Int): Boolean = {
@@ -104,19 +128,25 @@ object DiffusionPotentialPopulationAdjustment {
     sex.equalsIgnoreCase("F")
   }
 
-  def hasChildUnder8(household: Household, population: Population): Boolean = {
-    import scala.collection.JavaConverters._
-    household.getMemberIds.asScala.exists(m =>
-      findPerson(population, m).forall(_.getAttributes.getAttribute("age").asInstanceOf[Int] < 8))
+  def isHome(activity: Activity): Boolean = {
+    activity.getType.equalsIgnoreCase("Home")
   }
 
-  def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
-    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-    while (itrHouseholds.hasNext) {
-      val household = itrHouseholds.next()
-      if (household.getMemberIds.contains(personId)) return Some(household)
-    }
-    None
+  def isWork(activity: Activity): Boolean = {
+    activity.getType.equalsIgnoreCase("Work")
+  }
+
+  def isSchool(activity: Activity): Boolean = {
+    activity.getType.equalsIgnoreCase("School")
+  }
+
+  def activityDuration(activities: List[Activity]): Double = {
+    if (activities.size < 2) 0 else activities(1).getEndTime - activities.head.getEndTime
+  }
+
+  def hasChildUnder8(household: Household, population: Population): Boolean = {
+    household.getMemberIds.asScala.exists(m =>
+      findPerson(population, m).forall(_.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8))
   }
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
@@ -124,6 +154,15 @@ object DiffusionPotentialPopulationAdjustment {
     while (itrPerson.hasNext) {
       val person = itrPerson.next()
       if (person.getId.equals(personId)) return Some(person)
+    }
+    None
+  }
+
+  def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
+    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+    while (itrHouseholds.hasNext) {
+      val household = itrHouseholds.next()
+      if (household.getMemberIds.contains(personId)) return Some(household)
     }
     None
   }

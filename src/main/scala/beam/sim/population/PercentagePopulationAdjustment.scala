@@ -2,11 +2,11 @@ package beam.sim.population
 
 import java.util.Random
 
-import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.{Id, Scenario}
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Id, Scenario}
 
-class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationAdjustment {
+class PercentagePopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
@@ -19,7 +19,7 @@ class PercentagePopulationAdjustment(beamConfig: BeamConfig) extends PopulationA
   }
 
   def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
-    val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+    val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
     val numPop = population.getPersons.size()
     rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
       val personId = population.getPersons.keySet().toArray(new Array[Id[Person]](0))(num).toString

@@ -40,7 +40,7 @@ object BeamAgentScheduler {
 
   case class IllegalTriggerGoToError(reason: String) extends SchedulerMessage
 
-  case class DoSimStep(tick: Double) extends SchedulerMessage
+  case class DoSimStep(tick: Int) extends SchedulerMessage
 
   case class CompletionNotice(
     id: Long,
@@ -85,8 +85,8 @@ object BeamAgentScheduler {
 
   def SchedulerProps(
     beamConfig: BeamConfig,
-    stopTick: Double = 3600.0 * 24.0,
-    maxWindow: Double = 1.0,
+    stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
+    maxWindow: Int = 1,
     stuckFinder: StuckFinder
   ): Props = {
     Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
@@ -110,8 +110,8 @@ object BeamAgentScheduler {
 
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
-  stopTick: Double,
-  val maxWindow: Double,
+  stopTick: Int,
+  val maxWindow: Int,
   val stuckFinder: StuckFinder
 ) extends Actor
     with ActorLogging {
@@ -131,7 +131,7 @@ class BeamAgentScheduler(
 
   private var idCount: Long = 0L
   private var startSender: ActorRef = _
-  private var nowInSeconds: Double = 0.0
+  private var nowInSeconds: Int = 0
 
   private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
 
@@ -181,9 +181,9 @@ class BeamAgentScheduler(
       startedAt = Deadline.now
       stuckAgentChecker = scheduleStuckAgentCheck
       monitorTask = scheduleMonitorTask
-      doSimStep(0.0)
+      doSimStep(0)
 
-    case DoSimStep(newNow: Double) =>
+    case DoSimStep(newNow: Int) =>
       doSimStep(newNow)
 
     case notice @ CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
@@ -283,7 +283,7 @@ class BeamAgentScheduler(
   }
 
   @tailrec
-  private def doSimStep(newNow: Double): Unit = {
+  private def doSimStep(newNow: Int): Unit = {
     if (newNow <= stopTick) {
       nowInSeconds = newNow
 
@@ -319,7 +319,7 @@ class BeamAgentScheduler(
               ) / 10.0 + "(GB)"
             )
           }
-          doSimStep(nowInSeconds + 1.0)
+          doSimStep(nowInSeconds + 1)
         }
       }
 

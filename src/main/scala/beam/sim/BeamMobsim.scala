@@ -129,7 +129,7 @@ class BeamMobsim @Inject()(
           Props(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
-            Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime),
+            Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime).toInt,
             beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
             new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
@@ -137,6 +137,8 @@ class BeamMobsim @Inject()(
         )
         context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
         context.watch(scheduler)
+
+        beamServices.vehicles.clear() // important to purge data from previous iteration
 
         private val envelopeInUTM =
           beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
@@ -162,11 +164,17 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleRangeInMeters * 0.8) {
-          log.error(
-            "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-          )
+        beamServices.vehicleTypes.get(Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,classOf[BeamVehicleType])) match {
+          case Some(rhVehType) =>
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
+              log.error (
+              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
+            }
+          case None =>
+            log.error("Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found")
         }
+
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
@@ -330,7 +338,7 @@ class BeamMobsim @Inject()(
             val rideHailAgentRef: ActorRef =
               context.actorOf(rideHailAgentProps, rideHailName)
             context.watch(rideHailAgentRef)
-            scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailAgentRef)
+            scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
             rideHailAgents += rideHailAgentRef
 
             rideHailinitialLocationSpatialPlot
@@ -392,7 +400,6 @@ class BeamMobsim @Inject()(
             startSegment("agentsim-events", "agentsim")
 
             cleanupRideHailingAgents()
-            cleanupVehicle()
             population ! Finish
             val future = rideHailManager.ask(NotifyIterationEnds())
             Await.ready(future, timeout.duration).value
@@ -429,11 +436,11 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          val timerTrigger = RideHailAllocationManagerTimeout(0.0)
+          val timerTrigger = RideHailAllocationManagerTimeout(0)
           val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
           scheduler ! timerMessage
 
-          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0.0), rideHailManager)
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0), rideHailManager)
           log.info(s"rideHailManagerTimerScheduled")
         }
 
@@ -441,14 +448,6 @@ class BeamMobsim @Inject()(
           rideHailAgents.foreach(_ ! Finish)
           rideHailAgents = new ArrayBuffer()
 
-        }
-
-        private def cleanupVehicle(): Unit = {
-          // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
-          scenario.getPopulation.getPersons.keySet().forEach { personId =>
-            val bodyVehicleId = BeamVehicle.createId(personId, Some("Body"))
-            beamServices.vehicles -= bodyVehicleId
-          }
         }
 
       }),
