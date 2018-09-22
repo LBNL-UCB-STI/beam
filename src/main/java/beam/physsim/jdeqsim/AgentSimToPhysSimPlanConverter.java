@@ -77,23 +77,26 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           ActorRef router,
                                           BeamConfig beamConfig) {
 
-        eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.router = router;
-        this.beamConfig = beamConfig;
-        this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
-        agentSimScenario = scenario;
-        agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
-        if (agentSimPhysSimInterfaceDebuggerEnabled) {
-            log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
+        if(!beamConfig.beam().physsim().skipPhysSim()){
+            eventsManager.addHandler(this);
+            this.beamConfig = beamConfig;
+            this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
+            agentSimScenario = scenario;
+            agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
+
+            if (agentSimPhysSimInterfaceDebuggerEnabled) {
+                log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
+                agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
+            }
+
+            preparePhysSimForNewIteration();
+
+            linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+            linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         }
-
-        preparePhysSimForNewIteration();
-
-        linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {

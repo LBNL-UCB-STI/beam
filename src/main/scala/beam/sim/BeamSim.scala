@@ -161,12 +161,16 @@ class BeamSim @Inject()(
         .tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
-    val physsimFuture = Future {
-      agentSimToPhysSimPlanConverter.startPhysSim(event)
-    }
+    if(beamServices.beamConfig.beam.physsim.skipPhysSim) {
+      Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
+    }else{
+      val physsimFuture = Future {
+        agentSimToPhysSimPlanConverter.startPhysSim(event)
+      }
 
-    // executing code blocks parallel
-    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+      // executing code blocks parallel
+      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+    }
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
