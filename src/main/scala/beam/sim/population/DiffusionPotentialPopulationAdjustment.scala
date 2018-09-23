@@ -162,15 +162,6 @@ object DiffusionPotentialPopulationAdjustment {
       population.getPersons.get(m).getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8)
   }
 
-  def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
-    val itrPerson = population.getPersons.values().iterator()
-    while (itrPerson.hasNext) {
-      val person = itrPerson.next()
-      if (person.getId.equals(personId)) return Some(person)
-    }
-    None
-  }
-
   /*val dependentVariables = Map(
     "RIDE_HAIL_SINGLE" -> Map(
       "1980" -> 0.2654,
