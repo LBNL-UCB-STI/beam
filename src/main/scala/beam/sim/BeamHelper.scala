@@ -202,7 +202,7 @@ trait BeamHelper extends LazyLogging {
           addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
-          addPlanStrategyBinding("ClearModes").to(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
