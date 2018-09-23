@@ -202,7 +202,7 @@ class BeamMobsim @Inject()(
         Await.result(population ? Identify(0), timeout.duration)
 
         private val numRideHailAgents = math.round(
-          scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
+          beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
         private val rideHailVehicleType = BeamVehicleUtils
           .getVehicleTypeById(
@@ -297,10 +297,10 @@ class BeamMobsim @Inject()(
             val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
             //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
-            val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+            val ridehailBeamVehicleTypeId = Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,classOf[BeamVehicleType])
             val ridehailBeamVehicleType = beamServices.vehicleTypes
               .get(ridehailBeamVehicleTypeId)
-              .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
+              .getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
 
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])

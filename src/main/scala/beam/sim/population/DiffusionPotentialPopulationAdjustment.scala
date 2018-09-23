@@ -11,13 +11,19 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
+  val personToHousehold: mutable.HashMap[Id[Person],Household] = new mutable.HashMap()
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
+
+    scenario.getHouseholds.getHouseholds.values().forEach{ household: Household =>
+      household.getMemberIds.forEach( person => personToHousehold.put(person,household))
+    }
 
     removeModeAll(population, RIDE_HAIL, RIDE_HAIL_TRANSIT)
 
@@ -28,6 +34,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
   def adjustPopulationByDiffusionPotential(scenario: Scenario, modes: String*): Unit = {
     val population = scenario.getPopulation
+
 
     scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
       val personId = person.getId.toString
@@ -55,7 +62,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
 
     if (age > 18) { // if above 18
 
-      lazy val household = findHousehold(scenario, person.getId)
+      val household = personToHousehold.get(person.getId)
       val income = household.fold(0)(_.getIncome.getIncome.toInt)
       val distanceToPD = getDistanceToPD(person.getPlans.get(0))
 
@@ -86,7 +93,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
-    lazy val household = findHousehold(scenario, person.getId)
+    val household = personToHousehold.get(person.getId)
     val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
     val sex = person.getAttributes.getAttribute(PERSON_SEX).toString
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
@@ -152,7 +159,7 @@ object DiffusionPotentialPopulationAdjustment {
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {
     household.getMemberIds.asScala.exists(m =>
-      findPerson(population, m).forall(_.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8))
+      population.getPersons.get(m).getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8)
   }
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
@@ -160,15 +167,6 @@ object DiffusionPotentialPopulationAdjustment {
     while (itrPerson.hasNext) {
       val person = itrPerson.next()
       if (person.getId.equals(personId)) return Some(person)
-    }
-    None
-  }
-
-  def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
-    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-    while (itrHouseholds.hasNext) {
-      val household = itrHouseholds.next()
-      if (household.getMemberIds.contains(personId)) return Some(household)
     }
     None
   }
