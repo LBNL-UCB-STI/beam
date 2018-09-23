@@ -23,7 +23,6 @@ object BeamVehicleUtils {
       powertrain,
       None,
       bvt,
-      None,
       None
     )
   }

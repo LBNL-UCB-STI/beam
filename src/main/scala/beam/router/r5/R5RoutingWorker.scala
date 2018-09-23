@@ -4,12 +4,14 @@ import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
 import java.util.UUID
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.Executors
 
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
@@ -36,7 +38,6 @@ import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
@@ -156,8 +157,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
-  private val execSvc: ExecutorService = Executors.newFixedThreadPool(numOfThreads, new ThreadFactoryBuilder().setDaemon(true).build())
-  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
+  implicit val executionContext: ExecutionContext =
+    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
 
   val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
@@ -245,7 +246,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         cache.invalidateAll()
       }
       askForMoreWork()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
+    case EmbodyWithCurrentTravelTime(
+        leg: BeamLeg,
+        vehicleId: Id[Vehicle],
+        embodyRequestId: UUID,
+        mustParkAtEnd: Boolean
+        ) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
@@ -270,19 +276,44 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         .maxBy(e => e.getTime)
         .getTime - leg.startTime
 
+      val finalLegs = if (mustParkAtEnd) {
+        val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
+        val embodiedPair = Vector(
+          EmbodiedBeamLeg(
+            legPair.head,
+            vehicleId,
+            asDriver = true,
+            None,
+            BigDecimal.valueOf(0),
+            unbecomeDriverOnCompletion = false
+          ),
+          EmbodiedBeamLeg(
+            legPair.last,
+            vehicleId,
+            asDriver = true,
+            None,
+            BigDecimal.valueOf(0),
+            unbecomeDriverOnCompletion = true
+          )
+        )
+        if (legPair.size == 1) { Vector(embodiedPair.head) } else { embodiedPair }
+      } else {
+        Vector(
+          EmbodiedBeamLeg(
+            leg.copy(duration = duration.toInt),
+            vehicleId,
+            asDriver = true,
+            None,
+            BigDecimal.valueOf(0),
+            unbecomeDriverOnCompletion = true
+          )
+        )
+      }
+
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
-            Vector(
-              EmbodiedBeamLeg(
-                leg.copy(duration = duration.toInt),
-                vehicleId,
-                asDriver = true,
-                None,
-                BigDecimal.valueOf(0),
-                unbecomeDriverOnCompletion = true
-              )
-            )
+            finalLegs
           )
         ),
         embodyRequestId
@@ -559,43 +590,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
           )
         }
-      def splitLegForParking(leg: BeamLeg): IndexedSeq[BeamLeg] = {
-        val theLinkIds = leg.travelPath.linkIds
-        if (theLinkIds.length <= 1) {
-          Vector(leg)
-        } else if (leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters) {
-          val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
-          val secondLeg = updateLegWithCurrentTravelTime(
-            leg
-              .updateLinks(theLinkIds.tail)
-              .copy(startTime = firstLeg.startTime + firstLeg.duration)
-          )
-          Vector(firstLeg, secondLeg)
-        } else {
-          val indexFromEnd = Math.min(
-            Math.max(
-              theLinkIds.reverse
-                .map(lengthOfLink)
-                .scanLeft(0.0)(_ + _)
-                .indexWhere(
-                  _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-                ),
-              1
-            ),
-            theLinkIds.length - 1
-          )
-          val indexFromBeg = theLinkIds.length - indexFromEnd
-          val firstLeg = updateLegWithCurrentTravelTime(
-            leg.updateLinks(theLinkIds.take(indexFromBeg))
-          )
-          val secondLeg = updateLegWithCurrentTravelTime(
-            leg
-              .updateLinks(theLinkIds.takeRight(indexFromEnd))
-              .copy(startTime = firstLeg.startTime + firstLeg.duration)
-          )
-          Vector(firstLeg, secondLeg)
-        }
-      }
 
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
@@ -831,6 +825,44 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     } else {
       RoutingResponse(embodiedTrips, routingRequest.staticRequestId, Some(routingRequest.requestId))
+    }
+  }
+
+  def splitLegForParking(leg: BeamLeg): IndexedSeq[BeamLeg] = {
+    val theLinkIds = leg.travelPath.linkIds
+    if (theLinkIds.length <= 1) {
+      Vector(leg)
+    } else if (leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters) {
+      val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
+      val secondLeg = updateLegWithCurrentTravelTime(
+        leg
+          .updateLinks(theLinkIds.tail)
+          .copy(startTime = firstLeg.startTime + firstLeg.duration)
+      )
+      Vector(firstLeg, secondLeg)
+    } else {
+      val indexFromEnd = Math.min(
+        Math.max(
+          theLinkIds.reverse
+            .map(lengthOfLink)
+            .scanLeft(0.0)(_ + _)
+            .indexWhere(
+              _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+            ),
+          1
+        ),
+        theLinkIds.length - 1
+      )
+      val indexFromBeg = theLinkIds.length - indexFromEnd
+      val firstLeg = updateLegWithCurrentTravelTime(
+        leg.updateLinks(theLinkIds.take(indexFromBeg))
+      )
+      val secondLeg = updateLegWithCurrentTravelTime(
+        leg
+          .updateLinks(theLinkIds.takeRight(indexFromEnd))
+          .copy(startTime = firstLeg.startTime + firstLeg.duration)
+      )
+      Vector(firstLeg, secondLeg)
     }
   }
 
