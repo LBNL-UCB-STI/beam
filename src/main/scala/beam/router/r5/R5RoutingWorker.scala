@@ -16,7 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
@@ -753,6 +753,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       })
 
       tripsWithFares.map(tripWithFares => {
+        val indexOfFirstCarLegInParkingTrip = tripWithFares.trip.legs
+          .sliding(2)
+          .indexWhere(pair => pair.size == 2 && pair.head.mode == CAR && pair.head.mode == pair.last.mode)
         val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
           for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
             val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
@@ -767,7 +770,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               )
             } else {
               val unbecomeDriverAtComplete = Modes
-                .isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || index == tripWithFares.trip.legs.size - 1)
+                .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR && (indexOfFirstCarLegInParkingTrip < 0 || index != indexOfFirstCarLegInParkingTrip)) ||
+              (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
+              (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
               if (beamLeg.mode == WALK) {
                 val body =
                   routingRequest.streetVehicles.find(_.mode == WALK).get
