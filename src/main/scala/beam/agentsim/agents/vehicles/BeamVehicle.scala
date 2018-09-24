@@ -31,8 +31,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-  val refuelRateLimitInJoulesPerSecond: Option[Double]
+  val beamVehicleType: BeamVehicleType
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
@@ -124,7 +123,8 @@ class BeamVehicle(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
-          refuelRateLimitInJoulesPerSecond,
+          Some(beamVehicleType.rechargeLevel2RateLimitInWatts),
+          Some(beamVehicleType.rechargeLevel3RateLimitInWatts),
           None
         )
       case None =>

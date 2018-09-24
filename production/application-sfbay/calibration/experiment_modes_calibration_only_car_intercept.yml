@@ -1,0 +1,52 @@
+---
+
+# Header
+
+header:
+    title: difussion-base-calib-modes-car-intercept
+    author: BEAM Developers
+    beamTemplateConfPath: production/application-sfbay/diffusion-base-calib.conf
+    modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
+    numWorkers: 10
+    params:
+      ### ---- run template env variables ---####
+      EXPERIMENT_MAX_RAM: 16g
+      S3_OUTPUT_PATH_SUFFIX: "application-sfbay"
+      DROP_OUTPUT_ONCOMPLETE: "true"
+      IS_PARALLEL: "false"
+
+      runName: "modes_intercept_ absError_ModeDiversity_it10_B"
+      beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
+      beamCommit: "8043505324ac709d2f9983be0d3222fa925756c3"
+      deployMode: "execute"
+      executeClass: "beam.calibration.RunCalibration"
+      beamBatch: "false"
+      shutdownWait: "15"
+      shutdownBehavior: "stop"
+      s3Backup: "true"
+      maxRAM: "140g"
+      region: "us-east-2"
+      instanceType: "c5.18xlarge"
+
+
+
+# Default Params
+
+defaultParams:
+    ### ---- template model params ---####
+
+
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.tuning.transitCapacity: 0.5
+    beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+
+# Factors
+factors:
+  - title: walkTransitIntercept
+    levels:
+    - name: Low
+      params:
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: -15.0
+    - name: High
+      params:
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 0.0
