@@ -5,7 +5,7 @@
 header:
     title: EV-Fleet-QOS-80
     author: Colin
-    beamTemplateConfPath: production/application-sfbay/experiments/ev-fleet-qos/ev-fleet.conf
+    beamTemplateConfPath: production/application-sfbay/experiments/ev-fleet-qos-S80/ev-fleet.conf
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 140g
