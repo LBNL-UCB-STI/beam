@@ -348,7 +348,7 @@ class RideHailManager(
                 .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
                 .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
-            log.info("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
+            log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
               log.debug("Initiate refuel session for vehicle: {}", vehicleId)
