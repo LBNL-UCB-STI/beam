@@ -27,21 +27,12 @@ public class LoggingUtil {
 
         final FileAppender<ILoggingEvent> fileAppender = new FileAppender<>();
         fileAppender.setFile(String.format("%s/beam-log.out", outputDirectory));
-        fileAppender.setName("beamOutFile");
         fileAppender.setEncoder(ple);
         fileAppender.setContext(lc);
         fileAppender.start();
 
         final Logger rootLogger = lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         rootLogger.addAppender(fileAppender);
-        rootLogger.setAdditive(true); /* set to true if root should log too */
-    }
-
-    public static void detachOldFileLogger() {
-        final LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
-
-        final Logger rootLogger = lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
-        rootLogger.detachAppender("beamOutFile");
         rootLogger.setAdditive(true); /* set to true if root should log too */
     }
 }

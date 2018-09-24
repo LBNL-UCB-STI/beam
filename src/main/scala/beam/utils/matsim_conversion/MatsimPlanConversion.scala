@@ -178,7 +178,8 @@ object MatsimPlanConversion {
       Some(GenAttr(None, key, value, next))
   }
 
-  def unchainMetaData(m: MetaData): Iterable[GenAttr] = m.flatMap(decomposeMetaData)
+  def unchainMetaData(m: MetaData): Iterable[GenAttr] =
+    m flatMap (decomposeMetaData)
 
   def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
     case Nil          => Null

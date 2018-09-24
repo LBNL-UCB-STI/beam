@@ -381,7 +381,8 @@ object BeamRouter {
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
-    id: UUID = UUID.randomUUID()
+    id: UUID = UUID.randomUUID(),
+    mustParkAtEnd: Boolean = false
   )
   case class UpdateTravelTime(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
