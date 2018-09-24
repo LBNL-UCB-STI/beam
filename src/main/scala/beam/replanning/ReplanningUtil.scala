@@ -1,25 +1,19 @@
 package beam.replanning
 
-import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
-import org.matsim.core.config.Config
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
-import org.matsim.core.replanning.{PlanStrategy, ReplanningContext}
+import org.matsim.core.population.PopulationUtils
+import org.matsim.core.replanning.selectors.RandomPlanSelector
 
 import scala.collection.JavaConverters._
 
-class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
+object ReplanningUtil {
 
-  if (!config.planCalcScore().isMemorizingExperiencedPlans) {
-    throw new RuntimeException("Must memorize experienced plans for this to work.")
-  }
-
-  override def init(replanningContext: ReplanningContext): Unit = {}
-
-  override def run(person: HasPlansAndId[Plan, Person]): Unit = {
+  def updateAndAddExperiencedPlan[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
       .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
       .asInstanceOf[Plan]
+
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
       // BeamMobsim needs activities with coords
       val plannedActivities =
@@ -39,12 +33,19 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
       )
       attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
-      person.addPlan(experiencedPlan)
-      person.setSelectedPlan(experiencedPlan)
+      person.asInstanceOf[Person].addPlan(experiencedPlan)
+      person.removePlan(person.getSelectedPlan)
+      person.asInstanceOf[Person].setSelectedPlan(experiencedPlan)
     } else {
       person.addPlan(person.getSelectedPlan)
     }
   }
 
-  override def finish(): Unit = {}
+  def copyRandomPlanAndSelectForMutation(person: Person): Unit = {
+    person.setSelectedPlan(new RandomPlanSelector().selectPlan(person))
+    val newPlan = PopulationUtils.createPlan(person.getSelectedPlan.getPerson)
+    PopulationUtils.copyFromTo(person.getSelectedPlan, newPlan)
+    person.addPlan(newPlan)
+    person.setSelectedPlan(newPlan)
+  }
 }

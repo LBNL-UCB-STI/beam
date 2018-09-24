@@ -15,13 +15,20 @@ trait PopulationAdjustment extends LazyLogging {
     result
   }
 
-
   protected final def logModes(population: Population): Unit = {
     import scala.collection.JavaConverters._
     logger.info("Modes' Availability:")
-    population.getPersons.keySet().asScala.map(personId =>
-      population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
-    ).toList.flatten.groupBy(identity).mapValues(_.size).foreach(t => logger.info(t.toString()))
+    population.getPersons
+      .keySet()
+      .asScala
+      .map(
+        personId => population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
+      )
+      .toList
+      .flatten
+      .groupBy(identity)
+      .mapValues(_.size)
+      .foreach(t => logger.info(t.toString()))
   }
 
   protected def updatePopulation(scenario: Scenario): Population
@@ -46,12 +53,13 @@ trait PopulationAdjustment extends LazyLogging {
   protected def removeMode(population: Population, personId: String, modeToRemove: String*): Unit = {
 
     val modes = population.getPersonAttributes.getAttribute(personId, AVAILABLE_MODES).toString
-    modeToRemove.foreach(mode =>
-      population.getPersonAttributes
-        .putAttribute(
-          personId,
-          AVAILABLE_MODES,
-          modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+    modeToRemove.foreach(
+      mode =>
+        population.getPersonAttributes
+          .putAttribute(
+            personId,
+            AVAILABLE_MODES,
+            modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
         )
     )
   }
@@ -60,12 +68,13 @@ trait PopulationAdjustment extends LazyLogging {
   protected def removeModeAll(population: Population, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { person =>
       val modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
-      modeToRemove.foreach(mode =>
-        population.getPersonAttributes
-          .putAttribute(
-            person.toString,
-            AVAILABLE_MODES,
-            modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+      modeToRemove.foreach(
+        mode =>
+          population.getPersonAttributes
+            .putAttribute(
+              person.toString,
+              AVAILABLE_MODES,
+              modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
           )
       )
     }

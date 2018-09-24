@@ -16,13 +16,13 @@ import scala.collection.mutable
 class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
-  val personToHousehold: mutable.HashMap[Id[Person],Household] = new mutable.HashMap()
+  val personToHousehold: mutable.HashMap[Id[Person], Household] = new mutable.HashMap()
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    scenario.getHouseholds.getHouseholds.values().forEach{ household: Household =>
-      household.getMemberIds.forEach( person => personToHousehold.put(person,household))
+    scenario.getHouseholds.getHouseholds.values().forEach { household: Household =>
+      household.getMemberIds.forEach(person => personToHousehold.put(person, household))
     }
 
     removeModeAll(population, RIDE_HAIL, RIDE_HAIL_TRANSIT)
@@ -35,26 +35,25 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
   def adjustPopulationByDiffusionPotential(scenario: Scenario, modes: String*): Unit = {
     val population = scenario.getPopulation
 
+    scenario.getPopulation.getPersons.forEach {
+      case (_, person: Person) =>
+        val personId = person.getId.toString
 
-    scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
-      val personId = person.getId.toString
+        val diffPotential =
+          if (beamServices.beamConfig.beam.agentsim.populationAdjustment
+                .equalsIgnoreCase(PopulationAdjustment.DIFFUSION_POTENTIAL_ADJUSTMENT_RH)) {
+            limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
+          } else {
+            limitToZeroOne(computeAutomatedVehicleDiffusionPotential(scenario, person))
+          }
 
-      val diffPotential =
-      if(beamServices.beamConfig.beam.agentsim.populationAdjustment.equalsIgnoreCase(PopulationAdjustment.DIFFUSION_POTENTIAL_ADJUSTMENT_RH)){
-        limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
-      }else{
-        limitToZeroOne(computeAutomatedVehicleDiffusionPotential(scenario, person))
-      }
-
-      if (diffPotential > rand.nextDouble()) {
-        modes.foreach(mode =>
-          addMode(population, personId, mode)
-        )
-      }
+        if (diffPotential > rand.nextDouble()) {
+          modes.foreach(mode => addMode(population, personId, mode))
+        }
     }
   }
 
-  def limitToZeroOne(d: Double): Double = math.max(math.min(d,1.0),0.0)
+  def limitToZeroOne(d: Double): Double = math.max(math.min(d, 1.0), 0.0)
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
 
@@ -67,10 +66,12 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
       val distanceToPD = getDistanceToPD(person.getPlans.get(0))
 
       (if (isBornIn80s(age)) 0.2654 else if (isBornIn90s(age)) 0.2706 else 0) +
-        (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
-        (if (isIncomeAbove200K(income)) 0.1252 else 0) +
-        (if (distanceToPD > 10 && distanceToPD <= 20) 0.0997 else if (distanceToPD > 20 && distanceToPD <= 50) 0.0687 else 0) +
-        0.1947 // Constant
+      (if (household.nonEmpty && hasChildUnder8(household.get, scenario.getPopulation)) -0.1230 else 0) +
+      (if (isIncomeAbove200K(income)) 0.1252 else 0) +
+      (if (distanceToPD > 10 && distanceToPD <= 20) 0.0997
+       else if (distanceToPD > 20 && distanceToPD <= 50) 0.0687
+       else 0) +
+      0.1947 // Constant
     } else {
       0
     }
@@ -99,9 +100,12 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
     (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
-      (if (isIncome75to150K(income)) 0.0892 else if (isIncome150to200K(income)) 0.1410 else if (isIncomeAbove200K(income)) 0.1925 else 0) +
-      (if (isFemale(sex)) -0.2513 else 0) +
-      0.4558 // Constant
+    (if (isIncome75to150K(income)) 0.0892
+     else if (isIncome150to200K(income)) 0.1410
+     else if (isIncomeAbove200K(income)) 0.1925
+     else 0) +
+    (if (isFemale(sex)) -0.2513 else 0) +
+    0.4558 // Constant
   }
 }
 
@@ -158,8 +162,8 @@ object DiffusionPotentialPopulationAdjustment {
   }
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {
-    household.getMemberIds.asScala.exists(m =>
-      population.getPersons.get(m).getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8)
+    household.getMemberIds.asScala
+      .exists(m => population.getPersons.get(m).getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8)
   }
 
   /*val dependentVariables = Map(
