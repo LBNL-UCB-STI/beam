@@ -1,10 +1,9 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
-import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.time.Instant
 
 buildscript {
     repositories {
@@ -57,7 +56,7 @@ targetCompatibility = 1.8
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.5.16"
-def circeBinaryVersion="0.7.1"
+def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
 def tscfgVersion = "0.9.4"
@@ -151,7 +150,7 @@ dependencies {
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
 
-    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.10.0'
@@ -169,7 +168,6 @@ dependencies {
     compile "com.sigopt:sigopt-java:4.9.0"
 
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
-
 
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
@@ -197,7 +195,7 @@ dependencies {
     // 3rd Party Scala //
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
-    compile ('com.github.carueda:tscfg:v'+ tscfgVersion){ // config
+    compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
     // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
@@ -305,10 +303,10 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+            (project.hasProperty('config') ? '-Dconfig=' + project.findProperty('config') :
+                    (project.hasProperty('iterations') ? '-Diterations=' + project.findProperty('iterations') : '')) <<
             (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+                    '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -344,23 +342,23 @@ def getCurrentGitBranch() {
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
         switch (project.findProperty('deployMode')) {
             case 'config':
-                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
                     throw new GradleException('beamConfigs is required to deploy config run.')
                 }
                 break
             case 'experiment':
-                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
                     throw new GradleException('beamExperiments is required to deploy experement.')
                 }
                 break
             case 'execute':
-                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
                     throw new GradleException('executeClass and executeArgs are required to deploy execute.')
                 }
                 break
@@ -375,8 +373,10 @@ task deploy(type: AWSLambdaInvokeTask) {
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
-  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${
+        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
+    }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
@@ -401,7 +401,7 @@ task deploy(type: AWSLambdaInvokeTask) {
 
 task startEC2(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
+        if (!project.hasProperty('instanceIds')) {
             throw new GradleException('Please specify instance ids using argument `instanceIds`.')
         }
     }
@@ -424,7 +424,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
 
 task stopEC2(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
+        if (!project.hasProperty('instanceIds')) {
             throw new GradleException('Please specify instance ids using argument `instanceIds`.')
         }
     }
@@ -449,10 +449,10 @@ task stopEC2(type: AWSLambdaInvokeTask) {
 //////////////////////////////////////////////////////////////////////
 task generateConfig {
     doLast {
-        def tscfgJarFile = project.file('build/tscfg-'+tscfgVersion+'.jar')
+        def tscfgJarFile = project.file('build/tscfg-' + tscfgVersion + '.jar')
         if (!tscfgJarFile.exists() || !tscfgJarFile.isFile()) {
             download {
-                src 'https://github.com/carueda/tscfg/releases/download/v'+tscfgVersion+'/tscfg-'+tscfgVersion+'.jar'
+                src 'https://github.com/carueda/tscfg/releases/download/v' + tscfgVersion + '/tscfg-' + tscfgVersion + '.jar'
                 dest buildDir
             }
         }
@@ -509,6 +509,23 @@ docker {
         ports = [2552]
         tag = 'beammodel/beam:latest'
     }
+
+    startScripts {
+        def configureExec = { line ->
+            line = line.replaceAll(~/^exec .*$/) { original ->
+                "export HOSTNAME_VALUE=\$(eval \"\$HOSTNAME_COMMAND\")\n" + original
+            }
+        }
+
+        doLast {
+            // Alter the start script for Unix systems.
+            unixScript.text =
+                    unixScript
+                            .readLines()
+                            .collect(configureExec)
+                            .join('\n')
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -536,7 +553,7 @@ def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getC
 //applicationDefaultJvmArgs = ["-Xmx140g"] + logGC
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam / 2}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=500M"] + logGC
 
 println(applicationDefaultJvmArgs)
@@ -563,11 +580,11 @@ run {
 //  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-task execute(type:JavaExec) {
+task execute(type: JavaExec) {
     jvmArgs = applicationDefaultJvmArgs
-    if(project.hasProperty("mainClass")){
+    if (project.hasProperty("mainClass")) {
         main = mainClass
-    }else{
+    } else {
         main = mainClassName
     }
     classpath = sourceSets.main.runtimeClasspath
@@ -587,12 +604,12 @@ task execute(type:JavaExec) {
 jar {
     manifest {
         attributes(
-                'Built-By'       : System.properties['user.name'],
+                'Built-By': System.properties['user.name'],
                 'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
-                'Created-By'     : "Gradle ${gradle.gradleVersion}",
-                'Build-Jdk'      : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
-                'Build-OS'       : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
-                'Specification-Title' : "Java Advanced Imaging Image I/O Tools",
+                'Created-By': "Gradle ${gradle.gradleVersion}",
+                'Build-Jdk': "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+                'Build-OS': "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
+                'Specification-Title': "Java Advanced Imaging Image I/O Tools",
                 'Specification-Version': "1.1",
                 'Specification-Vendor': "Sun Microsystems, Inc.",
                 'Implementation-Title': "com.sun.media.imageio",

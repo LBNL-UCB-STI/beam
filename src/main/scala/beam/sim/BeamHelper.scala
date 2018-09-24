@@ -1,6 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
+import java.net.NetworkInterface
 import java.nio.file.{Files, Paths}
 import java.util.Properties
 
@@ -21,7 +22,7 @@ import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
@@ -114,11 +115,16 @@ trait BeamHelper extends LazyLogging {
       nodeHost    <- parsedArgs.nodeHost
       nodePort    <- parsedArgs.nodePort
     } yield {
+
+      val hostName = Some(nodeHost)
+        .filterNot(_.contains("$"))
+        .getOrElse(System.getenv(nodeHost.replace("$", "")))
+
       config.withFallback(
         ConfigFactory.parseMap(
           Map(
             "seed.address" -> seedAddress,
-            "node.host"    -> nodeHost,
+            "node.host"    -> hostName,
             "node.port"    -> nodePort
           ).asJava
         )
