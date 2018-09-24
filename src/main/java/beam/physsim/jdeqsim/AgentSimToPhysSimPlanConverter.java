@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
@@ -55,6 +56,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
+    private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -94,6 +96,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -134,6 +137,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkSpeedDistributionStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
@@ -173,9 +177,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             linkStatsGraph.clean();
         });
 
-        CompletableFuture.runAsync(() -> {
-            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
-        });
+        CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
+
+        CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
 
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
