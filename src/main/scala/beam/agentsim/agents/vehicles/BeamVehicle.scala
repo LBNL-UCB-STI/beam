@@ -31,16 +31,11 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-  var fuelLevelInJoules: Option[Double],
-  val refuelRateLimitInJoulesPerSecond: Option[Double]
+  val beamVehicleType: BeamVehicleType
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
-  /**
-    * Identifier for this vehicle
-    */
-//  val id: Id[BeamVehicle] = vehicleId
+  var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -75,7 +70,7 @@ class BeamVehicle(
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
       BecomeDriverOfVehicleSuccess
-    } else if (driver.get == newDriverRef) {
+    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
       NewDriverAlreadyControllingVehicle
     } else {
       DriverAlreadyAssigned(driver.get)
@@ -128,7 +123,8 @@ class BeamVehicle(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
-          refuelRateLimitInJoulesPerSecond,
+          Some(beamVehicleType.rechargeLevel2RateLimitInWatts),
+          Some(beamVehicleType.rechargeLevel3RateLimitInWatts),
           None
         )
       case None =>

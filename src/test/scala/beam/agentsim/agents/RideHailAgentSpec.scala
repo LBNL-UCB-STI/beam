@@ -161,7 +161,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -239,9 +239,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -309,9 +307,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)

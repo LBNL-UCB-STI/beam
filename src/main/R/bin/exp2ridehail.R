@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-06/'
+  args<-'/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-21/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -80,7 +80,7 @@ scale_fill_manual(values = colours)
 # Ride Hail Fleet Plots
 #########################
 
-rh <- ev[J('PathTraversal')][vehicle_type=='BEV' & substr(vehicle,1,5)=='rideH'][,.(time=departure_time,duration=(arrival_time-departure_time),vehicle,num_passengers,length,start.x,start.y,end.x,end.y,kwh=fuel/3.6e6,run)]
+rh <- ev[J('PathTraversal')][substr(vehicle,1,5)=='rideH'][,.(time=departure_time,duration=(arrival_time-departure_time),vehicle,num_passengers,length,start.x,start.y,end.x,end.y,kwh=fuel/3.6e6,run)]
 rh[duration==0,duration:=1]
 rh[,speed:=length/1609/(duration/3600)]
 rh <- rh[start.x < -100]
@@ -101,6 +101,8 @@ ref[,type:='Charge']
 both <- rbindlist(list(rh,ref),use.names=T,fill=T)
 setkey(both,time)
 both[,hour:=floor(time/3600)]
+
+write.csv(both,file=pp(plots.dir,'/beam-ev-ride-hail-trips-and-charging.csv'),row.names=F)
 
 #write.csv(rh,file='/Users/critter/Downloads/output 3/application-sfbay/base__2018-06-18_16-21-35/ITERS/it.1/beam-ride-hail-base-2018-06-20.csv')
 
@@ -184,14 +186,13 @@ if(F){
 #ggplot(rh,aes(x= start.x,y=start.y,xend=end.x,yend=end.y,colour=reposition))+geom_segment()
 #ggplot(rh,aes(x= start.x,y=start.y,colour=kwh))+geom_point()+geom_point(data=both[type=='Charge'])
 
-inds <- sample(nrow(both),round(nrow(both)/10))
-p <- ggplot(both[inds][type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[inds][type=='Charge'],size=0.25)+facet_wrap(~run)
-pdf.scale <- 2
-ggsave(pp(plots.dir,'spatial-distribution-movements-and-charging.pdf'),p,width=8*pdf.scale,height=6*pdf.scale,units='in')
+#inds <- sample(nrow(both),round(nrow(both)/10))
+#p <- ggplot(both[inds][type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[inds][type=='Charge'],size=0.25)+facet_wrap(~run)
+#pdf.scale <- 2
+#ggsave(pp(plots.dir,'spatial-distribution-movements-and-charging.pdf'),p,width=8*pdf.scale,height=6*pdf.scale,units='in')
 
 #dev.new();ggplot(both[type=='Movement'],aes(x= start.x,y=start.y,colour=type))+geom_point(alpha=0.5)+geom_point(data=both[type=='Charge'],size=0.25)+facet_wrap(~hour)
 
-write.csv(both,file=pp(plots.dir,'/beam-ev-ride-hail-trips-and-charging.csv'),row.names=F)
 
 # find a veh that recharges
 #both[vehicle%in%u(both[type=='Charge']$vehicle),.N,by='vehicle']

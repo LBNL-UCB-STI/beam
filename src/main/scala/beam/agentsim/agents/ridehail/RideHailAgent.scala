@@ -242,6 +242,11 @@ class RideHailAgent(
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
 
+          log.debug(
+            "scheduling EndRefuelTrigger at {} with {} J to be delivered",
+            tick + sessionDuration.toInt,
+            energyDelivered
+          )
           stay() replying CompletionNotice(
             triggerId,
             Vector(
