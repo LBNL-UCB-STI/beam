@@ -38,7 +38,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.scenario.MutableScenario
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.VehicleType
@@ -189,13 +189,15 @@ class BeamMobsim @Inject()(
 
         private val warmStart = BeamWarmStart(beamServices.beamConfig)
         warmStart.populationFilePath
-          .filter(_ => beamServices.iterationNumber == 0)
+          .withFilter(_ => beamServices.iterationNumber == 0)
           .foreach { file =>
-            val plansConfig = scenario.getConfig.plans()
-            plansConfig.setInputFile(file)
-            val population = PopulationUtils.createPopulation(plansConfig, scenario.getNetwork)
+            scenario.getConfig.plans().setInputFile(file)
+            val population = ScenarioUtils.loadScenario(scenario.getConfig).getPopulation
             scenario.asInstanceOf[MutableScenario].setPopulation(population)
           }
+        if (warmStart.isWarmMode && beamServices.iterationNumber > 0) {
+          scenario.asInstanceOf[MutableScenario].setPopulation(beamServices.populationPlan)
+        }
 
         private val population = context.actorOf(
           Population.props(

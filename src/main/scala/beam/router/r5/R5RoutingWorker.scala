@@ -41,7 +41,7 @@ import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
@@ -122,6 +122,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
+
+        override val populationPlan: Population = scenario.getPopulation
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
