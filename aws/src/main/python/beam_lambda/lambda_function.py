@@ -51,6 +51,7 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - cd /home/ubuntu/git/beam
+  - ln -sf /val/log/cloud-init-output.log ./cloud-init-output.log
   - git fetch
   - echo "git checkout ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
