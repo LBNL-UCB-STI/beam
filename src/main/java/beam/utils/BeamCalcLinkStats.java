@@ -215,12 +215,10 @@ public class BeamCalcLinkStats {
                         }
                         out.write("\n");
                     }
-
                 }
-
             }
 
-
+            out.flush();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
