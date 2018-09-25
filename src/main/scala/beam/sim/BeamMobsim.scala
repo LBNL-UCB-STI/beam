@@ -20,9 +20,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -40,9 +37,11 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.population.PopulationUtils
+import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.VehicleType
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -187,6 +186,16 @@ class BeamMobsim @Inject()(
             debugActorWithTimerActorRef
           )
         }
+
+        private val warmStart = BeamWarmStart(beamServices.beamConfig)
+        warmStart.populationFilePath
+          .filter(_ => beamServices.iterationNumber == 0)
+          .foreach { file =>
+            val plansConfig = scenario.getConfig.plans()
+            plansConfig.setInputFile(file)
+            val population = PopulationUtils.createPopulation(plansConfig, scenario.getNetwork)
+            scenario.asInstanceOf[MutableScenario].setPopulation(population)
+          }
 
         private val population = context.actorOf(
           Population.props(
@@ -368,7 +377,7 @@ class BeamMobsim @Inject()(
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0)
-          new BeamWarmStart(beamServices).init()
+          warmStart.init(beamServices.beamRouter)
 
         log.info(s"Transit schedule has been initialized")
 
