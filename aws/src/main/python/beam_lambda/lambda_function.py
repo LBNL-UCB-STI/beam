@@ -52,6 +52,7 @@ runcmd:
   - echo "notification scheduled..."
   - cd /home/ubuntu/git/beam
   - ln -sf /val/log/cloud-init-output.log ./cloud-init-output.log
+  - python -m SimpleHTTPServer 8000 &
   - git fetch
   - echo "git checkout ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
@@ -59,7 +60,6 @@ runcmd:
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - sudo git pull
   - sudo git lfs pull
-  - python -m SimpleHTTPServer 8000 &
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
