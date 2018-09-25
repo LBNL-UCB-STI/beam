@@ -1,6 +1,7 @@
 package beam.replanning
 
-import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
+import beam.utils.DebugLib
+import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
@@ -33,12 +34,33 @@ object ReplanningUtil {
       )
       attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
+
+      copyRemainingPlanElementsIfExperiencedPlanIncomplete(person.getSelectedPlan, experiencedPlan)
+
       person.asInstanceOf[Person].addPlan(experiencedPlan)
       person.removePlan(person.getSelectedPlan)
       person.asInstanceOf[Person].setSelectedPlan(experiencedPlan)
     } else {
       person.addPlan(person.getSelectedPlan)
     }
+  }
+
+  def copyRemainingPlanElementsIfExperiencedPlanIncomplete(originalPlan: Plan, experiencedPlan: Plan): Unit = {
+
+    if (originalPlan.getPlanElements.size() > experiencedPlan.getPlanElements.size()) {
+      DebugLib.emptyFunctionForSettingBreakPoint()
+      for (i <- experiencedPlan.getPlanElements.size() to originalPlan.getPlanElements.size() - 1) {
+        if (originalPlan.getPlanElements.get(i).isInstanceOf[Activity]) {
+          experiencedPlan.addActivity(
+            PopulationUtils.createActivity(originalPlan.getPlanElements.get(i).asInstanceOf[Activity])
+          )
+        } else {
+          experiencedPlan.addLeg(PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg]))
+        }
+      }
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
   }
 
   def copyRandomPlanAndSelectForMutation(person: Person): Unit = {
