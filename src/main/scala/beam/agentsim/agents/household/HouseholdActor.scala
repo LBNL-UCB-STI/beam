@@ -192,9 +192,7 @@ object HouseholdActor {
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType,
-        None,
-        None
+        BeamVehicleType.defaultHumanBodyBeamVehicleType
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
@@ -303,12 +301,22 @@ object HouseholdActor {
         }
 
         // Assign to requesting individual if mode is available
-        availableStreetVehicles.filter(
-          veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
-        ) foreach { x =>
-          _availableVehicles.remove(x.id)
-          _checkedOutVehicles.put(x.id, personId)
-        }
+        availableStreetVehicles
+          .filter(
+            veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
+          )
+          .filter { theveh =>
+            // also make sure there isn't another driver using this vehicle
+            val existingDriver = beamServices.vehicles(theveh.id).driver
+            if (existingDriver.isDefined) {
+              val i = 0
+            }
+            (existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString))
+          }
+          .foreach { x =>
+            _availableVehicles.remove(x.id)
+            _checkedOutVehicles.put(x.id, personId)
+          }
         sender() ! MobilityStatusResponse(availableStreetVehicles)
 
       case Finish =>
@@ -344,6 +352,9 @@ object HouseholdActor {
             case Some(_) =>
           }
         case None =>
+          if (!_reservedForPerson.values.toSet.contains(vehicleId)) {
+            _availableVehicles.add(vehicleId)
+          }
       }
       log.debug("Resource {} is now available again", vehicleId)
     }
@@ -376,8 +387,11 @@ object HouseholdActor {
 
     private def initializeHouseholdVehicles(): Unit = {
       // Add the vehicles to resources managed by this ResourceManager.
+      if (id.toString.equals("025401-2013001385345-0") || id.toString.equals("032901-2015001323724-0")) {
+        val i = 0
+      }
 
-      resources ++ vehicles
+      vehicles.foreach(idAndVeh => resources.put(idAndVeh._1, idAndVeh._2))
       // Initial assignments
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
@@ -395,6 +409,8 @@ object HouseholdActor {
           if (isModeAvailableForPerson(person, vehicleId, mode)) {
             _reservedForPerson += (memberId -> vehicleId)
           }
+        } else if (i < _vehicles.size) {
+          _availableVehicles += _vehicles(i)
         }
       }
 
@@ -409,6 +425,7 @@ object HouseholdActor {
         _vehicleToStreetVehicle +=
           (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
       }
+
     }
   }
 

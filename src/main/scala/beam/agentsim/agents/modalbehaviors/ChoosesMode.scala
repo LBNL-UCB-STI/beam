@@ -208,7 +208,7 @@ trait ChoosesMode {
                   r.getLinkIds.asScala.foreach { id =>
                     linkIds += id.toString.toInt
                   }
-                  linkIds += r.getStartLinkId.toString.toInt
+                  linkIds += r.getEndLinkId.toString.toInt
 
                   val leg = BeamLeg(
                     departTime.atTime,
@@ -216,7 +216,7 @@ trait ChoosesMode {
                     l.getTravelTime.toInt,
                     BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
                 case _ =>
                   makeRequestWith(Vector(), Vector(bodyStreetVehicle))
               }
@@ -342,7 +342,30 @@ trait ChoosesMode {
         }
       stay() using newPersonData
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
-      stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
+      val correctedItins = theRouterResult.itineraries.map { trip =>
+        if (trip.legs.head.beamLeg.mode == CAR) {
+          val startLeg = EmbodiedBeamLeg(
+            BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
+            bodyId,
+            true,
+            None,
+            BigDecimal(0.0),
+            false
+          )
+          val endLeg = EmbodiedBeamLeg(
+            BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
+            bodyId,
+            true,
+            None,
+            BigDecimal(0.0),
+            true
+          )
+          trip.copy(legs = (startLeg +: trip.legs) :+ endLeg)
+        } else {
+          trip
+        }
+      }
+      stay() using choosesModeData.copy(routingResponse = Some(theRouterResult.copy(itineraries = correctedItins)))
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
       //      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {

@@ -1,11 +1,12 @@
 package beam.agentsim.agents.choice.mode
 
+
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
@@ -13,6 +14,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 import scala.util.Random
+import scalaz.syntax._
 
 /**
   * BEAM
@@ -71,6 +73,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip]
   ): IndexedSeq[ModeCostTimeTransfer] = {
+    val walkTripStartTime = alternatives.filter(_.tripClassifier == WALK).headOption.map(_.legs.head.beamLeg.startTime)
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
@@ -119,11 +122,21 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           0
       }
+      val waitTime = altAndIdx._1.tripClassifier match {
+        case RIDE_HAIL =>
+          altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
+            altAndIdx._1.legs.head.beamLeg.startTime
+          )
+        case RIDE_HAIL_TRANSIT =>
+          0 // TODO getting this would require we put wait time into EmbodiedBeamLeg, which is the right next step
+        case _ =>
+          0
+      }
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
         altAndIdx._1.tripClassifier,
         totalCost,
-        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs, Option(altAndIdx._1.tripClassifier)),
+        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(altAndIdx._1.tripClassifier)),
         numTransfers,
         altAndIdx._2
       )

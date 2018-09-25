@@ -141,17 +141,13 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
 //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.getId, bus)

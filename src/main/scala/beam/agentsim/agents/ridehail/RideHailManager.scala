@@ -348,6 +348,7 @@ class RideHailManager(
                 .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
                 .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
+            log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
               log.debug("Initiate refuel session for vehicle: {}", vehicleId)
@@ -750,8 +751,8 @@ class RideHailManager(
       }
 
     case DepotParkingInquiryResponse(None, requestId) =>
-      val vehId = parkingInquiryCache(requestId).vehicleId
-      log.debug(
+      val vehId = parkingInquiryCache.get(requestId).get.vehicleId
+      log.warning(
         "No parking stall found, ride hail vehicle {} stranded",
         vehId
       )

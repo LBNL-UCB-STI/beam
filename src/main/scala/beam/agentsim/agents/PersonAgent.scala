@@ -546,7 +546,7 @@ class PersonAgent(
       } else {
         stop(
           Failure(
-            s"I attempted to become driver of vehicle $id but driver ${nextLeg.beamVehicleId} already assigned."
+            s"Person $id attempted to become driver of vehicle ${nextLeg.beamVehicleId} but driver already assigned."
           )
         )
       }

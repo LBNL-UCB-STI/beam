@@ -15,6 +15,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
+import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BashUtils, BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
@@ -198,10 +199,10 @@ trait BeamHelper extends LazyLogging {
           if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
             bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
           }
-          addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
-          addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
-          addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
-          addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
+          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
+          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
@@ -239,7 +240,6 @@ trait BeamHelper extends LazyLogging {
       "config is a required value, and must yield a valid config."
     )
     val configLocation = parsedArgs.configLocation.get
-
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
@@ -350,9 +350,7 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.detachOldFileLogger()
     LoggingUtil.createFileLogger(outputDirectory)
-
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
@@ -367,14 +365,14 @@ trait BeamHelper extends LazyLogging {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
-    samplePopulation(scenario, beamConfig, matsimConfig)
-
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       module(config, scenario, networkCoordinator)
     )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+
+    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
     beamServices.controler.run()
 
@@ -387,7 +385,8 @@ trait BeamHelper extends LazyLogging {
   def samplePopulation(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
-    matsimConfig: Config
+    matsimConfig: Config,
+    beamServices: BeamServices
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
@@ -425,8 +424,10 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
     }
-  }
 
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+    populationAdjustment.update(scenario)
+  }
 }
 
 case class MapStringDouble(data: Map[String, Double])

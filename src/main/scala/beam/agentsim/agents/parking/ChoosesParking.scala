@@ -1,5 +1,9 @@
 package beam.agentsim.agents.parking
 
+
+import java.util.concurrent.TimeUnit
+
+import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
@@ -62,29 +66,33 @@ trait ChoosesParking extends {
       stash()
       stay using data
     case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
-      val (tick, _) = releaseTickAndTriggerId()
-      val veh = beamServices
-        .vehicles(data.currentVehicle.head)
+      if (data.currentVehicle.isEmpty) {
+        stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
+      } else {
+        val (tick, _) = releaseTickAndTriggerId()
+        val veh = beamServices
+          .vehicles(data.currentVehicle.head)
 
-      veh.stall.foreach { stall =>
-        parkingManager ! CheckInResource(
-          beamServices.vehicles(data.currentVehicle.head).stall.get.id,
-          None
-        )
-        //        val tick: Double = _currentTick.getOrElse(0)
-        val nextLeg = data.passengerSchedule.schedule.head._1
-        val distance = beamServices.geo.distInMeters(
-          stall.location,
-          nextLeg.travelPath.endPoint.loc
-        ) //nextLeg.travelPath.endPoint.loc
-        val cost = stall.cost
-        val energyCharge: Double = 0.0 //TODO
-        val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
-        val score = calculateScore(distance, cost, energyCharge, timeCost)
-        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
+        veh.stall.foreach { stall =>
+          parkingManager ! CheckInResource(
+            beamServices.vehicles(data.currentVehicle.head).stall.get.id,
+            None
+          )
+          //        val tick: Double = _currentTick.getOrElse(0)
+          val nextLeg = data.passengerSchedule.schedule.head._1
+          val distance = beamServices.geo.distInMeters(
+            stall.location,
+            nextLeg.travelPath.endPoint.loc
+          ) //nextLeg.travelPath.endPoint.loc
+          val cost = stall.cost
+          val energyCharge: Double = 0.0 //TODO
+          val timeCost: BigDecimal = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+          val score = calculateScore(distance, cost, energyCharge, timeCost)
+          eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
+        }
+        veh.unsetParkingStall()
+        goto(WaitingToDrive) using data
       }
-      veh.unsetParkingStall()
-      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
       parkingManager ! CheckInResource(
