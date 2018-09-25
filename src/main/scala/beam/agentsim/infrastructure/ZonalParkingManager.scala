@@ -49,6 +49,7 @@ class ZonalParkingManager(
     ParkingStall.Any
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
+  val defaultRideHailStallValues = StallValues(0, 0)
 
   val depotStallLocationType: DepotStallLocationType =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
@@ -84,7 +85,7 @@ class ZonalParkingManager(
     } yield {
       pooledResources.put(
         StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-        defaultStallValues
+        defaultRideHailStallValues
       )
     }
   }

@@ -265,8 +265,7 @@ object HouseholdActor {
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType,
-        None
+        BeamVehicleType.defaultHumanBodyBeamVehicleType
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
@@ -382,6 +381,9 @@ object HouseholdActor {
           .filter { theveh =>
             // also make sure there isn't another driver using this vehicle
             val existingDriver = beamServices.vehicles(theveh.id).driver
+            if (existingDriver.isDefined) {
+              val i = 0
+            }
             (existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString))
           }
           .foreach { x =>

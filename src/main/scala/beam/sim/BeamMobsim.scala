@@ -164,17 +164,20 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        beamServices.vehicleTypes.get(Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,classOf[BeamVehicleType])) match {
+        beamServices.vehicleTypes.get(
+          Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+        ) match {
           case Some(rhVehType) =>
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
-              log.error (
-              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              log.error(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
               )
             }
           case None =>
-            log.error("Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found")
+            log.error(
+              "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
+            )
         }
-
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
@@ -202,7 +205,7 @@ class BeamMobsim @Inject()(
         Await.result(population ? Identify(0), timeout.duration)
 
         private val numRideHailAgents = math.round(
-          scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
+          beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
         private val rideHailVehicleType = BeamVehicleUtils
           .getVehicleTypeById(
@@ -297,10 +300,11 @@ class BeamMobsim @Inject()(
             val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
             //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
-            val ridehailBeamVehicleTypeId = Id.create("RIDEHAIL-TYPE-DEFAULT", classOf[BeamVehicleType])
+            val ridehailBeamVehicleTypeId =
+              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
             val ridehailBeamVehicleType = beamServices.vehicleTypes
               .get(ridehailBeamVehicleTypeId)
-              .getOrElse(BeamVehicleType.defaultRidehailBeamVehicleType)
+              .getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
 
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
@@ -313,8 +317,7 @@ class BeamMobsim @Inject()(
               rideHailVehicleId,
               powertrain,
               None,
-              ridehailBeamVehicleType,
-              Some(1.0)
+              ridehailBeamVehicleType
             )
             beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
             rideHailBeamVehicle.registerResource(rideHailManager)
