@@ -29,10 +29,6 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <Logger name="com.conveyal.r5" level="ERROR" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </Logger>
-
     <Logger name="org.reflections" level="ERROR" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
