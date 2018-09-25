@@ -194,9 +194,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (iterationNumber == beamConfig.matsim().modules().controler().lastIteration()) {
             try {
                 CompletableFuture allOfLinStatFutures = CompletableFuture.allOf(linkStatsFutures.toArray(new CompletableFuture[0]));
-                log.info("Wait started for link stats.");
+                log.info("Waiting started on link stats file dump.");
                 allOfLinStatFutures.get(20, TimeUnit.MINUTES);
-                log.info("Wait ended for link stats.");
+                log.info("Link stats file dump completed.");
 
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 log.error("Error while generating link stats.",e);
