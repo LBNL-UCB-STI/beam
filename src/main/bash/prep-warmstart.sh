@@ -14,7 +14,9 @@ mv `find -maxdepth 1 -name 'it.*' | sort -V  | tail -n1` it_ws
 rm -rf it.*
 mkdir it.0
 mv it_ws/*.linkstats.csv.gz it.0/0.linkstats.csv.gz
+mv ../output_plans.xml.gz ../output_plans.xml.gz.back
 rm -rf it_ws ../*.csv ../*.png ../*.gz ../*.txt
+mv ../output_plans.xml.gz.back ../output_plans.xml.gz
 cd ..
 
 t_name=$(basename `pwd`)
