@@ -145,25 +145,7 @@ public class PersonTravelTimeStats implements IGraphStats {
         if (departureEvents != null) {
             PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
             if (personDepartureEvent != null) {
-                int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
-                if (hourlyPersonTravelTimesPerMode == null) {
-                    hourlyPersonTravelTimesPerMode = new HashMap<>();
-                    List<Double> travelTimes = new ArrayList<>();
-                    travelTimes.add(travelTime);
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                } else {
-                    List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
-                    if (travelTimes == null) {
-                        travelTimes = new ArrayList<>();
-                        travelTimes.add(travelTime);
-                    } else {
-                        travelTimes.add(travelTime);
-                    }
-                    hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                }
-                hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
+                addTravelTime(personArrivalEvent, mode, personDepartureEvent);
                 departureEvents.remove(personId);
                 personLastDepartureEvents.put(mode, departureEvents);
             }
@@ -180,31 +162,35 @@ public class PersonTravelTimeStats implements IGraphStats {
                     }
                 }
                 if (personDepartureEvent != null) {
-                    int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                    Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
-                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
-                    if (hourlyPersonTravelTimesPerMode == null) {
-                        hourlyPersonTravelTimesPerMode = new HashMap<>();
-                        List<Double> travelTimes = new ArrayList<>();
-                        travelTimes.add(travelTime);
-                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                    } else {
-                        List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
-                        if (travelTimes == null) {
-                            travelTimes = new ArrayList<>();
-                            travelTimes.add(travelTime);
-                        } else {
-                            travelTimes.add(travelTime);
-                        }
-                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
-                    }
-                    hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
+                    addTravelTime(personArrivalEvent, otherMode, personDepartureEvent);
                     Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
                     departureEventsList.remove(personId);
                     personLastDepartureEvents.put(selectedMode, departureEventsList);
                 }
             }
         }
+    }
+
+    private void addTravelTime(PersonArrivalEvent personArrivalEvent, String mode, PersonDepartureEvent personDepartureEvent) {
+        int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+        Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+        Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
+        if (hourlyPersonTravelTimesPerMode == null) {
+            hourlyPersonTravelTimesPerMode = new HashMap<>();
+            List<Double> travelTimes = new ArrayList<>();
+            travelTimes.add(travelTime);
+            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+        } else {
+            List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
+            if (travelTimes == null) {
+                travelTimes = new ArrayList<>();
+                travelTimes.add(travelTime);
+            } else {
+                travelTimes.add(travelTime);
+            }
+            hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+        }
+        hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
     }
 
     private void processPersonDepartureEvent(Event event) {

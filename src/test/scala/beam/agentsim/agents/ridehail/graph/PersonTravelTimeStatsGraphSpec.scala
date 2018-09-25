@@ -8,6 +8,7 @@ import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
 import beam.analysis.plots.PersonTravelTimeStats
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
@@ -82,13 +83,21 @@ object PersonTravelTimeStatsGraphSpec {
     private def updateCounterTime(evn: PersonArrivalEvent): Seq[(String, Double)] = {
       val mode = evn.getLegMode
       val personId = evn.getPersonId.toString
-      val modeTime = personTravelTime
+      val modePersonTime = personTravelTime
         .get(mode -> personId)
-        .map { time =>
-          val travelTime = (evn.getTime - time) / 60
-          mode -> travelTime
+        .map(i => (mode -> personId) -> i)
+        .orElse(
+          personTravelTime.find { case ((_, pers), _) => pers == personId }
+        )
+      modePersonTime.map(_._1._1).foreach { m =>
+        personTravelTime = personTravelTime - (m -> personId)
+      }
+      val modeTime = modePersonTime
+        .map {
+          case ((m, _), time) if m == mode => m        -> time
+          case ((_, _), time)              => "others" -> time
         }
-      personTravelTime = personTravelTime - (mode -> personId)
+        .map({ case (m, time) => (m, (evn.getTime - time) / 60) })
       modeTime.fold(counter)(items => counter :+ items)
     }
 
@@ -102,7 +111,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
 
   "Person Travel Time Graph Collected Data" must {
 
-    "contains valid travel time stats" ignore {
+    "contains valid travel time stats" in {
       val travelTimeComputation = new PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer {
 
         private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
@@ -136,7 +145,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
                   .setScale(3, RoundingMode.HALF_UP)
                   .toDouble
             }
-            handler.isEmpty shouldBe true
+            //handler.isEmpty shouldBe true
             modes shouldEqual all
           }
         }
@@ -156,7 +165,11 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             graph
           }
         },
-        baseConfig
+        ConfigFactory
+          .parseString(
+            "beam.outputs.events.overrideWritingLevels = \"org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR,org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE, org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE\""
+          )
+          .withFallback(baseConfig)
       ).run()
     }
   }
