@@ -17,8 +17,7 @@ S3_PUBLISH_SCRIPT = '''
   -    echo opth
   -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
-  -    sudo rm -rf output/*'''
+  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
