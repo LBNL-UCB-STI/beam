@@ -213,7 +213,8 @@ trait ChoosesMode {
                     departTime.atTime,
                     mode,
                     l.getTravelTime.toInt,
-                    BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
+                    // TODO FIXME
+                    BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
                 case _ =>
@@ -285,6 +286,7 @@ trait ChoosesMode {
         theRouterResult @ RoutingResponse(_, _, Some(requestId)),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
+      processLinkEvents(theRouterResult.itineraries)
       val driveTransitTrip =
         theRouterResult.itineraries.view
           .dropWhile(_.tripClassifier != DRIVE_TRANSIT)
@@ -341,6 +343,7 @@ trait ChoosesMode {
         }
       stay() using newPersonData
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
+      processLinkEvents(theRouterResult.itineraries)
       val correctedItins = theRouterResult.itineraries.map { trip =>
         if (trip.legs.head.beamLeg.mode == CAR) {
           val startLeg = EmbodiedBeamLeg(

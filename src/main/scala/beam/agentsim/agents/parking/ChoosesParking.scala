@@ -1,10 +1,7 @@
 package beam.agentsim.agents.parking
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
-import akka.util.Timeout
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -13,19 +10,16 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.{LeavingParkingEvent, ParkEvent, SpaceTime}
+import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, WALK}
-import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RoutingModel.{DiscreteTime, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import tscfg.model.DURATION
 
-import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 /**
@@ -182,6 +176,10 @@ trait ChoosesParking extends {
         responses: (RoutingResponse, RoutingResponse),
         data @ BasePersonData(_, _, _, _, _, _, _, _, _)
         ) =>
+      val (r1, r2) = responses
+      processLinkEvents(r1.itineraries)
+      processLinkEvents(r2.itineraries)
+
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head

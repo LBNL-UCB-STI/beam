@@ -10,8 +10,6 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
@@ -889,6 +887,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _) // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
+      linksTimesDistances.travelTimes,
       None,
       SpaceTime(
         segment.geometry.getStartPoint.getX,
@@ -911,6 +910,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val endLoc = beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
     BeamPath(
       linksTimesDistances.linkIds,
+      linksTimesDistances.travelTimes,
       None,
       SpaceTime(startLoc.getX, startLoc.getY, tripStartTime),
       SpaceTime(
@@ -1290,7 +1290,7 @@ object R5RoutingWorker {
     end: Location,
     distance: Double
   ): BeamLeg = {
-    val path = BeamPath(Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
+    val path = BeamPath(Vector(), Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
     BeamLeg(atTime, WALK, duration, path)
   }
 
