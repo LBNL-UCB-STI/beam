@@ -52,13 +52,14 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  lazy val populationFilePath: Option[String] = {
-    val path = pathType match {
-      case "PARENT_RUN"    => parentRunPath
-      case "ABSOLUTE_PATH" => srcPath
-    }
-    Some(loadPopulation(path, populationFile(path))).filter(_ => isWarmMode)
-  }
+  lazy val populationFilePath: Option[String] =
+    if (isWarmMode) {
+      val path = pathType match {
+        case "PARENT_RUN"    => parentRunPath
+        case "ABSOLUTE_PATH" => srcPath
+      }
+      Some(loadPopulation(path, populationFile(path)))
+    } else None
 
   private lazy val warmStartPath: Option[String] = pathType match {
     case "PARENT_RUN" =>
