@@ -12,11 +12,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
@@ -37,7 +33,6 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
-import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
@@ -188,14 +183,13 @@ class BeamMobsim @Inject()(
         }
 
         private val warmStart = BeamWarmStart(beamServices.beamConfig)
-        warmStart.populationFilePath
-          .withFilter(_ => beamServices.iterationNumber == 0)
-          .foreach { file =>
+
+        if (warmStart.isWarmMode && beamServices.iterationNumber > 0) {
+          warmStart.populationFilePath.foreach { file =>
             scenario.getConfig.plans().setInputFile(file)
             val population = ScenarioUtils.loadScenario(scenario.getConfig).getPopulation
             scenario.asInstanceOf[MutableScenario].setPopulation(population)
           }
-        if (warmStart.isWarmMode && beamServices.iterationNumber > 0) {
           scenario.asInstanceOf[MutableScenario].setPopulation(beamServices.populationPlan)
         }
 
