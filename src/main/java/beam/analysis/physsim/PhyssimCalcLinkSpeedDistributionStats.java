@@ -60,7 +60,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      */
     public void notifyIterationEnds(int iteration,TravelTimeCalculator travelTimeCalculator) {
         //generate the graph input for the free flow speed distribution
-        Map<Integer, Integer> processedSpeedDistributionData = generateInputDataForFreeFlowSpeedGraph();
+        Map<Integer, Integer> processedSpeedDistributionData = generateInputDataForFreeFlowSpeedGraph(noOfBins,this.network);
         //generate  data matrix for the free flow speed distribution
         double[][] speedDataMatrix = buildDataSetFromSpeedData(processedSpeedDistributionData);
         //generate the graph input for the link efficiencies
@@ -158,11 +158,11 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      * Generates input data used to generate free flow speed distribution chart
      * @return input generated data as map ( speed in m/s -> frequency )
      */
-    private Map<Integer, Integer> generateInputDataForFreeFlowSpeedGraph() {
+    public Map<Integer, Integer> generateInputDataForFreeFlowSpeedGraph(int binsCount,Network network) {
         Map<Integer, Integer> freeFlowSpeedFrequencies = new HashMap<>();
         Stream.iterate(0,x -> x)
-                .limit(noOfBins)
-                .forEach(bin -> this.network.getLinks().values()
+                .limit(binsCount)
+                .forEach(bin -> network.getLinks().values()
                         .stream()
                         .map(link -> link.getFreespeed(bin * 3600))
                         .map(fs -> (int) Math.round(fs))
@@ -171,6 +171,15 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                             freeFlowSpeedFrequencies.put(freeSpeed,frequencyCount+1);
                         }));
         return freeFlowSpeedFrequencies;
+    }
+
+    public Stream<Double> getDistinctFreeSpeeds(int binsCount,Network network) {
+        return Stream.iterate(0, x -> x)
+                .limit(binsCount)
+                .flatMap(bin -> network.getLinks().values()
+                        .stream()
+                        .map(link -> link.getFreespeed(bin * 3600)))
+                .distinct();
     }
 
     /**
@@ -284,5 +293,6 @@ public class PhyssimCalcLinkSpeedDistributionStats {
      */
     public void notifyIterationStarts(EventsManager eventsManager) {
     }
+
 
 }
