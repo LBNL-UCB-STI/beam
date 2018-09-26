@@ -296,9 +296,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 5. Copy the BEAM config file from test/input/beamville/beam.conf into the scenario directory and rename to your scenario (e.g. test/input/siouxfalls/siouxfalls.conf)
 
-6. Copy the "dummy.zip" GTFS archive from test/input/beamville/R/dummy.zip into the r5 sub-directory (e.g. test/input/siouxfalls/r5/dummy.zip). This step is optional but will avoid meddlesome warnings from the R5 library.
-
-7. Make the following edits to siouxfalls.conf (or your scenario name, replace Sioux Falls names below with appropriate names from your case):
+6. Make the following edits to siouxfalls.conf (or your scenario name, replace Sioux Falls names below with appropriate names from your case):
 
 * Do a global search/replace and search for "beamville" and replace with your scenario name (e.g. "siouxfalls").
    
@@ -325,6 +323,8 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 * beam.routing.r5.mNetBuilder.toCRS = "epsg:26914" (same as above)
 
 * beam.spatial.boundingBoxBuffer = 10000 (meters to pad bounding box around the MATSim network when clipping the OSM network)
+
+* make sure beam.routing.baseDate = "2016-10-17T00:00:00-07:00"
 
 8. Run the conversion tool
 
