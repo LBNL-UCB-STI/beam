@@ -119,9 +119,9 @@ rh.sum <- rh[,.(n.vehicle.legs=.N,
                 avg.trip.len.with.passenger=sum(length[num_passengers>0])/sum(num_passengers>0)/1608,
                 avg.trip.deadhead.miles=sum(length[num_passengers==0 & reposition==F])/sum(num_passengers==0 & reposition==F)/1608,
                 avg.trip.reposition.miles=sum(length[num_passengers==0 & reposition==T])/sum(num_passengers==0 & reposition==T)/1608,
-                empty.vmt.fraction=sum(length[num_passengers==0])/sum(length)/1608,
-                deadhead.vmt.fraction=sum(length[num_passengers==0& reposition==F])/sum(length)/1608,
-                reposition.vmt.fraction=sum(length[num_passengers==0& reposition==T])/sum(length)/1608,
+                empty.vmt.fraction=sum(length[num_passengers==0])/sum(length),
+                deadhead.vmt.fraction=sum(length[num_passengers==0& reposition==F])/sum(length),
+                reposition.vmt.fraction=sum(length[num_passengers==0& reposition==T])/sum(length),
                 avg.speed=mean(speed),
                 avg.speed.vmt.weighted=weighted.mean(speed,length)
                 ),by='run']
@@ -208,5 +208,57 @@ if(F){
 #poprh<-rbindlist(list(pop,rhi),use.names=T,fill=T)
 #ggplot(poprh,aes(x=x,y=y,colour=type))+geom_point(alpha=.2)
 
+park.dir <- '~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/parking/'
+
+chs <- list()
+dir <- tail(list.dirs(park.dir),-1)[1]
+for(dir in tail(list.dirs(park.dir),-1)){
+  for(ch.file in list.files(dir)){
+    ch <- data.table(read.csv(pp(dir,'/',ch.file)))
+    ch[,file:=ch.file]
+    chs[[length(chs)+1]]<-ch
+  }
+}
+ch <- rbindlist(chs)
+
+ch[,charge:=ifelse(grepl('P250',file),'P250','P50')]
+ch[,range:=ifelse(grepl('R150',file),'R150','R75')]
+ch[,qos:=ifelse(grepl('S60',file),'S60',ifelse(grepl('S70',file),'S70',ifelse(grepl('S80',file),'S80',ifelse(grepl('S90',file),'S90',ifelse(grepl('S95',file),'S95','S98')))))]
+ch.sum <- ch[reservedFor=='RideHailManager' & numStalls<2147483000 & chargingType=='DCFast',.(nchargers=sum(numStalls)),by=c('charge','range','qos')]
+
+library(stringr)
+
+save(all,exp,file=pp(plots.dir,'/summary-metrics-all.Rdata'))
+load(file=pp(plots.dir,'/summary-metrics-all.Rdata'))
+
+all <- join.on(all,ch.sum,c('charge','range','qos'),c('charge','range','qos'),'nchargers')
+
+all <- all[!(range=='R150' & qos=='S98' & charge=='P250')]
+all[,empty.vmt.fraction:=empty.vmt.fraction*1608]
+all[,deadhead.vmt.fraction:=empty.vmt.fraction*1608]
+
+all.m <- melt(all,id.vars=c('range','charge','qos','nchargers'))
+all.m[,variable:=str_replace_all(variable,'\\.','_')]
+
+#for(metric in u(all.m$variable)){
+  #if(all(is.na(as.numeric(all.m[variable==metric]$value)))){
+    ## do nothing
+  #}else{
+    #toplot <- all.m[variable==metric & qos!='S70']
+    #toplot[,value:=as.numeric(value)]
+    #p<-ggplot(toplot,aes(x=qos,y= value))+geom_bar(stat='identity')+facet_grid(range~charge)+labs(title=metric)
+    #pdf.scale <- 0.75
+    #ggsave(pp(plots.dir,'metric-',metric,'.pdf'),p,width=11*pdf.scale,height=6*pdf.scale,units='in')
+  #}
+#}
+
+all.m[charge=='P50' & qos=='S80',qos:='S99']
+all.m[charge=='P50' & qos=='S99',charge:='P250']
+all.m[,qosn:=as.numeric(substr(qos,2,4))]
+
+#ggplot(all.m[charge=='P50'&variable%in%c('vmt_per_vehicle','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(x=qosn,y=as.numeric(value),colour=range))+geom_line()+facet_wrap(~variable)
+ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('customer_wait_99th_percentile','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+geom_line()+facet_wrap(~variable,scales='free_y')+geom_point()
+dev.new()
+ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('vmt_per_vehicle','total_vmt','empty_vmt_fraction','avg_trip_deadhead_miles')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+geom_line()+facet_wrap(~variable,scales='free_y')+geom_point()
 
 
