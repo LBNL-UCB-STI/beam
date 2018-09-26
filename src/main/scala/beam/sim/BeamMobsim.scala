@@ -114,7 +114,7 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
-    beamServices.startNewIteration()
+    beamServices.startNewIteration
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
@@ -184,17 +184,6 @@ class BeamMobsim @Inject()(
             context.system,
             debugActorWithTimerActorRef
           )
-        }
-
-        private val warmStart = BeamWarmStart(beamServices.beamConfig)
-
-        if (warmStart.isWarmMode && beamServices.iterationNumber > 0) {
-          warmStart.populationFilePath.foreach { file =>
-            scenario.getConfig.plans().setInputFile(file)
-            val population = ScenarioUtils.loadScenario(scenario.getConfig).getPopulation
-            scenario.asInstanceOf[MutableScenario].setPopulation(population)
-          }
-          scenario.asInstanceOf[MutableScenario].setPopulation(beamServices.populationPlan)
         }
 
         private val population = context.actorOf(
@@ -376,8 +365,10 @@ class BeamMobsim @Inject()(
 
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
-        if (beamServices.iterationNumber == 0)
-          warmStart.init(beamServices.beamRouter)
+        if (beamServices.iterationNumber == 0) {
+          val warmStart = BeamWarmStart(beamServices.beamConfig)
+          warmStart.warmStartRouterIfNeeded(beamServices.beamRouter)
+        }
 
         log.info(s"Transit schedule has been initialized")
 

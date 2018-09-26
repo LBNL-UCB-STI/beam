@@ -19,8 +19,8 @@ import beam.sim.metrics.Metrics
 import beam.utils.{DateUtils, FileUtils}
 import beam.utils.matsim_conversion.ShapeUtils.CsvTaz
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -48,7 +48,6 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-  val populationPlan: Population
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
@@ -90,8 +89,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var matsimServices: MatsimServices = _
 
   val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-
-  val populationPlan: Population = injector.getInstance(classOf[Scenario]).getPopulation
 
   def clearAll(): Unit = {
     personRefs.clear

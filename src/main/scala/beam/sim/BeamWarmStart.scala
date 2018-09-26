@@ -5,14 +5,16 @@ import java.nio.file.{Files, Paths}
 
 import akka.actor.ActorRef
 import beam.router.BeamRouter.UpdateTravelTime
-import beam.router.LinkTravelTimeContainer
+import beam.router.{BeamRouter, LinkTravelTimeContainer}
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.downloadFile
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.matsim.core.config.Config
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.compat.java8.StreamConverters._
 
@@ -35,9 +37,8 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
   /**
     * initialize warm start mode.
     */
-  def init(beamRouter: ActorRef): Unit = {
+  def warmStartRouterIfNeeded(beamRouter: ActorRef): Unit = {
     if (!isWarmMode) return
-
     warmStartPath match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
@@ -49,6 +50,15 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
           )
         }
       case None =>
+    }
+  }
+
+  def warmStartPopulationIfNeeded(matsimConfig: Config): Unit = {
+    if (isWarmMode) {
+      populationFilePath.foreach { file =>
+        matsimConfig.plans().setInputFile(file)
+        logger.info("Warm start population initialized successfully from file located at {}", file)
+      }
     }
   }
 
