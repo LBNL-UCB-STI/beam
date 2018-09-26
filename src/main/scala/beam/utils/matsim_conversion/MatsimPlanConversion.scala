@@ -17,7 +17,7 @@ object MatsimPlanConversion {
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, VehiclesDataConversion.beamVehicleTypes)
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
     } else {
       val vehiclesFile = conversionConfig.vehiclesInput.get

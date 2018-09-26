@@ -46,6 +46,135 @@ object VehiclesDataConversion extends App {
     "vehicleTypeId"
   )
 
+  lazy val beamVehicleTypes = Seq(
+    Seq(
+      "CAR",
+      "4",
+      "0",
+      "4.5",
+      "gasoline",
+      "3655.98",
+      "3655980000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "SUV",
+      "6",
+      "0",
+      "5.5",
+      "gasoline",
+      "3655.98",
+      "3655980000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "BUS-DEFAULT",
+      "50",
+      "50",
+      "12",
+      "diesel",
+      "25829.7",
+      "30000000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "SUBWAY-DEFAULT",
+      "50",
+      "50",
+      "12",
+      "diesel",
+      "122303",
+      "5400000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "TRAM-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "25829.7",
+      "46800000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "RAIL-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "25829.7",
+      "600000000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+    Seq(
+      "CABLE_CAR-DEFAULT",
+      "50",
+      "50",
+      "7.5",
+      "diesel",
+      "25829.7",
+      "41116000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ),
+  )
+
   if (null == args || args.size < 3) {
     println("Please include parameters: /path/to/vehicles.xml /path/to/transitVehicles.xml /outputDirectory/path")
   } else {
@@ -124,7 +253,7 @@ object VehiclesDataConversion extends App {
   def generateVehiclesDataFromPersons(persons: NodeSeq, conversionConfig: ConversionConfig): Seq[Seq[String]] = {
     val vehicles = persons.zipWithIndex.map {
       case (_, index) =>
-        Seq(s"${index + 1}", "CAR-1")
+        Seq(s"${index + 1}", "CAR")
     }
     val beamVehiclesPath = conversionConfig.scenarioDirectory + "/vehicles.csv"
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
