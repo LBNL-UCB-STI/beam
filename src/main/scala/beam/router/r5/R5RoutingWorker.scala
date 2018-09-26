@@ -256,14 +256,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
           case Some(matsimTravelTime) =>
-            matsimTravelTime
-              .getLinkTravelTime(
-                network.getLinks.get(Id.createLinkId(linkId)),
-                time.toDouble,
-                null,
-                null
-              )
-              .toInt
+            getTravelTime(time, linkId, matsimTravelTime).toInt
           case None =>
             val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
             (edge.getLengthM / edge.calculateSpeed(
@@ -1026,35 +1019,43 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // MATSim network.
               (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
             } else {
-              travelTime
-                .getLinkTravelTime(
-                  network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)),
-                  startTime + durationSeconds,
-                  null,
-                  null
-                )
-                .asInstanceOf[Float]
+              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
             }
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
+
   private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        matsimTravelTime
-          .getLinkTravelTime(
-            network.getLinks.get(Id.createLinkId(linkId)),
-            time.toDouble,
-            null,
-            null
-          )
-          .toInt
+        getTravelTime(time, linkId, matsimTravelTime).toInt
+
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
         val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
         tt.toInt
     }
+  }
+
+  private def getTravelTime(time: Int, linkId: Int, matsimTravelTime: TravelTime): Double = {
+    var travelTime = matsimTravelTime
+      .getLinkTravelTime(
+        network.getLinks.get(Id.createLinkId(linkId)),
+        time.toDouble,
+        null,
+        null
+      )
+
+    val travelSpeed = network.getLinks.get(Id.createLinkId(linkId)).getLength / travelTime
+    if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+      network.getLinks
+        .get(Id.createLinkId(linkId))
+        .getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+    } else {
+      travelTime
+    }
+
   }
 
   private val turnCostCalculator: TurnCostCalculator =

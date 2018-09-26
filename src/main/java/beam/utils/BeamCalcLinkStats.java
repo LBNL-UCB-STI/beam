@@ -208,7 +208,7 @@ public class BeamCalcLinkStats {
                                 travelTime = data.ttimes[MAX][i];
                             }
 
-                            if(travelTime > (link.getLength() / 0.5)) travelTime = link.getLength() / 0.5;
+                            //if(travelTime > (link.getLength() / 0.5)) travelTime = link.getLength() / 0.5;
 
                             out.write("," + Double.toString(travelTime));
                         }
