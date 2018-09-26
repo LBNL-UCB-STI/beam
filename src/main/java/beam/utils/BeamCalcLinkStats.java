@@ -178,41 +178,41 @@ public class BeamCalcLinkStats {
                         out.write("," + statType[j]);
 
                         //WRITE VOLUME
-                        if (j == SUM) {
-                            out.write("," + Double.toString((data.volumes[j][i]) / this.count));
-                        } else {
-                            out.write("," + Double.toString(data.volumes[j][i]));
-                        }
+                        double volume = (j == SUM) ?
+                                data.volumes[j][i] / this.count
+                                :
+                                data.volumes[j][i];
+                        out.write("," + Double.toString(volume));
 
                         //WRITE TRAVELTIME
+                        if(i < this.nofHours) {
+                            Double travelTime;
+                            if (j == MIN) {
+                                travelTime = data.ttimes[MIN][i];
 
-                        if (j == MIN && i < this.nofHours) {
-                            String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("," + ttimesMin);
+                            } else if (j == SUM) {
+                                double ttimesMin = data.ttimes[MIN][i];
+                                double ttimesSum = data.ttimes[SUM][i];
+                                double volumesSum = data.volumes[SUM][i];
 
-                        } else if (j == SUM && i < this.nofHours) {
-                            String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            if (data.volumes[SUM][i] == 0) {
-                                // nobody traveled along the link in this hour, so we cannot calculate an average
-                                // use the value available or the minimum instead (min and max should be the same, =freespeed)
-                                double ttsum = data.ttimes[SUM][i];
-                                if (ttsum != 0.0) {
-                                    out.write("," + Double.toString(ttsum));
+                                if (ttimesSum == 0) {
+                                    travelTime = ttimesMin;
                                 } else {
-                                    out.write("," + ttimesMin);
+                                    if(volumesSum == 0) {
+                                        travelTime = ttimesSum;
+                                    } else {
+                                        travelTime = ttimesSum / volumesSum;
+                                    }
                                 }
-                            } else {
-                                double ttsum = data.ttimes[SUM][i];
-                                if (ttsum == 0) {
-                                    out.write("," + ttimesMin);
-                                } else {
-                                    out.write("," + Double.toString(ttsum / data.volumes[SUM][i]));
-                                }
+                            } else { // Always MAX
+                                travelTime = data.ttimes[MAX][i];
                             }
-                        } else if (j == MAX && i < this.nofHours) {
-                            String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("," + Double.toString(data.ttimes[MAX][i]));
+
+                            if(travelTime > (link.getLength() / 0.5)) travelTime = link.getLength() / 0.5;
+
+                            out.write("," + Double.toString(travelTime));
                         }
+
                         out.write("\n");
                     }
                 }
