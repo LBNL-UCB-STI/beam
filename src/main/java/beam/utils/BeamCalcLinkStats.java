@@ -47,24 +47,16 @@ public class BeamCalcLinkStats {
     private final Map<Id<Link>, LinkData> linkData;
     private final int nofHours;
     private final Network network;
-    private double volScaleFactor = 1.0;
     private int count = 0;
+    private double minCarSpeedInMetersPerSecond;
 
     @Inject
-    public BeamCalcLinkStats(final Network network) {
+    public BeamCalcLinkStats(final Network network, double minCarSpeedInMetersPerSecond) {
         this.network = network;
         this.linkData = new TreeMap<>();
         this.nofHours = 24;
         reset();
-    }
-
-    /**
-     * @param network
-     * @param vol_scale_factor scaling factor when reading in values from a file
-     */
-    public BeamCalcLinkStats(final Network network, double vol_scale_factor) {
-        this(network);
-        this.volScaleFactor = vol_scale_factor;
+        this.minCarSpeedInMetersPerSecond = minCarSpeedInMetersPerSecond;
     }
 
     public void addData(final VolumesAnalyzer analyzer, final TravelTime ttimes) {
@@ -208,7 +200,7 @@ public class BeamCalcLinkStats {
                                 travelTime = data.ttimes[MAX][i];
                             }
 
-                            //if(travelTime > (link.getLength() / 0.5)) travelTime = link.getLength() / 0.5;
+                            if(travelTime > (link.getLength() / minCarSpeedInMetersPerSecond)) travelTime = link.getLength() / minCarSpeedInMetersPerSecond;
 
                             out.write("," + Double.toString(travelTime));
                         }
