@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import java.util
 
 import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
@@ -16,6 +17,8 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.JavaConverters._
 
 object MatsimConversionTool extends App {
+
+  val dummyGtfsPath = "test/input/beamville/r5/dummy.zip"
 
   if (null != args && args.size > 0) {
     val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
@@ -30,6 +33,10 @@ object MatsimConversionTool extends App {
     MatsimPlanConversion.generateScenarioData(conversionConfig)
     generateTazDefaults(conversionConfig, network)
     generateOsmFilteringCommand(conversionConfig, network)
+
+    val r5OutputFolder = conversionConfig.scenarioDirectory + "/r5"
+    val dummyGtfsOut = r5OutputFolder + "/dummy.zip"
+    FileUtils.copyFile(new File(dummyGtfsPath), new File(dummyGtfsOut))
   } else {
     println("Please specify config/file/path parameter")
   }
