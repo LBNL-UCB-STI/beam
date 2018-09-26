@@ -387,7 +387,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-//    log.debug(profileRequest.toString)
+    //    log.debug(profileRequest.toString)
     val result = try {
       getPlan(profileRequest)
     } catch {
@@ -396,12 +396,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       case _: ArrayIndexOutOfBoundsException =>
         new ProfileResponse
     }
-//    log.debug(s"# options found = ${result.options.size()}")
+    //    log.debug(s"# options found = ${result.options.size()}")
     result
   }
 
   def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
-//    log.debug(routingRequest.toString)
+    //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
@@ -804,10 +804,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       routingRequest.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK)) {
-//      log.debug("No walk route found. {}", routingRequest)
+      //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-//        log.debug("Adding dummy walk route with maximum street time.")
+        //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
           beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
           beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
@@ -821,7 +821,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           Some(routingRequest.requestId)
         )
       } else {
-//        log.debug("Not adding a dummy walk route since agent has no body.")
+        //        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(
           embodiedTrips,
           routingRequest.staticRequestId,
@@ -1095,13 +1095,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
             option.addDirect(streetSegment, request.getFromTimeDateZD)
           } else {
-//            log.debug("Direct mode {} last state wasn't found", mode)
+            //            log.debug("Direct mode {} last state wasn't found", mode)
           }
         } else {
-//          log.debug("Direct mode {} destination wasn't found!", mode)
+          //          log.debug("Direct mode {} destination wasn't found!", mode)
         }
       } else {
-//        log.debug("Direct mode {} origin wasn't found!", mode)
+        //        log.debug("Direct mode {} origin wasn't found!", mode)
       }
     }
     option.summary = option.generateSummary
@@ -1152,7 +1152,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         foo(o1, o2)
       })
-//      log.debug("Usefull paths:{}", usefullpathList.size)
+      //      log.debug("Usefull paths:{}", usefullpathList.size)
 
       for (path <- usefullpathList.asScala) {
         profileResponse.addTransitPath(
@@ -1168,8 +1168,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       } // latency possible candidate
     }
     profileResponse.recomputeStats(request)
-//    log.debug("Returned {} options", profileResponse.getOptions.size)
-//    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
+    //    log.debug("Returned {} options", profileResponse.getOptions.size)
+    //    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
     profileResponse
   }
 

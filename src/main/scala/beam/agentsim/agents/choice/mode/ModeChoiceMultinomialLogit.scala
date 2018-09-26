@@ -97,7 +97,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    val walkTripStartTime = alternatives.filter(_.tripClassifier==WALK).headOption.map(_.legs.head.beamLeg.startTime)
+    val walkTripStartTime = alternatives.filter(_.tripClassifier == WALK).headOption.map(_.legs.head.beamLeg.startTime)
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
@@ -148,7 +148,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }
       val waitTime = altAndIdx._1.tripClassifier match {
         case RIDE_HAIL =>
-          altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(altAndIdx._1.legs.head.beamLeg.startTime)
+          altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
+            altAndIdx._1.legs.head.beamLeg.startTime
+          )
         case RIDE_HAIL_TRANSIT =>
           0 // TODO getting this would require we put wait time into EmbodiedBeamLeg, which is the right next step
         case _ =>
