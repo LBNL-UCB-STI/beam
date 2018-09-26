@@ -56,9 +56,11 @@ object MatsimPlanConversion {
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
-    val popAttrs = persons.zipWithIndex map {
-      case (_, index) =>
-        <object id={s"${index + 1}"}>
+    val popAttrs = persons map {
+      case p =>
+        val id = p \@ "id"
+      <object id={s"${id}"}>
+        <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram</attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
     }
