@@ -66,7 +66,7 @@ public class PersonTravelTimeTest {
          *
          **/
 
-        int expectedResultOfMode[] = {3, 0, 4, 32, 17};
+        int expectedResultOfMode[] = {3, 38, 4, 32, 17};
         int actualResultOfMode[] = {
                 (int) Math.ceil(statsComputed[0][6]),
                 (int) Math.ceil(statsComputed[1][6]),
