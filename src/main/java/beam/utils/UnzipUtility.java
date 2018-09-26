@@ -55,6 +55,7 @@ public class UnzipUtility {
         }
     }
 
+    // TODO: double check, if this is redundant
     /**
      * Extracts a zip file specified by the zipFilePath to a directory specified by
      * destDirectory (will be created if does not exists)
