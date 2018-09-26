@@ -1,41 +1,54 @@
 package beam.utils;
 
-import com.csvreader.CsvReader;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.population.PersonUtils;
 import org.matsim.core.population.PopulationUtils;
-import org.matsim.utils.objectattributes.attributable.Attributes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
-public class PlanReader {
 
-    public static final String delimiter = ",";
-    public static final String path = "D:/ns/work/issue_635/";
-    public static final String plansInputFileName = "plan.csv";
+public class PlanReaderCsv {
+
+    private Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
+
+    public String delimiter = ",";
+    public String path = "test/input/beamville/test-data/";
+    public static final String plansInputFileName = "plans-input.csv";
     public static final String plansOutputFileName = "plans-output.xml";
 
 
     public static void main(String[] args) throws IOException {
 
+        PlanReaderCsv planReader = new PlanReaderCsv();
+        Population population = planReader.readPlansFromCSV();
+        planReader.writePlansToXml(population);
+    }
 
+    public PlanReaderCsv(){
+
+        this(null, null);
+    }
+
+    public PlanReaderCsv(String path, String delimiter) {
+
+        this.path = path == null ? this.path : path;
+        this.delimiter = delimiter == null ? this.delimiter : delimiter;
+
+    }
+
+    public Population readPlansFromCSV() throws IOException{
+
+        Population population = PopulationUtils.createPopulation(ConfigUtils.createConfig());
 
         BufferedReader reader = new BufferedReader(new FileReader(path + plansInputFileName));
         String line = "";
         int idx = 0;
-
-//        Plan plan = PopulationUtils.createPlan();
-//        PopulationFactory populationFactory = PopulationUtils.getFactory();
-//
-        Population population = PopulationUtils.createPopulation(ConfigUtils.createConfig());
 
         while((line = reader.readLine()) != null){
 
@@ -82,28 +95,22 @@ public class PlanReader {
             idx++;
         }
 
-        //PopulationUtils.
-
-        writePlans(population);
-
+        return population;
     }
 
-    private static void writePlans(Population population) {
+    public void writePlansToXml(Population population) {
         String plansFilename = path + plansOutputFileName;
         new PopulationWriter(population).write(plansFilename);
 
-        System.out.println("Written plans successfully to " + plansFilename);
+        log.info("Written plans successfully to {}", plansFilename);
     }
 
-    public static void printRow(String[] dRow){
-        System.out.println("personId => " + dRow[0] +
-                ", planElement => " + dRow[1] +
-                ", planElementId => " + dRow[2] +
-                ", activityType => " + dRow[3] +
-                ", x => " + dRow[4] +
-                ", y => " + dRow[5] +
-                ", endTime => " + dRow[6] +
-                ", mode => " + dRow[7]);
+    public void printRow(String[] dRow){
+        log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
+                        "x => {} , y => {} , endTime => {} , mode => {}",
+                dRow);
     }
+
+
 }
 
