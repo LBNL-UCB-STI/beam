@@ -110,7 +110,7 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
-    beamServices.startNewIteration
+    beamServices.startNewIteration()
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
@@ -212,8 +212,8 @@ class BeamMobsim @Inject()(
         private val numRideHailAgents = math.round(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
-        private val rideHailVehicleType = BeamVehicleUtils
-          .getVehicleTypeById(
+//        private val rideHailVehicleType =
+          BeamVehicleUtils.getVehicleTypeById(
             beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,
             scenario.getVehicles.getVehicleTypes
           )
@@ -307,9 +307,7 @@ class BeamMobsim @Inject()(
 
             val ridehailBeamVehicleTypeId =
               Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-            val ridehailBeamVehicleType = beamServices.vehicleTypes
-              .get(ridehailBeamVehicleTypeId)
-              .getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
+            val ridehailBeamVehicleType = beamServices.vehicleTypes.getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
 
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
