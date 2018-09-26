@@ -36,6 +36,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private Set<String> modesChosen = new TreeSet<>();
+    private Set cumulativeModeChosen = new TreeSet();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
 
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -120,6 +121,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         tags.put("hour", "" + (hour + 1));
         countOccurrenceJava(mode, 1, ShortLevel(), tags);
         modesChosen.add(mode);
+        cumulativeModeChosen.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
         if (hourData != null) {
@@ -244,7 +246,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, modesChosen));;
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosen));;
 
         if (dataset != null) {
             categoryDataset = createCategoryDataset("it.", dataset);
@@ -271,7 +273,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
+        modesChosenList.addAll(cumulativeModeChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
@@ -284,7 +286,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            Set<String> modes = modesChosen;
+            Set<String> modes = cumulativeModeChosen;
 
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);

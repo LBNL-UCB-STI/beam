@@ -50,16 +50,19 @@ object BeamVehicleType {
     0
   )
 
-  //TODO
+  // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
+  // 400 calories/hour == 1255 J/hr @ 7km/hr or 2m/s == 0.17928571428 J/m
+  // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
       "BODY-TYPE-DEFAULT",
       0,
       0,
-      0,
+      0.5,
       null,
-      0,
-      0
+      0.17928571428,
+      7500,
+      null
     )
 
   //TODO
@@ -74,27 +77,15 @@ object BeamVehicleType {
       0
     )
 
-  //TODO
-  val defaultRidehailBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      "RIDEHAIL-TYPE-DEFAULT",
-      0,
-      0,
-      0,
-      null,
-      0,
-      0
-    )
-
-  //TODO
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "CAR-TYPE-DEFAULT",
+    4,
     0,
-    0,
-    0,
-    null,
-    0,
-    0
+    4.5,
+    new FuelType(Gasoline, 0.0),
+    3656.0,
+    3655980000.0,
+    null
   )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
