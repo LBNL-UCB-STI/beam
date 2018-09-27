@@ -299,7 +299,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             result.addValue((benchmarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
         }
 
-        double[] sumOfColumns = new double[data.length];
+        double[] sumOfColumns = new double[cumulativeModeChosen.size()];
         for (int r = 0; r < data.length; r++) {
             for (int c = 0; c < data[r].length; c++) {
                 sumOfColumns[c] += data[r][c];
