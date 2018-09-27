@@ -1,7 +1,5 @@
 package beam.utils
 
-import java.util.concurrent.TimeUnit
-
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
@@ -16,7 +14,6 @@ import scala.collection.mutable.ArrayBuffer
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private var tickValue: Int = -1
   private var lastUpdatedTime: Long = 0
-  private val OverallSimualtionStuckThresholdMs: Long = TimeUnit.SECONDS.toMillis(60)
 
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
@@ -118,7 +115,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private def checkIfOverallSimulationIsStuck(): Unit = {
     if (tickValue != -1 && lastUpdatedTime != 0) {
       val diff = System.currentTimeMillis() - lastUpdatedTime
-      val isStuck = diff > OverallSimualtionStuckThresholdMs
+      val isStuck = diff > cfg.overallSimulationTimeoutMs
       if (isStuck) {
         logger.error(s"Critical. No progress in overall simulation for last $diff ms")
       }
