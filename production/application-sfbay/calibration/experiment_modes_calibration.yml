@@ -17,7 +17,7 @@ header:
 
       runName: "modes_intercept_absErr_ModeDiversity_27thSep2018"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "8043505324ac709d2f9983be0d3222fa925756c3"
+      beamCommit: "a9e790452f0a985d0884e0969840355ea8cce0c3"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
