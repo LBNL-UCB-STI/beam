@@ -5,7 +5,7 @@
 header:
     title: Ridehail_repositioning_calibration_1
     author: BEAM Developers
-    beamTemplateConfPath: production/application-sfbay/diffusion-and-rh2transit-base.conf
+    beamTemplateConfPath: production/application-sfbay/diffusion-and-rh2transit-base_less_repositioning.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
     params:
@@ -58,52 +58,7 @@ factors:
         beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds: 300
     - name: High
       params:
-        beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds: 300
-
-  - title: repositionCircleRadisInMeters
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters: 3000.0
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters: 3000.00001
-
-  - title: minimumNumberOfIdlingVehiclesThreshholdForRepositioning
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning: 1
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning: 2
-
-  - title: percentageOfVehiclesToReposition
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition: 0.001
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition: 0.01
-
-  - title: timeWindowSizeInSecForDecidingAboutRepositioning
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning: 600
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning: 1200
-
-  - title: minDemandPercentageInRadius
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius: 0.01
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius: 0.1
+        beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds: 301
 
   - title: keepMaxTopNScores
     levels:
@@ -114,14 +69,6 @@ factors:
       params:
         beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.keepMaxTopNScores: 8
 
-  - title: minScoreThresholdForRepositioning
-    levels:
-    - name: Low
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning: 0.00001
-    - name: High
-      params:
-        beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning: 0.01
 
   - title: distanceWeight
     levels:
