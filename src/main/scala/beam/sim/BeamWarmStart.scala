@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import akka.actor.ActorRef
 import beam.router.BeamRouter.UpdateTravelTime
-import beam.router.{BeamRouter, LinkTravelTimeContainer}
+import beam.router.LinkTravelTimeContainer
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.downloadFile
 import beam.utils.UnzipUtility._
@@ -14,7 +14,6 @@ import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.router.util.TravelTime
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.compat.java8.StreamConverters._
 
@@ -35,59 +34,74 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
   val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
 
   /**
-    * initialize warm start mode.
+    * initialize travel times.
     */
-  def warmStartRouterIfNeeded(beamRouter: ActorRef): Unit = {
+  def warmStartTravelTime(beamRouter: ActorRef): Unit = {
     if (!isWarmMode) return
-    warmStartPath match {
+    getWarmStartFilePath("linkstats.csv.gz") match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
-          logger.info(s"Warm start mode initialized successfully from stats located at $statsPath.")
+          logger.info("Travel times successfully warm started from {}.", statsPath)
         } else {
           logger.warn(
-            s"Warm start mode initialization failed, stats not found at path ( $statsPath )"
+            "Travel times failed to warm start, stats not found at path ( {} )",
+            statsPath
           )
         }
       case None =>
     }
   }
 
-  def warmStartPopulationIfNeeded(matsimConfig: Config): Unit = {
-    if (isWarmMode) {
-      populationFilePath.foreach { file =>
-        matsimConfig.plans().setInputFile(file)
-        logger.info("Warm start population initialized successfully from file located at {}", file)
-      }
+  /**
+    * initialize population.
+    */
+  def warmStartPopulation(matsimConfig: Config): Unit = {
+    if (!isWarmMode) return
+    getWarmStartFilePath("plans.xml.gz") match {
+      case Some(statsPath) =>
+        if (Files.exists(Paths.get(statsPath))) {
+          val file = loadPopulation(parentRunPath, statsPath)
+
+          matsimConfig.plans().setInputFile(file)
+          logger.info("Population successfully warm started from {}", statsPath)
+        } else {
+          logger.warn(
+            "Population failed to warm start, plans not found at path ( {} )",
+            statsPath
+          )
+        }
+      case None =>
     }
   }
 
-  lazy val populationFilePath: Option[String] =
-    if (isWarmMode) {
-      val path = pathType match {
-        case "PARENT_RUN"    => parentRunPath
-        case "ABSOLUTE_PATH" => srcPath
-      }
-      Some(loadPopulation(path, populationFile(path)))
-    } else None
+  private def loadPopulation(runPath: String, populationFile: String): String = {
+    val plansPath = Paths.get(runPath, "warmstart_plans.xml")
+    unGunzipFile(populationFile, plansPath.toString, false)
+    plansPath.toString
+  }
 
-  private lazy val warmStartPath: Option[String] = pathType match {
+  private def getWarmStartFilePath(warmStartFile: String): Option[String] = pathType match {
     case "PARENT_RUN" =>
-      getWarmStartPath(parentRunPath)
+      getIterationFilePath(warmStartFile, parentRunPath).fold(findWarmStartFile(warmStartFile))(Some(_))
 
     case "ABSOLUTE_PATH" =>
-      Files
-        .walk(Paths.get(srcPath))
-        .toScala[Stream]
-        .map(_.toString)
-        .find(_.endsWith(".linkstats.csv.gz"))
+      findWarmStartFile(warmStartFile)
 
     case _ =>
-      logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
       None
   }
 
-  private def getWarmStartPath(runPath: String) = {
+  private def findWarmStartFile(warmStartFile: String) = {
+    val search = Files
+      .walk(Paths.get(srcPath))
+      .toScala[Stream]
+      .map(_.toString)
+      .filter(_.endsWith(warmStartFile))
+    search.lastOption
+  }
+
+  private def getIterationFilePath(itFile: String, runPath: String): Option[String] = {
     val iterOption = Files
       .walk(Paths.get(runPath))
       .toScala[Stream]
@@ -96,21 +110,15 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
 
     iterOption match {
       case Some(iterBase) =>
-        getWarmStartIteration(iterBase) match {
+        getIterationThatContains(s".$itFile", iterBase) match {
           case Some(warmIteration) =>
             Some(
-              Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.linkstats.csv.gz").toString
+              Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.$itFile").toString
             )
           case None =>
-            logger.warn(
-              s"Warm start mode initialization failed, no iteration found with warm state in parent run ( $srcPath )"
-            )
             None
         }
       case None =>
-        logger.warn(
-          s"Warm start mode initialization failed, ITERS not found in parent run ( $srcPath )"
-        )
         None
     }
   }
@@ -130,14 +138,6 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  private def populationFile(runPath: String): String = Paths.get(runPath, "output_plans.xml.gz").toString
-
-  private def loadPopulation(runPath: String, populationFile: String): String = {
-    val plansPath = Paths.get(runPath, "output_plans.xml")
-    unGunzipFile(populationFile, plansPath.toString, false)
-    plansPath.toString
-  }
-
   private def isOutputBucketUrl(source: String): Boolean = {
     assert(source != null)
     source.startsWith("https://s3.us-east-2.amazonaws.com/beam-outputs/")
@@ -154,10 +154,10 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
-  private def getWarmStartIteration(itrBaseDir: String): Option[Int] = {
+  private def getIterationThatContains(itFile: String, itrBaseDir: String): Option[Int] = {
 
     def getWarmStartIter(itr: Int): Int =
-      if (itr < 0 || isWarmStartIteration(itrBaseDir.toString, itr)) itr
+      if (itr < 0 || isIterationFilePresent(itFile, itrBaseDir.toString, itr)) itr
       else getWarmStartIter(itr - 1)
 
     val itrIndex = getWarmStartIter(new File(itrBaseDir).list().length - 1)
@@ -165,8 +165,8 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
     Some(itrIndex).filter(_ >= 0)
   }
 
-  private def isWarmStartIteration(itrBaseDir: String, itr: Int): Boolean = {
-    val linkStats = Paths.get(itrBaseDir, s"it.$itr", s"$itr.linkstats.csv.gz")
+  private def isIterationFilePresent(itFile: String, itrBaseDir: String, itr: Int): Boolean = {
+    val linkStats = Paths.get(itrBaseDir, s"it.$itr", s"$itr$itFile")
     Files.exists(linkStats)
   }
 }
