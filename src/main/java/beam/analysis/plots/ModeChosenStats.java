@@ -298,8 +298,13 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             String rowKey = String.valueOf(i + 1);
             result.addValue((benchmarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
         }
-
-        double[] sumOfColumns = new double[cumulativeModeChosen.size()];
+        int max = 0;
+        for (int r = 0; r < data.length; r++) {
+            if(data[r].length > max){
+                max = data[r].length;
+            }
+        }
+        double[] sumOfColumns = new double[max];
         for (int r = 0; r < data.length; r++) {
             for (int c = 0; c < data[r].length; c++) {
                 sumOfColumns[c] += data[r][c];
