@@ -2,10 +2,12 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
@@ -14,6 +16,8 @@ import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.events.ActivityEndEvent;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -38,14 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -58,6 +56,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
+    private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -99,6 +98,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -139,6 +139,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkSpeedDistributionStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
