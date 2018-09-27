@@ -124,7 +124,7 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
       }
       val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
       unzip(archivePath, runPath, false)
-      runPath
+      Paths.get(runPath, getBaseName(srcPath)).toString
     } else {
       srcPath
     }
