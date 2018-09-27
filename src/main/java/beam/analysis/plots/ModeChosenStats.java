@@ -4,7 +4,6 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
-import com.csvreader.CsvReader;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -289,6 +288,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         return categoryDataset;
     }
 
+    // The data is converted into average and compared with the data of benchmark.
     public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) throws IOException{
         Map<String, Double> benchmarkData = benchmarkCsvLoader();
         DefaultCategoryDataset result = new DefaultCategoryDataset();
@@ -369,6 +369,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
+    //csv for reference mode choice
     public void writeToRootCSVForReference() {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("reference_modeChoice.csv");
