@@ -130,7 +130,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      new BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
 
       router ! RoutingRequest(
         origin,

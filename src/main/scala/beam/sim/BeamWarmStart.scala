@@ -115,11 +115,7 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
   }
 
   private def getIterationFilePath(itFile: String, runPath: String): Option[String] = {
-    val iterOption = Files
-      .walk(Paths.get(runPath))
-      .toScala[Stream]
-      .map(_.toString)
-      .find(p => "ITERS".equals(getName(p)))
+    val iterOption = getITERSPath(runPath)
 
     iterOption match {
       case Some(iterBase) =>
@@ -136,6 +132,14 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
+  private def getITERSPath(runPath: String) = {
+    Files
+      .walk(Paths.get(runPath))
+      .toScala[Stream]
+      .map(_.toString)
+      .find(p => "ITERS".equals(getName(p)))
+  }
+
   private lazy val parentRunPath = {
     if (isZipArchive(srcPath)) {
       var archivePath = srcPath
@@ -145,7 +149,8 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
       }
       val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
       unzip(archivePath, runPath, false)
-      Paths.get(runPath, getBaseName(srcPath)).toString
+
+      runPath
     } else {
       srcPath
     }
