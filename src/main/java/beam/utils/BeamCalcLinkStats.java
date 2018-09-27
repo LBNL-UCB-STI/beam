@@ -34,7 +34,7 @@ import javax.inject.Inject;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BeamCalcLinkStats {
 
@@ -53,7 +53,7 @@ public class BeamCalcLinkStats {
     @Inject
     public BeamCalcLinkStats(final Network network, double minCarSpeedInMetersPerSecond) {
         this.network = network;
-        this.linkData = new TreeMap<>();
+        this.linkData = new ConcurrentHashMap<>();
         this.nofHours = 24;
         reset();
         this.minCarSpeedInMetersPerSecond = minCarSpeedInMetersPerSecond;
@@ -225,14 +225,12 @@ public class BeamCalcLinkStats {
     }
 
     private static class LinkData {
-        public final double[][] volumes;
-        public final double[][] ttimes;
+        final double[][] volumes;
+        final double[][] ttimes;
 
-        public LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
+        LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
             this.volumes = linksVolumes.clone();
             this.ttimes = linksTTimes.clone();
         }
     }
-
-
 }
