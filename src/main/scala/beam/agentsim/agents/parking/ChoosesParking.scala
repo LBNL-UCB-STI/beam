@@ -176,10 +176,6 @@ trait ChoosesParking extends {
         responses: (RoutingResponse, RoutingResponse),
         data @ BasePersonData(_, _, _, _, _, _, _, _, _)
         ) =>
-      val (r1, r2) = responses
-      processLinkEvents(r1.itineraries)
-      processLinkEvents(r2.itineraries)
-
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head

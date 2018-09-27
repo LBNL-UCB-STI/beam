@@ -209,7 +209,7 @@ class PersonAgent(
       // FIXME There are the way to make it faster and even lazy
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
       // We average travel time for the first link
-      linkTravelTime.dropRight(1).zipWithIndex.map { case (travelTime, idx) =>
+      linkTravelTime.zipWithIndex.map { case (travelTime, idx) =>
         if (idx == 0) {
           travelTime / 2
         }
@@ -227,9 +227,9 @@ class PersonAgent(
         val path = leg.beamLeg.travelPath
         if (path.linkTravelTime.nonEmpty) {
           // FIXME once done with debugging, make this code faster
-          val avgTravelTime = getAverageTravelTime(path.linkTravelTime)
+          val avgTravelTimeWithoutLast = getAverageTravelTime(path.linkTravelTime).dropRight(1)
           val links = path.linkIds
-          val linksWithTime = links.sliding(2).zip(avgTravelTime.iterator).toArray
+          val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
           linksWithTime.foreach {
             case (Seq(from, to), timeAtNode) =>
               eventsManager.processEvent(new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
