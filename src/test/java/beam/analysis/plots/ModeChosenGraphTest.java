@@ -40,7 +40,7 @@ public class ModeChosenGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    });
+    }, GraphTestUtil.beamconfig );
 
     @Before
     public void setUpClass() {
