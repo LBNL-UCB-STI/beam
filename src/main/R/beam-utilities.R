@@ -4,7 +4,8 @@ load.libraries(c('GEOquery','XML'))
 clean.and.relabel <- function(ev,factor.to.scale.personal.back,factor.to.scale.transit.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
-  ev[vehicle_type=="CAR" | substr(vehicle,1,5)=="rideH",vehicle_type:="TNC"]
+  ev[vehicle_type=="CAR",vehicle_type:="Car"]
+  ev[substr(vehicle,1,5)=="rideH",mode:="ride_hail"]
   ev[vehicle_type=="subway",vehicle_type:="BART"]
   ev[vehicle_type=="SUV",vehicle_type:="Car"]
   ev[vehicle_type=="cable_car",vehicle_type:="Cable_Car"]
@@ -41,8 +42,8 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back,factor.to.scale.t
   ev
 }
 
-pretty.titles <- c('TNC Number'='ridehail_num',
-                   'TNC Price'='ridehail_price',
+pretty.titles <- c('Ride Hail Number'='ridehail_num',
+                   'Ride Hail Price'='ridehail_price',
                    'Transit Capacity'='transit_capacity',
                    'Transit Price'='transit_price',
                    'Toll Price'='toll_price',
@@ -57,8 +58,8 @@ to.title <- function(abbrev){
   }
 }
 pretty.modes <- function(ugly){
-  pretty.list <- c('TNC'='ride_hail',
-                   'TNC'='ride_hail',
+  pretty.list <- c('Ride Hail'='ride_hail',
+                   'Ride Hail - Transit'='ride_hail_transit',
                    'Cable Car'='cable_car',
                    'Car'='car',
                    'Walk'='walk',
@@ -89,7 +90,7 @@ parse.link.stats <- function(link.stats.file,net.file=NA){
 }
 
 my.colors <- c(blue='#377eb8',green='#227222',orange='#C66200',purple='#470467',red='#B30C0C',yellow='#C6A600',light.green='#C0E0C0',magenta='#D0339D',dark.blue='#23128F',brown='#542D06',grey='#8A8A8A',dark.grey='#2D2D2D',light.yellow='#FFE664',light.purple='#9C50C0',light.orange='#FFB164',black='#000000')
-mode.colors <- c(TNC='red',Car='grey',Walk='green',Transit='blue')
+mode.colors <- c('Ride Hail'='red',Car='grey',Walk='green',Transit='blue','Ride Hail - Transit'='purple')
 mode.colors <- data.frame(key=names(mode.colors),color=mode.colors,color.hex=my.colors[mode.colors])
 
 download.from.nersc <- function(experiment.dir,include.pattern='*'){
