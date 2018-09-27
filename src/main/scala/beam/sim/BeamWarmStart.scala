@@ -18,20 +18,25 @@ import org.matsim.core.router.util.TravelTime
 import scala.compat.java8.StreamConverters._
 
 object BeamWarmStart {
-  def apply(beamConfig: BeamConfig): BeamWarmStart = new BeamWarmStart(beamConfig)
+  private var _instance: BeamWarmStart = _
+  def apply(beamConfig: BeamConfig): BeamWarmStart = {
+    if(_instance == null)
+      _instance = new BeamWarmStart(beamConfig)
+    _instance
+  }
 }
 
-class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
+class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
   // beamConfig.beam.warmStart.pathType=PARENT_RUN, ABSOLUTE_PATH
-  private val pathType = beamConfig.beam.warmStart.pathType
-  private val srcPath = beamConfig.beam.warmStart.path
+  private lazy val pathType = beamConfig.beam.warmStart.pathType
+  private lazy val srcPath = beamConfig.beam.warmStart.path
 
   /**
     * check whether warmStart mode is enabled.
     *
     * @return true if warm start enabled, otherwise false.
     */
-  val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
+  private lazy val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
 
   /**
     * initialize travel times.

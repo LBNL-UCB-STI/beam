@@ -361,7 +361,7 @@ trait BeamHelper extends LazyLogging {
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
-    val beamWarmStart = new BeamWarmStart(beamConfig)
+    val beamWarmStart = BeamWarmStart(beamConfig)
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
