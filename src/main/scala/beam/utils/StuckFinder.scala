@@ -1,5 +1,7 @@
 package beam.utils
 
+import java.util.concurrent.TimeUnit
+
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
@@ -12,6 +14,10 @@ import scala.collection.mutable.ArrayBuffer
 /** THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
   */
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
+  private var tickValue: Int = -1
+  private var lastUpdatedTime: Long = 0
+  private val OverallSimualtionStuckThresholdMs: Long = TimeUnit.SECONDS.toMillis(60)
+
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
   } else {
@@ -37,8 +43,16 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }.toMap
   }
 
+  def updateTickIfNeeded(tick: Int): Unit = {
+    if (tick != tickValue) {
+      tickValue = tick
+      lastUpdatedTime = System.currentTimeMillis()
+    }
+  }
+
   def add(time: Long, st: ScheduledTrigger): Unit = {
     if (cfg.enabled) {
+      updateTickIfNeeded(st.triggerWithId.trigger.tick)
       class2Helper
         .get(toKey(st))
         .foreach { helper =>
@@ -83,6 +97,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }
     val result = ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]]
     if (cfg.enabled) {
+      checkIfOverallSimulationIsStuck()
       class2Helper.values.foreach { helper =>
         detectStuckAgents0(helper, result)
       }
@@ -98,6 +113,16 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       logger.warn(s"$st is stuck. Diff: $diff ms, Threshold: $threshold ms")
     }
     isStuck
+  }
+
+  private def checkIfOverallSimulationIsStuck(): Unit = {
+    if (tickValue != -1 && lastUpdatedTime != 0) {
+      val diff = System.currentTimeMillis() - lastUpdatedTime
+      val isStuck = diff > OverallSimualtionStuckThresholdMs
+      if (isStuck) {
+        logger.error(s"Critical. No progress in overall simulation for last $diff ms")
+      }
+    }
   }
 
   private def toKey(st: ScheduledTrigger): Class[_] = st.triggerWithId.trigger.getClass
