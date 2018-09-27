@@ -208,6 +208,7 @@ if(F){
 #poprh<-rbindlist(list(pop,rhi),use.names=T,fill=T)
 #ggplot(poprh,aes(x=x,y=y,colour=type))+geom_point(alpha=.2)
 
+
 park.dir <- '~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/parking/'
 
 chs <- list()
@@ -231,14 +232,24 @@ library(stringr)
 save(all,exp,file=pp(plots.dir,'/summary-metrics-all.Rdata'))
 load(file=pp(plots.dir,'/summary-metrics-all.Rdata'))
 
-all <- join.on(all,ch.sum,c('charge','range','qos'),c('charge','range','qos'),'nchargers')
+# adding base to all
+all <- rbindlist(list(all,all.sum),fill=T,use.names=T)
+all[chargers=='base',range:='Base']
+all[chargers=='base',charge:='N/A']
+all[chargers=='base',qos:='N/A']
 
 all <- all[!(range=='R150' & qos=='S98' & charge=='P250')]
-all[,empty.vmt.fraction:=empty.vmt.fraction*1608]
-all[,deadhead.vmt.fraction:=empty.vmt.fraction*1608]
+all <- join.on(all,ch.sum,c('charge','range','qos'),c('charge','range','qos'),'nchargers')
+all[chargers=='base',nchargers:=0]
+
+all[range!='Base',empty.vmt.fraction:=empty.vmt.fraction*1608]
+all[range!='Base',deadhead.vmt.fraction:=empty.vmt.fraction*1608]
 
 all.m <- melt(all,id.vars=c('range','charge','qos','nchargers'))
 all.m[,variable:=str_replace_all(variable,'\\.','_')]
+all.m[variable=='empty_vmt_fraction',value:=as.character(as.numeric(value)*100)]
+all.m[variable=='empty_vmt_fraction' & range=='Base',value:=as.character(as.numeric(value)/1608)]
+
 
 #for(metric in u(all.m$variable)){
   #if(all(is.na(as.numeric(all.m[variable==metric]$value)))){
@@ -257,8 +268,21 @@ all.m[charge=='P50' & qos=='S99',charge:='P250']
 all.m[,qosn:=as.numeric(substr(qos,2,4))]
 
 #ggplot(all.m[charge=='P50'&variable%in%c('vmt_per_vehicle','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(x=qosn,y=as.numeric(value),colour=range))+geom_line()+facet_wrap(~variable)
-ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('customer_wait_99th_percentile','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+geom_line()+facet_wrap(~variable,scales='free_y')+geom_point()
+
+ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('customer_wait_99th_percentile','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+
+                    geom_line()+
+                    geom_point()+
+                    geom_hline(data=all.m[range=='Base'&variable%in%c('customer_wait_99th_percentile','n_trips_with_passenger','n_charge_sessions','customer_wait_50th_percentile')],aes(yintercept=as.numeric(value)),color=my.colors['red'])+
+                    scale_colour_manual(values=as.vector(my.colors[c('blue','green')]))+
+                    facet_wrap(~variable,scales='free_y')
+
 dev.new()
-ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('vmt_per_vehicle','total_vmt','empty_vmt_fraction','avg_trip_deadhead_miles')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+geom_line()+facet_wrap(~variable,scales='free_y')+geom_point()
+
+ggplot(all.m[qos!='S70'&charge=='P250'&variable%in%c('vmt_per_vehicle','total_vmt','empty_vmt_fraction','avg_trip_deadhead_miles')],aes(x=nchargers,y=as.numeric(value),colour=range,shape=range))+
+  geom_line()+
+  geom_point()+
+  geom_hline(data=all.m[range=='Base'&variable%in%c('vmt_per_vehicle','total_vmt','empty_vmt_fraction','avg_trip_deadhead_miles')],aes(yintercept=as.numeric(value)),color=my.colors['red'])+
+  scale_colour_manual(values=as.vector(my.colors[c('blue','green')]))+
+  facet_wrap(~variable,scales='free_y')
 
 
