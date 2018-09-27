@@ -50,6 +50,9 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
           )
         }
       case None =>
+        logger.warn(
+          s"Warm start mode initialization failed - warmStartPath is None"
+        )
     }
   }
 
