@@ -3,7 +3,7 @@
 # Header
 
 header:
-    title: modes_intercept_absErr_ModeDiversity_27thSep2018
+    title: modes_intercept_absErr_ModeDiversity_28thSep2018
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/diffusion-base-calib.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
@@ -15,18 +15,18 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "modes_intercept_absErr_ModeDiversity_27thSep2018"
+      runName: "modes_intercept_absErr_ModeDiversity_28thSep2018"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "a9e790452f0a985d0884e0969840355ea8cce0c3"
+      beamCommit: "fcc7fc747435f7d35884c15a206a7b5ae42bf823"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
       shutdownWait: "15"
       shutdownBehavior: "stop"
       s3Backup: "true"
-      maxRAM: "140g"
+      maxRAM: "220g"
       region: "us-east-2"
-      instanceType: "c5.18xlarge"
+      instanceType: "m4.16xlarge"
 
 
 
