@@ -2,8 +2,8 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.{CheckInResource, RegisterResource}
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
@@ -15,8 +15,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{ZonalParkingManager, ZonalParkingManagerSpec}
+import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
@@ -79,7 +78,7 @@ class RideHailAgentSpec
   }
   lazy val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
-  case class TestTrigger(tick: Double) extends Trigger
+  case class TestTrigger(tick: Int) extends Trigger
 
   private lazy val networkCoordinator = new NetworkCoordinator(config)
 
@@ -162,15 +161,15 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, None, None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           config,
-          stopTick = 64800.0,
-          maxWindow = 10.0,
+          stopTick = 64800,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )
@@ -240,9 +239,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -250,8 +247,8 @@ class RideHailAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           config,
-          stopTick = 64800.0,
-          maxWindow = 10.0,
+          stopTick = 64800,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )
@@ -310,9 +307,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -320,8 +315,8 @@ class RideHailAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           config,
-          stopTick = 64800.0,
-          maxWindow = 10.0,
+          stopTick = 64800,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )

@@ -133,9 +133,9 @@ object RideHailManager {
     rnd2Response: RoutingResponse
   )
 
-  case class BufferedRideHailRequestsTimeout(tick: Double) extends Trigger
+  case class BufferedRideHailRequestsTimeout(tick: Int) extends Trigger
 
-  case class RideHailAllocationManagerTimeout(tick: Double) extends Trigger
+  case class RideHailAllocationManagerTimeout(tick: Int) extends Trigger
 
   sealed trait RideHailServiceStatus
   /* Available means vehicle can be assigned to a new customer */
@@ -348,6 +348,7 @@ class RideHailManager(
                 .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
                 .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
+            log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
             val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
             if (stallOpt.isDefined) {
               log.debug("Initiate refuel session for vehicle: {}", vehicleId)
@@ -647,7 +648,7 @@ class RideHailManager(
 
           val rideHailVehicleAtOrigin = StreetVehicle(
             rideHailAgentLocation.vehicleId,
-            SpaceTime((rideHailAgentLocation.currentLocation.loc, tick.toLong)),
+            SpaceTime((rideHailAgentLocation.currentLocation.loc, tick)),
             CAR,
             asDriver = false
           )
@@ -751,7 +752,7 @@ class RideHailManager(
 
     case DepotParkingInquiryResponse(None, requestId) =>
       val vehId = parkingInquiryCache.get(requestId).get.vehicleId
-      log.debug(
+      log.warning(
         "No parking stall found, ride hail vehicle {} stranded",
         vehId
       )
@@ -1198,7 +1199,7 @@ class RideHailManager(
     }
   }
 
-  def attemptToCancelCurrentRideRequest(tick: Double, requestId: Int): Unit = {
+  def attemptToCancelCurrentRideRequest(tick: Int, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
         log.debug(

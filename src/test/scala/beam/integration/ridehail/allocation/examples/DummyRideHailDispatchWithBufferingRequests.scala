@@ -30,7 +30,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
     } // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
-  override def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
+  override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
 
     if (enableDummyRidehailReplacement) {
 

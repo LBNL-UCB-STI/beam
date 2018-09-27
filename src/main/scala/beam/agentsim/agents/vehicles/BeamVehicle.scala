@@ -2,17 +2,16 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource
-import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.infrastructure.{ParkingManager, ParkingStall}
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.Vehicle
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -32,16 +31,11 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-  var fuelLevelInJoules: Option[Double],
-  val refuelRateLimitInJoulesPerSecond: Option[Double]
+  val beamVehicleType: BeamVehicleType
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
-  /**
-    * Identifier for this vehicle
-    */
-//  val id: Id[BeamVehicle] = vehicleId
+  var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -76,7 +70,7 @@ class BeamVehicle(
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
       BecomeDriverOfVehicleSuccess
-    } else if (driver.get == newDriverRef) {
+    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
       NewDriverAlreadyControllingVehicle
     } else {
       DriverAlreadyAssigned(driver.get)
@@ -129,7 +123,8 @@ class BeamVehicle(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
-          refuelRateLimitInJoulesPerSecond,
+          Some(beamVehicleType.rechargeLevel2RateLimitInWatts),
+          Some(beamVehicleType.rechargeLevel3RateLimitInWatts),
           None
         )
       case None =>

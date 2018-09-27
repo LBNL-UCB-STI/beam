@@ -26,7 +26,7 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Ignore, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -125,12 +125,12 @@ class WarmStartRoutingSpec
           )
         )
       )
-      val response = expectMsgType[RoutingResponse]
+      var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      new BeamWarmStart(services).init()
+      new BeamWarmStart(services.beamConfig).warmStartRouterIfNeeded(services.beamRouter)
       router ! RoutingRequest(
         origin,
         destination,
@@ -145,9 +145,9 @@ class WarmStartRoutingSpec
           )
         )
       )
-      val response2 = expectMsgType[RoutingResponse]
-      assert(response2.itineraries.exists(_.tripClassifier == CAR))
-      val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
+      response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.exists(_.tripClassifier == CAR))
+      val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs == 55)
     }
   }

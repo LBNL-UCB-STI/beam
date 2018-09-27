@@ -111,7 +111,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     selectedForModifyPassengerSchedule.foreach { selected =>
       if (stopDriving) {
-        sendMessage(selected.rideHailAgent, StopDriving(selected.tick))
+        sendMessage(selected.rideHailAgent, StopDriving(selected.tick.toInt))
       }
       //      log.debug("sendModifyPassengerScheduleMessage: " + selectedForModifyPassengerSchedule)
       resourcesNotCheckedIn_onlyForDebugging += selected.vehicleId
@@ -270,7 +270,7 @@ class RideHailModifyPassengerScheduleManager(
     )
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning <= 0)
     val timerTrigger = RideHailAllocationManagerTimeout(
-      tick + rideHailAllocationManagerTimeoutInSeconds
+      (tick + rideHailAllocationManagerTimeoutInSeconds).toInt
     )
     val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
     nextCompleteNoticeRideHailAllocationTimeout = Some(CompletionNotice(triggerId, Vector(timerMessage)))

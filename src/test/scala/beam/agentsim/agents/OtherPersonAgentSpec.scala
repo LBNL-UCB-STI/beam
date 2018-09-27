@@ -141,17 +141,13 @@ class OtherPersonAgentSpec
         new Powertrain(0.0),
 //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.getId, bus)
@@ -262,8 +258,8 @@ class OtherPersonAgentSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           config,
-          stopTick = 1000000.0,
-          maxWindow = 10.0,
+          stopTick = 1000000,
+          maxWindow = 10,
           new StuckFinder(config.beam.debug.stuckAgentDetection)
         )
       )

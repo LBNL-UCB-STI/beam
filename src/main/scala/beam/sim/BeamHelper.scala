@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -198,10 +199,10 @@ trait BeamHelper extends LazyLogging {
           if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
             bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
           }
-          addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
-          addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
-          addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
-          addPlanStrategyBinding("ClearModes").toProvider(classOf[ClearRoutes])
+          addPlanStrategyBinding("SelectExpBeta").to(classOf[BeamExpBeta])
+          addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
+          addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
+          addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
@@ -239,7 +240,6 @@ trait BeamHelper extends LazyLogging {
       "config is a required value, and must yield a valid config."
     )
     val configLocation = parsedArgs.configLocation.get
-
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
@@ -297,7 +297,12 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -357,10 +362,11 @@ trait BeamHelper extends LazyLogging {
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
+    val beamWarmStart = BeamWarmStart(beamConfig)
+    beamWarmStart.warmStartPopulationIfNeeded(matsimConfig)
+
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
-
-    samplePopulation(scenario, beamConfig, matsimConfig)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
@@ -368,6 +374,8 @@ trait BeamHelper extends LazyLogging {
     )
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+
+    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
     beamServices.controler.run()
 
@@ -380,7 +388,8 @@ trait BeamHelper extends LazyLogging {
   def samplePopulation(
     scenario: MutableScenario,
     beamConfig: BeamConfig,
-    matsimConfig: Config
+    matsimConfig: Config,
+    beamServices: BeamServices
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
@@ -419,7 +428,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamConfig.beam.agentsim.populationAdjustment, beamConfig)
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
   }
 }

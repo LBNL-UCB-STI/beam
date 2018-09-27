@@ -22,9 +22,7 @@ object BeamVehicleUtils {
       beamVehicleId,
       powertrain,
       None,
-      bvt,
-      None,
-      None
+      bvt
     )
   }
 
