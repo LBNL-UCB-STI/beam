@@ -20,9 +20,10 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -135,6 +136,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   )
                 }
               }
+
+              processLinkEvents(data.currentVehicle.head, currentLeg)
+
               logDebug(s"PathTraversal")
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
@@ -607,4 +611,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     }
   }
 
+  def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+    val path = leg.travelPath
+    if (path.linkTravelTime.nonEmpty) {
+      // FIXME once done with debugging, make this code faster
+      // We don't need the travel time for the last link, so we drop it (dropRight(1))
+      val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
+      val links = path.linkIds
+      val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
+      linksWithTime.foreach {
+        case (Seq(from, to), timeAtNode) =>
+          eventsManager.processEvent(new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
+          eventsManager.processEvent(new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
+      }
+    }
+  }
 }
