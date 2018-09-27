@@ -131,7 +131,7 @@ trait ChoosesMode {
 
       def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
-        val startWithWaitBuffer = 600 + departTime.atTime
+        val startWithWaitBuffer = 900 + departTime.atTime
         val currentSpaceTime =
           SpaceTime(currentPersonLocation.loc, startWithWaitBuffer)
         val theRequest = RoutingRequest(
@@ -174,10 +174,12 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
               withRideHail = true,
-              withRideHailTransit = true
+              withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
             makeRideHailRequest()
-            requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+            if (!choosesModeData.isWithinTripReplanning) {
+              requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+            }
           } else {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None

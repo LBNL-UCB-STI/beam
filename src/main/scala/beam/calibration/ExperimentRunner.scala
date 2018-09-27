@@ -8,7 +8,12 @@ import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
-import beam.calibration.impl.example.{CountsObjectiveFunction, ErrorComparisonType, ModeChoiceObjectiveFunction}
+import beam.calibration.impl.example.{
+  CountsObjectiveFunction,
+  ErrorComparisonType,
+  ModeChoiceObjectiveFunction,
+  RideHailObjectiveFunction
+}
 import beam.sim.BeamHelper
 import beam.utils.reflection.ReflectionUtils
 
@@ -117,6 +122,11 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
       val countsWeight = 1 - modeWeight
 
       -(countsWeight * Math.abs(countsObjVal) + modeWeight * Math.abs(modesObjVal))
+    } else if (objectiveFunctionClassName.equals(
+                 "RideHail_maximizeReservationCount"
+               )) {
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("ridehailStats.csv"))
+      RideHailObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else {
       logger.error("objectiveFunctionClassName not set")
       Double.NegativeInfinity
