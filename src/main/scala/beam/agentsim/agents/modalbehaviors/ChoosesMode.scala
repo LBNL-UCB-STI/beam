@@ -174,10 +174,12 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
               withRideHail = true,
-              withRideHailTransit = true
+              withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
             makeRideHailRequest()
-            requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+            if (!choosesModeData.isWithinTripReplanning) {
+              requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+            }
           } else {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None
