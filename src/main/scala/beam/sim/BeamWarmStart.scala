@@ -50,6 +50,10 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
           )
         }
       case None =>
+        logger.warn(
+          "Travel times failed to warm start, stats not found at path ( {} )",
+          srcPath
+        )
     }
   }
 
@@ -72,6 +76,10 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
           )
         }
       case None =>
+        logger.warn(
+          "Population failed to warm start, plans not found at path ( {} )",
+          srcPath
+        )
     }
   }
 
@@ -94,7 +102,7 @@ class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
 
   private def findWarmStartFile(warmStartFile: String) = {
     val search = Files
-      .walk(Paths.get(srcPath))
+      .walk(Paths.get(parentRunPath))
       .toScala[Stream]
       .map(_.toString)
       .filter(_.endsWith(warmStartFile))
