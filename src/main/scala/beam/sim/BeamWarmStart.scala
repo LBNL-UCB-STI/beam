@@ -17,15 +17,6 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
 
-object BeamWarmStart {
-  private var _instance: BeamWarmStart = _
-
-  def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    if (_instance == null)
-      _instance = new BeamWarmStart(beamConfig)
-    _instance
-  }
-}
 
 class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
 
@@ -94,7 +85,7 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     plansPath.toString
   }
 
-  private def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
+  def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
     lazy val itrFile = findIterationWarmStartFile(warmStartFile, parentRunPath)
     lazy val rootFile = findRootWarmStartFile(warmStartFile)
 
@@ -119,7 +110,7 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
         findFileInDir(warmStartFile, Paths.get(iters.head).getParent.toString)
 
       } else {
-        Files.walk(Paths.get(parentRunPath), 2).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
+        Files.walk(Paths.get(parentRunPath)).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
       }
     }
   }
@@ -198,4 +189,9 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
+}
+
+object BeamWarmStart {
+
+  def apply(beamConfig: BeamConfig): BeamWarmStart = new BeamWarmStart(beamConfig)
 }
