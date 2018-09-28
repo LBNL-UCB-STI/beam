@@ -71,9 +71,8 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
     minLevelRepresentationOfMode: Double,
     mode: String
   ): Boolean = {
-    runModeStats.contains(mode) && (runModeStats
-      .get(mode)
-      .get - benchmarkData.get(mode).get * minLevelRepresentationOfMode) > 0
+    runModeStats.contains(mode) && (runModeStats(mode)
+    - benchmarkData(mode) * minLevelRepresentationOfMode) > 0
   }
 
   def compareStatsAbsolutError(
