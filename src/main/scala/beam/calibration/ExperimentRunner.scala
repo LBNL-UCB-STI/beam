@@ -102,6 +102,16 @@ case class ExperimentRunner(implicit experimentData: SigoptExperimentData) exten
           outpath.toAbsolutePath.toString,
           ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity
         )
+    } else if (objectiveFunctionClassName.equals(
+                 "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
+               )) {
+      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
+        .evaluateFromRun(
+          outpath.toAbsolutePath.toString,
+          ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode
+        )
     } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction")) {
       var outpath = Paths.get(
         GraphsStatsAgentSimEventsListener.CONTROLLER_IO
