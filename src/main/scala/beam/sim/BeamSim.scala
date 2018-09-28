@@ -105,7 +105,7 @@ class BeamSim @Inject()(
 
     beamServices.matsimServices = event.getServices
 
-    if(!beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
         eventsManager,
         transportNetwork,
@@ -163,9 +163,9 @@ class BeamSim @Inject()(
         .tellHistoryToRideHailIterationHistoryActorAndReset()
     }
 
-    if(beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (beamServices.beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
-    }else{
+    } else {
       val physsimFuture = Future {
         agentSimToPhysSimPlanConverter.startPhysSim(event)
       }

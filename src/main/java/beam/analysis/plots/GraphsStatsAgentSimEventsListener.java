@@ -8,8 +8,6 @@ import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
-import org.jfree.data.category.CategoryDataset;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
