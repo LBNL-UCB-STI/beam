@@ -46,8 +46,8 @@ class OutOfServiceVehicleManager(
       )
   }
 
-  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]): Option[Option[Long]] = {
-    triggerIds.put(vehicleId, triggerId)
+  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]): Option[Long] = {
+    triggerIds.put(vehicleId, triggerId).flatten
   }
 
   def handleInterrupt(
