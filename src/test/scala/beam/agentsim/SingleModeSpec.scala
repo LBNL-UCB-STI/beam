@@ -62,10 +62,6 @@ class SingleModeSpec
     val config = testConfig("test/input/sf-light/sf-light.conf")
     beamConfig = BeamConfig(config)
 
-    // Have to mock a lot of things to get the router going
-    //    val services: BeamServices =
-    //      injector.getInstance(classOf[BeamServices])
-
     val vehicleTypes = {
       val fuelTypes: TrieMap[Id[FuelType], FuelType] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
