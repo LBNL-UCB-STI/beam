@@ -32,29 +32,29 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
       compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(runDataFileLoc).size * 0.1
     } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode) {
       val runModeStats = getStatsFromFile(runDataFileLoc)
-      var objective = compareStatsAbsolutError(benchmarkData, runModeStats)
+      var objective = compareStatsAbsolutError(benchmarkData, runModeStats) + getStatsFromFile(runDataFileLoc).size * 0.1
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.9, "car")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.8, "car")) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "drive_transit")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "drive_transit")) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "ride_hail")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "ride_hail")) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.5, "ride_hail_transit")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "ride_hail_transit")) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "walk")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "walk")) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "walk_transit")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "walk_transit")) {
         objective = objective + 0.1
       }
 
