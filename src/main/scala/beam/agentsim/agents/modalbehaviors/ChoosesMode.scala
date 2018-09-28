@@ -83,7 +83,6 @@ trait ChoosesMode {
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
 
-
       val availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
           case None | Some(CAR | BIKE) =>
