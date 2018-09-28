@@ -232,6 +232,10 @@ library(stringr)
 save(all,exp,file=pp(plots.dir,'/summary-metrics-all.Rdata'))
 load(file=pp(plots.dir,'/summary-metrics-all.Rdata'))
 
+
+load("/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-24/plots/summary-metrics.Rdata",verb=T)
+load("/Users/critter/Documents/beam/beam-output/EVFleet-Final/EVFleet-2018-09-24/plots-all/summary-metrics-all.Rdata",verb=T)
+
 # adding base to all
 all <- rbindlist(list(all,all.sum),fill=T,use.names=T)
 all[chargers=='base',range:='Base']
