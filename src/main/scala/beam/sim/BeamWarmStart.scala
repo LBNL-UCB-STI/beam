@@ -19,16 +19,16 @@ import scala.compat.java8.StreamConverters._
 
 object BeamWarmStart {
   private var _instance: BeamWarmStart = _
+
   def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    if(_instance == null)
+    if (_instance == null)
       _instance = new BeamWarmStart(beamConfig)
     _instance
   }
 }
 
 class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
-  // beamConfig.beam.warmStart.pathType=PARENT_RUN, ABSOLUTE_PATH
-  private lazy val pathType = beamConfig.beam.warmStart.pathType
+
   private lazy val srcPath = beamConfig.beam.warmStart.path
 
   /**
@@ -43,7 +43,7 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     */
   def warmStartTravelTime(beamRouter: ActorRef): Unit = {
     if (!isWarmMode) return
-    getWarmStartFilePath("linkstats.csv.gz") match {
+    getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
@@ -94,32 +94,41 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     plansPath.toString
   }
 
-  private def getWarmStartFilePath(warmStartFile: String): Option[String] = pathType match {
-    case "PARENT_RUN" =>
-      getIterationFilePath(warmStartFile, parentRunPath).fold(findWarmStartFile(warmStartFile))(Some(_))
+  private def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
+    lazy val itrFile = findIterationWarmStartFile(warmStartFile, parentRunPath)
+    lazy val rootFile = findRootWarmStartFile(warmStartFile)
 
-    case "ABSOLUTE_PATH" =>
-      findWarmStartFile(warmStartFile)
+    if (rootFirst) {
+      rootFile.fold(itrFile)(Some(_))
+    } else {
+      itrFile.fold(rootFile)(Some(_))
+    }
 
-    case _ =>
-      None
   }
 
-  private def findWarmStartFile(warmStartFile: String) = {
-    val search = Files
-      .walk(Paths.get(parentRunPath))
-      .toScala[Stream]
-      .map(_.toString)
-      .filter(_.endsWith(warmStartFile))
-    search.lastOption
+  private def findRootWarmStartFile(warmStartFile: String): Option[String] = {
+    val search = findFileInDir(warmStartFile, parentRunPath)
+
+    if (search.nonEmpty) {
+      search
+
+    } else {
+      val iters = getITERSPath(parentRunPath)
+
+      if (iters.nonEmpty) {
+        findFileInDir(warmStartFile, Paths.get(iters.head).getParent.toString)
+
+      } else {
+        Files.walk(Paths.get(parentRunPath), 2).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
+      }
+    }
   }
 
-  private def getIterationFilePath(itFile: String, runPath: String): Option[String] = {
-    val iterOption = getITERSPath(runPath)
 
-    iterOption match {
+  private def findIterationWarmStartFile(itFile: String, runPath: String): Option[String] = {
+    getITERSPath(runPath) match {
       case Some(iterBase) =>
-        getIterationThatContains(s".$itFile", iterBase) match {
+        findFileInIteration(itFile, iterBase) match {
           case Some(warmIteration) =>
             Some(
               Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.$itFile").toString
@@ -132,7 +141,17 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  private def getITERSPath(runPath: String) = {
+  private def findFileInIteration(itFile: String, iterBase: String) = {
+    new File(iterBase).list().filter(_.startsWith("it.")).map(_.split('.')(1).toInt)
+      .sorted.reverse.find(isFilePresentInIteration(itFile, iterBase, _))
+  }
+
+  private def isFilePresentInIteration(itFile: String, itrBaseDir: String, itr: Int): Boolean = {
+    val linkStats = Paths.get(itrBaseDir, s"it.$itr", s"$itr.$itFile")
+    Files.exists(linkStats)
+  }
+
+  private def getITERSPath(runPath: String): Option[String] = {
     Files
       .walk(Paths.get(runPath))
       .toScala[Stream]
@@ -140,7 +159,9 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
       .find(p => "ITERS".equals(getName(p)))
   }
 
-  private lazy val parentRunPath = {
+  private def findFileInDir(file: String, dir: String): Option[String] = new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
+
+  private lazy val parentRunPath: String = {
     if (isZipArchive(srcPath)) {
       var archivePath = srcPath
       if (isOutputBucketUrl(srcPath)) {
@@ -172,19 +193,4 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     new LinkTravelTimeContainer(statsFile, binSize)
   }
 
-  private def getIterationThatContains(itFile: String, itrBaseDir: String): Option[Int] = {
-
-    def getWarmStartIter(itr: Int): Int =
-      if (itr < 0 || isIterationFilePresent(itFile, itrBaseDir.toString, itr)) itr
-      else getWarmStartIter(itr - 1)
-
-    val itrIndex = getWarmStartIter(new File(itrBaseDir).list().length - 1)
-
-    Some(itrIndex).filter(_ >= 0)
-  }
-
-  private def isIterationFilePresent(itFile: String, itrBaseDir: String, itr: Int): Boolean = {
-    val linkStats = Paths.get(itrBaseDir, s"it.$itr", s"$itr$itFile")
-    Files.exists(linkStats)
-  }
 }
