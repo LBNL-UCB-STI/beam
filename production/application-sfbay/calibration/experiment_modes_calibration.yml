@@ -3,7 +3,7 @@
 # Header
 
 header:
-    title: modes_intercept_AbsErrorMinLevel_28thSep2018_A
+    title: modes_intercept_AbsErrorMinLevel_28thSep2018_D
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/diffusion-base-calib.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
@@ -15,18 +15,18 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "modes_intercept_AbsErrorMinLevel_28thSep2018_A"
+      runName: "modes_intercept_AbsErrorMinLevel_28thSep2018_D"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "fcc7fc747435f7d35884c15a206a7b5ae42bf823"
+      beamCommit: "92091cad91c2b1c23318401883318ee16b03b9c7"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
       shutdownWait: "15"
       shutdownBehavior: "stop"
       s3Backup: "true"
-      maxRAM: "220g"
+      maxRAM: "120g"
       region: "us-east-2"
-      instanceType: "m4.16xlarge"
+      instanceType: "c5.18xlarge"
 
 
 
