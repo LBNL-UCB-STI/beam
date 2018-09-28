@@ -27,7 +27,7 @@ object BeamWarmStart {
   }
 }
 
-class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
+class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
 
   private lazy val srcPath = beamConfig.beam.warmStart.path
 
@@ -124,11 +124,10 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-
   private def findIterationWarmStartFile(itFile: String, runPath: String): Option[String] = {
     getITERSPath(runPath) match {
       case Some(iterBase) =>
-        findFileInIteration(itFile, iterBase) match {
+        findIterationContainsFile(itFile, iterBase) match {
           case Some(warmIteration) =>
             Some(
               Paths.get(iterBase, s"it.$warmIteration", s"$warmIteration.$itFile").toString
@@ -141,9 +140,14 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
     }
   }
 
-  private def findFileInIteration(itFile: String, iterBase: String) = {
-    new File(iterBase).list().filter(_.startsWith("it.")).map(_.split('.')(1).toInt)
-      .sorted.reverse.find(isFilePresentInIteration(itFile, iterBase, _))
+  private def findIterationContainsFile(itFile: String, iterBase: String) = {
+    new File(iterBase)
+      .list()
+      .filter(_.startsWith("it."))
+      .map(_.split('.')(1).toInt)
+      .sorted
+      .reverse
+      .find(isFilePresentInIteration(itFile, iterBase, _))
   }
 
   private def isFilePresentInIteration(itFile: String, itrBaseDir: String, itr: Int): Boolean = {
@@ -159,7 +163,8 @@ class BeamWarmStart private(beamConfig: BeamConfig) extends LazyLogging {
       .find(p => "ITERS".equals(getName(p)))
   }
 
-  private def findFileInDir(file: String, dir: String): Option[String] = new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
+  private def findFileInDir(file: String, dir: String): Option[String] =
+    new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
 
   private lazy val parentRunPath: String = {
     if (isZipArchive(srcPath)) {
