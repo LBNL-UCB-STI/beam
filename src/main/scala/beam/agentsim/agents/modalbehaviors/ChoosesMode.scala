@@ -175,7 +175,7 @@ trait ChoosesMode {
               withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
             makeRideHailRequest()
-            if (!choosesModeData.isWithinTripReplanning & availableModes.contains(RIDE_HAIL_TRANSIT)) {
+            if (!choosesModeData.isWithinTripReplanning) {
               requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
             }
           } else {
