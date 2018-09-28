@@ -37,7 +37,6 @@ class WarmStartRoutingSpec
         "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-          .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
@@ -59,7 +58,6 @@ class WarmStartRoutingSpec
   override def beforeAll: Unit = {
     val config = baseConfig
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
       .withValue(
         "beam.warmStart.path",
         ConfigValueFactory
