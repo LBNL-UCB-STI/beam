@@ -4,7 +4,7 @@ import java.util
 
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
@@ -29,10 +29,15 @@ object AvailableModeUtils {
   }
 
   def availableModesForPerson(person: Person): Seq[BeamMode] = {
-    person.getCustomAttributes
+    val availModes = person.getCustomAttributes
       .get("beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
       .availableModes :+ WALK
+    if(availModes.contains(RIDE_HAIL)){
+      availModes :+ RIDE_HAIL_TRANSIT
+    }else{
+      availModes
+    }
   }
 
   def isModeAvailableForPerson[T <: BeamMode](
