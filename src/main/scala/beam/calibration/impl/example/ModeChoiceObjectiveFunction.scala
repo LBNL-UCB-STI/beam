@@ -66,8 +66,8 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
   }
 
   def minLevelRepresentationOfMode(
-    benchmarkData: Map[String, Double],
     runModeStats: Map[String, Double],
+    benchmarkData: Map[String, Double],
     minLevelRepresentationOfMode: Double,
     mode: String
   ): Boolean = {
