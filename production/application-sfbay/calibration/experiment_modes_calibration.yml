@@ -3,7 +3,7 @@
 # Header
 
 header:
-    title: modes_intercept_absErr_ModeDiversity_28thSep2018
+    title: modes_intercept_AbsErrorMinLevel_28thSep2018_A
     author: BEAM Developers
     beamTemplateConfPath: production/application-sfbay/diffusion-base-calib.conf
     modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
@@ -15,7 +15,7 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "modes_intercept_absErr_ModeDiversity_28thSep2018"
+      runName: "modes_intercept_AbsErrorMinLevel_28thSep2018_A"
       beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
       beamCommit: "fcc7fc747435f7d35884c15a206a7b5ae42bf823"
       deployMode: "execute"
@@ -46,7 +46,7 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: -3.0
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept: 2.0
@@ -55,7 +55,7 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: -3.0
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept: 2.0
@@ -67,13 +67,13 @@ factors:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept: -5.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept: 15.0
 
   - title: rideHailIntercept
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: -2.0
     - name: High
       params:
         beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept: 5.0
@@ -92,7 +92,7 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.05
+        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.06
     - name: High
       params:
         beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
@@ -101,7 +101,7 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: -5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: -3.0
     - name: High
       params:
-        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 5.0
+        beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept: 3.0

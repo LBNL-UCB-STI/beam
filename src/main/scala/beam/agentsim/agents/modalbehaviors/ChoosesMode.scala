@@ -63,12 +63,15 @@ trait ChoosesMode {
       val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
         SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
-      choosesModeData.personData.currentTourMode match {
-        case Some(mode) =>
-          log.debug("{}", mode)
-          val currAct = currentActivity(choosesModeData.personData)
-          val i = 0
+      val availableModes: Seq[BeamMode] = availableModesForPerson(
+        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
+      )
+      // Make sure the current mode is allowable
+      val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
+        case Some(mode) if availableModes.contains(mode) =>
+          Some(mode)
         case _ =>
+          None
       }
 
       val bodyStreetVehicle = StreetVehicle(
@@ -80,12 +83,8 @@ trait ChoosesMode {
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
 
-      val availableModes: Seq[BeamMode] = availableModesForPerson(
-        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
-      )
-
       val availablePersonalStreetVehicles =
-        choosesModeData.personData.currentTourMode match {
+        correctedCurrentTourMode match {
           case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
             streetVehicles.filter(_.asDriver)
@@ -160,15 +159,13 @@ trait ChoosesMode {
         }
       }
 
-      // Cache condition variables here to restrict modes to only those available
-
       val hasRideHail = availableModes.contains(RIDE_HAIL)
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
       // Form and send requests
 
-      choosesModeData.personData.currentTourMode match {
+      correctedCurrentTourMode match {
         case None =>
           if (hasRideHail) {
             responsePlaceholders = makeResponsePlaceholders(
@@ -271,6 +268,7 @@ trait ChoosesMode {
           logDebug(m.toString)
       }
       val newPersonData = choosesModeData.copy(
+        personData = choosesModeData.personData.copy(currentTourMode = correctedCurrentTourMode),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         routingResponse = responsePlaceholders.routingResponse,
         rideHail2TransitRoutingResponse = responsePlaceholders.rideHail2TransitRoutingResponse,
@@ -439,7 +437,7 @@ trait ChoosesMode {
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
-          accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.tail
+          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.tail
         } else {
           accessAndTransit
         }
@@ -489,7 +487,12 @@ trait ChoosesMode {
       }
       val combinedItinerariesForChoice = rideHailItinerary ++ routingResponse.itineraries ++ rideHail2TransitIinerary.toVector
       //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
-      val filteredItinerariesForChoice = personData.currentTourMode match {
+
+      val availableModes: Seq[BeamMode] = availableModesForPerson(
+        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
+      )
+
+      val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
@@ -511,7 +514,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
-      }
+      }).filter(itin => availableModes.contains(itin.tripClassifier))
 
       if (filteredItinerariesForChoice.size == 1 && filteredItinerariesForChoice.head.tripClassifier == WALK) {
         val i = 0
