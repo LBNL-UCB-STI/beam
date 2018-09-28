@@ -30,9 +30,50 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
       compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc))
     } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity) {
       compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(runDataFileLoc).size * 0.1
+    } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode) {
+      val runModeStats = getStatsFromFile(runDataFileLoc)
+      var objective = compareStatsAbsolutError(benchmarkData, runModeStats)
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.9, "car")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "drive_transit")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "ride_hail")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 1.0, "ride_hail_transit")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "walk")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.6, "walk_transit")) {
+        objective = objective + 0.1
+      }
+
+      objective
     } else {
       compareStatsRMSPE(benchmarkData, getStatsFromFile(runDataFileLoc))
     }
+
+  }
+
+  def minLevelRepresentationOfMode(
+    benchmarkData: Map[String, Double],
+    runModeStats: Map[String, Double],
+    minLevelRepresentationOfMode: Double,
+    mode: String
+  ): Boolean = {
+    runModeStats.contains(mode) && (runModeStats
+      .get(mode)
+      .get - benchmarkData.get(mode).get * minLevelRepresentationOfMode) > 0
   }
 
   def compareStatsAbsolutError(
@@ -127,5 +168,7 @@ object ModeChoiceObjectiveFunction {
 }
 
 object ErrorComparisonType extends Enumeration {
-  val RMSPE, AbsoluteError, AbsoluteErrorWithPreferenceForModeDiversity = Value
+
+  val RMSPE, AbsoluteError, AbsoluteErrorWithPreferenceForModeDiversity, AbsoluteErrorWithMinLevelRepresentationOfMode =
+    Value
 }
