@@ -10,8 +10,6 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
@@ -40,6 +38,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -311,9 +310,31 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         ),
         embodyRequestId
       )
-      askForMoreWork()
+      askForMoreWork
+
+    case GenerateLinkLeaveEnterEvents(leg: BeamLeg, vehicleId: Id[Vehicle], embodyRequestId: UUID) =>
+      val now = ZonedDateTime.now(ZoneOffset.UTC)
+      val mode = leg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString
+      val travelTime = (time: Int, linkId: Int) => travelTimeByLinkCalculator(time, linkId, StreetMode.valueOf(mode))
+      val linkLeaveEnterEvents: Array[LinkEvent] = (RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map {
+        case event if event.isInstanceOf[LinkLeaveEvent] =>
+          val leave = event.asInstanceOf[LinkLeaveEvent]
+          LinkEvent(leave.getTime, leave.getVehicleId.toString, leave.getLinkId.toString, isEnter = false)
+        case event if event.isInstanceOf[LinkEnterEvent] =>
+          val enter = event.asInstanceOf[LinkEnterEvent]
+          LinkEvent(enter.getTime, enter.getVehicleId.toString, enter.getLinkId.toString, isEnter = true)
+      }).toArray
+      log.debug("GenerateLinkLeaveEnterEvents: Generated {} events", linkLeaveEnterEvents.length)
+      sender ! LinkEvents(linkLeaveEnterEvents)
+      askForMoreWork
   }
 
+  private def getDuration(leg: BeamLeg, events: Iterator[Event]): Option[Double] = {
+    if (events.isEmpty) None
+    else {
+      Some(events.maxBy(e => e.getTime).getTime - leg.startTime)
+    }
+  }
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 

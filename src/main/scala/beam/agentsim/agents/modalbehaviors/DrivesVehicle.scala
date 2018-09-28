@@ -17,11 +17,10 @@ import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter
 import beam.router.Modes.BeamMode.TRANSIT
-import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
-import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -412,16 +411,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val travelTime = (time: Int, linkId: Int) => {
-          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-          (edge.getLengthM / edge.calculateSpeed(
-            new ProfileRequest,
-            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
-          )).toInt
-        }
-        RoutingModel
-          .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)
-          .foreach(eventsManager.processEvent)
+
+        beamServices.beamRouter ! BeamRouter.GenerateLinkLeaveEnterEvents(beamLeg, data.currentVehicle.head)
+
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)
           .asInstanceOf[T] replying CompletionNotice(

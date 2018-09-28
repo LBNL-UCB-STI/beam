@@ -11,6 +11,8 @@ import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
+//import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 
 import scala.collection.immutable
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -159,6 +161,12 @@ class BeamRouter(
         })
         localNodes.foreach(_.forward(msg))
       }
+    case LinkEvents(events) =>
+      log.debug("Received LinkEvents with {} events", events.size)
+      events.foreach { e =>
+        val matsimEvent = e.toMatsimEvent
+        eventsManager.processEvent(matsimEvent)
+      }
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
@@ -300,6 +308,8 @@ class BeamRouter(
         )
         outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
         worker ! work
+      case m: GenerateLinkLeaveEnterEvents =>
+        worker ! m
       case _ =>
         log.warning(
           "Forwarding work via {} instead of telling because it isn't a handled type - {}",
@@ -384,6 +394,13 @@ object BeamRouter {
     id: UUID = UUID.randomUUID(),
     mustParkAtEnd: Boolean = false
   )
+  // TODO FIXME Better naming
+  case class GenerateLinkLeaveEnterEvents
+  (
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    id: UUID = UUID.randomUUID()
+  )
   case class UpdateTravelTime(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
   case object GetTravelTime
@@ -430,6 +447,20 @@ object BeamRouter {
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
   }
+
+  // TODO FIX ME `isEnter`
+  case class LinkEvent(time: Double, vehicleId: String, linkId: String, isEnter: Boolean) {
+    def toMatsimEvent: Event = {
+      if (isEnter) {
+        new LinkEnterEvent(time, Id.createVehicleId(vehicleId), Id.createLinkId(linkId))
+      }
+      else {
+        new LinkLeaveEvent(time, Id.createVehicleId(vehicleId), Id.createLinkId(linkId))
+      }
+    }
+  }
+
+  case class LinkEvents(events: Seq[LinkEvent])
 
   def props(
     beamServices: BeamServices,
