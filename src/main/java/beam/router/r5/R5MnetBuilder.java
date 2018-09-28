@@ -33,8 +33,6 @@ public class R5MnetBuilder {
     private final TransportNetwork r5Network;
     private Network mNetowrk = null;  // MATSim mNetowrk
 
-    private String fromCRS;
-    private String toCRS;
     private GeotoolsTransformation transform;
 
     private String osmFile;
@@ -42,19 +40,15 @@ public class R5MnetBuilder {
     private HashMap<Coord, Id<Node>> nodeMap = new HashMap<>();  // Maps x,y Coord to node ID
     private int nodeId = 0;  // Current new MATSim network Node ids
 
-    private Long lastProcessedOSMId = -1L;
-    private Set<Integer> lastProcessedNodes = new HashSet<>(2);
-
     /**
      * @param r5Net     R5 network.
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
     public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
+        final BeamConfig.Beam.Routing.R5 r5 = beamConfig.beam().routing().r5();
 
-        this.osmFile = beamConfig.beam().routing().r5().osmMapdbFile();
-        this.fromCRS = beamConfig.beam().routing().r5().mNetBuilder().fromCRS();
-        this.toCRS = beamConfig.beam().routing().r5().mNetBuilder().toCRS();
-        this.transform = new GeotoolsTransformation(this.fromCRS, this.toCRS);
+        this.osmFile = r5.osmMapdbFile();
+        this.transform = new GeotoolsTransformation(r5.mNetBuilder().fromCRS(), r5.mNetBuilder().toCRS());
         log.debug("Found R5 Transport Network file, loading....");
         this.r5Network = r5Net;
         this.mNetowrk = NetworkUtils.createNetwork();
@@ -108,8 +102,8 @@ public class R5MnetBuilder {
                 Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
                 mNetowrk.addLink(link);
                 log.debug("Created regular link: " + link);
-                this.lastProcessedOSMId = osmID;
-                this.lastProcessedNodes = deezNodes;
+                Long lastProcessedOSMId = osmID;
+                Set<Integer> lastProcessedNodes = deezNodes;
             } else {
                 // Made up numbers, this is a PT to road network connector or something
                 Link link = mNetowrk.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);

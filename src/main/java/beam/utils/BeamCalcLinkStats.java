@@ -47,7 +47,6 @@ public class BeamCalcLinkStats {
     private final Map<Id<Link>, LinkData> linkData;
     private final int nofHours;
     private final Network network;
-    private double volScaleFactor = 1.0;
     private int count = 0;
 
     @Inject
@@ -64,7 +63,6 @@ public class BeamCalcLinkStats {
      */
     public BeamCalcLinkStats(final Network network, double vol_scale_factor) {
         this(network);
-        this.volScaleFactor = vol_scale_factor;
     }
 
     public void addData(final VolumesAnalyzer analyzer, final TravelTime ttimes) {
