@@ -46,7 +46,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
         objective = objective + 0.1
       }
 
-      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 1.0, "ride_hail_transit")) {
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.5, "ride_hail_transit")) {
         objective = objective + 0.1
       }
 
