@@ -4,6 +4,7 @@ import java.util
 
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.WALK
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
@@ -31,7 +32,7 @@ object AvailableModeUtils {
     person.getCustomAttributes
       .get("beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
-      .availableModes
+      .availableModes :+ WALK
   }
 
   def isModeAvailableForPerson[T <: BeamMode](
