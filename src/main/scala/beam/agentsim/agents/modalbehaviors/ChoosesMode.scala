@@ -83,7 +83,6 @@ trait ChoosesMode {
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
 
-
       val availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
           case None | Some(CAR | BIKE) =>
@@ -175,7 +174,7 @@ trait ChoosesMode {
               withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
             makeRideHailRequest()
-            if (!choosesModeData.isWithinTripReplanning & availableModes.contains(RIDE_HAIL_TRANSIT)) {
+            if (!choosesModeData.isWithinTripReplanning) {
               requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
             }
           } else {
