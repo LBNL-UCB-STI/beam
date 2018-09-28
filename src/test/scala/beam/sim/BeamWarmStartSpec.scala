@@ -16,7 +16,6 @@ class BeamWarmStartSpec
     with BeforeAndAfterAll
     with IntegrationSpecCommon {
 
-  //03045360156
   lazy val testDataPath: Path = Paths.get(getTempDirectoryPath, "warmStartTestData")
 
   override def beforeAll: Unit = {
@@ -28,16 +27,16 @@ class BeamWarmStartSpec
   }
 
   "from a flat directory, getWarmStartFilePath" must {
-    "find plans and linkstats" in {
+    "find plans and " + LINK_STATS in {
       val caseDataPath = Paths.get(testDataPath.toString, "case1")
       createDirs(caseDataPath)
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
-      val expectedStats = copyLinkStats(caseDataPath, "linkstats")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
+      val expectedStats = copyLinkStats(caseDataPath, LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz")
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -48,59 +47,59 @@ class BeamWarmStartSpec
       createDirs(caseDataPath)
       val expectedPlans = None
       //copyPlans(caseDataPath, "output_plans")
-      val expectedStats = copyLinkStats(caseDataPath, "linkstats")
+      val expectedStats = copyLinkStats(caseDataPath, LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz")
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
     }
 
-    "only find linkstats" in {
+    "only find " + LINK_STATS in {
       val caseDataPath = Paths.get(testDataPath.toString, "case3")
       createDirs(caseDataPath)
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       val expectedStats = None //copyLinkStats(caseDataPath, "linkstats")
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz")
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
     }
 
-    "find plans and linkstats even files are 1 level deeper" in {
+    "find plans and " + LINK_STATS + " even files are 1 level deeper" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case1a")
       createDirs(Paths.get(caseDataPath.toString, "level1"))
 
-      val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "level1"), "output_plans")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1"), "linkstats")
+      val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "level1"), OUTPUT_PLANS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1"), LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz")
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
     }
 
-    "find plans and linkstats even files are 2 level deeper" in {
-      val caseDataPath = Paths.get(testDataPath.toString, "case1a")
+    "find plans and " + LINK_STATS + " even files are 2 level deeper" in {
+      val caseDataPath = Paths.get(testDataPath.toString, "case1b")
       createDirs(Paths.get(caseDataPath.toString, "level1/level2"))
 
-      val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "level1/level2"), "output_plans")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2"), "linkstats")
+      val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "level1/level2"), OUTPUT_PLANS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2"), LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz")
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -109,19 +108,19 @@ class BeamWarmStartSpec
 
   "from a parent run, getWarmStartFilePath" must {
 
-    "find plan from run level and linkstats from iteration level" in {
+    "find plan from run level and " + LINK_STATS + " from iteration level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case4")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -130,15 +129,15 @@ class BeamWarmStartSpec
     "work if link stat is not in last iteration" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case5")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -150,13 +149,13 @@ class BeamWarmStartSpec
 
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -168,14 +167,14 @@ class BeamWarmStartSpec
 
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.2"), "2.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.2"), "2." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -190,13 +189,13 @@ class BeamWarmStartSpec
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experienced_plans_scores")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -205,16 +204,16 @@ class BeamWarmStartSpec
     "prefer output_plan(root level plan) over the iteration" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case9")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -223,17 +222,17 @@ class BeamWarmStartSpec
     "prefer last iteration link stats over root" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case10")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
-      copyLinkStats(caseDataPath, "linkstats")
-      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(caseDataPath, LINK_STATS)
+      copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -242,16 +241,16 @@ class BeamWarmStartSpec
     "find out files, if run results are deeper at level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case11")
       createDirs(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0/../it.1"))
-      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1.plans")
-      copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0.linkstats")
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1.linkstats")
+      copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0." + LINK_STATS)
+      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
-      val actualPlans = warmStart.getWarmStartFilePath("plans.xml.gz")
-      val actualStats = warmStart.getWarmStartFilePath("linkstats.csv.gz", rootFirst = false)
+      val actualPlans = warmStart.getWarmStartFilePath(PLANS_GZ)
+      val actualStats = warmStart.getWarmStartFilePath(LINK_STATS_GZ, rootFirst = false)
 
       actualPlans shouldEqual expectedPlans
       actualStats shouldEqual expectedStats
@@ -266,6 +265,11 @@ class BeamWarmStartSpec
 }
 
 object BeamWarmStartSpec {
+  private val OUTPUT_PLANS = "output_plans"
+  private val LINK_STATS = "linkstats"
+  private val PLANS_GZ = "plans.xml.gz"
+  private val LINK_STATS_GZ = "linkstats.csv.gz"
+
   def createDirs(path: Path): Unit = {
     try {
       Files.createDirectories(path)
