@@ -19,6 +19,7 @@ if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
   args<-'/Users/critter/Downloads/output 2/application-sfbay/rh2transit'
+  args<-'/Users/critter/Documents/beam/beam-output/sf-light-exp/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -26,7 +27,7 @@ if(interactive()){
 ######################################################################################################
 
 # TODO make these come from conf file
-factor.to.scale.personal.back <- 35
+factor.to.scale.personal.back <- 20
 factor.to.scale.transit.back <- 1/.22 # inverse of param: beam.agentsim.tuning.transitCapacity
 plot.congestion <- F
 plot.modality.styles <- F
@@ -108,7 +109,7 @@ setkey(en,vehicleTypeId)
 en <- u(en)
 ## Energy Density in MJ/liter or MJ/kWh
 # https://en.wikipedia.org/wiki/Gasoline_gallon_equivalent
-en.density <- data.table(fuelType=c('gasoline','diesel','electricity','biodiesel'),density=c(31.81905,36.14286,3.6,33.2))
+#en.density <- data.table(fuelType=c('gasoline','diesel','electricity','biodiesel'),density=c(31.81905,36.14286,3.6,33.2))
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
 ev[,pmt:=num_passengers*length/1609]
 ev[is.na(pmt),pmt:=0]
@@ -180,7 +181,7 @@ rm('mc')
 # Path Traversal Plots
 #########################
 pt <- ev[J('PathTraversal')]
-#for(fact in factors){
+for(fact in factors){
   # Energy by Mode
   streval(pp('pt[,the.factor:=',fact,']'))
   if(all(c('low','base','high') %in% u(pt$the.factor))){
@@ -194,19 +195,19 @@ pt <- ev[J('PathTraversal')]
   toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt),vmt=sum(length)/1609,mpg=sum(length)/1609/sum(fuel/3.78)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
   if(nrow(en)>30){
-    toplot <- join.on(toplot,en[vehicleTypeId%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','Car','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')],'vehicle_type','vehicleTypeId','primaryFuelType')
+    toplot <- join.on(toplot,en[vehicleTypeId%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','Car','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT') | substr(vehicleTypeId,0,3)=='BEV'],'vehicle_type','vehicleTypeId','primaryFuelType')
   }else{
     toplot <- join.on(toplot,en,'vehicle_type','vehicleTypeId','primaryFuelType')
   }
-  toplot <- join.on(toplot,en.density,'primaryFuelType','fuelType')
-  toplot[,energy:=fuel*density]
-  toplot[tripmode%in%c('car','ride_hail'),energy:=energy*factor.to.scale.personal.back*10]
+  toplot[,energy:=fuel] # fuel is now in units of J so no need to convert from L to J
+  toplot[tripmode%in%c('car','ride_hail'),energy:=energy*factor.to.scale.personal.back]
   toplot[tripmode%in%c('car','ride_hail'),numVehicles:=numVehicles*factor.to.scale.personal.back]
   toplot[tripmode%in%c('car','ride_hail'),pmt:=pmt*factor.to.scale.personal.back]
   toplot[tripmode%in%c('car','ride_hail'),numberOfPassengers:=numVehicles]
   toplot[,ag.mode:=tripmode]
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
   toplot[ag.mode=='car',ag.mode:='Car']
+  toplot[ag.mode=='ride_hail',ag.mode:='Ride Hail']
   toplot.ag <- toplot[,.(energy=sum(energy),pmt=sum(pmt)),by=c('the.factor','ag.mode')]
   pdf.scale <- .6
   setkey(toplot.ag,the.factor,ag.mode)
@@ -224,7 +225,7 @@ pt <- ev[J('PathTraversal')]
   ggsave(pp(plots.dir,'energy-per-pmt-by-vehicle-type-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
   # Deadheading 
-  toplot <- pt[vehicle_type=='Ride Hail',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
+  toplot <- pt[tripmode=='ride_hail',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
   setkey(toplot,hr,dead)
   dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles),1),"% Empty")),by=c('the.factor')]
   toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','the.factor')]
