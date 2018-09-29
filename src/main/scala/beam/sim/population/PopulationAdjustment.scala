@@ -67,16 +67,17 @@ trait PopulationAdjustment extends LazyLogging {
   // remove mode from all attributes
   protected def removeModeAll(population: Population, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { person =>
-      val modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
+      var modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
       modeToRemove.foreach(
         mode =>
-          population.getPersonAttributes
-            .putAttribute(
-              person.toString,
-              AVAILABLE_MODES,
-              modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
-          )
+          modes = modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
       )
+      population.getPersonAttributes
+        .putAttribute(
+          person.toString,
+          AVAILABLE_MODES,
+          modes
+        )
     }
   }
 }
