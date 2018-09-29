@@ -85,7 +85,6 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices, matsimC
     diffusionTableFile.write("hasChildrenUnder8,")
     diffusionTableFile.write("potential,")
     diffusionTableFile.write("addedToChoice")
-    diffusionTableFile.newLine()
   }
 
   def addLineToDiffusionTable(person: Person, potential: Double, chosen: Boolean, scenario: Scenario): Unit = {
@@ -97,6 +96,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices, matsimC
       if (person.getAttributes.getAttribute(PERSON_SEX) != null) person.getAttributes.getAttribute(PERSON_SEX).toString
       else ""
 
+    diffusionTableFile.newLine()
     diffusionTableFile.write(s"${person.getId},")
     diffusionTableFile.write(s"${income},")
     diffusionTableFile.write(s"${age},")
@@ -105,7 +105,7 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices, matsimC
     diffusionTableFile.write(s"${hasChildUnder8(household.get, scenario.getPopulation)},")
     diffusionTableFile.write(s"${potential},")
     diffusionTableFile.write(s"${chosen}")
-    diffusionTableFile.newLine()
+
   }
 
   def limitToZeroOne(d: Double): Double = math.max(math.min(d, 1.0), 0.0)
