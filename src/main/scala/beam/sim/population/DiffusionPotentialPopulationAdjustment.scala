@@ -1,5 +1,6 @@
 package beam.sim.population
 
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 import java.util.Random
 
 import beam.sim.BeamServices
@@ -8,12 +9,14 @@ import beam.sim.population.DiffusionPotentialPopulationAdjustment._
 import org.joda.time.DateTime
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.config.Config
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices, matsimConfig: Config)
+    extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
   val personToHousehold: mutable.HashMap[Id[Person], Household] = new mutable.HashMap()
@@ -32,8 +35,23 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
     population
   }
 
+  val diffusionTableFile = {
+    val fileName =
+      if (beamServices.beamConfig.beam.agentsim.populationAdjustment
+            .equalsIgnoreCase(PopulationAdjustment.DIFFUSION_POTENTIAL_ADJUSTMENT_RH)) {
+        "choiceAttributesModesAvailabilityDiffusionTableRH.txt"
+      } else {
+        "choiceAttributesModesAvailabilityDiffusionTableAV.txt"
+      }
+    new BufferedWriter(
+      new FileWriter(new File(matsimConfig.controler().getOutputDirectory + File.separator + fileName))
+    )
+  }
+
   def adjustPopulationByDiffusionPotential(scenario: Scenario, modes: String*): Unit = {
     val population = scenario.getPopulation
+
+    addDiffusionTableTitle()
 
     scenario.getPopulation.getPersons.forEach {
       case (_, person: Person) =>
@@ -47,10 +65,47 @@ class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends
             limitToZeroOne(computeAutomatedVehicleDiffusionPotential(scenario, person))
           }
 
-        if (diffPotential > rand.nextDouble()) {
+        val addToChoice = diffPotential > rand.nextDouble()
+        if (addToChoice) {
           modes.foreach(mode => addMode(population, personId, mode))
         }
+
+        addLineToDiffusionTable(person, diffPotential, addToChoice, scenario)
     }
+
+    diffusionTableFile.close()
+  }
+
+  def addDiffusionTableTitle(): Unit = {
+    diffusionTableFile.write("personId,")
+    diffusionTableFile.write("income,")
+    diffusionTableFile.write("age,")
+    diffusionTableFile.write("sex,")
+    diffusionTableFile.write("distanceToPD,")
+    diffusionTableFile.write("hasChildrenUnder8,")
+    diffusionTableFile.write("potential,")
+    diffusionTableFile.write("addedToChoice")
+    diffusionTableFile.newLine()
+  }
+
+  def addLineToDiffusionTable(person: Person, potential: Double, chosen: Boolean, scenario: Scenario): Unit = {
+    val household = personToHousehold.get(person.getId)
+    val income = household.fold(0)(_.getIncome.getIncome.toInt)
+    val distanceToPD = getDistanceToPD(person.getPlans.get(0))
+    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
+    val sex =
+      if (person.getAttributes.getAttribute(PERSON_SEX) != null) person.getAttributes.getAttribute(PERSON_SEX).toString
+      else ""
+
+    diffusionTableFile.write(s"${person.getId},")
+    diffusionTableFile.write(s"${income},")
+    diffusionTableFile.write(s"${age},")
+    diffusionTableFile.write(s"${sex},")
+    diffusionTableFile.write(s"${distanceToPD},")
+    diffusionTableFile.write(s"${hasChildUnder8(household.get, scenario.getPopulation)},")
+    diffusionTableFile.write(s"${potential},")
+    diffusionTableFile.write(s"${chosen}")
+    diffusionTableFile.newLine()
   }
 
   def limitToZeroOne(d: Double): Double = math.max(math.min(d, 1.0), 0.0)

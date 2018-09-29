@@ -428,7 +428,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices, matsimConfig)
     populationAdjustment.update(scenario)
   }
 }

@@ -5,6 +5,7 @@ import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
+import org.matsim.core.config.Config
 
 trait PopulationAdjustment extends LazyLogging {
   final def update(scenario: Scenario): Population = {
@@ -69,8 +70,7 @@ trait PopulationAdjustment extends LazyLogging {
     population.getPersons.keySet().forEach { person =>
       var modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
       modeToRemove.foreach(
-        mode =>
-          modes = modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+        mode => modes = modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
       )
       population.getPersonAttributes
         .putAttribute(
@@ -89,14 +89,14 @@ object PopulationAdjustment {
   val DIFFUSION_POTENTIAL_ADJUSTMENT_AV = "DIFFUSION_POTENTIAL_ADJUSTMENT_AV"
   val AVAILABLE_MODES = "available-modes"
 
-  def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
+  def getPopulationAdjustment(beamServices: BeamServices, matsimConfig: Config): PopulationAdjustment = {
     beamServices.beamConfig.beam.agentsim.populationAdjustment match {
       case DEFAULT_ADJUSTMENT =>
         new DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
         new PercentagePopulationAdjustment(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT_RH | DIFFUSION_POTENTIAL_ADJUSTMENT_AV =>
-        new DiffusionPotentialPopulationAdjustment(beamServices)
+        new DiffusionPotentialPopulationAdjustment(beamServices, matsimConfig)
       case adjClass =>
         try {
           Class
