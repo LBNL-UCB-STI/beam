@@ -304,7 +304,7 @@ class BeamAgentScheduler(
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          triggerMeasurer.sent(triggerWithId)
+          triggerMeasurer.sent(triggerWithId, scheduledTrigger.agent)
           scheduledTrigger.agent ! triggerWithId
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
@@ -330,7 +330,7 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
