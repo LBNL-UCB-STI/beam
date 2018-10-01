@@ -49,13 +49,13 @@ import java.util.concurrent.TimeoutException;
 
 
 /**
- * @Author asif and rwaraich.
+ * @author asif and rwaraich.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
-    public static final String DUMMY_ACTIVITY = "DummyActivity";
+    private static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private final ActorRef router;
@@ -64,7 +64,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Scenario agentSimScenario;
     private Population jdeqsimPopulation;
 
-    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
+//    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private BeamConfig beamConfig;
@@ -247,7 +247,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
-            // pathTraversal, a busLine should be filtered out, avoiding jumping busses in visualization (but making traffic flows less precise).
+            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
 
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
@@ -302,15 +302,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         // hack: removing non-road links from route
         // TODO: debug problem properly, so that no that no events for physsim contain non-road links
-        List<Id<Link>> removeLinks = new ArrayList<>();
+//        List<Id<Link>> removeLinks = new ArrayList<>();
         Map<Id<Link>, ? extends Link> networkLinks = agentSimScenario.getNetwork().getLinks();
         for (Id<Link> linkId : linkIds) {
             if (!networkLinks.containsKey(linkId)) {
                 throw new RuntimeException("Link not found: " + linkId);
             }
         }
-        numberOfLinksRemovedFromRouteAsNonCarModeLinks += removeLinks.size();
-        linkIds.removeAll(removeLinks);
+//        numberOfLinksRemovedFromRouteAsNonCarModeLinks += removeLinks.size();
+//        linkIds.removeAll(removeLinks);
 
         if (linkIds.size() == 0) {
             return null;
@@ -329,9 +329,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
-        if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
-            log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
-        }
+//        if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
+//            log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
+//        }
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
