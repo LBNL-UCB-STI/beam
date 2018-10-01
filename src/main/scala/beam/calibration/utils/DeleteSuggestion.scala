@@ -43,8 +43,9 @@ object DeleteSuggestion extends LazyLogging {
   def listSuggestions(experimentId: String) = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) =>
-        if (_experiment.suggestions().list().call().getData.size() > 0) {
-          _experiment.suggestions().list().call().getData.forEach(println)
+        val data = _experiment.suggestions().list().call().getData
+        if (!data.isEmpty) {
+          data.forEach(println)
         } else {
           logger.info(s"Experiement with id $experimentId has no suggestion")
         }
