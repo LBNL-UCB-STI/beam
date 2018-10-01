@@ -17,7 +17,6 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
 
-
 class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
 
   private lazy val srcPath = beamConfig.beam.warmStart.path

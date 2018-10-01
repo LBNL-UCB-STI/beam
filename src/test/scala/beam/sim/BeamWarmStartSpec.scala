@@ -27,7 +27,7 @@ class BeamWarmStartSpec
   }
 
   "from a flat directory, getWarmStartFilePath" must {
-    "find plans and " + LINK_STATS in {
+    "find plans and linkstats" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case1")
       createDirs(caseDataPath)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
@@ -58,7 +58,7 @@ class BeamWarmStartSpec
       actualStats shouldEqual expectedStats
     }
 
-    "only find " + LINK_STATS in {
+    "only find link stats" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case3")
       createDirs(caseDataPath)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
@@ -73,7 +73,7 @@ class BeamWarmStartSpec
       actualStats shouldEqual expectedStats
     }
 
-    "find plans and " + LINK_STATS + " even files are 1 level deeper" in {
+    "find plans and linkstats even files are 1 level deeper" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case1a")
       createDirs(Paths.get(caseDataPath.toString, "level1"))
 
@@ -89,7 +89,7 @@ class BeamWarmStartSpec
       actualStats shouldEqual expectedStats
     }
 
-    "find plans and " + LINK_STATS + " even files are 2 level deeper" in {
+    "find plans and linkstats even files are 2 level deeper" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case1b")
       createDirs(Paths.get(caseDataPath.toString, "level1/level2"))
 
@@ -108,7 +108,7 @@ class BeamWarmStartSpec
 
   "from a parent run, getWarmStartFilePath" must {
 
-    "find plan from run level and " + LINK_STATS + " from iteration level" in {
+    "find plan from run level and linkstats from iteration level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case4")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
@@ -245,7 +245,8 @@ class BeamWarmStartSpec
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1.plans")
       copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0." + LINK_STATS)
-      val expectedStats = copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1." + LINK_STATS)
+      val expectedStats =
+        copyLinkStats(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1." + LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
@@ -258,8 +259,10 @@ class BeamWarmStartSpec
   }
 
   private def getWarmStart(casePath: Path): BeamWarmStart = {
-    val conf = baseConfig.withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString)).resolve()
+    val conf = baseConfig
+      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
+      .resolve()
     BeamWarmStart(BeamConfig(conf))
   }
 }
