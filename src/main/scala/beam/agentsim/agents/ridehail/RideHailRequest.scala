@@ -4,8 +4,8 @@ import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.{BeamTime, DiscreteTime}
 import org.apache.commons.lang.builder.HashCodeBuilder
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 case class RideHailRequest(
@@ -18,6 +18,7 @@ case class RideHailRequest(
 
   /**
     * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
+    *
     * @return hashCode(customer, pickUpLocation, departAt, destination)
     */
   lazy val requestId: Int = {
@@ -28,7 +29,8 @@ case class RideHailRequest(
       .append(destination)
       .toHashCode
   }
-  override def toString(): String =
+
+  override def toString: String =
     s"id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocation, time: $departAt, dest: $destination"
 }
 
