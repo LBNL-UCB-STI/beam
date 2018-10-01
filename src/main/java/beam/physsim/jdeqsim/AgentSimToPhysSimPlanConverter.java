@@ -6,7 +6,6 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
@@ -15,8 +14,6 @@ import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.ActivityEndEvent;
-import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -41,12 +38,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 
 /**
- * @Authors asif and rwaraich.
+ * @Author asif and rwaraich.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
 
@@ -68,6 +71,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Random rand = MatsimRandom.getRandom();
 
     private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+
+    private List<CompletableFuture> plansWriterFutures = new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -106,7 +111,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    public void setupActorsAndRunPhysSim(int iterationNumber) {
+    private void setupActorsAndRunPhysSim(int iterationNumber) {
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
@@ -120,7 +125,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         EventWriterXML_viaCompatible eventsWriterXML = null;
-        if (writePhysSimEvents(iterationNumber)) {
+        if (canWritePhysSimEvents(iterationNumber)) {
 
             eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
             jdeqsimEvents.addHandler(eventsWriterXML);
@@ -173,11 +178,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             linkStatsGraph.clean();
         });
 
-        CompletableFuture.runAsync(() -> {
-            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
-        });
+        CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
 
-        if (writePhysSimEvents(iterationNumber)) {
+        if (canWritePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
         }
 
@@ -189,29 +192,44 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
-    private boolean writePhysSimEvents(int iterationNumber) {
-        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
+    private boolean canWritePhysSimEvents(int iterationNumber) {
+        return canWriteInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
 
-    private boolean writePlans(int iterationNumber) {
-        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
+    private boolean canWritePlans(int iterationNumber) {
+        return canWriteInIteration(iterationNumber, beamConfig.beam().physsim().writePlansInterval());
     }
 
-    private boolean writeInIteration(int iterationNumber, int interval) {
+    private boolean canWriteInIteration(int iterationNumber, int interval) {
         return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+    }
+
+    private boolean isLastWritePlansIteration(int iterationNumber) {
+        int interval = beamConfig.beam().physsim().writePlansInterval();
+        if(canWritePlans(iterationNumber))
+            return iterationNumber == beamConfig.matsim().modules().controler().lastIteration() % interval;
+        return false;
     }
 
     private void createNetworkFile(Network network) {
         String physSimNetworkFilePath = controlerIO.getOutputFilename("physSimNetwork.xml.gz");
         if (!(new File(physSimNetworkFilePath)).exists()) {
-            NetworkUtils.writeNetwork(network, physSimNetworkFilePath);
+            CompletableFuture.runAsync(() -> NetworkUtils.writeNetwork(network, physSimNetworkFilePath));
         }
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {
-        if (writePlans(event.getIteration())) {
-            String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
-            new PopulationWriter(jdeqsimPopulation).write(plansFilename);
+        if (canWritePlans(event.getIteration())) {
+            final String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
+            plansWriterFutures.add (CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
+
+            if(isLastWritePlansIteration(event.getIteration())) {
+                try {
+                    CompletableFuture.allOf(plansWriterFutures.toArray(new CompletableFuture[0])).get(20, TimeUnit.MINUTES);
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -241,7 +259,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
                 String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+//                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
