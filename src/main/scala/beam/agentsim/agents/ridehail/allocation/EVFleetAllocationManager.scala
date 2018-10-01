@@ -63,8 +63,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
               .remainingRangeInM < routingResponses.get
               .map(
                 _.itineraries
-                  .filter(_.tripClassifier == RIDE_HAIL)
-                  .headOption
+                  .find(_.tripClassifier == RIDE_HAIL)
                   .map(_.beamLegs().map(_.travelPath.distanceInM).sum)
                   .getOrElse(Double.MaxValue)
               )
