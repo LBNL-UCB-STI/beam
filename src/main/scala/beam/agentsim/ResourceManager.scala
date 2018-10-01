@@ -44,11 +44,11 @@ object ResourceManager {
   trait VehicleManager extends Actor with ResourceManager[BeamVehicle]
 
   case class NotifyVehicleResourceIdle(
-                                        override val resourceId: Id[_],
-                                        override val whenWhere: Option[SpaceTime],
-                                        passengerSchedule: PassengerSchedule,
-                                        beamVehicleState: BeamVehicleState,
-                                        triggerId: Option[Long] // triggerId is included to facilitate debugging
-                                      ) extends NotifyResourceIdle
+    override val resourceId: Id[_],
+    override val whenWhere: Option[SpaceTime],
+    passengerSchedule: PassengerSchedule,
+    beamVehicleState: BeamVehicleState,
+    triggerId: Option[Long] // triggerId is included to facilitate debugging
+  ) extends NotifyResourceIdle
 
 }

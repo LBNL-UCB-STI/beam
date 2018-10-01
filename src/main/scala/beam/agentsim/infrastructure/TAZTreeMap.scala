@@ -60,9 +60,9 @@ object TAZTreeMap {
   }
 
   private def initQuadTreeFromShapeFile(
-                                         shapeFilePath: String,
-                                         tazIDFieldName: String
-                                       ): QuadTree[TAZ] = {
+    shapeFilePath: String,
+    tazIDFieldName: String
+  ): QuadTree[TAZ] = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
@@ -91,8 +91,8 @@ object TAZTreeMap {
   }
 
   private def quadTreeExtentFromShapeFile(
-                                           features: util.Collection[SimpleFeature]
-                                         ): QuadTreeBounds = {
+    features: util.Collection[SimpleFeature]
+  ): QuadTreeBounds = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue

@@ -8,8 +8,6 @@ import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
-import org.jfree.data.category.CategoryDataset;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -46,7 +44,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     // Static Initializer
     private final IGraphStats deadHeadingStats = new DeadHeadingStats();
     private final IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
-    private final IGraphStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation());
+    private final IGraphStats modeChoseStats ;
     private final IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
     private final IGraphStats rideHailWaitingStats;
     private final IGraphStats personVehicleTransitionStats;
@@ -60,6 +58,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
         rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
         rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
+        modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation(), beamConfig);
         personVehicleTransitionStats = new PersonVehicleTransitionStats(beamConfig);
        this.beamConfig=beamConfig;
     }

@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
@@ -118,7 +119,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     currentVehicleUnderControl,
                     Some(beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)),
                     data.passengerSchedule,
-                    theVehicle.getState(),
+                    theVehicle.getState,
                     Some(triggerId)
                   )
                 )
@@ -141,7 +142,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 new VehicleLeavesTrafficEvent(
                   tick,
                   id.asInstanceOf[Id[Person]],
-                  null,
+                  Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
                   data.currentVehicle.head,
                   "car",
                   0.0
@@ -302,7 +303,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   currentVehicleUnderControl,
                   Some(beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint)),
                   data.passengerSchedule,
-                  theVehicle.getState(),
+                  theVehicle.getState,
                   _currentTriggerId
                 )
               )
@@ -399,21 +400,27 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           new VehicleEntersTrafficEvent(
             tick,
             Id.createPersonId(id),
-            null,
+            Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
             data.currentVehicle.head,
             "car",
             1.0
           )
         )
         // Produce link events for this trip (the same ones as in PathTraversalEvent).
-        // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-        // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+        //TODO make sure the traveTimes here are updating with each iteration
         val beamLeg = data.passengerSchedule.schedule
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
+        val travelTime = (time: Int, linkId: Int) => {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          (edge.getLengthM / edge.calculateSpeed(
+            new ProfileRequest,
+            StreetMode.valueOf(beamLeg.mode.r5Mode.get.left.getOrElse(StreetMode.CAR).toString)
+          )).toInt
+        }
         RoutingModel
-          .traverseStreetLeg_opt(beamLeg, data.currentVehicle.head)
+          .traverseStreetLeg(beamLeg, data.currentVehicle.head, travelTime)
           .foreach(eventsManager.processEvent)
         val endTime = tick + beamLeg.duration
         goto(Driving) using LiterallyDrivingData(data, endTime)
@@ -588,7 +595,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       sender() ! BeamVehicleStateUpdate(
         currentVehicleUnderControl.id,
-        currentVehicleUnderControl.getState()
+        currentVehicleUnderControl.getState
       )
       stay()
 

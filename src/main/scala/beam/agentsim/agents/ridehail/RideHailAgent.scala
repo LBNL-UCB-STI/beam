@@ -59,6 +59,14 @@ object RideHailAgent {
       )
     )
 
+  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[RoutingModel.EmbodiedBeamLeg] = {
+    chosenTrip.legs.filter(l => isRideHailLeg(l))
+  }
+
+  def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
+    currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
+  }
+
   case class RideHailAgentData(
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
@@ -73,18 +81,6 @@ object RideHailAgent {
 
     override def hasParkingBehaviors: Boolean = false
   }
-
-  def isRideHailLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
-    currentLeg.beamVehicleId.toString.contains("rideHailVehicle")
-  }
-
-  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[RoutingModel.EmbodiedBeamLeg] = {
-    chosenTrip.legs.filter(l => isRideHailLeg(l))
-  }
-
-  case object Idle extends BeamAgentState
-
-  case object IdleInterrupted extends BeamAgentState
 
   // triggerId is included to facilitate debugging
   case class NotifyVehicleResourceIdleReply(
@@ -117,6 +113,10 @@ object RideHailAgent {
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
 
+  case object Idle extends BeamAgentState
+
+  case object IdleInterrupted extends BeamAgentState
+
 }
 
 class RideHailAgent(
@@ -132,9 +132,32 @@ class RideHailAgent(
     with DrivesVehicle[RideHailAgentData]
     with Stash {
 
-  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+  val myUnhandled: StateFunction = {
 
-  override def logPrefix(): String = s"RideHailAgent $id: "
+    case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stay replying CompletionNotice(triggerId)
+
+    case ev @ Event(IllegalTriggerGoToError(reason), _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop(Failure(reason))
+
+    case ev @ Event(Finish, _) =>
+      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop
+
+    case event @ Event(_, _) =>
+      log.error(
+        "unhandled event: {} in state [ {} ] - vehicle( {} )",
+        event.toString,
+        stateName,
+        vehicle.id.toString
+      )
+      stay()
+
+  }
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   startWith(Uninitialized, RideHailAgentData())
 
@@ -142,7 +165,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle
         .becomeDriver(self) match {
-        case DriverAlreadyAssigned(currentDriver) =>
+        case DriverAlreadyAssigned(_) =>
           stop(
             Failure(
               s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
@@ -201,7 +224,7 @@ class RideHailAgent(
               currentVehicleUnderControl,
               whenWhere,
               data.passengerSchedule,
-              theVehicle.getState(),
+              theVehicle.getState,
               _currentTriggerId
             )
           )
@@ -215,12 +238,15 @@ class RideHailAgent(
       data.currentVehicle.headOption match {
         case Some(currentVehicleUnderControl) =>
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-//          theVehicle.useParkingStall(stall)
+          //          theVehicle.useParkingStall(stall)
           val (sessionDuration, energyDelivered) =
             theVehicle.refuelingSessionDurationAndEnergyInJoules()
-          if (sessionDuration < 0) {
-            val i = 0
-          }
+
+          log.debug(
+            "scheduling EndRefuelTrigger at {} with {} J to be delivered",
+            tick + sessionDuration.toInt,
+            energyDelivered
+          )
           stay() replying CompletionNotice(
             triggerId,
             Vector(
@@ -306,27 +332,7 @@ class RideHailAgent(
       stay()
   }
 
-  val myUnhandled: StateFunction = {
-
-    case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stay replying CompletionNotice(triggerId)
-
-    case ev @ Event(IllegalTriggerGoToError(reason), data) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stop(Failure(reason))
-
-    case ev @ Event(Finish, _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
-      stop
-
-    case event @ Event(_, _) =>
-      log.error(
-        s"unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle(" + vehicle.id.toString + ")"
-      )
-      stay()
-
-  }
+  override def logPrefix(): String = s"RideHailAgent $id: "
 
   def handleNotifyVehicleResourceIdleReply(
     receivedtriggerId: Option[Long],
@@ -359,7 +365,7 @@ class RideHailAgent(
 
       nextNotifyVehicleResourceIdle match {
 
-        case Some(nextNotifyVehicleResourceIdle) =>
+        case Some(nextIdle) =>
           stateData.currentVehicle.headOption match {
             case Some(currentVehicleUnderControl) =>
               val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
@@ -371,17 +377,20 @@ class RideHailAgent(
                 )
               )
 
-              if (_currentTriggerId != nextNotifyVehicleResourceIdle.triggerId) {
+              if (_currentTriggerId != nextIdle.triggerId) {
                 log.error(
-                  s"_currentTriggerId(${_currentTriggerId}) and nextNotifyVehicleResourceIdle.triggerId(${nextNotifyVehicleResourceIdle.triggerId}) don't match - vehicleId($currentVehicleUnderControl)"
+                  "_currentTriggerId({}) and nextNotifyVehicleResourceIdle.triggerId({}) don't match - vehicleId({})",
+                  _currentTriggerId,
+                  nextIdle.triggerId,
+                  currentVehicleUnderControl
                 )
                 //assert(false)
               }
 
               theVehicle.manager.foreach(
-                _ ! nextNotifyVehicleResourceIdle
+                _ ! nextIdle
               )
-
+            case None =>
           }
 
         case None =>

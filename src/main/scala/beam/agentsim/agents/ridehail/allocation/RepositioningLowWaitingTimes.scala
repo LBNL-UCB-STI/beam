@@ -3,6 +3,8 @@ package beam.agentsim.agents.ridehail.allocation
 import java.awt.Color
 import java.util.concurrent.TimeUnit
 
+import akka.pattern._
+import akka.util.Timeout
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, TNCIterationStats}
@@ -10,8 +12,6 @@ import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
-import akka.pattern._
-import akka.util.Timeout
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
@@ -34,33 +34,7 @@ class RepositioningLowWaitingTimes(
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
-
-  def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
-    maxNumberOfVehiclesToReposition: Int
-  ): Vector[RideHailAgentLocation] = {
-    val (idle, repositioning) = idleVehicles.values.toVector.partition(
-      rideHailAgentLocation =>
-        rideHailManager.modifyPassengerScheduleManager
-          .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
-    )
-    val result = if (idle.size < maxNumberOfVehiclesToReposition) {
-      idle ++ repositioning.take(maxNumberOfVehiclesToReposition - idle.size)
-    } else {
-      idle
-    }
-
-    if (result.size < idleVehicles.values.size) {
-      logger.debug(
-        s"filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by ${idleVehicles.values.size - result.size}"
-      )
-    }
-
-    result
-  }
-
   var firstRepositioningOfDay = true
-
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
@@ -91,7 +65,7 @@ class RepositioningLowWaitingTimes(
         val minDemandPercentageInRadius =
           repositioningConfig.minDemandPercentageInRadius
 
-        //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER)) {
+        //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER)) {
         // allow more aggressive repositioning at start of day
         //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
         //  repositionCircleRadiusInMeters = 100 * 1000
@@ -254,7 +228,7 @@ class RepositioningLowWaitingTimes(
         }
 
         if (whichTAZToRepositionTo.nonEmpty) {
-          logger.debug(s"whichTAZToRepositionTo.size:${whichTAZToRepositionTo.size}")
+          logger.debug("whichTAZToRepositionTo.size:{}", whichTAZToRepositionTo.size)
         }
 
         val result = if (firstRepositioningOfDay) {
@@ -298,5 +272,30 @@ class RepositioningLowWaitingTimes(
     // } else {
     // Vector()
     // }
+  }
+
+  def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
+    idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
+    maxNumberOfVehiclesToReposition: Int
+  ): Vector[RideHailAgentLocation] = {
+    val (idle, repositioning) = idleVehicles.values.toVector.partition(
+      rideHailAgentLocation =>
+        rideHailManager.modifyPassengerScheduleManager
+          .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
+    )
+    val result = if (idle.size < maxNumberOfVehiclesToReposition) {
+      idle ++ repositioning.take(maxNumberOfVehiclesToReposition - idle.size)
+    } else {
+      idle
+    }
+
+    if (result.size < idleVehicles.values.size) {
+      logger.debug(
+        "filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable: reduced set by {}",
+        idleVehicles.values.size - result.size
+      )
+    }
+
+    result
   }
 }

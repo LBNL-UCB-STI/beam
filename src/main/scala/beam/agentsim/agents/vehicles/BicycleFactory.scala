@@ -1,11 +1,12 @@
 package beam.agentsim.agents.vehicles
+
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 
 class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
@@ -27,8 +28,10 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
     )
 
     // Add bicycles to household (all for now)
-    JavaConverters
-      .collectionAsScalaIterable(scenario.getHouseholds.getHouseholds.values())
+
+    scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
       .seq
       .foreach { hh =>
         addBicycleVehicleIdsToHousehold(hh, beamVehicleType)
@@ -39,7 +42,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
     implicit vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   ): Unit = {
     val householdMembers: Iterable[Id[Person]] =
-      JavaConverters.collectionAsScalaIterable(household.getMemberIds)
+      household.getMemberIds.asScala
 
     householdMembers.foreach { id: Id[Person] =>
       val bicycleId: Id[BeamVehicle] = BeamVehicle.createId(id, Some("bike"))
@@ -56,9 +59,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
             bicycleId,
             powertrain,
             None,
-            beamVehicleType,
-            None,
-            None
+            beamVehicleType
           )
         )
       )

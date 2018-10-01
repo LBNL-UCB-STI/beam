@@ -10,14 +10,14 @@ object VehicleProtocol {
 
   sealed trait BecomeDriverResponse
 
-  case object BecomeDriverOfVehicleSuccess extends BecomeDriverResponse
-
-  case object NewDriverAlreadyControllingVehicle extends BecomeDriverResponse
-
   case class DriverAlreadyAssigned(currentDriver: ActorRef) extends BecomeDriverResponse
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
+
+  case object BecomeDriverOfVehicleSuccess extends BecomeDriverResponse
+
+  case object NewDriverAlreadyControllingVehicle extends BecomeDriverResponse
 
 }

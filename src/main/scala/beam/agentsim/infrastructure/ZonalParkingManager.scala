@@ -28,16 +28,17 @@ import scala.collection.mutable
 import scala.util.Random
 
 class ZonalParkingManager(
-                           override val beamServices: BeamServices,
-                           val beamRouter: ActorRef,
-                           parkingStockAttributes: ParkingStockAttributes
-                         ) extends ParkingManager(parkingStockAttributes)
-  with HasServices
-  with ActorLogging {
+  override val beamServices: BeamServices,
+  val beamRouter: ActorRef,
+  parkingStockAttributes: ParkingStockAttributes
+) extends ParkingManager(parkingStockAttributes)
+    with HasServices
+    with ActorLogging {
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
     collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
   val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
+
   val defaultStallAttributes = StallAttributes(
     Id.create("NA", classOf[TAZ]),
     NoOtherExists,
@@ -46,6 +47,8 @@ class ZonalParkingManager(
     ParkingStall.Any
   )
   val defaultStallValues = StallValues(Int.MaxValue, 0)
+  val defaultRideHailStallValues = StallValues(0, 0)
+
   val depotStallLocationType: DepotStallLocationType =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
       case "AtRequestLocation" =>
@@ -60,11 +63,11 @@ class ZonalParkingManager(
   def fillInDefaultPooledResources(): Unit = {
     // First do general parking and charging for personal vehicles
     for {
-      taz <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-      parkingType <- List(Residential, Workplace, Public)
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Residential, Workplace, Public)
       pricingModel <- List(FlatFee, Block)
       chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-      reservedFor <- List(ParkingStall.Any)
+      reservedFor  <- List(ParkingStall.Any)
     } yield {
       pooledResources.put(
         StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
@@ -73,15 +76,15 @@ class ZonalParkingManager(
     }
     // Now do parking/charging for ride hail fleet
     for {
-      taz <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-      parkingType <- List(Workplace)
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Workplace)
       pricingModel <- List(FlatFee)
       chargingType <- List(Level2, DCFast, UltraFast)
-      reservedFor <- List(ParkingStall.RideHailManager)
+      reservedFor  <- List(ParkingStall.RideHailManager)
     } yield {
       pooledResources.put(
         StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-        defaultStallValues
+        defaultRideHailStallValues
       )
     }
   }
@@ -136,14 +139,14 @@ class ZonalParkingManager(
   def getReservedFor(reservedFor: String): ReservedParkingType = {
     reservedFor match {
       case "RideHailManager" => ParkingStall.RideHailManager
-      case _ => ParkingStall.Any
+      case _                 => ParkingStall.Any
     }
   }
 
   def parkingStallToCsv(
-                         pooledResources: mutable.Map[ParkingStall.StallAttributes, StallValues],
-                         writeDestinationPath: String
-                       ): Unit = {
+    pooledResources: mutable.Map[ParkingStall.StallAttributes, StallValues],
+    writeDestinationPath: String
+  ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
       val destinationFile = new File(writeDestinationPath)
@@ -225,7 +228,7 @@ class ZonalParkingManager(
         "Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet."
       )
 
-    case inquiry@DepotParkingInquiry(_: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
+    case inquiry @ DepotParkingInquiry(_: Id[Vehicle], location: Location, reservedFor: ReservedParkingType) =>
       log.debug(
         "DepotParkingInquiry with {} available stalls ",
         pooledResources
@@ -240,8 +243,8 @@ class ZonalParkingManager(
             pooledResources.exists {
               case (attr, values) =>
                 attr.tazId.equals(taz.tazId) &&
-                  attr.reservedFor.equals(reservedFor) &&
-                  values.numStalls > 0
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0
             }
         }
         .map {
@@ -249,8 +252,8 @@ class ZonalParkingManager(
             pooledResources.filter {
               case (attr, values) =>
                 attr.tazId.equals(taz.tazId) &&
-                  attr.reservedFor.equals(reservedFor) &&
-                  values.numStalls > 0
+                attr.reservedFor.equals(reservedFor) &&
+                values.numStalls > 0
             }
         }
 
@@ -293,22 +296,22 @@ class ZonalParkingManager(
       val response = DepotParkingInquiryResponse(maybeParkingStall, inquiry.requestId)
       sender() ! response
 
-    case inquiry@ParkingInquiry(
-    _: Id[PersonAgent],
-    _: Location,
-    destinationUtm: Location,
-    activityType: String,
-    _: Double,
-    chargingPreference: ChargingPreference,
-    _: Long,
-    _: Double,
-    reservedFor: ReservedParkingType
-    ) =>
+    case inquiry @ ParkingInquiry(
+          _: Id[PersonAgent],
+          _: Location,
+          destinationUtm: Location,
+          activityType: String,
+          _: Double,
+          chargingPreference: ChargingPreference,
+          _: Long,
+          _: Double,
+          reservedFor: ReservedParkingType
+        ) =>
       val nearbyTAZsWithDistances = findTAZsWithinDistance(destinationUtm, 500.0, 16000.0)
       val preferredType = activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
-        case _ => Public
+        case _                                   => Public
       }
 
       /*
@@ -321,10 +324,10 @@ class ZonalParkingManager(
           pooledResources.find {
             case (attr, values) =>
               attr.tazId.equals(nearbyTAZsWithDistances.head._1.tazId) &&
-                attr.parkingType == preferredType &&
-                attr.reservedFor.equals(reservedFor) &&
-                values.numStalls > 0 &&
-                values.feeInCents == 0
+              attr.parkingType == preferredType &&
+              attr.reservedFor.equals(reservedFor) &&
+              values.numStalls > 0 &&
+              values.feeInCents == 0
           }
       }
       val maybeDominantSpot = maybeFoundStall match {
@@ -387,14 +390,14 @@ class ZonalParkingManager(
   // TODO make pricing into parameters
   // TODO make Block parking model based off a schedule
   def calculateCost(
-                     attrib: StallAttributes,
-                     feeInCents: Int,
-                     arrivalTime: Long,
-                     parkingDuration: Double
-                   ): Double = {
+    attrib: StallAttributes,
+    feeInCents: Int,
+    arrivalTime: Long,
+    parkingDuration: Double
+  ): Double = {
     attrib.pricingModel match {
       case FlatFee => feeInCents.toDouble / 100.0
-      case Block => parkingDuration / 3600.0 * (feeInCents.toDouble / 100.0)
+      case Block   => parkingDuration / 3600.0 * (feeInCents.toDouble / 100.0)
     }
   }
 
@@ -474,12 +477,12 @@ class ZonalParkingManager(
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = throw new Exception("???")
 
   private def maybeCreateNewStall(
-                                   attrib: StallAttributes,
-                                   atLocation: Location,
-                                   withCost: Double,
-                                   stallValues: Option[StallValues],
-                                   reservedFor: ReservedParkingType = ParkingStall.Any
-                                 ): Option[ParkingStall] = {
+    attrib: StallAttributes,
+    atLocation: Location,
+    withCost: Double,
+    stallValues: Option[StallValues],
+    reservedFor: ReservedParkingType = ParkingStall.Any
+  ): Option[ParkingStall] = {
     if (pooledResources(attrib).numStalls > 0) {
       stallNum = stallNum + 1
       Some(
@@ -502,18 +505,18 @@ object ZonalParkingManager {
   val maxSearchRadius = 10e6
 
   def props(
-             beamServices: BeamServices,
-             beamRouter: ActorRef,
-             parkingStockAttributes: ParkingStockAttributes
-           ): Props = {
+    beamServices: BeamServices,
+    beamRouter: ActorRef,
+    parkingStockAttributes: ParkingStockAttributes
+  ): Props = {
     Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes))
   }
 
   case class ParkingAlternative(
-                                 stallAttributes: StallAttributes,
-                                 location: Location,
-                                 cost: Double,
-                                 rankingWeight: Double,
-                                 stallValues: StallValues
-                               )
+    stallAttributes: StallAttributes,
+    location: Location,
+    cost: Double,
+    rankingWeight: Double,
+    stallValues: StallValues
+  )
 }

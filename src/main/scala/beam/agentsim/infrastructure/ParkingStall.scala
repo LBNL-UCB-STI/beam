@@ -7,12 +7,12 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 
 case class ParkingStall(
-                         id: Id[ParkingStall],
-                         attributes: StallAttributes,
-                         location: Location,
-                         cost: Double,
-                         stallValues: Option[StallValues]
-                       ) extends Resource[ParkingStall] {
+  id: Id[ParkingStall],
+  attributes: StallAttributes,
+  location: Location,
+  cost: Double,
+  stallValues: Option[StallValues]
+) extends Resource[ParkingStall] {
   override def getId: Id[ParkingStall] = id
 }
 
@@ -37,12 +37,12 @@ object ParkingStall {
   sealed trait DepotStallLocationType
 
   case class StallAttributes(
-                              tazId: Id[TAZ],
-                              parkingType: ParkingType,
-                              pricingModel: PricingModel,
-                              chargingType: ChargingType,
-                              reservedFor: ReservedParkingType
-                            )
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    pricingModel: PricingModel,
+    chargingType: ChargingType,
+    reservedFor: ReservedParkingType
+  )
 
   case class StallValues(numStalls: Int, feeInCents: Int)
 
@@ -58,11 +58,11 @@ object ParkingStall {
 
     def fromString(s: String): ParkingType = {
       s match {
-        case "Residential" => Residential
-        case "Workplace" => Workplace
-        case "Public" => Public
+        case "Residential"   => Residential
+        case "Workplace"     => Workplace
+        case "Public"        => Public
         case "NoOtherExists" => NoOtherExists
-        case _ => throw new RuntimeException("Invalid case")
+        case _               => throw new RuntimeException("Invalid case")
       }
     }
   }
@@ -82,22 +82,29 @@ object ParkingStall {
     def fromString(s: String): ChargingType = {
       s match {
         case "NoCharger" => NoCharger
-        case "Level1" => Level1
-        case "Level2" => Level2
-        case "DCFast" => DCFast
+        case "Level1"    => Level1
+        case "Level2"    => Level2
+        case "DCFast"    => DCFast
         case "UltraFast" => UltraFast
-        case _ => throw new RuntimeException("Invalid case")
+        case _           => throw new RuntimeException("Invalid case")
       }
     }
 
     def calculateChargingSessionLengthAndEnergyInJoules(
-                                                         chargerType: ChargingType,
-                                                         currentEnergyLevelInJoule: Double,
-                                                         energyCapacityInJoule: Double,
-                                                         vehicleChargingLimit: Option[Double],
-                                                         sessionDurationLimit: Option[Long]
-                                                       ): (Long, Double) = {
-      val vehicleChargingLimitActual = vehicleChargingLimit.getOrElse(Double.MaxValue)
+      chargerType: ChargingType,
+      currentEnergyLevelInJoule: Double,
+      energyCapacityInJoule: Double,
+      level2VehicleChargingLimitInWatts: Option[Double],
+      level3VehicleChargingLimitInWatts: Option[Double],
+      sessionDurationLimit: Option[Long]
+    ): (Long, Double) = {
+      val vehicleChargingLimitActualInKW = chargerType match {
+        case NoCharger => 0.0
+        case chType if chType == Level1 || chType == Level2 =>
+          level2VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
+        case chType if chType == DCFast || chType == UltraFast =>
+          level3VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
+      }
       val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
       val sessionLength = Math.min(
         sessionLengthLimiter,
@@ -106,7 +113,7 @@ object ParkingStall {
           case chType if chType == Level1 || chType == Level2 =>
             Math.round(
               (energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math
-                .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+                .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
             )
           case chType if chType == DCFast || chType == UltraFast =>
             if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
@@ -114,13 +121,13 @@ object ParkingStall {
             } else {
               Math.round(
                 (energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math
-                  .min(vehicleChargingLimitActual, getChargerPowerInKW(chargerType)) * 3600.0
+                  .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
               )
             }
         }
       )
       val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
-        vehicleChargingLimitActual,
+        vehicleChargingLimitActualInKW,
         getChargerPowerInKW(chargerType)
       ) * 3.6e6
 
@@ -156,7 +163,7 @@ object ParkingStall {
 
     def fromString(s: String): PricingModel = s match {
       case "FlatFee" => FlatFee
-      case "Block" => Block
+      case "Block"   => Block
     }
   }
 

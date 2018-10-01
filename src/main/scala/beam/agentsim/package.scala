@@ -25,8 +25,8 @@ package object agentsim {
   implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
 
   implicit def beamVehicleMap2MatsimVehicleMap(
-                                                beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
-                                              ): Map[Id[BeamVehicle], BeamVehicle] = {
+    beamVehicleMap: Map[Id[BeamVehicle], BeamVehicle]
+  ): Map[Id[BeamVehicle], BeamVehicle] = {
     beamVehicleMap.map({ case (vid, veh) => (vid, veh) })
   }
 

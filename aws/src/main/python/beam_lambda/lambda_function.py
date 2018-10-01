@@ -17,8 +17,7 @@ S3_PUBLISH_SCRIPT = '''
   -    echo opth
   -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
-  -    sudo rm -rf output/*'''
+  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
@@ -44,14 +43,15 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
+  - cd /home/ubuntu/git/beam
+  - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
   - echo "notification sent..."
   - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
   - crontab /tmp/glip_notification
   - crontab -l
   - echo "notification scheduled..."
-  - cd /home/ubuntu/git/beam
   - git fetch
   - echo "git checkout ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
@@ -59,7 +59,6 @@ runcmd:
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - sudo git pull
   - sudo git lfs pull
-  - python -m SimpleHTTPServer 8000 &
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
@@ -78,7 +77,7 @@ runcmd:
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
