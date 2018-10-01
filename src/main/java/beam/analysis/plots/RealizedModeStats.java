@@ -38,6 +38,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private HashSet<String> recentPersonIdRemoveList = new HashSet<>();
     private Map<Integer, Map<String, Integer>> realizedModeChoiceInIteration = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
+    private Set<String> cumulativeMode = new TreeSet<>();
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -210,7 +211,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                     } else {
                         totalModeChoice.put(iterationMode, freq + iterationFrequency);
                     }
-
                 }
             }
         }
@@ -261,6 +261,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 modes.add(mode);
             }
         });
+        cumulativeMode.addAll(modes);
         return modes;
     }
 
@@ -299,8 +300,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     }
 
     private double[][] buildTotalRealizedModeChoiceDataset() {
-        Set<String> modeChoosen = getModesChosen();
-        return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, modeChoosen));
+        return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeMode));
     }
 
     // generating graph in root directory
@@ -309,7 +309,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(getModesChosen());
+        modesChosenList.addAll(cumulativeMode);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
@@ -365,7 +365,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
-            Set<String> modes = getModesChosen();
+            Set<String> modes = cumulativeMode;
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
             out.newLine();
