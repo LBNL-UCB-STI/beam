@@ -31,55 +31,43 @@ object DeleteSuggestion extends LazyLogging {
   def deleteSuggestions(experimentId: String, suggestions: List[String]) = {
 
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
+      case Some(_experiment) =>
         suggestions.foreach { suggestionId =>
-          {
-
-            _experiment.suggestions().delete(suggestionId).call()
-          }
+          _experiment.suggestions().delete(suggestionId).call()
         }
-      }
-      case None => {
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
   def listSuggestions(experimentId: String) = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
-
-        if (_experiment.suggestions().list().call().getData.size() > 0)
-          _experiment.suggestions().list().call().getData.forEach { d =>
-            println(d)
-          } else
+      case Some(_experiment) =>
+        if (_experiment.suggestions().list().call().getData.size() > 0) {
+          _experiment.suggestions().list().call().getData.forEach(println)
+        } else {
           logger.info(s"Experiement with id $experimentId has no suggestion")
-      }
-      case None => {
+        }
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
-  def deleteAllOpenSuggestions(experimentId: String) = {
-
+  def deleteAllOpenSuggestions(experimentId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
-
-        if (_experiment.suggestions().list().call().getData.size() > 0)
+      case Some(_experiment) =>
+        if (!_experiment.suggestions().list().call().getData.isEmpty) {
           _experiment.suggestions().list().call().getData.forEach { d =>
-            {
-              if (d.getState == "open") {
-                logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
-                _experiment.suggestions().delete(d.getId).call()
-              }
+            if (d.getState == "open") {
+              logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
+              _experiment.suggestions().delete(d.getId).call()
             }
-          } else
+          }
+        } else {
           logger.info(s"Experiement with id $experimentId has no suggestion")
-      }
-      case None => {
+        }
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
