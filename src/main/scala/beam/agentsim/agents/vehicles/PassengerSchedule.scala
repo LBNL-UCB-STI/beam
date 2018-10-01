@@ -19,15 +19,15 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): PassengerSchedule = {
     var newSchedule = schedule ++ legs.map(leg => {
-      val manifest: Manifest = schedule.getOrElse(leg, Manifest());
+      val manifest: Manifest = schedule.getOrElse(leg, Manifest())
       (leg, manifest.copy(riders = manifest.riders + passenger))
     })
     newSchedule = newSchedule ++ legs.headOption.map(boardLeg => {
-      val manifest: Manifest = newSchedule.getOrElse(boardLeg, Manifest());
+      val manifest: Manifest = newSchedule.getOrElse(boardLeg, Manifest())
       (boardLeg, manifest.copy(boarders = manifest.boarders + passenger.vehicleId))
     })
     newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => {
-      val manifest: Manifest = newSchedule.getOrElse(alightLeg, Manifest());
+      val manifest: Manifest = newSchedule.getOrElse(alightLeg, Manifest())
       (alightLeg, manifest.copy(alighters = manifest.alighters + passenger.vehicleId))
     })
     PassengerSchedule(newSchedule)
