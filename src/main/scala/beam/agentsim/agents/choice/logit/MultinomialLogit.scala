@@ -99,14 +99,14 @@ object MultinomialLogit {
     })
   }
 
-  private def getProcessors = {
+  /*private def getProcessors = {
     Array[CellProcessor](
       new NotNull, // alt
       new NotNull, // name
       new NotNull, // type
       new Optional(new ParseDouble()) // value
     )
-  }
+  }*/
 
   class MnlData(
     @BeanProperty var alternative: String = "COMMON",

@@ -1,6 +1,5 @@
 package beam.agentsim.agents.parking
 
-
 import java.util.concurrent.TimeUnit
 
 import akka.actor.FSM.Failure

@@ -311,7 +311,7 @@ object HouseholdActor {
             if (existingDriver.isDefined) {
               val i = 0
             }
-            (existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString))
+            existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString)
           }
           .foreach { x =>
             _availableVehicles.remove(x.id)

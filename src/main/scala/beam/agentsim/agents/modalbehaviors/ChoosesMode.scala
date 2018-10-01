@@ -342,28 +342,29 @@ trait ChoosesMode {
         }
       stay() using newPersonData
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
-      val correctedItins = theRouterResult.itineraries.map { trip =>
-        if (trip.legs.head.beamLeg.mode == CAR) {
-          val startLeg = EmbodiedBeamLeg(
-            BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
-            bodyId,
-            true,
-            None,
-            BigDecimal(0.0),
-            false
-          )
-          val endLeg = EmbodiedBeamLeg(
-            BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
-            bodyId,
-            true,
-            None,
-            BigDecimal(0.0),
-            true
-          )
-          trip.copy(legs = (startLeg +: trip.legs) :+ endLeg)
-        } else {
-          trip
-        }
+      val correctedItins = theRouterResult.itineraries.map {
+        trip =>
+          if (trip.legs.head.beamLeg.mode == CAR) {
+            val startLeg = EmbodiedBeamLeg(
+              BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
+              bodyId,
+              asDriver = true,
+              None,
+              BigDecimal(0.0),
+              unbecomeDriverOnCompletion = false
+            )
+            val endLeg = EmbodiedBeamLeg(
+              BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
+              bodyId,
+              asDriver = true,
+              None,
+              BigDecimal(0.0),
+              unbecomeDriverOnCompletion = true
+            )
+            trip.copy(legs = (startLeg +: trip.legs) :+ endLeg)
+          } else {
+            trip
+          }
       }
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult.copy(itineraries = correctedItins)))
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
