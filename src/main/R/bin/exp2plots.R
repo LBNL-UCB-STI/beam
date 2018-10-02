@@ -17,9 +17,9 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
-  args<-'/Users/critter/Downloads/output 2/application-sfbay/rh2transit'
-  args<-'/Users/critter/Documents/beam/beam-output/sf-light-exp/'
+  args<-'/Users/critter/Downloads/RH2Transit-2Iter/RH2Transit'
+  args<-'/Users/critter/Downloads/cost-sensitivities/cost-sensitivity/'
+  #args<-'/Users/critter/Downloads/diffusion-5iter/diffusion/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -139,8 +139,9 @@ for(fact in factors){
   toplot[,frac:=num/tot]
   toplot[,tripmode:=pretty.modes(tripmode)]
   setkey(toplot,the.factor,tripmode)
-  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+
-      scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
+  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+
+    labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+
+    scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
@@ -211,7 +212,7 @@ for(fact in factors){
   toplot.ag <- toplot[,.(energy=sum(energy),pmt=sum(pmt)),by=c('the.factor','ag.mode')]
   pdf.scale <- .6
   setkey(toplot.ag,the.factor,ag.mode)
-  p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e6,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
+  p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e12,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot.ag$ag.mode)),mode.colors$key)]))
   ggsave(pp(plots.dir,'energy-by-mode-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   write.csv(toplot.ag,file=pp(plots.dir,'energy-by-mode-',fact,'.csv'))
