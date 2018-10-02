@@ -162,9 +162,10 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        beamServices.vehicleTypes.get(
-          Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-        ) match {
+        private val vehicleTypeId: Id[BeamVehicleType] = Id
+          .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+
+        beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
               log.error(
