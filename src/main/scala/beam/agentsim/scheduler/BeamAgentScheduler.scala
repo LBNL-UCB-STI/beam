@@ -9,7 +9,6 @@ import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAllocationManagerTimeout
-import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -29,15 +28,6 @@ case class RideHailingManagerIsExtremelySlowException(
 
 object BeamAgentScheduler {
 
-  def SchedulerProps(
-    beamConfig: BeamConfig,
-    stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
-    maxWindow: Int = 1,
-    stuckFinder: StuckFinder
-  ): Props = {
-    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
-  }
-
   sealed trait SchedulerMessage
 
   /**
@@ -55,6 +45,10 @@ object BeamAgentScheduler {
     id: Long,
     newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
   ) extends SchedulerMessage
+
+  case object Monitor extends SchedulerMessage
+
+  case object SkipOverBadActors extends SchedulerMessage
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
 
@@ -88,9 +82,14 @@ object BeamAgentScheduler {
       }
   }
 
-  case object Monitor extends SchedulerMessage
-
-  case object SkipOverBadActors extends SchedulerMessage
+  def SchedulerProps(
+    beamConfig: BeamConfig,
+    stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
+    maxWindow: Int = 1,
+    stuckFinder: StuckFinder
+  ): Props = {
+    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
+  }
 
   object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
 
@@ -118,6 +117,9 @@ class BeamAgentScheduler(
     with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+
+  private var started = false
+
   private val triggerQueue =
     new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
   private val awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap
@@ -126,18 +128,22 @@ class BeamAgentScheduler(
     scala.collection.mutable.Map[Long, java.lang.Double]()
   private val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] =
     scala.collection.mutable.Map[Long, ScheduledTrigger]()
-  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
-  private val eventSubscriberRef =
-    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
-  private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
-    mutable.HashMap.empty
-  private var started = false
+
   private var idCount: Long = 0L
   private var startSender: ActorRef = _
   private var nowInSeconds: Int = 0
+
+  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
+
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
   private var currentIter: Int = -1
+//  private val eventSubscriberRef =
+//    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
+
+  private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
+    mutable.HashMap.empty
+
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
 
@@ -153,7 +159,7 @@ class BeamAgentScheduler(
       triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
+      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick.toDouble)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
   }
@@ -163,19 +169,6 @@ class BeamAgentScheduler(
     stuckAgentChecker.foreach(_.cancel())
     scheduleMonitorTask.foreach(_.cancel())
     super.aroundPostStop()
-  }
-
-  def scheduleMonitorTask: Option[Cancellable] = {
-    if (beamConfig.beam.debug.debugEnabled)
-      Some(
-        context.system.scheduler.schedule(
-          new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(3, TimeUnit.SECONDS),
-          self,
-          Monitor
-        )
-      )
-    else None
   }
 
   def receive: Receive = LoggingReceive {
@@ -288,38 +281,6 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
   }
 
-  override def postStop(): Unit = {
-    monitorTask.foreach(_.cancel())
-    stuckAgentChecker.foreach(_.cancel())
-  }
-
-  def awaitingToString: String = {
-    if (awaitingResponse.keySet().isEmpty) {
-      "empty"
-    } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
-    }
-  }
-
-  def scheduleStuckAgentCheck: Option[Cancellable] = {
-    if (beamConfig.beam.debug.stuckAgentDetection.enabled)
-      Some(
-        context.system.scheduler.schedule(
-          new FiniteDuration(
-            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
-            TimeUnit.MILLISECONDS
-          ),
-          new FiniteDuration(
-            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
-            TimeUnit.MILLISECONDS
-          ),
-          self,
-          SkipOverBadActors
-        )
-      )
-    else None
-  }
-
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
     if (newNow <= stopTick) {
@@ -338,7 +299,7 @@ class BeamAgentScheduler(
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+          awaitingResponse.put(triggerWithId.trigger.tick.toDouble, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
@@ -382,5 +343,50 @@ class BeamAgentScheduler(
       }
 
     }
+  }
+
+  override def postStop(): Unit = {
+    monitorTask.foreach(_.cancel())
+    stuckAgentChecker.foreach(_.cancel())
+  }
+
+  def awaitingToString: String = {
+    if (awaitingResponse.keySet().isEmpty) {
+      "empty"
+    } else {
+      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
+    }
+  }
+
+  def scheduleMonitorTask: Option[Cancellable] = {
+    if (beamConfig.beam.debug.debugEnabled)
+      Some(
+        context.system.scheduler.schedule(
+          new FiniteDuration(1, TimeUnit.SECONDS),
+          new FiniteDuration(3, TimeUnit.SECONDS),
+          self,
+          Monitor
+        )
+      )
+    else None
+  }
+
+  def scheduleStuckAgentCheck: Option[Cancellable] = {
+    if (beamConfig.beam.debug.stuckAgentDetection.enabled)
+      Some(
+        context.system.scheduler.schedule(
+          new FiniteDuration(
+            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
+            TimeUnit.MILLISECONDS
+          ),
+          new FiniteDuration(
+            beamConfig.beam.debug.stuckAgentDetection.checkIntervalMs,
+            TimeUnit.MILLISECONDS
+          ),
+          self,
+          SkipOverBadActors
+        )
+      )
+    else None
   }
 }

@@ -17,25 +17,6 @@ case class ParkingStall(
 }
 
 object ParkingStall {
-
-  sealed trait ParkingType
-
-  sealed trait ChargingType
-
-  sealed trait ChargingPreference
-
-  /*
-   *  Flat fee means one price is paid independent of time
-   *  Block (not yet implemented) means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
-   *
-   *  Use block price even if price is a simple hourly price.
-   */
-  sealed trait PricingModel
-
-  sealed trait ReservedParkingType
-
-  sealed trait DepotStallLocationType
-
   case class StallAttributes(
     tazId: Id[TAZ],
     parkingType: ParkingType,
@@ -46,6 +27,7 @@ object ParkingStall {
 
   case class StallValues(numStalls: Int, feeInCents: Int)
 
+  sealed trait ParkingType
   case object Residential extends ParkingType
 
   case object Workplace extends ParkingType
@@ -67,6 +49,8 @@ object ParkingStall {
     }
   }
 
+  sealed trait ChargingType
+
   case object NoCharger extends ChargingType
 
   case object Level1 extends ChargingType
@@ -87,6 +71,20 @@ object ParkingStall {
         case "DCFast"    => DCFast
         case "UltraFast" => UltraFast
         case _           => throw new RuntimeException("Invalid case")
+      }
+    }
+
+    def getChargerPowerInKW(chargerType: ChargingType): Double = {
+      chargerType match {
+        case NoCharger => 0.0
+        case Level1 =>
+          1.5
+        case Level2 =>
+          6.7
+        case DCFast =>
+          50.0
+        case UltraFast =>
+          250.0
       }
     }
 
@@ -133,28 +131,22 @@ object ParkingStall {
 
       (sessionLength, sessionEnergyInJoules)
     }
-
-    def getChargerPowerInKW(chargerType: ChargingType): Double = {
-      chargerType match {
-        case NoCharger => 0.0
-        case Level1 =>
-          1.5
-        case Level2 =>
-          6.7
-        case DCFast =>
-          50.0
-        case UltraFast =>
-          250.0
-      }
-    }
   }
 
+  sealed trait ChargingPreference
   case object NoNeed extends ChargingPreference
 
   case object MustCharge extends ChargingPreference
 
   case object Opportunistic extends ChargingPreference
 
+  /*
+   *  Flat fee means one price is paid independent of time
+   *  Block (not yet implemented) means price is hourly and can change with the amount of time at the spot (e.g. first hour $1, after than $2/hour)
+   *
+   *  Use block price even if price is a simple hourly price.
+   */
+  sealed trait PricingModel
   case object FlatFee extends PricingModel
 
   case object Block extends PricingModel
@@ -167,10 +159,12 @@ object ParkingStall {
     }
   }
 
+  sealed trait ReservedParkingType
   case object Any extends ReservedParkingType
 
   case object RideHailManager extends ReservedParkingType
 
+  sealed trait DepotStallLocationType
   case object AtRequestLocation extends DepotStallLocationType
 
   case object AtTAZCenter extends DepotStallLocationType

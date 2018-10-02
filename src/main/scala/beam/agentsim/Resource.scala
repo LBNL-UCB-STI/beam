@@ -13,19 +13,15 @@ import scala.concurrent.ExecutionContext
 
 object Resource {
 
-  sealed trait CheckInResourceAck
-
-  trait NotifyResourceIdle {
-    def resourceId: Id[_]
-
-    def whenWhere: Option[SpaceTime]
-  }
-
   case class RegisterResource(resourceId: Id[_])
 
   case class UnRegisterResource(resourceId: Id[_])
 
   case class CheckInResource(resourceId: Id[_], whenWhere: Option[SpaceTime])
+
+  sealed trait CheckInResourceAck
+
+  case object CheckInSuccess extends CheckInResourceAck
 
   case class CheckInFailure(msg: String) extends CheckInResourceAck
 
@@ -33,9 +29,12 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  case class AssignManager(managerRef: ActorRef)
+  trait NotifyResourceIdle {
+    def resourceId: Id[_]
+    def whenWhere: Option[SpaceTime]
+  }
 
-  case object CheckInSuccess extends CheckInResourceAck
+  case class AssignManager(managerRef: ActorRef)
 
 }
 

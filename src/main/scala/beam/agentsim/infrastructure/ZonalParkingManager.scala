@@ -37,6 +37,8 @@ class ZonalParkingManager(
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
     collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
+  var stallNum = 0
+
   val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
 
   val defaultStallAttributes = StallAttributes(
@@ -58,7 +60,6 @@ class ZonalParkingManager(
       case _ =>
         AtRequestLocation
     }
-  var stallNum = 0
 
   def fillInDefaultPooledResources(): Unit = {
     // First do general parking and charging for personal vehicles
@@ -104,97 +105,6 @@ class ZonalParkingManager(
 
   fillInDefaultPooledResources()
   updatePooledResources()
-
-  def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
-    val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-
-    FileUtils.using(
-      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
-    ) { mapReader =>
-      val header = mapReader.getHeader(true)
-      var line: java.util.Map[String, String] = mapReader.read(header: _*)
-      while (null != line) {
-
-        val taz = Id.create(line.get("taz").toUpperCase, classOf[TAZ])
-        val parkingType = ParkingType.fromString(line.get("parkingType"))
-        val pricingModel = PricingModel.fromString(line.get("pricingModel"))
-        val chargingType = ChargingType.fromString(line.get("chargingType"))
-        val numStalls = line.get("numStalls").toInt
-        //        val parkingId = line.get("parkingId")
-        val feeInCents = line.get("feeInCents").toInt
-        val reservedForString = line.get("reservedFor")
-        val reservedFor = getReservedFor(reservedForString)
-
-        res.put(
-          StallAttributes(taz, parkingType, pricingModel, chargingType, reservedFor),
-          StallValues(numStalls, feeInCents)
-        )
-
-        line = mapReader.read(header: _*)
-      }
-    }
-    res
-  }
-
-  def getReservedFor(reservedFor: String): ReservedParkingType = {
-    reservedFor match {
-      case "RideHailManager" => ParkingStall.RideHailManager
-      case _                 => ParkingStall.Any
-    }
-  }
-
-  def parkingStallToCsv(
-    pooledResources: mutable.Map[ParkingStall.StallAttributes, StallValues],
-    writeDestinationPath: String
-  ): Unit = {
-    var mapWriter: ICsvMapWriter = null
-    try {
-      val destinationFile = new File(writeDestinationPath)
-      destinationFile.getParentFile.mkdirs()
-      mapWriter = new CsvMapWriter(new FileWriter(destinationFile), CsvPreference.STANDARD_PREFERENCE)
-
-      val header = Array[String](
-        "taz",
-        "parkingType",
-        "pricingModel",
-        "chargingType",
-        "numStalls",
-        "feeInCents",
-        "reservedFor"
-      ) //, "parkingId"
-      val processors = Array[CellProcessor](
-        new NotNull(), // Id (must be unique)
-        new NotNull(),
-        new NotNull(),
-        new NotNull(),
-        new NotNull(),
-        new NotNull(),
-        new NotNull()
-      ) //new UniqueHashCode()
-      mapWriter.writeHeader(header: _*)
-
-      val range = 1 to pooledResources.size
-      val resourcesWithId = (pooledResources zip range).toSeq
-        .sortBy(_._2)
-
-      for (((attrs, values), _) <- resourcesWithId) {
-        val tazToWrite = new util.HashMap[String, Object]()
-        tazToWrite.put(header(0), attrs.tazId)
-        tazToWrite.put(header(1), attrs.parkingType.toString)
-        tazToWrite.put(header(2), attrs.pricingModel.toString)
-        tazToWrite.put(header(3), attrs.chargingType.toString)
-        tazToWrite.put(header(4), "" + values.numStalls)
-        tazToWrite.put(header(5), "" + values.feeInCents)
-        tazToWrite.put(header(6), "" + attrs.reservedFor.toString)
-        //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
-        mapWriter.write(tazToWrite, header, processors)
-      }
-    } finally {
-      if (mapWriter != null) {
-        mapWriter.close()
-      }
-    }
-  }
 
   override def receive: Receive = {
     case RegisterResource(_: Id[ParkingStall]) =>
@@ -364,6 +274,29 @@ class ZonalParkingManager(
       )
   }
 
+  private def maybeCreateNewStall(
+    attrib: StallAttributes,
+    atLocation: Location,
+    withCost: Double,
+    stallValues: Option[StallValues],
+    reservedFor: ReservedParkingType = ParkingStall.Any
+  ): Option[ParkingStall] = {
+    if (pooledResources(attrib).numStalls > 0) {
+      stallNum = stallNum + 1
+      Some(
+        new ParkingStall(
+          Id.create(stallNum, classOf[ParkingStall]),
+          attrib,
+          atLocation,
+          withCost,
+          stallValues
+        )
+      )
+    } else {
+      None
+    }
+  }
+
   def respondWithStall(stall: ParkingStall, requestId: Int): Unit = {
     resources.put(stall.id, stall)
     val stallValues = pooledResources(stall.attributes)
@@ -476,33 +409,106 @@ class ZonalParkingManager(
 
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = throw new Exception("???")
 
-  private def maybeCreateNewStall(
-    attrib: StallAttributes,
-    atLocation: Location,
-    withCost: Double,
-    stallValues: Option[StallValues],
-    reservedFor: ReservedParkingType = ParkingStall.Any
-  ): Option[ParkingStall] = {
-    if (pooledResources(attrib).numStalls > 0) {
-      stallNum = stallNum + 1
-      Some(
-        new ParkingStall(
-          Id.create(stallNum, classOf[ParkingStall]),
-          attrib,
-          atLocation,
-          withCost,
-          stallValues
+  def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
+    val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
+
+    FileUtils.using(
+      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    ) { mapReader =>
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+
+        val taz = Id.create(line.get("taz").toUpperCase, classOf[TAZ])
+        val parkingType = ParkingType.fromString(line.get("parkingType"))
+        val pricingModel = PricingModel.fromString(line.get("pricingModel"))
+        val chargingType = ChargingType.fromString(line.get("chargingType"))
+        val numStalls = line.get("numStalls").toInt
+        //        val parkingId = line.get("parkingId")
+        val feeInCents = line.get("feeInCents").toInt
+        val reservedForString = line.get("reservedFor")
+        val reservedFor = getReservedFor(reservedForString)
+
+        res.put(
+          StallAttributes(taz, parkingType, pricingModel, chargingType, reservedFor),
+          StallValues(numStalls, feeInCents)
         )
-      )
-    } else {
-      None
+
+        line = mapReader.read(header: _*)
+      }
+    }
+    res
+  }
+
+  def getReservedFor(reservedFor: String): ReservedParkingType = {
+    reservedFor match {
+      case "RideHailManager" => ParkingStall.RideHailManager
+      case _                 => ParkingStall.Any
+    }
+  }
+
+  def parkingStallToCsv(
+    pooledResources: mutable.Map[ParkingStall.StallAttributes, StallValues],
+    writeDestinationPath: String
+  ): Unit = {
+    var mapWriter: ICsvMapWriter = null
+    try {
+      val destinationFile = new File(writeDestinationPath)
+      destinationFile.getParentFile.mkdirs()
+      mapWriter = new CsvMapWriter(new FileWriter(destinationFile), CsvPreference.STANDARD_PREFERENCE)
+
+      val header = Array[String](
+        "taz",
+        "parkingType",
+        "pricingModel",
+        "chargingType",
+        "numStalls",
+        "feeInCents",
+        "reservedFor"
+      ) //, "parkingId"
+      val processors = Array[CellProcessor](
+        new NotNull(), // Id (must be unique)
+        new NotNull(),
+        new NotNull(),
+        new NotNull(),
+        new NotNull(),
+        new NotNull(),
+        new NotNull()
+      ) //new UniqueHashCode()
+      mapWriter.writeHeader(header: _*)
+
+      val range = 1 to pooledResources.size
+      val resourcesWithId = (pooledResources zip range).toSeq
+        .sortBy(_._2)
+
+      for (((attrs, values), _) <- resourcesWithId) {
+        val tazToWrite = new util.HashMap[String, Object]()
+        tazToWrite.put(header(0), attrs.tazId)
+        tazToWrite.put(header(1), attrs.parkingType.toString)
+        tazToWrite.put(header(2), attrs.pricingModel.toString)
+        tazToWrite.put(header(3), attrs.chargingType.toString)
+        tazToWrite.put(header(4), "" + values.numStalls)
+        tazToWrite.put(header(5), "" + values.feeInCents)
+        tazToWrite.put(header(6), "" + attrs.reservedFor.toString)
+        //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
+        mapWriter.write(tazToWrite, header, processors)
+      }
+    } finally {
+      if (mapWriter != null) {
+        mapWriter.close()
+      }
     }
   }
 }
 
 object ZonalParkingManager {
-
-  val maxSearchRadius = 10e6
+  case class ParkingAlternative(
+    stallAttributes: StallAttributes,
+    location: Location,
+    cost: Double,
+    rankingWeight: Double,
+    stallValues: StallValues
+  )
 
   def props(
     beamServices: BeamServices,
@@ -512,11 +518,5 @@ object ZonalParkingManager {
     Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes))
   }
 
-  case class ParkingAlternative(
-    stallAttributes: StallAttributes,
-    location: Location,
-    cost: Double,
-    rankingWeight: Double,
-    stallValues: StallValues
-  )
+  val maxSearchRadius = 10e6
 }

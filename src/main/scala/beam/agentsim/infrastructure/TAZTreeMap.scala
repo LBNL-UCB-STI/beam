@@ -113,6 +113,21 @@ object TAZTreeMap {
     QuadTreeBounds(minX, minY, maxX, maxY)
   }
 
+  private def quadTreeExtentFromCsvFile(lines: Seq[CsvTaz]): QuadTreeBounds = {
+    var minX: Double = Double.MaxValue
+    var maxX: Double = Double.MinValue
+    var minY: Double = Double.MaxValue
+    var maxY: Double = Double.MinValue
+
+    for (l <- lines) {
+      minX = Math.min(minX, l.coordX)
+      minY = Math.min(minY, l.coordY)
+      maxX = Math.max(maxX, l.coordX)
+      maxY = Math.max(maxY, l.coordY)
+    }
+    QuadTreeBounds(minX, minY, maxX, maxY)
+  }
+
   def fromCsv(csvFile: String): TAZTreeMap = {
 
     val lines = readCsvFile(csvFile)
@@ -133,19 +148,14 @@ object TAZTreeMap {
 
   }
 
-  private def quadTreeExtentFromCsvFile(lines: Seq[CsvTaz]): QuadTreeBounds = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-
-    for (l <- lines) {
-      minX = Math.min(minX, l.coordX)
-      minY = Math.min(minY, l.coordY)
-      maxX = Math.max(maxX, l.coordX)
-      maxY = Math.max(maxY, l.coordY)
+  private def readerFromFile(filePath: String): java.io.Reader = {
+    if (filePath.endsWith(".gz")) {
+      new InputStreamReader(
+        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
+      )
+    } else {
+      new FileReader(filePath)
     }
-    QuadTreeBounds(minX, minY, maxX, maxY)
   }
 
   private def readCsvFile(filePath: String): Seq[CsvTaz] = {
@@ -169,16 +179,6 @@ object TAZTreeMap {
         mapReader.close()
     }
     res
-  }
-
-  private def readerFromFile(filePath: String): java.io.Reader = {
-    if (filePath.endsWith(".gz")) {
-      new InputStreamReader(
-        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
-      )
-    } else {
-      new FileReader(filePath)
-    }
   }
 
   class TAZ(val tazId: Id[TAZ], val coord: Coord, val area: Double) {
