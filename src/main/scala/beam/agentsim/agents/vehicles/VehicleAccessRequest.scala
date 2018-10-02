@@ -86,4 +86,5 @@ case object AccessErrorCodes {
   case object VehicleFullError extends ReservationError {
     override def errorCode: ReservationErrorCode = ResourceCapacityExhausted
   }
+
 }

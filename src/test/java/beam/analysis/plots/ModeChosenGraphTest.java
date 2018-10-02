@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.config.BeamConfig;
+import beam.utils.TestConfigUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
@@ -40,7 +42,7 @@ public class ModeChosenGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    });
+    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf")) );
 
     @Before
     public void setUpClass() {
