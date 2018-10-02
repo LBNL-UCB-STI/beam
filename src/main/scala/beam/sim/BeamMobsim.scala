@@ -39,7 +39,6 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.VehicleType
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -204,13 +203,6 @@ class BeamMobsim @Inject()(
         private val numRideHailAgents = math.round(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
-//        private val rideHailVehicleType =
-        BeamVehicleUtils
-          .getVehicleTypeById(
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,
-            scenario.getVehicles.getVehicleTypes
-          )
-          .getOrElse(scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType])))
 
         val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
           scenario.getPopulation.getPersons
