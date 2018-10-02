@@ -25,6 +25,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
+import org.slf4j.LoggerFactory
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
@@ -104,6 +105,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 }
 
 object BeamServices {
+  private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
   val defaultTazTreeMap: TAZTreeMap = {
@@ -117,7 +119,9 @@ object BeamServices {
     try {
       TAZTreeMap.fromCsv(file)
     } catch {
-      case e: Exception => throw e
+      case e: Exception =>
+        logger.error("No TAZ file found at given path : " + file,e)
+        BeamServices.defaultTazTreeMap
     }
   }
 
