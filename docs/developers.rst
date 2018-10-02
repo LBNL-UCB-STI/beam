@@ -142,7 +142,7 @@ Do a file by file checkout of all differing files from production branch onto ma
 
   cat diff-with-master.txt | xargs git checkout production-branch --
 
-Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt". If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
+Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
 
 Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
 

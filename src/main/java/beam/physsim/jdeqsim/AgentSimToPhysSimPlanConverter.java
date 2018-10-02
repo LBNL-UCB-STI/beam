@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
@@ -43,6 +44,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 
 
 /**
@@ -55,6 +60,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
+    private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -68,6 +74,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Random rand = MatsimRandom.getRandom();
 
     private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+
+    private List<CompletableFuture> linkStatsFutures= new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -94,6 +102,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -122,7 +131,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventWriterXML_viaCompatible eventsWriterXML = null;
         if (writePhysSimEvents(iterationNumber)) {
 
-            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
+            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"), beamConfig.beam().physsim().eventsForFullVersionOfVia());
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
@@ -134,6 +143,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkSpeedDistributionStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
@@ -168,14 +178,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         }
 
-        CompletableFuture.runAsync(() -> {
+        linkStatsFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
             linkStatsGraph.clean();
-        });
+        }));
 
-        CompletableFuture.runAsync(() -> {
-            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
-        });
+        CompletableFuture.runAsync(() ->
+            linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator)
+        );
 
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
@@ -185,6 +195,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Message.setEventsManager(null);
         jdeqSimScenario.setNetwork(null);
         jdeqSimScenario.setPopulation(null);
+
+        if (iterationNumber == beamConfig.matsim().modules().controler().lastIteration()) {
+            try {
+                CompletableFuture allOfLinStatFutures = CompletableFuture.allOf(linkStatsFutures.toArray(new CompletableFuture[0]));
+                log.info("Waiting started on link stats file dump.");
+                allOfLinStatFutures.get(20, TimeUnit.MINUTES);
+                log.info("Link stats file dump completed.");
+
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                log.error("Error while generating link stats.",e);
+            }
+        }
 
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
