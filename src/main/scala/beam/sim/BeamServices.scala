@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.FileNotFoundException
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -11,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
+import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -113,8 +114,10 @@ object BeamServices {
   }
 
   def getTazTreeMap(file: String): TAZTreeMap = {
-    Try(TAZTreeMap.fromCsv(file)).getOrElse {
-      BeamServices.defaultTazTreeMap
+    try {
+      TAZTreeMap.fromCsv(file)
+    } catch {
+      case e: Exception => throw e
     }
   }
 
