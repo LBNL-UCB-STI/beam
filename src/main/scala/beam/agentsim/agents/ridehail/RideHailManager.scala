@@ -212,7 +212,7 @@ class RideHailManager(
     val future =
       rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
     Await
-      .result(future, Timeout(1, TimeUnit.SECONDS).duration)
+      .result(future, Timeout(60, TimeUnit.SECONDS).duration)
       .asInstanceOf[Option[TNCIterationStats]]
   }
   private val rideHailAllocationManagerTimeoutInSeconds =
