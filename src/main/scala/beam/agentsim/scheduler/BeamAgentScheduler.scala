@@ -138,8 +138,6 @@ class BeamAgentScheduler(
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
   private var currentIter: Int = -1
-//  private val eventSubscriberRef =
-//    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
     mutable.HashMap.empty
