@@ -213,7 +213,8 @@ trait ChoosesMode {
                     departTime.atTime,
                     mode,
                     l.getTravelTime.toInt,
-                    BeamPath(linkIds, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
+                    // TODO FIXME
+                    BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
                 case _ =>
