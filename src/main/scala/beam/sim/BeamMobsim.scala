@@ -268,24 +268,24 @@ class BeamMobsim @Inject()(
                 .getCoord
             val rideInitialLocation: Coord =
               beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
                   val radius =
                     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
                   new Coord(
                     personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
                     personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
                   )
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
                   val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
                     .nextDouble()
                   val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
                     .nextDouble()
                   new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
                   val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
                   val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
                   new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
                   val x = quadTreeBounds.minx
                   val y = quadTreeBounds.miny
                   new Coord(x, y)
@@ -301,8 +301,9 @@ class BeamMobsim @Inject()(
 
             val ridehailBeamVehicleTypeId =
               Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-            val ridehailBeamVehicleType =
-              beamServices.vehicleTypes.getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+            val ridehailBeamVehicleType = beamServices.vehicleTypes
+              .get(ridehailBeamVehicleTypeId)
+              .getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
 
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
@@ -322,7 +323,7 @@ class BeamMobsim @Inject()(
 
             rideHailManager ! BeamVehicleStateUpdate(
               rideHailBeamVehicle.getId,
-              rideHailBeamVehicle.getState()
+              rideHailBeamVehicle.getState
             )
 
             val rideHailAgentProps = RideHailAgent.props(

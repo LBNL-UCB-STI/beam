@@ -5,7 +5,6 @@ import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
-import org.matsim.core.config.Config
 
 trait PopulationAdjustment extends LazyLogging {
   final def update(scenario: Scenario): Population = {
@@ -68,16 +67,16 @@ trait PopulationAdjustment extends LazyLogging {
   // remove mode from all attributes
   protected def removeModeAll(population: Population, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { person =>
-      var modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
+      val modes = population.getPersonAttributes.getAttribute(person.toString, AVAILABLE_MODES).toString
       modeToRemove.foreach(
-        mode => modes = modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+        mode =>
+          population.getPersonAttributes
+            .putAttribute(
+              person.toString,
+              AVAILABLE_MODES,
+              modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
+          )
       )
-      population.getPersonAttributes
-        .putAttribute(
-          person.toString,
-          AVAILABLE_MODES,
-          modes
-        )
     }
   }
 }
@@ -85,18 +84,17 @@ trait PopulationAdjustment extends LazyLogging {
 object PopulationAdjustment {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val PERCENTAGE_ADJUSTMENT = "PERCENTAGE_ADJUSTMENT"
-  val DIFFUSION_POTENTIAL_ADJUSTMENT_RH = "DIFFUSION_POTENTIAL_ADJUSTMENT_RIDE_HAIL"
-  val DIFFUSION_POTENTIAL_ADJUSTMENT_AV = "DIFFUSION_POTENTIAL_ADJUSTMENT_AV"
+  val DIFFUSION_POTENTIAL_ADJUSTMENT = "DIFFUSION_POTENTIAL_ADJUSTMENT"
   val AVAILABLE_MODES = "available-modes"
 
-  def getPopulationAdjustment(beamServices: BeamServices, matsimConfig: Config): PopulationAdjustment = {
+  def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
     beamServices.beamConfig.beam.agentsim.populationAdjustment match {
       case DEFAULT_ADJUSTMENT =>
         new DefaultPopulationAdjustment(beamServices)
       case PERCENTAGE_ADJUSTMENT =>
         new PercentagePopulationAdjustment(beamServices)
-      case DIFFUSION_POTENTIAL_ADJUSTMENT_RH | DIFFUSION_POTENTIAL_ADJUSTMENT_AV =>
-        new DiffusionPotentialPopulationAdjustment(beamServices, matsimConfig)
+      case DIFFUSION_POTENTIAL_ADJUSTMENT =>
+        new DiffusionPotentialPopulationAdjustment(beamServices)
       case adjClass =>
         try {
           Class

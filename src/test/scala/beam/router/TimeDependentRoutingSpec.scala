@@ -100,6 +100,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
+          Vector(), // TODO FIXME?
           None,
           SpaceTime(166321.9, 1568.87, 3000),
           SpaceTime(167138.4, 1117, 3000),
@@ -254,6 +255,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(
           Vector(1, 2, 3, 4),
+          Vector(),
           None,
           SpaceTime(0.0, 0.0, 28800),
           SpaceTime(1.0, 1.0, 28900),

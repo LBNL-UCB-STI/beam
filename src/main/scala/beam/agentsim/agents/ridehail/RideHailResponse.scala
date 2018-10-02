@@ -10,7 +10,7 @@ case class RideHailResponse(
   error: Option[ReservationError] = None,
   triggersToSchedule: Vector[ScheduleTrigger] = Vector()
 ) {
-  override def toString(): String =
+  override def toString: String =
     s"request: $request, error: $error, travelProposal: $travelProposal"
 }
 

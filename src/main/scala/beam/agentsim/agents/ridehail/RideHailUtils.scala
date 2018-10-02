@@ -1,7 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import scala.collection.mutable.ListBuffer
-
 import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
@@ -9,6 +7,8 @@ import beam.utils.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
+
+import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks._
 
 object RideHailUtils {
@@ -64,7 +64,7 @@ object RideHailUtils {
   }
 
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
-    val travelTime = (time: Int, linkId: Int) => {
+    val travelTime = (_: Int, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(
         new ProfileRequest,
@@ -78,7 +78,7 @@ object RideHailUtils {
       .max - leg.startTime
   }
 
-  private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
+  def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
     // TODO: implement following solution following along links
     /*
     var currentTime=beamLeg.startTime
