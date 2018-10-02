@@ -115,12 +115,15 @@ object BeamServices {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getTazTreeMap(file: String): TAZTreeMap = {
+  def getTazTreeMap(filePath: String): TAZTreeMap = {
     try {
-      TAZTreeMap.fromCsv(file)
+      TAZTreeMap.fromCsv(filePath)
     } catch {
+      case fe: FileNotFoundException =>
+        logger.error("No TAZ file found at given path : " + filePath,fe)
+        BeamServices.defaultTazTreeMap
       case e: Exception =>
-        logger.error("No TAZ file found at given path : " + file,e)
+        logger.error("Exception occurred while reading from CSV :" + e.getMessage,e)
         BeamServices.defaultTazTreeMap
     }
   }
