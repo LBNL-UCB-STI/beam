@@ -194,6 +194,7 @@ public class RideHailWaitingStats implements IGraphStats {
         }
     }
 
+    //Prepare graph for each iteration
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
