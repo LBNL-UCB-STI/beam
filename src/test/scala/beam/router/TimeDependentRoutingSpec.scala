@@ -241,7 +241,7 @@ class TimeDependentRoutingSpec
         )
         carOption = expectMsgType[RoutingResponse].itineraries
           .find(_.tripClassifier == CAR)
-          .get
+          .getOrElse(carOption)
       }
 
       assert(scala.math.abs(gap) < 75) // isn't exactly 0, probably rounding errors?
