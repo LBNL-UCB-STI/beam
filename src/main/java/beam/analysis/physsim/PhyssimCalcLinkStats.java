@@ -76,7 +76,7 @@ public class PhyssimCalcLinkStats {
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
 
-        linkStats = new BeamCalcLinkStats(network);
+        linkStats = new BeamCalcLinkStats(network,beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
     }
 
 
@@ -96,7 +96,7 @@ public class PhyssimCalcLinkStats {
     }
 
     private boolean isNotTestMode() {
-        return beamConfig != null;
+        return controllerIO != null;
     }
 
 

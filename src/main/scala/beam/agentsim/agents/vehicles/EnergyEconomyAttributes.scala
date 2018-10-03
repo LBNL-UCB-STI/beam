@@ -18,9 +18,30 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
   val values: immutable.IndexedSeq[EnergyEconomyAttributes] = findValues
 
-  case object Capacity extends EnergyEconomyAttributes with LowerCamelcase
-
   sealed abstract class Electric extends EnumEntry
+
+  /**
+    * Attribute names related to gasoline fuel energy consumption
+    */
+  sealed abstract class Gasoline extends EnumEntry
+
+  /**
+    *
+    * @param joulesPerMeter joules per meter
+    */
+  class Powertrain(joulesPerMeter: Double) {
+
+    def estimateConsumptionAt(trajectory: Trajectory, time: Int): Double = {
+      val path = trajectory.computePath(time)
+      joulesPerMeter * path
+    }
+
+    def estimateConsumptionInJoules(distanceInMeters: Double): Double = {
+      joulesPerMeter * distanceInMeters
+    }
+  }
+
+  case object Capacity extends EnergyEconomyAttributes with LowerCamelcase
 
   /**
     * Attribute names related to power consumption properties of EVs
@@ -47,11 +68,6 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
   }
 
-  /**
-    * Attribute names related to gasoline fuel energy consumption
-    */
-  sealed abstract class Gasoline extends EnumEntry
-
   case object Gasoline extends Enum[Gasoline] {
 
     val values: immutable.IndexedSeq[Gasoline] = findValues
@@ -62,22 +78,6 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     case object EquivalentTestWeight extends Gasoline with LowerCamelcase
 
-  }
-
-  /**
-    *
-    * @param joulesPerMeter joules per meter
-    */
-  class Powertrain(joulesPerMeter: Double) {
-
-    def estimateConsumptionAt(trajectory: Trajectory, time: Int): Double = {
-      val path = trajectory.computePath(time)
-      joulesPerMeter * path
-    }
-
-    def estimateConsumptionInJoules(distanceInMeters: Double): Double = {
-      joulesPerMeter * distanceInMeters
-    }
   }
 
   // TODO: don't hardcode... Couldn't these be put into the Enum for [[BeamVehicleType]]?

@@ -86,32 +86,32 @@ public class PersonTravelTimeStats implements IGraphStats {
             CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
             createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
         }
-        createCSV(dataSets, event.getIteration());
+        createCSV(data, event.getIteration());
     }
 
     Tuple<List<String>, double[][]> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
     }
 
-    private void createCSV(double[][] dataSets, int iteration) {
+    private void createCSV(Tuple<List<String>, double[][]> data, int iteration) {
+        List<String> modes = data.getFirst();
+        double[][] dataSets = data.getSecond();
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "average_travel_times.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
-            for (int hours = 1; hours <= dataSets[0].length ; hours++) {
-                heading.append(",").append(hours);
+            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
+            for (int hour = 1; hour <= hours ; hour++) {
+                heading.append(",").append(hour);
             }
             out.write(heading.toString());
             out.newLine();
 
 
             for (int category = 0; category < dataSets.length; category++) {
-                out.write(category + "");
-                String line;
+                out.write(modes.get(category));
                 double[] categories = dataSets[category];
-                for (int i = 0; i < categories.length; i++) {
-                    double inner = categories[i];
-                    line = "," + inner;
-                    out.write(line);
+                for (double inner : categories) {
+                    out.write("," + inner);
                 }
                 out.newLine();
             }
@@ -119,10 +119,6 @@ public class PersonTravelTimeStats implements IGraphStats {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private double getRoundedCategoryUpperBound(double category) {
-        return Math.round(category * 100) / 100.0;
     }
 
     @Override

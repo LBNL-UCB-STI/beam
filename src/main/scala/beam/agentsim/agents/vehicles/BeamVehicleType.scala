@@ -39,6 +39,8 @@ case class BeamVehicleType(
 
 object BeamVehicleType {
 
+  lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
+
   //TODO
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "BIKE-TYPE-DEFAULT",
@@ -96,8 +98,6 @@ object BeamVehicleType {
 
   def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
     beamVehicleId.toString.startsWith("bike")
-
-  lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
 
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
     beamVehicle.beamVehicleType.vehicleCategory match {

@@ -8,12 +8,9 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   NotifyVehicleResourceIdleReply,
   Resume
 }
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailModifyPassengerScheduleManager}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.sim.config.BeamConfig
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -49,8 +46,8 @@ class OutOfServiceVehicleManager(
       )
   }
 
-  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]) = {
-    triggerIds.put(vehicleId, triggerId)
+  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]): Option[Long] = {
+    triggerIds.put(vehicleId, triggerId).flatten
   }
 
   def handleInterrupt(
