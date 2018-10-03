@@ -67,6 +67,7 @@ class TransitInitializer(
                   (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edges.map(_.intValue()).toVector,
+                      Vector.empty, // TODO FIXME
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -89,6 +90,7 @@ class TransitInitializer(
                   (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
+                      Vector.empty, // TODO FIXME
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -119,6 +121,7 @@ class TransitInitializer(
               (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
+                  Vector.empty, // TODO FIXME
                   Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                   SpaceTime(
                     startEdge.getGeometry.getStartPoint.getX,

@@ -123,7 +123,7 @@ object RoutingModel {
   object BeamLeg {
 
     def dummyWalk(startTime: Int): BeamLeg =
-      (new BeamLeg(0, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))).updateStartTime(startTime)
+      (new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))).updateStartTime(startTime)
   }
 
   case class EmbodiedBeamLeg(
@@ -222,6 +222,7 @@ object RoutingModel {
     */
   case class BeamPath(
     linkIds: IndexedSeq[Int],
+    linkTravelTime: IndexedSeq[Int],
     transitStops: Option[TransitStopsInfo],
     startPoint: SpaceTime,
     endPoint: SpaceTime,
@@ -244,7 +245,7 @@ object RoutingModel {
 
   //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
   object EmptyBeamPath {
-    val path = BeamPath(Vector[Int](), None, null, null, 0)
+    val path = BeamPath(Vector[Int](), Vector(), None, null, null, 0)
   }
 
   /**

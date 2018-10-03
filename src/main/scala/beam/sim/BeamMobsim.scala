@@ -20,9 +20,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -40,9 +37,10 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.VehicleType
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -164,9 +162,10 @@ class BeamMobsim @Inject()(
         )
         context.watch(rideHailManager)
 
-        beamServices.vehicleTypes.get(
-          Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-        ) match {
+        private val vehicleTypeId: Id[BeamVehicleType] = Id
+          .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+
+        beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
               log.error(
@@ -207,12 +206,13 @@ class BeamMobsim @Inject()(
         private val numRideHailAgents = math.round(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
-        private val rideHailVehicleType = BeamVehicleUtils
-          .getVehicleTypeById(
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,
-            scenario.getVehicles.getVehicleTypes
-          )
-          .getOrElse(scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType])))
+        private val rideHailVehicleType =
+          BeamVehicleUtils
+            .getVehicleTypeById(
+              beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,
+              scenario.getVehicles.getVehicleTypes
+            )
+            .getOrElse(scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType])))
 
         val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
           scenario.getPopulation.getPersons
@@ -269,24 +269,24 @@ class BeamMobsim @Inject()(
                 .getCoord
             val rideInitialLocation: Coord =
               beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
                   val radius =
                     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
                   new Coord(
                     personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
                     personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
                   )
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
                   val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
                     .nextDouble()
                   val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
                     .nextDouble()
                   new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_AT_CENTER =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
                   val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
                   val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
                   new Coord(x, y)
-                case RideHailManager.INITIAL_RIDEHAIL_LOCATION_ALL_IN_CORNER =>
+                case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
                   val x = quadTreeBounds.minx
                   val y = quadTreeBounds.miny
                   new Coord(x, y)
@@ -324,7 +324,7 @@ class BeamMobsim @Inject()(
 
             rideHailManager ! BeamVehicleStateUpdate(
               rideHailBeamVehicle.getId,
-              rideHailBeamVehicle.getState()
+              rideHailBeamVehicle.getState
             )
 
             val rideHailAgentProps = RideHailAgent.props(
@@ -367,8 +367,10 @@ class BeamMobsim @Inject()(
 
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
-        if (beamServices.iterationNumber == 0)
-          new BeamWarmStart(beamServices).init()
+        if (beamServices.iterationNumber == 0) {
+          val warmStart = BeamWarmStart(beamServices.beamConfig)
+          warmStart.warmStartRouterIfNeeded(beamServices.beamRouter)
+        }
 
         log.info(s"Transit schedule has been initialized")
 

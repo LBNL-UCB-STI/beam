@@ -13,11 +13,11 @@ import scala.collection.Searching.{Found, InsertionPoint, _}
 
 object Trajectory {
 
-  @Inject
-  var beamConfig: BeamConfig = _
-
   lazy val transformer: CoordinateTransformation = TransformationFactory
     .getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+
+  @Inject
+  var beamConfig: BeamConfig = _
 
   def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
@@ -35,12 +35,6 @@ class Trajectory(val path: Vector[SpaceTime]) {
   private var _path: Vector[SpaceTime] = path
 
   def coordinateSystem: String = defaultCoordinateSystem
-
-  protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
-    this.synchronized {
-      _path = _path ++ newTrajectory._path
-    }
-  }
 
   def location(time: Int): SpaceTime = {
     require(_path.nonEmpty)
@@ -96,5 +90,9 @@ class Trajectory(val path: Vector[SpaceTime]) {
         distance
       })
       .sum
+  }
+
+  protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
+    _path ++= newTrajectory._path
   }
 }

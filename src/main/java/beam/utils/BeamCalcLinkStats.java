@@ -34,7 +34,7 @@ import javax.inject.Inject;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BeamCalcLinkStats {
 
@@ -47,24 +47,16 @@ public class BeamCalcLinkStats {
     private final Map<Id<Link>, LinkData> linkData;
     private final int nofHours;
     private final Network network;
-    private double volScaleFactor = 1.0;
     private int count = 0;
+    private double minCarSpeedInMetersPerSecond;
 
     @Inject
-    public BeamCalcLinkStats(final Network network) {
+    public BeamCalcLinkStats(final Network network, double minCarSpeedInMetersPerSecond) {
         this.network = network;
-        this.linkData = new TreeMap<>();
+        this.linkData = new ConcurrentHashMap<>();
         this.nofHours = 24;
         reset();
-    }
-
-    /**
-     * @param network
-     * @param vol_scale_factor scaling factor when reading in values from a file
-     */
-    public BeamCalcLinkStats(final Network network, double vol_scale_factor) {
-        this(network);
-        this.volScaleFactor = vol_scale_factor;
+        this.minCarSpeedInMetersPerSecond = minCarSpeedInMetersPerSecond;
     }
 
     public void addData(final VolumesAnalyzer analyzer, final TravelTime ttimes) {
@@ -218,14 +210,13 @@ public class BeamCalcLinkStats {
                         } else if (j == MAX && i < this.nofHours) {
                             writeCommaAndStr(out, Double.toString(data.ttimes[MAX][i]));
                         }
+
                         out.write("\n");
                     }
-
                 }
-
             }
 
-
+            out.flush();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -244,14 +235,12 @@ public class BeamCalcLinkStats {
     }
 
     private static class LinkData {
-        public final double[][] volumes;
-        public final double[][] ttimes;
+        final double[][] volumes;
+        final double[][] ttimes;
 
-        public LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
+        LinkData(final double[][] linksVolumes, final double[][] linksTTimes) {
             this.volumes = linksVolumes.clone();
             this.ttimes = linksTTimes.clone();
         }
     }
-
-
 }

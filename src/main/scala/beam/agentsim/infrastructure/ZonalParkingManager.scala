@@ -486,7 +486,7 @@ class ZonalParkingManager(
         .sortBy(_._2)
 
       for (((attrs, values), id) <- resourcesWithId) {
-        val tazToWrite = new util.HashMap[String, Object]();
+        val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), attrs.tazId)
         tazToWrite.put(header(1), attrs.parkingType.toString)
         tazToWrite.put(header(2), attrs.pricingModel.toString)

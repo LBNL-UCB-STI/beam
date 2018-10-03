@@ -77,7 +77,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         .get
 
       val request = firstRequestOfDay.request.copy(
-        departAt = DiscreteTime(bufferedRideHailRequests.getTick().toInt)
+        departAt = DiscreteTime(bufferedRideHailRequests.getTick.toInt)
       )
 
       rideHailManager.createRoutingRequestsToCustomerAndDestination(
