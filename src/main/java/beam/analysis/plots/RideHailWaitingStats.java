@@ -223,7 +223,6 @@ public class RideHailWaitingStats implements IGraphStats {
 
             for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList) {
 
-
                 String line = rideHailWaitingIndividualStat.time + "," +
                         rideHailWaitingIndividualStat.personId + "," +
                         rideHailWaitingIndividualStat.vehicleId + "," +
@@ -331,7 +330,6 @@ public class RideHailWaitingStats implements IGraphStats {
         listOfBounds.add(30.0);
         listOfBounds.add(60.0);
         listOfBounds.add(Double.MAX_VALUE);
-
 
         return listOfBounds;
     }
