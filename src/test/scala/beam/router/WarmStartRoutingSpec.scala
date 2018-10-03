@@ -61,7 +61,7 @@ class WarmStartRoutingSpec
       .withValue(
         "beam.warmStart.path",
         ConfigValueFactory
-          .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+          .fromAnyRef("test/input/beamville/test-data")
       )
     val beamConfig = BeamConfig(config)
 
