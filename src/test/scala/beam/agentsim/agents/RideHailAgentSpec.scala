@@ -17,10 +17,6 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSch
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{ZonalParkingManager, ZonalParkingManagerSpec}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
@@ -105,6 +101,7 @@ class RideHailAgentSpec
               10000,
               BeamPath(
                 Vector(),
+                Vector(),
                 None,
                 SpaceTime(0.0, 0.0, 28800),
                 SpaceTime(0.0, 0.0, 38800),
@@ -116,6 +113,7 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
+                Vector(),
                 Vector(),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
@@ -133,6 +131,7 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
+                Vector(),
                 Vector(),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
@@ -161,7 +160,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, None)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -239,8 +238,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -308,8 +306,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)

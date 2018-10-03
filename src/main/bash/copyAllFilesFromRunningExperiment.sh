@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 sudo chmod 600 ~/.ssh/result_host_cert.pem
 
 
@@ -61,6 +62,9 @@ else
     sudo mkdir "$1/copied"
 
 
+
+
+
     echo "sourceExperimentDir: $sourceExperimentDir"
     echo "copiedExperiementDir: $copiedExperiementDir"
 
@@ -68,10 +72,42 @@ else
        echo "Empty source directory $sourceExperimentDir"
        exit 0
     else
+        sourceExperimentZipped="${exp_id}_${dir_date}.tar.gz"
+
+        echo "changing dir .."
+        cd "$1/to_copy"
+        pwd
+
+
+#        zipcmd="sudo tar -zcf ${sourceExperimentZipped} ${exp_id}"
+#        echo "Running command: $zipcmd"
+#        $zipcmd
+
+#        echo "Zipping completed - "
+#        du -sh ${sourceExperimentZipped}
+
+
         echo "Copying the files... from $sourceExperimentDir"
         sudo scp -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $sourceExperimentDir ubuntu@$2:~/sigoptResults/
         echo "Copying completed..."
+
+#        echo "Unzipping on the result server"
+#
+#        sudo ssh -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$2: cd sigoptResults
+#        sudo ssh -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$2: du -sh ${sourceExperimentZipped}
+#
+#        unzipcmd="sudo tar -zxf ${sourceExperimentZipped}"
+#        sudo ssh -i ~/.ssh/result_host_cert.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$2: $unzipcmd
+#        echo "Unzipping completed"
+
+
+#        echo "Running the command mv $sourceExperimentZipped $copiedExperiementDir"
+#        sudo mv "$sourceExperimentZipped" "$copiedExperiementDir"
+
+        echo "Running the command mv $sourceExperimentDir $copiedExperiementDir"
         sudo mv "$sourceExperimentDir" "$copiedExperiementDir"
+
+
         echo "Moved the suggestions from $sourceExperimentDir to $copiedExperiementDir"
         echo "Done.."
     fi

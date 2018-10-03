@@ -7,12 +7,16 @@ import beam.router.Modes.BeamMode.RIDE_HAIL
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
+
 class EVFleetAllocationManager(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val dummyDriverId = Id.create("NA", classOf[Vehicle])
-  val routeReqToDriverMap = scala.collection.mutable.Map[Int, Id[Vehicle]]()
-  val requestToExcludedDrivers = scala.collection.mutable.Map[Int, Set[Id[Vehicle]]]()
+  val dummyDriverId: Id[Vehicle] = Id.create("NA", classOf[Vehicle])
+  val routeReqToDriverMap: mutable.Map[Int, Id[Vehicle]] = scala.collection.mutable.Map[Int, Id[Vehicle]]()
+
+  val requestToExcludedDrivers: mutable.Map[Int, Set[Id[Vehicle]]] =
+    scala.collection.mutable.Map[Int, Set[Id[Vehicle]]]()
   val repositioningLowWaitingTimes = new RepositioningLowWaitingTimes(rideHailManager)
 
   override def proposeVehicleAllocation(
@@ -63,8 +67,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
               .remainingRangeInM < routingResponses.get
               .map(
                 _.itineraries
-                  .filter(_.tripClassifier == RIDE_HAIL)
-                  .headOption
+                  .find(_.tripClassifier == RIDE_HAIL)
                   .map(_.beamLegs().map(_.travelPath.distanceInM).sum)
                   .getOrElse(Double.MaxValue)
               )
@@ -83,10 +86,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
               NoVehicleAllocated
           }
         } else {
-//          logger.error("veh: {} range: {} triplen: {}",agentLocation.vehicleId,
-//            rideHailManager.getVehicleState(agentLocation.vehicleId).remainingRangeInM,
-//            routingResponses.get.map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
-//            .sum)
+          //          logger.error("veh: {} range: {} triplen: {}",agentLocation.vehicleId,
+          //            rideHailManager.getVehicleState(agentLocation.vehicleId).remainingRangeInM,
+          //            routingResponses.get.map(_.itineraries.map(_.legs.map(_.beamLeg.travelPath.distanceInM).sum).sum)
+          //            .sum)
           // we're ready to do the allocation
           // Clean up internal tracking then send the allocation with the responses
           requestToExcludedDrivers.remove(reqId)
@@ -107,7 +110,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   def findNearestByETAConsideringRange(
     request: RideHailRequest,
     excludeTheseDrivers: Set[Id[Vehicle]] = Set()
-  ) = {
+  ): Option[RideHailAgentLocation] = {
     val set1 = rideHailManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         request.pickUpLocation,
@@ -116,23 +119,26 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       )
     val set2 = set1.filterNot(rhETa => excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId))
     val set3 = set2.filter { rhEta =>
-//      logger.error(rhEta.agentLocation.vehicleId.toString)
-//      logger.error(rideHailManager
-//        .getVehicleState(rhEta.agentLocation.vehicleId)
-//        .remainingRangeInM.toString)
-//      logger.error(rhEta.distance.toString)
+      //      logger.error(rhEta.agentLocation.vehicleId.toString)
+      //      logger.error(rideHailManager
+      //        .getVehicleState(rhEta.agentLocation.vehicleId)
+      //        .remainingRangeInM.toString)
+      //      logger.error(rhEta.distance.toString)
       rideHailManager
         .getVehicleState(rhEta.agentLocation.vehicleId)
         .remainingRangeInM >= rhEta.distance * 1.26
     }
-//    logger.error(set1.toString())
-//    logger.error(set2.toString())
-//    logger.error(set3.toString())
+    //    logger.error(set1.toString())
+    //    logger.error(set2.toString())
+    //    logger.error(set3.toString())
     set3.headOption
       .map(_.agentLocation)
   }
 
-  def makeRouteRequest(request: RideHailRequest, agentLocation: RideHailAgentLocation) = {
+  def makeRouteRequest(
+    request: RideHailRequest,
+    agentLocation: RideHailAgentLocation
+  ): RoutingRequiredToAllocateVehicle = {
     val routeRequests = rideHailManager.createRoutingRequestsToCustomerAndDestination(
       request,
       agentLocation
@@ -147,9 +153,9 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   }
 
   /*
-   * Finally, we delgate repositioning to the repositioning manager
+   * Finally, we delgate repositioning to the repositioning manager. Only need this if running in multi-iteration mode.
    */
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    repositioningLowWaitingTimes.repositionVehicles(tick)
-  }
+//  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+//    repositioningLowWaitingTimes.repositionVehicles(tick)
+//  }
 }

@@ -3,19 +3,26 @@ package beam.sim
 import java.io.File
 import java.nio.file.{Files, Paths}
 
+import akka.actor.ActorRef
 import beam.router.BeamRouter.UpdateTravelTime
-import beam.router.LinkTravelTimeContainer
+import beam.router.{BeamRouter, LinkTravelTimeContainer}
+import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.downloadFile
-import beam.utils.UnzipUtility.unzip
+import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.matsim.core.config.Config
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.compat.java8.StreamConverters._
 
-class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
-  private val beamConfig = beamServices.beamConfig
+object BeamWarmStart {
+  def apply(beamConfig: BeamConfig): BeamWarmStart = new BeamWarmStart(beamConfig)
+}
+
+class BeamWarmStart(beamConfig: BeamConfig) extends LazyLogging {
   // beamConfig.beam.warmStart.pathType=PARENT_RUN, ABSOLUTE_PATH
   private val pathType = beamConfig.beam.warmStart.pathType
   private val srcPath = beamConfig.beam.warmStart.path
@@ -30,13 +37,12 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
   /**
     * initialize warm start mode.
     */
-  def init(): Unit = {
+  def warmStartRouterIfNeeded(beamRouter: ActorRef): Unit = {
     if (!isWarmMode) return
-
-    getWarmStartPath match {
+    warmStartPath match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
-          beamServices.beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
+          beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
           logger.info(s"Warm start mode initialized successfully from stats located at $statsPath.")
         } else {
           logger.warn(
@@ -44,25 +50,44 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
           )
         }
       case None =>
+        logger.warn(
+          s"Warm start mode initialization failed - warmStartPath is None"
+        )
     }
   }
 
-  private def getWarmStartPath: Option[String] = {
-    pathType match {
-      case "PARENT_RUN" =>
-        getWarmStartPath(getParentRunPath)
-
-      case "ABSOLUTE_PATH" =>
-        Files
-          .walk(Paths.get(srcPath))
-          .toScala[Stream]
-          .map(_.toString)
-          .find(_.endsWith(".linkstats.csv.gz"))
-
-      case _ =>
-        logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
-        None
+  def warmStartPopulationIfNeeded(matsimConfig: Config): Unit = {
+    if (isWarmMode) {
+      populationFilePath.foreach { file =>
+        matsimConfig.plans().setInputFile(file)
+        logger.info("Warm start population initialized successfully from file located at {}", file)
+      }
     }
+  }
+
+  lazy val populationFilePath: Option[String] =
+    if (isWarmMode) {
+      val path = pathType match {
+        case "PARENT_RUN"    => parentRunPath
+        case "ABSOLUTE_PATH" => srcPath
+      }
+      Some(loadPopulation(path, populationFile(path)))
+    } else None
+
+  private lazy val warmStartPath: Option[String] = pathType match {
+    case "PARENT_RUN" =>
+      getWarmStartPath(parentRunPath)
+
+    case "ABSOLUTE_PATH" =>
+      Files
+        .walk(Paths.get(srcPath))
+        .toScala[Stream]
+        .map(_.toString)
+        .find(_.endsWith(".linkstats.csv.gz"))
+
+    case _ =>
+      logger.warn(s"Warm start mode initialization failed, not a valid path type ( $pathType )")
+      None
   }
 
   private def getWarmStartPath(runPath: String) = {
@@ -93,7 +118,7 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
     }
   }
 
-  private def getParentRunPath = {
+  private lazy val parentRunPath = {
     if (isZipArchive(srcPath)) {
       var archivePath = srcPath
       if (isOutputBucketUrl(srcPath)) {
@@ -102,10 +127,18 @@ class BeamWarmStart(val beamServices: BeamServices) extends LazyLogging {
       }
       val runPath = Paths.get(getTempDirectoryPath, getBaseName(srcPath)).toString
       unzip(archivePath, runPath, false)
-      runPath
+      Paths.get(runPath, getBaseName(srcPath)).toString
     } else {
       srcPath
     }
+  }
+
+  private def populationFile(runPath: String): String = Paths.get(runPath, "output_plans.xml.gz").toString
+
+  private def loadPopulation(runPath: String, populationFile: String): String = {
+    val plansPath = Paths.get(runPath, "output_plans.xml")
+    unGunzipFile(populationFile, plansPath.toString, false)
+    plansPath.toString
   }
 
   private def isOutputBucketUrl(source: String): Boolean = {

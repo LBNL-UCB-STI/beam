@@ -31,8 +31,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-  val refuelRateLimitInJoulesPerSecond: Option[Double]
+  val beamVehicleType: BeamVehicleType
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
@@ -78,15 +77,15 @@ class BeamVehicle(
     }
   }
 
-  def setReservedParkingStall(newStall: Option[ParkingStall]) = {
+  def setReservedParkingStall(newStall: Option[ParkingStall]): Unit = {
     reservedStall = newStall
   }
 
-  def useParkingStall(newStall: ParkingStall) = {
+  def useParkingStall(newStall: ParkingStall): Unit = {
     stall = Some(newStall)
   }
 
-  def unsetParkingStall() = {
+  def unsetParkingStall(): Unit = {
     stall = None
   }
 
@@ -124,7 +123,8 @@ class BeamVehicle(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
-          refuelRateLimitInJoulesPerSecond,
+          Some(beamVehicleType.rechargeLevel2RateLimitInWatts),
+          Some(beamVehicleType.rechargeLevel3RateLimitInWatts),
           None
         )
       case None =>
@@ -132,7 +132,7 @@ class BeamVehicle(
     }
   }
 
-  def getState(): BeamVehicleState =
+  def getState: BeamVehicleState =
     BeamVehicleState(
       fuelLevelInJoules.getOrElse(Double.NaN),
       fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),

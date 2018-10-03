@@ -7,6 +7,7 @@ import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{ModeChosenS
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
 import beam.integration.IntegrationSpecCommon
+import beam.sim.config.BeamConfig
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
@@ -24,12 +25,12 @@ import scala.concurrent.Promise
 
 object ModeChosenStatsGraphSpec {
 
-  class ModeChosenStatsGraph(compute: ModeChosenStats.ModeChosenComputation with EventAnalyzer)
+  class ModeChosenStatsGraph(compute: ModeChosenStats.ModeChosenComputation with EventAnalyzer, beamConfig: BeamConfig)
       extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val modeChosenStats =
-      new ModeChosenStats(compute)
+      new ModeChosenStats(compute, beamConfig)
 
     override def reset(iteration: Int): Unit = {
       modeChosenStats.resetStats()
@@ -118,7 +119,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): ModeChosenStatsGraph = {
-            val graph = new ModeChosenStatsGraph(waitingStat)
+            val graph = new ModeChosenStatsGraph(waitingStat , BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }

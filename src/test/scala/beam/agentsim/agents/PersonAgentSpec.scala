@@ -2,29 +2,25 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import scala.collection.{mutable, JavaConverters}
-import scala.collection.concurrent.TrieMap
-import scala.concurrent.Await
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.testkit.TestActors.ForwardActor
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
+import beam.agentsim.agents.PersonAgentSpec.ZERO
+import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.PersonAgentSpec.ZERO
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, TRANSIT}
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -34,10 +30,10 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.plansampling.PlansSampler
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
@@ -49,8 +45,12 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+
+import scala.collection.concurrent.TrieMap
+import scala.collection.{JavaConverters, mutable}
+import scala.concurrent.Await
 
 class PersonAgentSpec
     extends TestKit(
@@ -273,6 +273,7 @@ class PersonAgentSpec
                   duration = 100,
                   travelPath = BeamPath(
                     linkIds = Vector(1, 2),
+                    linkTravelTime = Vector(10, 10), // TODO FIXME
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(1.0, 1.0, 28900),
@@ -478,16 +479,14 @@ class PersonAgentSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        refuelRateLimitInJoulesPerSecond = None
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        refuelRateLimitInJoulesPerSecond = None
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.getId, bus)
@@ -499,6 +498,7 @@ class PersonAgentSpec
           mode = BeamMode.BUS,
           duration = 600,
           travelPath = BeamPath(
+            Vector(),
             Vector(),
             Some(TransitStopsInfo(1, busId, 2)),
             SpaceTime(new Coord(166321.9, 1568.87), 28800),
@@ -519,6 +519,7 @@ class PersonAgentSpec
           duration = 600,
           travelPath = BeamPath(
             Vector(),
+            Vector(),
             Some(TransitStopsInfo(2, busId, 3)),
             SpaceTime(new Coord(167138.4, 1117), 29400),
             SpaceTime(new Coord(180000.4, 1200), 30000),
@@ -538,6 +539,7 @@ class PersonAgentSpec
           duration = 600,
           travelPath = BeamPath(
             linkIds = Vector(),
+            linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
             startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
             endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
@@ -639,6 +641,7 @@ class PersonAgentSpec
                   duration = 0,
                   travelPath = BeamPath(
                     linkIds = Vector(),
+                    linkTravelTime = Vector(),
                     transitStops = None,
                     startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
                     endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
@@ -661,6 +664,7 @@ class PersonAgentSpec
                   duration = 0,
                   travelPath = BeamPath(
                     linkIds = Vector(),
+                    linkTravelTime = Vector(),
                     transitStops = None,
                     startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
                     endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
