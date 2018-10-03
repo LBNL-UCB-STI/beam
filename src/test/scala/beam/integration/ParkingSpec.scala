@@ -180,7 +180,7 @@ class ParkingSpec
       isSameArrivalAndDeparture shouldBe true
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" ignore {
       val parkingEvents = defaultEvents.head.filter(
         e =>
           ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
