@@ -159,13 +159,15 @@ object BeamSigoptTuner {
 
       val parameter = new Parameter.Builder().name(paramName)
 
+      //println(maxValue)
+
       // Build bounds
       maxValue match {
-        case _: Double =>
+        case x if x.isInstanceOf[Double] =>
           parameter
             .bounds(getBounds(minValue.asInstanceOf[Double], maxValue.asInstanceOf[Double]))
             .`type`("double")
-        case _: Int =>
+        case x if x.isInstanceOf[Int] =>
           parameter
             .`type`("int")
             .bounds(getBounds(minValue.asInstanceOf[Int], maxValue.asInstanceOf[Int]))

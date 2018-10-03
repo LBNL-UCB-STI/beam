@@ -11,9 +11,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -47,7 +45,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -160,6 +158,7 @@ class OtherPersonAgentSpec
           600,
           BeamPath(
             Vector(),
+            Vector(),
             Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
             SpaceTime(new Coord(166321.9, 1568.87), 28800),
             SpaceTime(new Coord(167138.4, 1117), 29400),
@@ -178,6 +177,7 @@ class OtherPersonAgentSpec
           BeamMode.BUS,
           600,
           BeamPath(
+            Vector(),
             Vector(),
             Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
             SpaceTime(new Coord(167138.4, 1117), 29400),
@@ -198,6 +198,7 @@ class OtherPersonAgentSpec
           600,
           BeamPath(
             Vector(),
+            Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
             SpaceTime(new Coord(180000.4, 1200), 30000),
             SpaceTime(new Coord(190000.4, 1300), 30600),
@@ -216,6 +217,7 @@ class OtherPersonAgentSpec
           BeamMode.TRAM,
           600,
           BeamPath(
+            Vector(),
             Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
             SpaceTime(new Coord(180000.4, 1200), 35000),
@@ -313,6 +315,7 @@ class OtherPersonAgentSpec
                   0,
                   BeamPath(
                     Vector(),
+                    Vector(),
                     None,
                     SpaceTime(new Coord(166321.9, 1568.87), 28800),
                     SpaceTime(new Coord(167138.4, 1117), 28800),
@@ -334,6 +337,7 @@ class OtherPersonAgentSpec
                   BeamMode.WALK,
                   0,
                   BeamPath(
+                    Vector(),
                     Vector(),
                     None,
                     SpaceTime(new Coord(167138.4, 1117), 30600),
@@ -413,6 +417,7 @@ class OtherPersonAgentSpec
                   BeamMode.WALK,
                   0,
                   BeamPath(
+                    Vector(),
                     Vector(),
                     None,
                     SpaceTime(new Coord(167138.4, 1117), 35600),
