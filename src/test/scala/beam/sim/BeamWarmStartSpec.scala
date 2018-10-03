@@ -45,9 +45,8 @@ class BeamWarmStartSpec
     "only find plans" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case2")
       createDirs(caseDataPath)
-      val expectedPlans = None
-      //copyPlans(caseDataPath, "output_plans")
-      val expectedStats = copyLinkStats(caseDataPath, LINK_STATS)
+      val expectedPlans = copyPlans(caseDataPath, "output_plans")
+      val expectedStats = None // copyLinkStats(caseDataPath, LINK_STATS)
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
@@ -61,8 +60,8 @@ class BeamWarmStartSpec
     "only find linkstats" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case3")
       createDirs(caseDataPath)
-      val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
-      val expectedStats = None //copyLinkStats(caseDataPath, "linkstats")
+      val expectedPlans = None //copyPlans(caseDataPath, OUTPUT_PLANS)
+      val expectedStats = copyLinkStats(caseDataPath, "linkstats")
 
       val warmStart: BeamWarmStart = getWarmStart(caseDataPath)
 
