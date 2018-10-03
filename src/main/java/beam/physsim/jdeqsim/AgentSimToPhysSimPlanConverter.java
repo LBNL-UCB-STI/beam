@@ -49,7 +49,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 
-
 /**
  * @author asif and rwaraich.
  */
@@ -100,8 +99,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
-        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -165,13 +164,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         if (this.controlerIO != null) {
             try {
-            // TODO: handle case, when counts compare not available - provide hint, why we cannot produce
-            String outPath =
-                    controlerIO
-                            .getIterationFilename(iterationNumber, "countscompare.txt");
-            Double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
-            log.info("counts Error: " + countsError);
-            } catch (Exception e){
+                // TODO: handle case, when counts compare not available - provide hint, why we cannot produce
+                String outPath =
+                        controlerIO
+                                .getIterationFilename(iterationNumber, "countscompare.txt");
+                Double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
+                log.info("counts Error: " + countsError);
+            } catch (Exception e) {
                 log.error("exception {}", e.getMessage());
             }
 
@@ -201,7 +200,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.info("Link stats file dump completed.");
 
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                log.error("Error while generating link stats.",e);
+                log.error("Error while generating link stats.", e);
             }
         }
 
@@ -230,7 +229,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void writePhyssimPlans(IterationEndsEvent event) {
         if (shouldWritePlans(event.getIteration())) {
             final String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
-            completableFutures.add (CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
+            completableFutures.add(CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
         }
     }
 
