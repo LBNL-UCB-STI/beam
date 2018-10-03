@@ -19,14 +19,16 @@ class TriggerMeasurer extends LazyLogging {
     mutable.Map[TriggerWithId, Long]()
   private val triggerTypeToOccurrence: mutable.Map[Class[_], ArrayBuffer[Long]] =
     mutable.Map[Class[_], ArrayBuffer[Long]]()
-  private val actorToNumOfTriggerMessages: mutable.Map[ActorRef, Int] =
-    mutable.Map[ActorRef, Int]()
+  private val actorToNumOfTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
+    mutable.Map[ActorRef,  mutable.Map[Class[_], Int]]()
 
   def sent(t: TriggerWithId, actor: ActorRef): Unit = {
     triggerWithIdToStartTime.put(t, System.nanoTime())
 
-    val current = actorToNumOfTriggerMessages.get(actor).getOrElse(0)
-    actorToNumOfTriggerMessages.update(actor, current + 1)
+    val triggerTypeToOccur = actorToNumOfTriggerMessages.getOrElse(actor, mutable.Map[Class[_], Int]())
+    val current = triggerTypeToOccur.getOrElse(t.trigger.getClass, 0)
+    triggerTypeToOccur.update(t.trigger.getClass, current + 1)
+    actorToNumOfTriggerMessages.update(actor, triggerTypeToOccur)
   }
 
   def resolved(t: TriggerWithId): Unit = {
@@ -57,16 +59,19 @@ class TriggerMeasurer extends LazyLogging {
         sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
 
-    sb.append(s"${nl}Max number of trigger messages per actor type")
+    sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
     // Do not remove `toIterable` (Map can't contain duplicates!)
-    val actorTypeToCount: Iterable[(String, Int)] = actorToNumOfTriggerMessages.toIterable.map { case (actorRef, count) =>
-      getType(actorRef) -> count
+    val actorTypeToTriggers: Iterable[(String, mutable.Map[Class[_], Int])] = actorToNumOfTriggerMessages.toIterable.map { case (actorRef, map) =>
+      getType(actorRef) -> map
     }
-    val maxPerActorType = actorTypeToCount.groupBy { case (actorType, _) => actorType }
-      .map { case (actorType, seq) => actorType -> seq.view.map { case (_, count) => count}.max }
+    val maxPerActorType = actorTypeToTriggers.groupBy { case (actorType, _) => actorType }
+      .map { case (actorType, seq) => actorType -> seq.view.maxBy { case (_, map) => map.values.size}._2 }
 
-    maxPerActorType.foreach { case (actorType, total) =>
-      sb.append(s"${nl}\t${actorType} => ${total}")
+    maxPerActorType.foreach { case (actorType, map) =>
+      val s = map.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
+      val str = s"""\t$actorType => ${map.values.sum}
+        |$s""".stripMargin
+      sb.append(str)
     }
     sb.toString()
   }
