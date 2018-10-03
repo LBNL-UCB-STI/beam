@@ -37,7 +37,6 @@ class WarmStartRoutingSpec
         "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-          .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
@@ -59,7 +58,6 @@ class WarmStartRoutingSpec
   override def beforeAll: Unit = {
     val config = baseConfig
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
       .withValue(
         "beam.warmStart.path",
         ConfigValueFactory
@@ -130,7 +128,8 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      new BeamWarmStart(services.beamConfig).warmStartRouterIfNeeded(services.beamRouter)
+      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+
       router ! RoutingRequest(
         origin,
         destination,
