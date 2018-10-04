@@ -23,13 +23,13 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     private static final String BUS = "SF";
     private static final String CAR = "car";
     private final BufferedWriter out;
+    private boolean eventsForFullVersionOfVia;
     HashMap<String, HashSet<String>> filterPeopleForViaDemo = new HashMap<>();
     HashMap<String, Integer> maxPeopleForViaDemo = new HashMap<>();
-    private String outFileName;
 
-    public EventWriterXML_viaCompatible(final String outFileName) {
-        this.outFileName = outFileName;
+    public EventWriterXML_viaCompatible(final String outFileName, boolean eventsForFullVersionOfVia) {
         this.out = IOUtils.getBufferedWriter(outFileName);
+        this.eventsForFullVersionOfVia = eventsForFullVersionOfVia;
 
         filterPeopleForViaDemo.put(CAR, new HashSet<>());
         filterPeopleForViaDemo.put(BUS, new HashSet<>());
@@ -71,6 +71,11 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     }
 
     private boolean addPersonToEventsFile(String person) {
+
+        if (eventsForFullVersionOfVia){
+            return true;
+        }
+
         String personLabel = null;
 
         if (person == null) {

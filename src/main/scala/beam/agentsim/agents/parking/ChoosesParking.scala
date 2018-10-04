@@ -1,7 +1,5 @@
 package beam.agentsim.agents.parking
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.CheckInResource
@@ -174,13 +172,13 @@ trait ChoosesParking extends {
         stay using data
       }
     case Event(
-        res,
+        responses: (RoutingResponse, RoutingResponse),
         data @ BasePersonData(_, _, _, _, _, _, _, _, _)
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      val responses = res.asInstanceOf[(RoutingResponse, RoutingResponse)]
+
       // If no car leg returned, then the person walks to the parking spot and we force an early exit
       // from the vehicle below.
       val leg1 = if (!responses._1.itineraries.exists(_.tripClassifier == CAR)) {

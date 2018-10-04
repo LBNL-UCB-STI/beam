@@ -71,7 +71,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    val walkTripStartTime = alternatives.find(_.tripClassifier == WALK).map(_.legs.head.beamLeg.startTime)
+    val walkTripStartTime = alternatives.find(_.tripClassifier == WALK)
+      .map(_.legs.head.beamLeg.startTime)
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
