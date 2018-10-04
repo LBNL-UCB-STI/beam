@@ -175,7 +175,7 @@ object VehiclesDataConversion extends App {
     ),
   )
 
-  if (null == args || args.size < 3) {
+  if (null == args || args.length < 3) {
     println("Please include parameters: /path/to/vehicles.xml /path/to/transitVehicles.xml /outputDirectory/path")
   } else {
     val vehiclesFile = args(0)
