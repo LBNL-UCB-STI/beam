@@ -151,14 +151,14 @@ object Modes {
     case BIKE => StreetMode.BICYCLE
     case WALK => StreetMode.WALK
     case CAR  => StreetMode.CAR
-    case _  => StreetMode.CAR
+    case _    => throw new IllegalArgumentException
   }
 
   def toR5StreetMode(mode: LegMode): StreetMode = mode match {
     case LegMode.BICYCLE | LegMode.BICYCLE_RENT => StreetMode.BICYCLE
     case LegMode.WALK                           => StreetMode.WALK
     case LegMode.CAR                            => StreetMode.CAR
-    case _                                      => StreetMode.CAR
+    case _                                      => throw new IllegalArgumentException
   }
 
   def mapLegMode(mode: LegMode): BeamMode = mode match {
