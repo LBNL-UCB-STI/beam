@@ -744,7 +744,7 @@ class RideHailManager(
       }
 
     case DepotParkingInquiryResponse(None, requestId) =>
-      val vehId = parkingInquiryCache.get(requestId).get.vehicleId
+      val vehId = parkingInquiryCache(requestId).vehicleId
       log.warning(
         "No parking stall found, ride hail vehicle {} stranded",
         vehId
