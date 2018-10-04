@@ -24,7 +24,6 @@ public class BeamPersonAgent extends UntypedActor {
     LoggingAdapter log = Logging.getLogger(getContext().system(), this);
     private Plan plan;
     private int currentPlanElementIndex = 0;
-    private boolean vehicleIsPluggedIn = false;
     private ActorRef chargingInfrastructureManager;
     private DestinationAreaApproachingMessage destinationAreaApproachingMessage;
     private ActorRef reservedCharger;
@@ -61,10 +60,6 @@ public class BeamPersonAgent extends UntypedActor {
             // new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
 
         } else if (message instanceof PersonArrivalAtVehicleMessage) {
-            if (vehicleIsPluggedIn) {
-                reservedCharger.tell(new UnplugMessage(), getSelf());
-            }
-
             // getContext().setReceiveTimeout(Duration.apply(100L,
             // TimeUnit.MILLISECONDS));
             try {
