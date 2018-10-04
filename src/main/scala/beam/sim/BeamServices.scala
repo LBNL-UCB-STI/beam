@@ -128,7 +128,7 @@ object BeamServices {
         val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
         val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap.get(Id.create(vehicleTypeIdString, classOf[BeamVehicleType])).get
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
 
