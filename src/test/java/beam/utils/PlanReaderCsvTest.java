@@ -21,11 +21,11 @@ public class PlanReaderCsvTest {
 
     @Before
     public void init() throws IOException {
-        planReader = new PlanReaderCsv(path, delimiter);
+        planReader = new PlanReaderCsv(delimiter);
 
-        populationReadFromCsv = planReader.readPlansFromCSV();
+        populationReadFromCsv = planReader.readPlansFromCSV(path + "/plans-input.csv");
 
-        planReader.writePlansToXml(populationReadFromCsv);
+        planReader.writePlansToXml(populationReadFromCsv, path + "/plans-output.xml");
 
         populationReadFromXml = this.readPlansFromXml();
     }

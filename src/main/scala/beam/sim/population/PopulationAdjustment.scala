@@ -22,7 +22,13 @@ trait PopulationAdjustment extends LazyLogging {
       .keySet()
       .asScala
       .map(
-        personId => population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
+        personId => {
+          if(population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES) != null){
+            population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
+          }else{
+            Array[String]()
+          }
+        }
       )
       .toList
       .flatten

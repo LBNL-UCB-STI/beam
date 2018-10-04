@@ -18,7 +18,7 @@ public class PlanReaderCsv {
     private Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
 
     public String delimiter = ",";
-    public String path = "test/input/beamville/test-data/";
+    public static final String path = "test/input/beamville/test-data/";
     public static final String plansInputFileName = "plans-input.csv";
     public static final String plansOutputFileName = "plans-output.xml";
 
@@ -26,27 +26,26 @@ public class PlanReaderCsv {
     public static void main(String[] args) throws IOException {
 
         PlanReaderCsv planReader = new PlanReaderCsv();
-        Population population = planReader.readPlansFromCSV();
-        planReader.writePlansToXml(population);
+        Population population = planReader.readPlansFromCSV(path + plansInputFileName);
+        planReader.writePlansToXml(population, path + plansOutputFileName);
     }
 
     public PlanReaderCsv(){
 
-        this(null, null);
+        this(null);
     }
 
-    public PlanReaderCsv(String path, String delimiter) {
+    public PlanReaderCsv(String delimiter) {
 
-        this.path = path == null ? this.path : path;
         this.delimiter = delimiter == null ? this.delimiter : delimiter;
 
     }
 
-    public Population readPlansFromCSV() throws IOException{
+    public Population readPlansFromCSV(String plansFile) throws IOException{
 
         Population population = PopulationUtils.createPopulation(ConfigUtils.createConfig());
 
-        BufferedReader reader = new BufferedReader(new FileReader(path + plansInputFileName));
+        BufferedReader reader = new BufferedReader(new FileReader(plansFile));
         String line = "";
         int idx = 0;
 
@@ -91,18 +90,17 @@ public class PlanReaderCsv {
             }
 
 
-            printRow(dRow);
+            //printRow(dRow);
             idx++;
         }
 
         return population;
     }
 
-    public void writePlansToXml(Population population) {
-        String plansFilename = path + plansOutputFileName;
-        new PopulationWriter(population).write(plansFilename);
+    public void writePlansToXml(Population population, String outputFile) {
+        new PopulationWriter(population).write(outputFile);
 
-        log.info("Written plans successfully to {}", plansFilename);
+        log.info("Written plans successfully to {}", outputFile);
     }
 
     public void printRow(String[] dRow){
