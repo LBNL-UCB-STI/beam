@@ -50,7 +50,7 @@ public class BeamCalcLinkStats {
     private int count = 0;
 
     @Inject
-    public BeamCalcLinkStats(Network network) {
+    public BeamCalcLinkStats(final Network network) {
         this.network = network;
         this.linkData = new ConcurrentHashMap<>();
         this.nofHours = 24;
