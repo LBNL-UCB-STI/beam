@@ -4,7 +4,6 @@ import beam.agentsim.Resource
 import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Id
 
 case class ParkingStall(
@@ -25,12 +24,16 @@ object ParkingStall {
     chargingType: ChargingType,
     reservedFor: ReservedParkingType
   )
+
   case class StallValues(numStalls: Int, feeInCents: Int)
 
   sealed trait ParkingType
   case object Residential extends ParkingType
+
   case object Workplace extends ParkingType
+
   case object Public extends ParkingType
+
   case object NoOtherExists extends ParkingType
 
   object ParkingType {
@@ -49,9 +52,13 @@ object ParkingStall {
   sealed trait ChargingType
 
   case object NoCharger extends ChargingType
+
   case object Level1 extends ChargingType
+
   case object Level2 extends ChargingType
+
   case object DCFast extends ChargingType
+
   case object UltraFast extends ChargingType
 
   object ChargingType {
@@ -121,16 +128,16 @@ object ParkingStall {
         vehicleChargingLimitActualInKW,
         getChargerPowerInKW(chargerType)
       ) * 3.6e6
-      if (sessionLength < 0) {
-        val i = 0
-      }
+
       (sessionLength, sessionEnergyInJoules)
     }
   }
 
   sealed trait ChargingPreference
   case object NoNeed extends ChargingPreference
+
   case object MustCharge extends ChargingPreference
+
   case object Opportunistic extends ChargingPreference
 
   /*
@@ -141,6 +148,7 @@ object ParkingStall {
    */
   sealed trait PricingModel
   case object FlatFee extends PricingModel
+
   case object Block extends PricingModel
 
   object PricingModel {
@@ -153,9 +161,12 @@ object ParkingStall {
 
   sealed trait ReservedParkingType
   case object Any extends ReservedParkingType
+
   case object RideHailManager extends ReservedParkingType
 
   sealed trait DepotStallLocationType
   case object AtRequestLocation extends DepotStallLocationType
+
   case object AtTAZCenter extends DepotStallLocationType
+
 }

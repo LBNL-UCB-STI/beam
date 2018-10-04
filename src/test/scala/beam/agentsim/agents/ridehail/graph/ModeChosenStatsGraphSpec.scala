@@ -119,7 +119,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): ModeChosenStatsGraph = {
-            val graph = new ModeChosenStatsGraph(waitingStat , BeamConfig(baseConfig))
+            val graph = new ModeChosenStatsGraph(waitingStat, BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }
