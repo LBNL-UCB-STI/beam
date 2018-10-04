@@ -65,7 +65,7 @@ public class R5MnetBuilder {
         OSM osm = new OSM(this.osmFile);
         Map<Long, Way> ways = osm.ways;
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
-        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
+        OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, true);
         while (cursor.advance()) {
             log.debug(String.valueOf(cursor.getEdgeIndex()));
             log.debug(cursor.toString());
