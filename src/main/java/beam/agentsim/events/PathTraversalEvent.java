@@ -53,7 +53,7 @@ public class PathTraversalEvent extends Event {
     private final double endY;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
-        this(time, vehicleId, vehicleType.vehicleCategory().toString(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+        this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
