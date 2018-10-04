@@ -395,7 +395,7 @@ class ZonalParkingManager(
       .sortBy(_._2)
   }
 
-  def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = throw new NotImplementedError("???")
+  def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = ???
 
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
