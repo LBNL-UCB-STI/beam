@@ -11,15 +11,15 @@ import scala.xml.{Elem, NodeSeq, XML}
 
 object VehiclesDataConversion extends App {
 
-  val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
+  lazy val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
 
-  val beamFuelTypes = Seq(
+  lazy val beamFuelTypes = Seq(
     Seq("gasoline", "0.03"),
     Seq("diesel", "0.02"),
     Seq("electricity", "0.01")
   )
 
-  val beamVehicleTypeTitles = Seq(
+  lazy val beamVehicleTypeTitles = Seq(
     "vehicleTypeId",
     "seatingCapacity",
     "standingRoomCapacity",
@@ -38,7 +38,7 @@ object VehiclesDataConversion extends App {
     "vehicleCategory"
   )
 
-  val beamVehicleTypes = Seq(
+  lazy val beamVehicleTypes = Seq(
     Seq(
       "CAR-1",
       "4",
@@ -167,7 +167,7 @@ object VehiclesDataConversion extends App {
     ),
   )
 
-  val beamVehicleTitles = Seq(
+  lazy val beamVehicleTitles = Seq(
     "vehicleId",
     "vehicleTypeId"
   )
