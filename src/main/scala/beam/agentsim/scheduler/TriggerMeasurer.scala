@@ -20,15 +20,23 @@ class TriggerMeasurer extends LazyLogging {
   private val triggerTypeToOccurrence: mutable.Map[Class[_], ArrayBuffer[Long]] =
     mutable.Map[Class[_], ArrayBuffer[Long]]()
   private val actorToNumOfTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
-    mutable.Map[ActorRef,  mutable.Map[Class[_], Int]]()
+    mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
   def sent(t: TriggerWithId, actor: ActorRef): Unit = {
     triggerWithIdToStartTime.put(t, System.nanoTime())
 
-    val triggerTypeToOccur = actorToNumOfTriggerMessages.getOrElse(actor, mutable.Map[Class[_], Int]())
-    val current = triggerTypeToOccur.getOrElse(t.trigger.getClass, 0)
-    triggerTypeToOccur.update(t.trigger.getClass, current + 1)
-    actorToNumOfTriggerMessages.update(actor, triggerTypeToOccur)
+    val triggerClazz = t.trigger.getClass
+    actorToNumOfTriggerMessages.get(actor) match {
+      case Some(triggerTypeToOccur) =>
+        triggerTypeToOccur.get(triggerClazz) match {
+          case Some(current) =>
+            triggerTypeToOccur.update(triggerClazz, current + 1)
+          case None =>
+            triggerTypeToOccur.put(triggerClazz, 1)
+        }
+      case None =>
+        actorToNumOfTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
+    }
   }
 
   def resolved(t: TriggerWithId): Unit = {
@@ -61,17 +69,21 @@ class TriggerMeasurer extends LazyLogging {
 
     sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
     // Do not remove `toIterable` (Map can't contain duplicates!)
-    val actorTypeToTriggers: Iterable[(String, mutable.Map[Class[_], Int])] = actorToNumOfTriggerMessages.toIterable.map { case (actorRef, map) =>
-      getType(actorRef) -> map
-    }
-    val maxPerActorType = actorTypeToTriggers.groupBy { case (actorType, _) => actorType }
-      .map { case (actorType, seq) => actorType -> seq.view.maxBy { case (_, map) => map.values.size}._2 }
+    val actorTypeToTriggers: Iterable[(String, mutable.Map[Class[_], Int])] =
+      actorToNumOfTriggerMessages.toIterable.map {
+        case (actorRef, map) =>
+          getType(actorRef) -> map
+      }
+    val maxPerActorType = actorTypeToTriggers
+      .groupBy { case (actorType, _) => actorType }
+      .map { case (actorType, seq) => actorType -> seq.view.maxBy { case (_, map) => map.values.size }._2 }
 
-    maxPerActorType.foreach { case (actorType, map) =>
-      val s = map.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
-      val str = s"""\t$actorType => ${map.values.sum}
+    maxPerActorType.foreach {
+      case (actorType, map) =>
+        val s = map.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
+        val str = s"""\t$actorType => ${map.values.sum}
         |$s""".stripMargin
-      sb.append(str)
+        sb.append(str)
     }
     sb.toString()
   }
@@ -81,17 +93,13 @@ class TriggerMeasurer extends LazyLogging {
 //      val idx = actorRef.path.name.indexOf("TransitDriverAgent-")
 //      val vehicleTypeAndOther = actorRef.path.name.substring(idx + "TransitDriverAgent-".length)
       "TransitDriverAgent"
-    }
-    else if (actorRef.path.parent.parent.name == "population") {
+    } else if (actorRef.path.parent.parent.name == "population") {
       "Population"
-    }
-    else if (actorRef.path.name.contains("rideHailAgent-")) {
+    } else if (actorRef.path.name.contains("rideHailAgent-")) {
       "RideHailAgent"
-    }
-    else if (actorRef.path.name == "RideHailManager") {
+    } else if (actorRef.path.name == "RideHailManager") {
       "RideHailManager"
-    }
-    else {
+    } else {
       actorRef.path.toString
     }
   }
