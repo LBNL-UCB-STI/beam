@@ -195,4 +195,26 @@ public class PhyssimCalcLinkSpeedStats {
     public void notifyIterationStarts(EventsManager eventsManager) {
     }
 
+    public double getAverageSpeedPercentageOfBin(int bin,TravelTimeCalculator travelTimeCalculator) {
+        try {
+            Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+            double[][] dataSet = buildDataSetFromProcessedData(processedData);
+            double[] averageSpeedPercentages = dataSet[0];
+            return averageSpeedPercentages[bin];
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public double[] getAverageSpeedPercentagesOfAllBins(TravelTimeCalculator travelTimeCalculator) {
+        Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+        double[][] dataSet = buildDataSetFromProcessedData(processedData);
+        return dataSet[0];
+    }
+
+    public int getNumberOfBins() {
+        return noOfBins;
+    }
+
 }

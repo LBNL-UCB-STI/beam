@@ -12,7 +12,7 @@ object CreateExperiment extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
     val experimentLoc: String =
-      "production/application-sfbay/calibration/experiment_modes_and_counts_calibration_intercept_and_network.yml"
+      "production/application-sfbay/calibration/experiment_modes_calibration.yml"
     val benchmarkLoc: String = "production/application-sfbay/calibration/benchmark.csv"
     SigoptExperimentData(experimentLoc, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
   }
