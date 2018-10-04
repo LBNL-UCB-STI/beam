@@ -26,7 +26,7 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Ignore, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -37,7 +37,6 @@ class WarmStartRoutingSpec
         "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-          .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
@@ -59,11 +58,10 @@ class WarmStartRoutingSpec
   override def beforeAll: Unit = {
     val config = baseConfig
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
       .withValue(
         "beam.warmStart.path",
         ConfigValueFactory
-          .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+          .fromAnyRef("test/input/beamville/test-data")
       )
     val beamConfig = BeamConfig(config)
 
@@ -125,12 +123,13 @@ class WarmStartRoutingSpec
           )
         )
       )
-      val response = expectMsgType[RoutingResponse]
+      var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      new BeamWarmStart(services).init()
+      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+
       router ! RoutingRequest(
         origin,
         destination,
@@ -145,9 +144,9 @@ class WarmStartRoutingSpec
           )
         )
       )
-      val response2 = expectMsgType[RoutingResponse]
-      assert(response2.itineraries.exists(_.tripClassifier == CAR))
-      val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
+      response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.exists(_.tripClassifier == CAR))
+      val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs == 55)
     }
   }

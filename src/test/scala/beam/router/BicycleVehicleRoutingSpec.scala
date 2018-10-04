@@ -98,6 +98,7 @@ class BicycleVehicleRoutingSpec
         0,
         BeamPath(
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
+          Vector(), // TODO FIXME
           None,
           SpaceTime(166321.9, 1568.87, 3000),
           SpaceTime(167138.4, 1117, 3000),
