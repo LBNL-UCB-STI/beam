@@ -125,14 +125,13 @@ public class RideHailWaitingStats implements IGraphStats {
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private final IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
-    private int timeBinSize = 3600;
     private static int numberOfTimeBins = 30;
 
     public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                 BeamConfig beamConfig){
         this.statComputation = statComputation;
 
-        this.timeBinSize = beamConfig.beam().outputs().stats().binSize();
+        int timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
