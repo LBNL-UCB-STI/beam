@@ -38,7 +38,6 @@ public class OsmToMATSim {
     private final Set<String> unknownLanesTags = new HashSet<String>();
     private final Network mNetwork;
     private long id = 0;
-    private boolean scaleMaxSpeed = false;
 
 
 //	public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
@@ -206,7 +205,8 @@ public class OsmToMATSim {
         // create the link(s)
         double capacity = nofLanes * laneCapacity;
 
-        if (this.scaleMaxSpeed) {
+        boolean scaleMaxSpeed = false;
+        if (scaleMaxSpeed) {
             freespeed = freespeed * freespeedFactor;
         }
 
