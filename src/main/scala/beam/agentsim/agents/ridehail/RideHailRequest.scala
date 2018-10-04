@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.{BeamTime, DiscreteTime}
+import beam.router.model.RoutingModel.{BeamTime, DiscreteTime}
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}

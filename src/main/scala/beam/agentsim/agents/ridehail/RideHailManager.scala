@@ -16,11 +16,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -32,8 +28,8 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel
-import beam.router.RoutingModel.DiscreteTime
+import beam.router.model.RoutingModel.DiscreteTime
+import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
@@ -455,7 +451,7 @@ class RideHailManager(
           request.pickUpLocation,
           request.departAt.atTime.toDouble
         )
-      val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] =
+      val customerPlans2Costs: Map[EmbodiedBeamTrip, BigDecimal] =
         itins2Dest.map(trip => (trip, rideHailFarePerSecond * trip.totalTravelTimeInSecs)).toMap
 
       if (itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
@@ -666,7 +662,7 @@ class RideHailManager(
             )
 
             if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: IndexedSeq[RoutingModel.EmbodiedBeamTrip] =
+              val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
                 itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
               val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
 

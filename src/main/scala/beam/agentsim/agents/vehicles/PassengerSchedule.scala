@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle

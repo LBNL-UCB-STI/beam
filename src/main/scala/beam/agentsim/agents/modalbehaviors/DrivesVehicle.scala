@@ -18,7 +18,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.TRANSIT
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork

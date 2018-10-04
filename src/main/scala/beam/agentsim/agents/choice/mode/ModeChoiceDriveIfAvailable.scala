@@ -3,7 +3,7 @@ package beam.agentsim.agents.choice.mode
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
 /**

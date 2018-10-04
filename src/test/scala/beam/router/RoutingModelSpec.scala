@@ -2,7 +2,8 @@ package beam.router
 
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath, EmbodiedBeamLeg}
+import beam.router.model.RoutingModel
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent}
 import org.scalatest.{FlatSpec, Matchers}
