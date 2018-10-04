@@ -123,7 +123,8 @@ object RoutingModel {
   object BeamLeg {
 
     def dummyWalk(startTime: Int): BeamLeg =
-      (new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))).updateStartTime(startTime)
+      (new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0)))
+        .updateStartTime(startTime)
   }
 
   case class EmbodiedBeamLeg(

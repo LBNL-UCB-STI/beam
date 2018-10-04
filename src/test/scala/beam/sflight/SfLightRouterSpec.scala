@@ -231,16 +231,16 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                   case BeamTrip(legs, _) =>
                     legs should have size 3
                     inside(legs(0)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime,  _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
                         mode should be(WALK)
                     }
                     inside(legs(1)) {
-                      case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime,  _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
                         mode should be(CAR)
                         links should not be 'empty
                     }
                     inside(legs(2)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime,  _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
                         mode should be(WALK)
                     }
                 }

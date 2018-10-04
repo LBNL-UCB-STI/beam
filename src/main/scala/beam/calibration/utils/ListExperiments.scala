@@ -1,6 +1,5 @@
 package beam.calibration.utils
 
-import beam.utils.DebugLib
 import com.sigopt.Sigopt
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
 
@@ -12,15 +11,11 @@ object ListExperiments extends App {
 
   val experiments: Pagination[Experiment] = Experiment.list().call()
 
-  for(experiment:Experiment  <- experiments.getData.asScala){
-
-
+  for (experiment: Experiment <- experiments.getData.asScala) {
 
     val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 
     val data = suggestions.getData().asScala
-
-
 
     println(experiment.getId + ", " + experiment.getName)
 
@@ -29,6 +24,5 @@ object ListExperiments extends App {
     }
 
   }
-
 
 }

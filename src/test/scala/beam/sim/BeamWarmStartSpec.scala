@@ -10,11 +10,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class BeamWarmStartSpec
-  extends WordSpecLike
-    with Matchers
-    with BeforeAndAfterAll
-    with IntegrationSpecCommon {
+class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with IntegrationSpecCommon {
 
   lazy val testDataPath: Path = Paths.get(getTempDirectoryPath, "warmStartTestData")
 
@@ -258,8 +254,10 @@ class BeamWarmStartSpec
   }
 
   private def getWarmStart(casePath: Path): BeamWarmStart = {
-    val conf = baseConfig.withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString)).resolve()
+    val conf = baseConfig
+      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
+      .resolve()
     BeamWarmStart(BeamConfig(conf))
   }
 }

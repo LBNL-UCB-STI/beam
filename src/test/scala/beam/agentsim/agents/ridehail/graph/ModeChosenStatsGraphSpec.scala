@@ -5,7 +5,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{ModeChosenStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
+import beam.analysis.plots.ModeChosenStats
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.BeamConfig
 import com.google.inject.Provides
@@ -15,7 +15,6 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -119,7 +118,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): ModeChosenStatsGraph = {
-            val graph = new ModeChosenStatsGraph(waitingStat , BeamConfig(baseConfig))
+            val graph = new ModeChosenStatsGraph(waitingStat, BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }
