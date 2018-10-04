@@ -881,8 +881,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       mode,
       transportNetwork.streetLayer
     )
-    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _) // note we exclude the first link to keep with MATSim convention
-    val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _) // note we exclude the first link to keep with MATSim convention
+    val duration = linksTimesDistances.travelTimes.tail.sum // note we exclude the first link to keep with MATSim convention
+    val distance = linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
       linksTimesDistances.travelTimes,
@@ -914,7 +914,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _)
+        tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )

@@ -37,13 +37,10 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private double[][] statsComputed;
-
     private PersonTravelTimeStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation() {
         @Override
         public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
             Tuple<List<String>, double[][]> compute = super.compute(stat);
-            statsComputed = compute.getSecond();
             return compute;
         }
     });

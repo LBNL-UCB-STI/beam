@@ -26,10 +26,8 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     private boolean eventsForFullVersionOfVia;
     HashMap<String, HashSet<String>> filterPeopleForViaDemo = new HashMap<>();
     HashMap<String, Integer> maxPeopleForViaDemo = new HashMap<>();
-    private String outFileName;
 
     public EventWriterXML_viaCompatible(final String outFileName, boolean eventsForFullVersionOfVia) {
-        this.outFileName = outFileName;
         this.out = IOUtils.getBufferedWriter(outFileName);
         this.eventsForFullVersionOfVia = eventsForFullVersionOfVia;
 
