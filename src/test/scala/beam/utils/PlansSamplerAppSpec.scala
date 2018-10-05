@@ -14,7 +14,7 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
     "test/input/sf-light/shape/sflight_muni_mask.shp",
     "test/input/sf-light/r5/physsim-network.xml",
     "test/input/sf-light/ind_X_hh_out_test.csv.gz",
-    "test/input/beamville/vehicles.xml",  //TODO: change to sf-light
+    "test/test-resources/vehicles.xml",
     "10",
     "output/test/plansampler/",
     "epsg:4326",
