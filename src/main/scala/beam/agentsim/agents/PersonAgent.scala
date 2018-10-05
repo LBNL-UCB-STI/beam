@@ -14,11 +14,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -26,7 +22,9 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
-import beam.router.RoutingModel._
+import beam.router.model.RoutingModel.DiscreteTime
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model._
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id

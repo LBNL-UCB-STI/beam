@@ -9,7 +9,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
 import scala.util.Random

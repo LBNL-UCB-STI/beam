@@ -3,7 +3,7 @@ package beam.integration.ridehail.allocation.examples
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.allocation._
-import beam.router.RoutingModel.DiscreteTime
+import beam.router.model.RoutingModel.DiscreteTime
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle

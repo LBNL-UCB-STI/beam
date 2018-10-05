@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl

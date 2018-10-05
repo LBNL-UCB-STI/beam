@@ -1,8 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.{BeamLeg, RoutingModel}
 import beam.utils.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
