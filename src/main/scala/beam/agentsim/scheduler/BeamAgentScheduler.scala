@@ -9,7 +9,6 @@ import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAllocationManagerTimeout
-import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -106,6 +105,7 @@ object BeamAgentScheduler {
         case c => c
       }
   }
+
 }
 
 class BeamAgentScheduler(
@@ -136,11 +136,8 @@ class BeamAgentScheduler(
   private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
 
   private var startedAt: Deadline = _
-
   // Event stream state and cleanup management
   private var currentIter: Int = -1
-  private val eventSubscriberRef =
-    context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
     mutable.HashMap.empty
@@ -160,7 +157,7 @@ class BeamAgentScheduler(
       triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
+      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick.toDouble)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
   }
@@ -300,7 +297,7 @@ class BeamAgentScheduler(
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+          awaitingResponse.put(triggerWithId.trigger.tick.toDouble, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)

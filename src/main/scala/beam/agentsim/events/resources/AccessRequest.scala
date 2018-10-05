@@ -3,7 +3,7 @@ package beam.agentsim.events.resources
 import java.time.Period
 
 import akka.actor.ActorRef
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import enumeratum._
 import org.matsim.api.core.v01.Id
 

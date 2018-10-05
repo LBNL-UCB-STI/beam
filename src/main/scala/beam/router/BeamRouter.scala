@@ -18,8 +18,9 @@ import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel._
+import beam.router.model._
 import beam.router.gtfs.FareCalculator
+import beam.router.model.RoutingModel.BeamTime
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.metrics.MetricsPrinter

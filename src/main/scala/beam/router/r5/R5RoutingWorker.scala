@@ -16,14 +16,16 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
-import beam.router.RoutingModel.BeamLeg._
-import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
+import beam.router.model.BeamLeg._
+import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
+import beam.router.model.RoutingModel
+import beam.router.model.RoutingModel.{DiscreteTime, LinksTimesDistances, WindowTime}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router.{Modes, RoutingModel, TransitInitializer}
+import beam.router.{Modes, TransitInitializer}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -254,14 +256,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
           case Some(matsimTravelTime) =>
-            matsimTravelTime
-              .getLinkTravelTime(
-                network.getLinks.get(Id.createLinkId(linkId)),
-                time.toDouble,
-                null,
-                null
-              )
-              .toInt
+            getTravelTime(time, linkId, matsimTravelTime).toInt
           case None =>
             val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
             (edge.getLengthM / edge.calculateSpeed(
@@ -385,7 +380,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-//    log.debug(profileRequest.toString)
+    //    log.debug(profileRequest.toString)
     val result = try {
       getPlan(profileRequest)
     } catch {
@@ -394,12 +389,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       case _: ArrayIndexOutOfBoundsException =>
         new ProfileResponse
     }
-//    log.debug(s"# options found = ${result.options.size()}")
+    //    log.debug(s"# options found = ${result.options.size()}")
     result
   }
 
   def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
-//    log.debug(routingRequest.toString)
+    //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
@@ -802,10 +797,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       routingRequest.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK)) {
-//      log.debug("No walk route found. {}", routingRequest)
+      //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-//        log.debug("Adding dummy walk route with maximum street time.")
+        //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
           beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
           beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
@@ -819,7 +814,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           Some(routingRequest.requestId)
         )
       } else {
-//        log.debug("Not adding a dummy walk route since agent has no body.")
+        //        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(
           embodiedTrips,
           routingRequest.staticRequestId,
@@ -888,8 +883,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       mode,
       transportNetwork.streetLayer
     )
-    val duration = linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _) // note we exclude the first link to keep with MATSim convention
-    val distance = linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _) // note we exclude the first link to keep with MATSim convention
+    val duration = linksTimesDistances.travelTimes.tail.sum // note we exclude the first link to keep with MATSim convention
+    val distance = linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
       linksTimesDistances.travelTimes,
@@ -921,7 +916,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.foldLeft(0)(_ + _)
+        tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
@@ -1026,35 +1021,43 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // MATSim network.
               (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
             } else {
-              travelTime
-                .getLinkTravelTime(
-                  network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)),
-                  startTime + durationSeconds,
-                  null,
-                  null
-                )
-                .asInstanceOf[Float]
+              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
             }
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
+
   private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        matsimTravelTime
-          .getLinkTravelTime(
-            network.getLinks.get(Id.createLinkId(linkId)),
-            time.toDouble,
-            null,
-            null
-          )
-          .toInt
+        getTravelTime(time, linkId, matsimTravelTime).toInt
+
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
         val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
         tt.toInt
     }
+  }
+
+  private def getTravelTime(time: Int, linkId: Int, matsimTravelTime: TravelTime): Double = {
+    var travelTime = matsimTravelTime
+      .getLinkTravelTime(
+        network.getLinks.get(Id.createLinkId(linkId)),
+        time.toDouble,
+        null,
+        null
+      )
+
+    val travelSpeed = network.getLinks.get(Id.createLinkId(linkId)).getLength / travelTime
+    if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+      network.getLinks
+        .get(Id.createLinkId(linkId))
+        .getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+    } else {
+      travelTime
+    }
+
   }
 
   private val turnCostCalculator: TurnCostCalculator =
@@ -1095,13 +1098,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
             option.addDirect(streetSegment, request.getFromTimeDateZD)
           } else {
-//            log.debug("Direct mode {} last state wasn't found", mode)
+            //            log.debug("Direct mode {} last state wasn't found", mode)
           }
         } else {
-//          log.debug("Direct mode {} destination wasn't found!", mode)
+          //          log.debug("Direct mode {} destination wasn't found!", mode)
         }
       } else {
-//        log.debug("Direct mode {} origin wasn't found!", mode)
+        //        log.debug("Direct mode {} origin wasn't found!", mode)
       }
     }
     option.summary = option.generateSummary
@@ -1152,7 +1155,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         foo(o1, o2)
       })
-//      log.debug("Usefull paths:{}", usefullpathList.size)
+      //      log.debug("Usefull paths:{}", usefullpathList.size)
 
       for (path <- usefullpathList.asScala) {
         profileResponse.addTransitPath(
@@ -1168,8 +1171,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       } // latency possible candidate
     }
     profileResponse.recomputeStats(request)
-//    log.debug("Returned {} options", profileResponse.getOptions.size)
-//    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
+    //    log.debug("Returned {} options", profileResponse.getOptions.size)
+    //    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
     profileResponse
   }
 

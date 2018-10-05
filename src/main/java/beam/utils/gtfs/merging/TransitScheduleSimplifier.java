@@ -25,7 +25,6 @@ public class TransitScheduleSimplifier {
     private static final Logger log = LoggerFactory.getLogger(TransitScheduleSimplifier.class);
 
     private final Map<Id, Double[]> departures = new HashMap<>();
-    private TransitSchedule transitSchedule;
     private TransitSchedule mergedSchedule;
     private List<TransitStopFacility> checkedFacilities = new ArrayList<>();
 
@@ -370,7 +369,7 @@ public class TransitScheduleSimplifier {
 
         TransitScheduleFactoryImpl factory = new TransitScheduleFactoryImpl();
 
-        this.transitSchedule = scenario.getTransitSchedule();
+        TransitSchedule transitSchedule = scenario.getTransitSchedule();
 
         mergedSchedule = factory.createTransitSchedule();
 
