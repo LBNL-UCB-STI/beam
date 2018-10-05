@@ -133,8 +133,7 @@ object HouseholdActor {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
-    override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
-      collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
+    val personAttributes: ObjectAttributes = population.getPersonAttributes
     household.members.foreach { person =>
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
@@ -201,7 +200,9 @@ object HouseholdActor {
       beamServices.personRefs += ((personId, personRef))
 
     }
-    val personAttributes: ObjectAttributes = population.getPersonAttributes
+
+    override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
+      collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
     resources ++ vehicles
 
     /**
@@ -308,9 +309,6 @@ object HouseholdActor {
           .filter { theveh =>
             // also make sure there isn't another driver using this vehicle
             val existingDriver = beamServices.vehicles(theveh.id).driver
-            if (existingDriver.isDefined) {
-              val i = 0
-            }
             existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString)
           }
           .foreach { x =>
@@ -387,9 +385,6 @@ object HouseholdActor {
 
     private def initializeHouseholdVehicles(): Unit = {
       // Add the vehicles to resources managed by this ResourceManager.
-      if (id.toString.equals("025401-2013001385345-0") || id.toString.equals("032901-2015001323724-0")) {
-        val i = 0
-      }
 
       vehicles.foreach(idAndVeh => resources.put(idAndVeh._1, idAndVeh._2))
       // Initial assignments
