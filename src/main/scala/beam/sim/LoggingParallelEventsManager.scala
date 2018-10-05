@@ -1,5 +1,6 @@
 package beam.sim
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent._
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
@@ -9,17 +10,23 @@ import org.matsim.core.config.Config
 import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.events.handler.EventHandler
 
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+
 class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
   private val eventManager = new ParallelEventsManagerImpl(config.parallelEventHandling().getNumberOfThreads())
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)
-  val threshold: Int = 1000000
   logger.info(s"Created ParallelEventsManagerImpl with hashcode: ${eventManager.hashCode()}")
 
+  private val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
+  private val nonBlockingQueue: ConcurrentLinkedQueue[Event] = new ConcurrentLinkedQueue[Event]
+  private val blockingQueue: BlockingQueue[Event] = new LinkedBlockingQueue[Event]
+  private val isFinished: AtomicBoolean = new AtomicBoolean(false)
+  private var dedicatedHandler: Option[Future[Unit]] = None
+
   override def processEvent(event: Event): Unit = {
-    tryLog("processEvent", eventManager.processEvent(event))
-    val processed = numOfEvents.incrementAndGet()
-    if (processed % threshold == 0)
-      logger.debug(s"Processed next $threshold events. Total: $processed")
+    // queue.add(event)
+    blockingQueue.add(event)
   }
 
   override def addHandler(handler: EventHandler): Unit = {
@@ -37,6 +44,8 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
   override def initProcessing(): Unit = {
     numOfEvents.set(0)
     tryLog("initProcessing", eventManager.initProcessing())
+    isFinished.set(false)
+    dedicatedHandler = Some(createDedicatedHandler)
   }
 
   override def afterSimStep(time: Double): Unit = {
@@ -44,6 +53,13 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
   }
   override def finishProcessing(): Unit = {
     tryLog("finishProcessing", eventManager.finishProcessing())
+    isFinished.set(true)
+    logger.info("Set `isFinished` to true")
+    dedicatedHandler.foreach { f =>
+      logger.info("Starting to wait dedicatedHandler future to finish...")
+      Await.result(f, 1000.seconds)
+      logger.info("dedicatedHandler future finished.")
+    }
     logger.debug(s"Overall processed events: ${numOfEvents.get()}")
   }
 
@@ -56,4 +72,53 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
         logger.error(s"Method '$what' failed with: ${t.getMessage}. Stacktrace: $st", t)
     }
   }
+
+  private def createDedicatedHandler: Future[Unit] = {
+    logger.info("Running dedicated blocking handler...")
+    Future {
+      // Let's go for now with blocking approach because it's safe CPU and pretty good for
+      // the scenario when it's many writers but only one reader
+      handleBlocking()
+    }(ec)
+  }
+
+  private def handleNonBlocking(): Unit = {
+    // This is going to waste some CPU
+    while (!isFinished.get()) {
+      val event = nonBlockingQueue.poll()
+      if (null != event)
+        eventManager.processEvent(event)
+    }
+    // We have to consumer the whole queue
+    var isDone = false
+    val start = System.currentTimeMillis()
+    while (!isDone) {
+      val event = nonBlockingQueue.poll()
+      if (null != event)
+        eventManager.processEvent(event)
+      else
+        isDone = true
+    }
+    val end = System.currentTimeMillis()
+    logger.info("Stopped dedicated handler(handleNonBlocking). Took {} ms to process after stop", end - start)
+  }
+
+  private def handleBlocking(): Unit = {
+    while (!isFinished.get()) {
+      val event = blockingQueue.poll(1, TimeUnit.SECONDS)
+      if (null != event)
+        eventManager.processEvent(event)
+    }
+    // We have to consumer the whole queue
+    var isDone = false
+    val start = System.currentTimeMillis()
+    while (!isDone) {
+      val event = blockingQueue.poll()
+      if (null != event)
+        eventManager.processEvent(event)
+      else
+        isDone = true
+    }
+    val end = System.currentTimeMillis()
+    logger.info("Stopped dedicated handler(handleBlocking). Took {} ms to process after stop", end - start)  }
 }
