@@ -27,8 +27,11 @@ import scala.concurrent.duration.Duration
   * BEAM
   */
 object ChoosesParking {
+
   case object ChoosingParkingSpot extends BeamAgentState
+
   case object ReleasingParkingSpot extends BeamAgentState
+
 }
 
 trait ChoosesParking extends {
@@ -114,10 +117,6 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      if (id.equals("501900-2013001147754-0-3400175")) {
-        val i = 0
-      }
-
       val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
@@ -143,7 +142,7 @@ trait ChoosesParking extends {
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
-          DiscreteTime(currentPoint.time.toInt),
+          DiscreteTime(currentPoint.time),
           Vector(),
           Vector(carStreetVeh, bodyStreetVeh)
         )
@@ -152,7 +151,7 @@ trait ChoosesParking extends {
         val futureStall2DestinationResponse = router ? RoutingRequest(
           beamServices.geo.utm2Wgs(stall.location),
           finalPoint.loc,
-          DiscreteTime(currentPoint.time.toInt),
+          DiscreteTime(currentPoint.time),
           Vector(),
           Vector(
             StreetVehicle(

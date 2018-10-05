@@ -15,9 +15,6 @@ object DrivingCostDefaults {
     beamServices: BeamServices
   ): IndexedSeq[BigDecimal] = {
 
-    val drivingCostConfig =
-      beamServices.beamConfig.beam.agentsim.agents.drivingCost
-
     alternatives.map { alt =>
       alt.tripClassifier match {
         case CAR if alt.costEstimate == 0.0 =>
@@ -39,7 +36,7 @@ object DrivingCostDefaults {
             .sum
 
           val cost =
-            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
+            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType) {
               (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
             } else {
               0 //TODO
