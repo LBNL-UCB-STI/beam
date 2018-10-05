@@ -3,7 +3,8 @@ package beam.sflight
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.{BeamRouter, Modes, RoutingModel}
+import beam.router.model.RoutingModel
+import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.language.postfixOps

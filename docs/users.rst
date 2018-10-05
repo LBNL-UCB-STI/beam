@@ -328,9 +328,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 8. Run the conversion tool
 
-* Main class to execute: beam.utils.matsim_conversion.MatsimConversionTool
-* Program arguments, path to beam config file from above, siouxfalls.conf: path/to/beam.conf
-* Environment variables: PWD=/path/to/beam/folder
+* Open command line in beam root directory and run the following command, replace [/path/to/conf/file] with the path to your config file: gradlew matsimConversion -PconfPath=[/path/to/conf/file]
 
 The tool should produce the following outputs:
 

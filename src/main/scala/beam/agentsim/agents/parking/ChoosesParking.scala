@@ -17,7 +17,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.RoutingModel.{DiscreteTime, EmbodiedBeamTrip}
+import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.RoutingModel.DiscreteTime
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration

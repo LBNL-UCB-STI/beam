@@ -2,7 +2,7 @@ package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, FERRY, RAIL, SUBWAY}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import org.matsim.api.core.v01.Id
 
 /**
