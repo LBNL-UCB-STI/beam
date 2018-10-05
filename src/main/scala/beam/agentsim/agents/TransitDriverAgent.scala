@@ -15,7 +15,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id

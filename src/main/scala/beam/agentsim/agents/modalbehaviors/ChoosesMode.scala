@@ -18,13 +18,15 @@ import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel._
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.RoutingModel._
 import beam.router.r5.R5RoutingWorker
 import beam.utils.plansampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._

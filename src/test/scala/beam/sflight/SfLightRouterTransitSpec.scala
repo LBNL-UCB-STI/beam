@@ -10,8 +10,8 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel
 import beam.router.gtfs.FareCalculator
+import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -227,7 +227,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     writer.close()
   }
 
-  def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
+  def assertMakesSense(trip: EmbodiedBeamTrip): Unit = {
     var time = trip.legs.head.beamLeg.startTime
     trip.legs.foreach(leg => {
       assert(leg.beamLeg.startTime >= time, "Leg starts when or after previous one finishes.")

@@ -12,11 +12,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
@@ -40,7 +36,7 @@ import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.VehicleType
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -114,7 +110,7 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
-    beamServices.startNewIteration
+    beamServices.startNewIteration()
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
@@ -206,13 +202,6 @@ class BeamMobsim @Inject()(
         private val numRideHailAgents = math.round(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
-        private val rideHailVehicleType =
-          BeamVehicleUtils
-            .getVehicleTypeById(
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId,
-              scenario.getVehicles.getVehicleTypes
-            )
-            .getOrElse(scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType])))
 
         val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
           scenario.getPopulation.getPersons
@@ -302,9 +291,9 @@ class BeamMobsim @Inject()(
 
             val ridehailBeamVehicleTypeId =
               Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+
             val ridehailBeamVehicleType = beamServices.vehicleTypes
-              .get(ridehailBeamVehicleTypeId)
-              .getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
+              .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
 
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
@@ -361,18 +350,18 @@ class BeamMobsim @Inject()(
               .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png")
           )
         }
-        log.info(s"Initialized ${beamServices.personRefs.size} people")
-        log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
-        log.info(s"Initialized $numRideHailAgents ride hailing agents")
+        log.info("Initialized {} people", beamServices.personRefs.size)
+        log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())
+        log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0) {
           val warmStart = BeamWarmStart(beamServices.beamConfig)
-          warmStart.warmStartRouterIfNeeded(beamServices.beamRouter)
+          warmStart.warmStartTravelTime(beamServices.beamRouter)
         }
 
-        log.info(s"Transit schedule has been initialized")
+        log.info("Transit schedule has been initialized")
 
         scheduleRideHailManagerTimerMessages()
 

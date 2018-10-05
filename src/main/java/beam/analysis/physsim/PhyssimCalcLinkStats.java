@@ -96,7 +96,7 @@ public class PhyssimCalcLinkStats {
     }
 
     private boolean isNotTestMode() {
-        return beamConfig != null;
+        return controllerIO != null;
     }
 
 

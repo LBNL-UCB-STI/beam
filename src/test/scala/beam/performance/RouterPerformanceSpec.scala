@@ -11,14 +11,15 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
+import beam.router.BeamRouter
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, BUS, CAR, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RoutingModel.WindowTime
 import beam.router.gtfs.FareCalculator
+import beam.router.model.RoutingModel
+import beam.router.model.RoutingModel.WindowTime
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
-import beam.router.{BeamRouter, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -37,15 +38,11 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{
-  FreespeedTravelTimeAndDisutility,
-  RandomizingTimeDistanceTravelDisutilityFactory
-}
+import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
-import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest._

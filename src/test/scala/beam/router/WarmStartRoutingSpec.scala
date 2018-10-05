@@ -11,6 +11,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.CAR
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
+import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
@@ -37,7 +38,6 @@ class WarmStartRoutingSpec
         "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-          .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
@@ -59,11 +59,10 @@ class WarmStartRoutingSpec
   override def beforeAll: Unit = {
     val config = baseConfig
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.pathType", ConfigValueFactory.fromAnyRef("ABSOLUTE_PATH"))
       .withValue(
         "beam.warmStart.path",
         ConfigValueFactory
-          .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+          .fromAnyRef("test/input/beamville/test-data")
       )
     val beamConfig = BeamConfig(config)
 
@@ -130,7 +129,8 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      new BeamWarmStart(services.beamConfig).warmStartRouterIfNeeded(services.beamRouter)
+      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+
       router ! RoutingRequest(
         origin,
         destination,

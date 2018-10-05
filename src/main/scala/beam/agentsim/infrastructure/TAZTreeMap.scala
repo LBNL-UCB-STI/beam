@@ -186,4 +186,5 @@ object TAZTreeMap {
       this(Id.create(tazIdString, classOf[TAZ]), coord, area)
     }
   }
+
 }
