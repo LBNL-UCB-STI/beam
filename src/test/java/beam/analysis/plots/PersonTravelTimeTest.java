@@ -37,13 +37,8 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation() {
-        @Override
-        public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
-            Tuple<List<String>, double[][]> compute = super.compute(stat);
-            return compute;
-        }
-    });
+    private PersonTravelTimeStats personTravelTimeStats = new PersonTravelTimeStats(
+            new PersonTravelTimeStats.PersonTravelTimeComputation() {});
 
     @Before
     public void setUpClass() {
