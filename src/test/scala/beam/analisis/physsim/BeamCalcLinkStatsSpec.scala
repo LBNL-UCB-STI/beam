@@ -53,7 +53,7 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
     val events = EventsUtils.createEventsManager()
     events.addHandler(travelTimeCalculator)
 
-    beamCalcLinkStats = new BeamCalcLinkStats(network, 0.5)
+    beamCalcLinkStats = new BeamCalcLinkStats(network)
     beamCalcLinkStats.reset()
     val volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network)
     events.addHandler(volumes)
