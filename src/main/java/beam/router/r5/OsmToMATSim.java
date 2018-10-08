@@ -46,8 +46,7 @@ public class OsmToMATSim {
 //	}
 
 
-    public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
-                       boolean useBEAMHighwayDefaults) {
+    public OsmToMATSim(final Network mNetwork, boolean useBEAMHighwayDefaults) {
         this.mNetwork = mNetwork;
         if (useBEAMHighwayDefaults) {
 

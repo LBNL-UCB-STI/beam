@@ -133,7 +133,7 @@ public class RideHailWaitingStats implements IGraphStats {
                                 BeamConfig beamConfig){
         this.statComputation = statComputation;
 
-        int timeBinSize = beamConfig.beam().outputs().stats().binSize();
+        final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
