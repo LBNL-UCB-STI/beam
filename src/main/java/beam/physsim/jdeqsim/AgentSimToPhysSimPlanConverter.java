@@ -140,8 +140,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-        linkSpeedStatsGraph.notifyIterationStarts(jdeqsimEvents);
-        linkSpeedDistributionStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
@@ -182,6 +180,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }));
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator)));
+
+
+        completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator)));
+
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();
