@@ -45,15 +45,16 @@ object DrivesVehicle {
   case class AddFuel(fuelInJoules: Double)
 
   case class StartRefuelTrigger(tick: Int) extends Trigger
-  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
-  case object GetBeamVehicleState
+  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
   case class StopDrivingIfNoPassengerOnBoard(tick: Int, requestId: Int)
 
   case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
+
+  case object GetBeamVehicleState
 
 }
 
@@ -76,7 +77,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       case Some(currentLeg) =>
         println(currentLeg)
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-          log.info(s"stopping vehicle: $id")
+          log.info("stopping vehicle: {}", id)
           goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
             success = true,
             requestId,
@@ -124,7 +125,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 )
               }
               log.debug(
-                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl) - tick($tick)"
+                "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})",
+                nextNotifyVehicleResourceIdle,
+                currentVehicleUnderControl,
+                tick
               )
 
               data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
@@ -268,15 +272,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
+    /* TODO: fix it, this case is unreachable
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-
+   */
   }
 
   when(DrivingInterrupted) {
     case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
-      val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
+      //      val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
@@ -311,7 +316,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               )
 
               log.debug(
-                s"DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle"
+                "DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:{}",
+                nextNotifyVehicleResourceIdle
               )
 
               eventsManager.processEvent(
@@ -592,7 +598,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + $stateName")
+      log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
     //stay()

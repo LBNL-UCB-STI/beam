@@ -18,17 +18,30 @@ trait PopulationAdjustment extends LazyLogging {
   protected final def logModes(population: Population): Unit = {
     import scala.collection.JavaConverters._
     logger.info("Modes' Availability:")
+
+    var allAgentshaveAttributes = true;
     population.getPersons
       .keySet()
       .asScala
       .map(
-        personId => population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
+        personId => {
+          if (population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES) != null) {
+            population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
+          } else {
+            allAgentshaveAttributes = false
+            Array[String]()
+          }
+        }
       )
       .toList
       .flatten
       .groupBy(identity)
       .mapValues(_.size)
       .foreach(t => logger.info(t.toString()))
+
+    if (!allAgentshaveAttributes) {
+      logger.error("not all agents have person attributes - is attributes file missing?")
+    }
   }
 
   protected def updatePopulation(scenario: Scenario): Population

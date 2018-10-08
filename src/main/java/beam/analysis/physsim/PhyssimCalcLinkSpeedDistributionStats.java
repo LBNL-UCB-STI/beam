@@ -287,12 +287,4 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
-    /**
-     * Iteration start notification event listener
-     * @param eventsManager The events manager class
-     */
-    public void notifyIterationStarts(EventsManager eventsManager) {
-    }
-
-
 }
