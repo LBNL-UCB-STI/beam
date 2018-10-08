@@ -120,10 +120,10 @@ object BeamServices {
       TAZTreeMap.fromCsv(filePath)
     } catch {
       case fe: FileNotFoundException =>
-        logger.error("No TAZ file found at given file path : %s" format filePath,fe)
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath,fe)
         BeamServices.defaultTazTreeMap
       case e: Exception =>
-        logger.error("Exception occurred while reading from CSV file from path : %s" format e.getMessage,e)
+        logger.error("Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,e)
         BeamServices.defaultTazTreeMap
     }
   }
