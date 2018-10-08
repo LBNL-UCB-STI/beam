@@ -156,13 +156,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         endSegment("jdeqsim-execution", "jdeqsim");
         log.info("JDEQSim End");
 
-
-        // TODO: add to async block (was creating race condition before in last iteartion, therefore moved here)
-        // some fix needed with async block?
-
-        if (this.controlerIO != null) {
+        String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
+        if (this.controlerIO != null
+                && (objectiveFunction.equals("CountsObjectiveFunction")
+                || objectiveFunction.equals("ModeChoiceAndCountsObjectiveFunction"))) {
             try {
-                // TODO: handle case, when counts compare not available - provide hint, why we cannot produce
                 String outPath =
                         controlerIO
                                 .getIterationFilename(iterationNumber, "countscompare.txt");
@@ -171,7 +169,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             } catch (Exception e) {
                 log.error("exception {}", e.getMessage());
             }
-
         }
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
