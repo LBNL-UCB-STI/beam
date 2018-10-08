@@ -158,10 +158,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         endSegment("jdeqsim-execution", "jdeqsim");
         log.info("JDEQSim End");
 
-
-        // TODO: add to async block (was creating race condition before in last iteartion, therefore moved here)
-        // some fix needed with async block?
-
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
                 && (objectiveFunction.equals("CountsObjectiveFunction")
@@ -175,7 +171,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             } catch (Exception e) {
                 log.error("exception {}", e.getMessage());
             }
-
         }
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
