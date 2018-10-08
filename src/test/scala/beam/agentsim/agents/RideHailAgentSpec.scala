@@ -71,7 +71,7 @@ class RideHailAgentSpec
     when(theServices.geo).thenReturn(geo)
     theServices
   }
-  lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
   case class TestTrigger(tick: Int) extends Trigger
 
