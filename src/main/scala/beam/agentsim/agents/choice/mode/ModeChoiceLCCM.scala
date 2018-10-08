@@ -9,7 +9,7 @@ import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
 /**
@@ -134,6 +134,55 @@ class ModeChoiceLCCM(
   def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double =
     0.0
 
+  def sampleMode(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    conditionedOnModalityStyle: String,
+    tourType: TourType
+  ): Option[String] = {
+    val bestInGroup = altsToBestInGroup(alternatives, tourType)
+    val modeChoiceInputData = bestInGroup.map { alt =>
+      val theParams = Map(
+        "cost" -> alt.cost,
+        "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
+      )
+      AlternativeAttributes(alt.mode.value, theParams)
+    }
+    lccm
+      .modeChoiceModels(tourType)(conditionedOnModalityStyle)
+      .sampleAlternative(modeChoiceInputData, new Random())
+  }
+
+  def utilityAcrossModalityStyles(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    tourType: TourType
+  ): Map[String, Double] = {
+    lccm
+      .classMembershipModels(tourType)
+      .alternativeParams
+      .keySet
+      .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
+      .toMap
+  }
+
+  def utilityOf(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    conditionedOnModalityStyle: String,
+    tourType: TourType
+  ): Double = {
+    val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
+
+    utilityOf(
+      best.mode,
+      conditionedOnModalityStyle,
+      tourType,
+      best.cost,
+      scaleTimeByVot(
+        best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
+        Some(best.mode)
+      )
+    )
+  }
+
   def altsToBestInGroup(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     tourType: TourType
@@ -205,55 +254,6 @@ class ModeChoiceLCCM(
           ._2
     }
     bestInGroup.toVector
-  }
-
-  def sampleMode(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    conditionedOnModalityStyle: String,
-    tourType: TourType
-  ): Option[String] = {
-    val bestInGroup = altsToBestInGroup(alternatives, tourType)
-    val modeChoiceInputData = bestInGroup.map { alt =>
-      val theParams = Map(
-        "cost" -> alt.cost,
-        "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
-      )
-      AlternativeAttributes(alt.mode.value, theParams)
-    }
-    lccm
-      .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .sampleAlternative(modeChoiceInputData, new Random())
-  }
-
-  def utilityAcrossModalityStyles(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    tourType: TourType
-  ): Map[String, Double] = {
-    lccm
-      .classMembershipModels(tourType)
-      .alternativeParams
-      .keySet
-      .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
-      .toMap
-  }
-
-  def utilityOf(
-    embodiedBeamTrip: EmbodiedBeamTrip,
-    conditionedOnModalityStyle: String,
-    tourType: TourType
-  ): Double = {
-    val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
-
-    utilityOf(
-      best.mode,
-      conditionedOnModalityStyle,
-      tourType,
-      best.cost,
-      scaleTimeByVot(
-        best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
-        Some(best.mode)
-      )
-    )
   }
 
   def utilityOf(

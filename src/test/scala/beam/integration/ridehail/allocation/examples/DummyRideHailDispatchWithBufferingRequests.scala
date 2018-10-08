@@ -2,7 +2,7 @@ package beam.integration.ridehail.allocation.examples
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.allocation._
-import beam.router.RoutingModel.DiscreteTime
+import beam.router.model.RoutingModel.DiscreteTime
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {

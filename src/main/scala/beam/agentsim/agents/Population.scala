@@ -4,32 +4,28 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
-import akka.event.LoggingAdapter
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.vehicleId2BeamVehicleId
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.vehicleId2BeamVehicleId
 import beam.sim.BeamServices
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.contrib.bicycle.BicycleUtils
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 class Population(
   val scenario: Scenario,
@@ -52,7 +48,7 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val initParkingVeh = mutable.ListBuffer[ActorRef]()
+  val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer[ActorRef]()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map[Id[Person], Id[Household]]()
@@ -69,7 +65,7 @@ class Population(
     // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
-      initParkingVeh.foreach(context.stop(_))
+      initParkingVeh.foreach(context.stop)
       initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
@@ -157,7 +153,7 @@ class Population(
                   0
                 ) //TODO personSelectedPlan.getType is null
 
-                def receive = {
+                def receive: Receive = {
                   case ParkingInquiryResponse(stall, _) =>
                     vehicle._2.useParkingStall(stall)
                     context.stop(self)
@@ -183,9 +179,7 @@ class Population(
 
 object Population {
   val defaultVehicleRange = 500e3
-  val refuelRateLimitInWatts = None
-
-  case object InitParkingVehicles
+  val refuelRateLimitInWatts: Option[_] = None
 
   def getVehiclesFromHousehold(
     household: Household,
@@ -232,5 +226,7 @@ object Population {
       )
     )
   }
+
+  case object InitParkingVehicles
 
 }

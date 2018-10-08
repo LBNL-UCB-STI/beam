@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.FileNotFoundException
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -10,7 +11,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -21,6 +22,9 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
+import org.matsim.vehicles.Vehicle
+import org.slf4j.LoggerFactory
+import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -99,6 +103,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 }
 
 object BeamServices {
+  private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
   val defaultTazTreeMap: TAZTreeMap = {
@@ -108,9 +113,16 @@ object BeamServices {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getTazTreeMap(file: String): TAZTreeMap = {
-    Try(TAZTreeMap.fromCsv(file)).getOrElse {
-      BeamServices.defaultTazTreeMap
+  def getTazTreeMap(filePath: String): TAZTreeMap = {
+    try {
+      TAZTreeMap.fromCsv(filePath)
+    } catch {
+      case fe: FileNotFoundException =>
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath,fe)
+        BeamServices.defaultTazTreeMap
+      case e: Exception =>
+        logger.error("Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,e)
+        BeamServices.defaultTazTreeMap
     }
   }
 

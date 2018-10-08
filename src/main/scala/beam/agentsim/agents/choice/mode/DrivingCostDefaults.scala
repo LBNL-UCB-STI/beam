@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
 /**
@@ -14,9 +14,6 @@ object DrivingCostDefaults {
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
   ): IndexedSeq[BigDecimal] = {
-
-    val drivingCostConfig =
-      beamServices.beamConfig.beam.agentsim.agents.drivingCost
 
     alternatives.map { alt =>
       alt.tripClassifier match {

@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 
 /**
   * RideHailDefaults
