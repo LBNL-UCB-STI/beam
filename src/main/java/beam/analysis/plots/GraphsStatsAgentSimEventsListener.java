@@ -167,11 +167,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception{
-        if(modeChoseStats instanceof  ModeChosenStats){
-            ModeChosenStats modeStats = (ModeChosenStats) modeChoseStats;
-            modeStats.notifyShutdown(event);
-        }
-
         if(realizedModeStats instanceof RealizedModeStats){
             RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
             realizedStats.notifyShutdown(event);
