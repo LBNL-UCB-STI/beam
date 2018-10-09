@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.BeamLeg
 import beam.sim.HasServices
-import beam.utils.{DebugLib, TravelTimeUtils}
+import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
