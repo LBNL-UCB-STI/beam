@@ -49,7 +49,7 @@ object ReplanningUtil {
 
     if (originalPlan.getPlanElements.size() > experiencedPlan.getPlanElements.size()) {
       DebugLib.emptyFunctionForSettingBreakPoint()
-      for (i <- experiencedPlan.getPlanElements.size() to originalPlan.getPlanElements.size() - 1) {
+      for (i <- experiencedPlan.getPlanElements.size() until originalPlan.getPlanElements.size()) {
         if (originalPlan.getPlanElements.get(i).isInstanceOf[Activity]) {
           experiencedPlan.addActivity(
             PopulationUtils.createActivity(originalPlan.getPlanElements.get(i).asInstanceOf[Activity])
