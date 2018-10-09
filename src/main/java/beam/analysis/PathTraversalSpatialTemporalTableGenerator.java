@@ -214,6 +214,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
         if (vehicleIdString.contains(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)) {
             // is transit agency
+            if(vehicles == null) return null;
             transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
             Id<BeamVehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), BeamVehicleType.class);
 
@@ -236,7 +237,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     private static boolean isElectricEnergy(String vehicleIdString, String mode) {
-        return getFuelType(vehicleIdString, mode).equalsIgnoreCase(ELECTRICITY);
+        return ELECTRICITY.equalsIgnoreCase(getFuelType(vehicleIdString, mode));
     }
 
     private static Double convertFuelToMJ(Double fuel, String mode, boolean isElectricEnergy) {
