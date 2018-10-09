@@ -137,7 +137,6 @@ class RouterPerformanceSpec
 
   override def afterAll(configMap: ConfigMap): Unit = {
     shutdown()
-    //    if (isMetricsEnable()) Kamon.shutdown()
   }
 
   "A Beam router" must {
@@ -146,7 +145,6 @@ class RouterPerformanceSpec
 
       logger.debug("=================BEAM=================")
 
-      //      val dataSet = getR5Dataset(scenario, 100000)
       runSet.foreach(n => {
         val testSet = dataSet.take(n)
         val start = System.currentTimeMillis()
@@ -230,13 +228,6 @@ class RouterPerformanceSpec
               router ! RoutingRequest(origin, destination, time, transitModes, streetVehicles)
               expectMsgType[RoutingResponse]
             }
-//            logger.debug("--------------------------------------")
-//            response.itineraries.foreach(
-//              i =>
-//                logger.debug(
-//                  s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"
-//              )
-//            )
           })
           val latency = System.currentTimeMillis() - start
           logger.debug(
@@ -246,41 +237,6 @@ class RouterPerformanceSpec
       })
     }
   }
-
-  //  "A R5 router" must {
-  //
-  //    "respond with a car route for each trip" in {
-  //      //--------------------------------------------
-  //
-  //
-  //      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-  //      val scenario = ScenarioUtils.loadScenario(matsimConfig)
-  //
-  //      val beamConfig = BeamConfig(config)
-  //      val transportNetwork = TransportNetwork.fromDirectory(Paths.get(beamConfig.beam.routing.r5.directory).toFile)
-  //
-  //      val pointToPointQuery = new PointToPointQuery(transportNetwork)
-  //
-  //      val activitySet = getR5Dataset(scenario, 100000).map(p => buildRequest(transportNetwork, p(0), p(1)))
-  //      runSet.foreach( n => {
-  //        val testSet = activitySet.take(n)
-  //        val start = System.currentTimeMillis()
-  //        try {
-  //          testSet.foreach(req => {
-  //            val plan = pointToPointQuery.getPlan(req)
-  //            if(plan.options.size() > 0) {
-  //              logger.debug(plan)
-  //            }
-  //
-  //          })
-  //        } finally {
-  //          val latency = System.currentTimeMillis() - start
-  //          logger.debug()
-  //          logger.debug("Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0)
-  //        }
-  //      })
-  //    }
-  //  }
 
   "A MATSIM Router" must {
 
@@ -340,10 +296,6 @@ class RouterPerformanceSpec
       val start = System.currentTimeMillis()
       testSet.foreach({ pare =>
         val path = routerAlgo.calcLeastCostPath(pare.head, pare(1), 8.0 * 3600, null, null)
-      //        logger.debug("--------------------------------------")
-      //        logger.debug(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
-      //        logger.debug(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
-      //        logger.debug(s"links#${path.links.size()}, nodes#${path.nodes.size()}, time:${path.travelTime}")
       })
       val latency = System.currentTimeMillis() - start
       logger.debug(
@@ -445,7 +397,6 @@ class RouterPerformanceSpec
     val data1 = data.take(data.size / 2)
     val data2 = data.takeRight(data.size / 2 - 1)
     for { x <- data1; y <- data2 if x != y } yield (x, y)
-    //      data.flatMap(x => data.map(y => if(x!=y) (x,y))).asInstanceOf[Seq[(Activity,Activity)]]
   }
 
   def planToVec(plan: Plan): Vector[Activity] = {
@@ -510,7 +461,6 @@ class RouterPerformanceSpec
     profileRequest.toLat = destination.getX
     profileRequest.toLon = destination.getY
 
-    //setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
     val time = WindowTime(fromFacility.getEndTime.toInt)
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
