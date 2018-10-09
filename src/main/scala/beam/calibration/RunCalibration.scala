@@ -138,7 +138,7 @@ object RunCalibration extends App with BeamHelper {
           (RUN_TYPE, runType)
         case Array("--sigopt_api_token", sigoptApiToken: String) if sigoptApiToken.trim.nonEmpty =>
           (SIGOPT_API_TOKEN_TAG, sigoptApiToken)
-        case arg@_ =>
+        case arg =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap
