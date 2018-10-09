@@ -31,6 +31,7 @@ import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.ProfileRequest
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.reflect.FieldUtils
 import org.matsim.api.core.v01.network.{Network, Node}
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -68,7 +69,8 @@ class RouterPerformanceSpec
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAllConfigMap
-    with MetricsSupport {
+    with MetricsSupport
+    with LazyLogging {
 
   var config: Config = _
   var network: Network = _
@@ -142,7 +144,7 @@ class RouterPerformanceSpec
 
     "respond with a car route for each trip" taggedAs Performance in {
 
-      println("=================BEAM=================")
+      logger.debug("=================BEAM=================")
 
       //      val dataSet = getR5Dataset(scenario, 100000)
       runSet.foreach(n => {
@@ -169,22 +171,21 @@ class RouterPerformanceSpec
           )
           val response = expectMsgType[RoutingResponse]
 
-          //            println("--------------------------------------")
-          //            println(s"origin.x:${origin.getX}, origin.y: ${origin.getY}")
-          //            println(s"destination.x:${destination.getX}, destination.y: ${destination.getY}")
-          //            println(response)
-          //            print("links#")
+          //            logger.debug("--------------------------------------")
+          //            logger.debug(s"origin.x:${origin.getX}, origin.y: ${origin.getY}")
+          //            logger.debug(s"destination.x:${destination.getX}, destination.y: ${destination.getY}")
+          //            logger.debug(response)
+          //            logger.debug("links#")
           //            response.itineraries.flatMap(_.beamLegs()).map(_.travelPath.linkIds.size).foreach(print)
-          //            response.itineraries.foreach(i => println(s", time:${i.totalTravelTime}"))
+          //            response.itineraries.foreach(i => logger.debug(s", time:${i.totalTravelTime}"))
 
           assert(response.isInstanceOf[RoutingResponse])
 
         })
         finally {
           val latency = System.currentTimeMillis() - start
-          println()
-          println(
-            s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+          logger.debug(
+            "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
           )
         }
       })
@@ -199,7 +200,7 @@ class RouterPerformanceSpec
 
       val r5Set = getRandomNodePairDataset(runSet.max)
       modeSet.foreach(mode => {
-        println(s"=================${mode.value}=================")
+        logger.debug("================={}=================", mode.value)
         runSet.foreach(n => {
           val testSet = r5Set.take(n)
           val start = System.currentTimeMillis()
@@ -237,18 +238,17 @@ class RouterPerformanceSpec
               router ! RoutingRequest(origin, destination, time, transitModes, streetVehicles)
               expectMsgType[RoutingResponse]
             }
-//            println("--------------------------------------")
+//            logger.debug("--------------------------------------")
 //            response.itineraries.foreach(
 //              i =>
-//                println(
+//                logger.debug(
 //                  s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"
 //              )
 //            )
           })
           val latency = System.currentTimeMillis() - start
-          println()
-          println(
-            s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+          logger.debug(
+            "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
           )
         })
       })
@@ -277,14 +277,14 @@ class RouterPerformanceSpec
   //          testSet.foreach(req => {
   //            val plan = pointToPointQuery.getPlan(req)
   //            if(plan.options.size() > 0) {
-  //              println(plan)
+  //              logger.debug(plan)
   //            }
   //
   //          })
   //        } finally {
   //          val latency = System.currentTimeMillis() - start
-  //          println()
-  //          println(s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec")
+  //          logger.debug()
+  //          logger.debug("Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0)
   //        }
   //      })
   //    }
@@ -293,49 +293,49 @@ class RouterPerformanceSpec
   "A MATSIM Router" must {
 
     "respond with a path using router alog(AStarEuclidean)" taggedAs Performance in {
-      println("=================AStarEuclidean=================")
+      logger.debug("=================AStarEuclidean=================")
 
       testMatsim(getAStarEuclidean)
     }
 
     "respond with a path using router alog(FastAStarEuclidean)" taggedAs Performance in {
-      println("=================FastAStarEuclidean=================")
+      logger.debug("=================FastAStarEuclidean=================")
 
       testMatsim(getFastAStarEuclidean)
     }
 
     "respond with a path using router alog(Dijkstra)" taggedAs Performance in {
-      println("=================Dijkstra=================")
+      logger.debug("=================Dijkstra=================")
 
       testMatsim(getDijkstra)
     }
 
     "respond with a path using router alog(FastDijkstra)" taggedAs Performance in {
-      println("=================FastDijkstra=================")
+      logger.debug("=================FastDijkstra=================")
 
       testMatsim(getFastDijkstra)
     }
 
     "respond with a path using router alog(MultiNodeDijkstra)" taggedAs Performance in {
-      println("=================MultiNodeDijkstra=================")
+      logger.debug("=================MultiNodeDijkstra=================")
 
       testMatsim(getMultiNodeDijkstra)
     }
 
     "respond with a path using router alog(FastMultiNodeDijkstra)" taggedAs Performance in {
-      println("=================FastMultiNodeDijkstra=================")
+      logger.debug("=================FastMultiNodeDijkstra=================")
 
       testMatsim(getFastMultiNodeDijkstra)
     }
 
     "respond with a path using router alog(AStarLandmarks)" taggedAs Performance in {
-      println("=================AStarLandmarks=================")
+      logger.debug("=================AStarLandmarks=================")
 
       testMatsim(getAStarLandmarks)
     }
 
     "respond with a path using router alog(FastAStarLandmarks)" taggedAs Performance in {
-      println("=================FastAStarLandmarks=================")
+      logger.debug("=================FastAStarLandmarks=================")
 
       testMatsim(getFastAStarLandmarks)
     }
@@ -348,15 +348,14 @@ class RouterPerformanceSpec
       val start = System.currentTimeMillis()
       testSet.foreach({ pare =>
         val path = routerAlgo.calcLeastCostPath(pare.head, pare(1), 8.0 * 3600, null, null)
-      //        println("--------------------------------------")
-      //        println(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
-      //        println(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
-      //        println(s"links#${path.links.size()}, nodes#${path.nodes.size()}, time:${path.travelTime}")
+      //        logger.debug("--------------------------------------")
+      //        logger.debug(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
+      //        logger.debug(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
+      //        logger.debug(s"links#${path.links.size()}, nodes#${path.nodes.size()}, time:${path.travelTime}")
       })
       val latency = System.currentTimeMillis() - start
-      println()
-      println(
-        s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec"
+      logger.debug(
+        "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
       )
     })
   }
