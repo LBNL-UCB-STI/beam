@@ -171,14 +171,6 @@ class RouterPerformanceSpec
           )
           val response = expectMsgType[RoutingResponse]
 
-          //            logger.debug("--------------------------------------")
-          //            logger.debug(s"origin.x:${origin.getX}, origin.y: ${origin.getY}")
-          //            logger.debug(s"destination.x:${destination.getX}, destination.y: ${destination.getY}")
-          //            logger.debug(response)
-          //            logger.debug("links#")
-          //            response.itineraries.flatMap(_.beamLegs()).map(_.travelPath.linkIds.size).foreach(print)
-          //            response.itineraries.foreach(i => logger.debug(s", time:${i.totalTravelTime}"))
-
           assert(response.isInstanceOf[RoutingResponse])
 
         })
