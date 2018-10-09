@@ -7,6 +7,7 @@ import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigValueFactory
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -179,7 +180,7 @@ class BeamWarmStartSpec
       actualStats shouldEqual expectedStats
     }
 
-    "work if there are other files in iteration with name plan in it" in {
+    "work if there are other files in iteration with plan in their names" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case8")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1/"))
 
@@ -237,7 +238,7 @@ class BeamWarmStartSpec
       actualStats shouldEqual expectedStats
     }
 
-    "find out files, if run results are deeper at level" in {
+    "find out files, if run results are at deeper level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case11")
       createDirs(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0/../it.1"))
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
@@ -264,7 +265,7 @@ class BeamWarmStartSpec
   }
 }
 
-object BeamWarmStartSpec {
+object BeamWarmStartSpec extends LazyLogging {
   private val OUTPUT_PLANS = "output_plans"
   private val LINK_STATS = "linkstats"
   private val PLANS_GZ = "plans.xml.gz"
@@ -273,10 +274,10 @@ object BeamWarmStartSpec {
   def createDirs(path: Path): Unit = {
     try {
       Files.createDirectories(path)
-      println(s"Dirs crated $path")
+
     } catch {
       case e: IOException =>
-        println("Cannot create directories - " + e)
+        logger.error("Cannot create directories - " + e)
     }
   }
 
@@ -292,7 +293,7 @@ object BeamWarmStartSpec {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.plans.xml.gz")
     val plansDest = Paths.get(toDir.toString, s"$asName.xml.gz")
     Files.copy(plansSrc, plansDest)
-    println(s"File copied to $plansDest")
+
     Some(plansDest.toString)
   }
 
@@ -300,7 +301,7 @@ object BeamWarmStartSpec {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.linkstats.csv.gz")
     val statsDest = Paths.get(toDir.toString, s"$asName.csv.gz")
     Files.copy(plansSrc, statsDest)
-    println(s"File copied to $statsDest")
+
     Some(statsDest.toString)
   }
 }
