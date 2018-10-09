@@ -24,19 +24,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-private[this] case class IndexForFilter
-(
-  tazId: Id[TAZ],
-  reservedFor: ReservedParkingType
-)
 
-private[this] case class IndexForFind
-(
-  tazId: Id[TAZ],
-  parkingType: ParkingType,
-  pricingModel: PricingModel,
-  reservedFor: ReservedParkingType
-)
 
 class ZonalParkingManager(
   override val beamServices: BeamServices,
@@ -61,9 +49,6 @@ class ZonalParkingManager(
   )
   def defaultStallValues: StallValues = StallValues(Int.MaxValue, 0)
   def defaultRideHailStallValues: StallValues = StallValues(0, 0)
-
-  // TODO How to make sure that this will be in sync? One of the solution is to make runtime check using reflection
-  val allPricingModels: Array[PricingModel] = Array(FlatFee, Block)
 
   val depotStallLocationType: DepotStallLocationType =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
@@ -120,9 +105,7 @@ class ZonalParkingManager(
   fillInDefaultPooledResources()
   updatePooledResources()
 
-  private[this] val mapForFilter: Map[IndexForFilter, Map[StallAttributes, StallValues]] = buildMapForFilter(pooledResources)
-
-  private[this] val mapForFind: Map[IndexForFind, Array[StallValues]] = buildMapForFind(pooledResources)
+  val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
 override def receive: Receive = {
     case RegisterResource =>
@@ -155,7 +138,7 @@ override def receive: Receive = {
         log.debug("DepotParkingInquiry with {} available stalls ", getAvailableStalls)
       }
       val tAZsWithDists = findTAZsWithinDistance(inquiry.customerLocationUtm, 10000.0, 20000.0)
-      val maybeFoundStalls = filterPooledResourceBy(inquiry.reservedFor, tAZsWithDists)
+      val maybeFoundStalls = indexer.filter(tAZsWithDists, inquiry.reservedFor)
 
       val maybeParkingAttributes = maybeFoundStalls.flatMap {
         _.keys.toVector
@@ -205,7 +188,7 @@ override def receive: Receive = {
           None
         case _ =>
           val tazId = nearbyTAZsWithDistances.head._1.tazId
-          findPooledResources(tazId, preferredType, inquiry.reservedFor)
+          indexer.find(tazId, preferredType, inquiry.reservedFor)
       }
       val maybeDominantSpot = maybeFoundStall match {
         case Some((idx, stallValue)) if inquiry.chargingPreference == NoNeed =>
@@ -242,60 +225,6 @@ override def receive: Receive = {
   }
 
 
-  private[this] def buildMapForFilter(resources: mutable.Map[StallAttributes, StallValues]): Map[IndexForFilter, Map[StallAttributes, StallValues]] = {
-    resources.groupBy { case (key, _) =>
-      IndexForFilter(tazId = key.tazId, reservedFor = key.reservedFor)
-    }.map { case (key, value) => key -> value.toMap}
-  }
-
-  private[this] def buildMapForFind(resources: mutable.Map[StallAttributes, StallValues]): Map[IndexForFind, Array[StallValues]] = {
-    resources.groupBy { case (key, _) =>
-      IndexForFind(tazId = key.tazId, parkingType = key.parkingType, pricingModel = key.pricingModel, reservedFor = key.reservedFor)
-    }.map { case (key, map) => key -> map.values.toArray }
-  }
-
-  private def findPooledResources(tazId: Id[TAZ], preferredType: ParkingType,
-                                  reservedFor: ReservedParkingType): Option[(IndexForFind, StallValues)] = {
-    def find(key: IndexForFind): Option[(IndexForFind, StallValues)] = {
-      mapForFind.get(key).flatMap { arr =>
-        arr
-          .find(stallValue => stallValue.numStalls > 0 && stallValue.feeInCents == 0)
-          .map { found => (key, found)
-          }
-      }
-    }
-    def predicate(tazId: Id[TAZ], preferredType: ParkingType, pricingModel: PricingModel,
-                  reservedFor: ReservedParkingType): Boolean = {
-      val key = IndexForFind(tazId = tazId, parkingType = preferredType, pricingModel = pricingModel, reservedFor = reservedFor)
-      find(key).isDefined
-    }
-    // We still have to do two look-ups by key because we don't know exact pricing model
-    allPricingModels.collectFirst { case pricingModel if predicate(tazId, preferredType, pricingModel, reservedFor) =>
-      val key = IndexForFind(tazId = tazId, parkingType = preferredType, pricingModel = pricingModel, reservedFor = reservedFor)
-      find(key).get
-    }
-  }
-
-  def filterPooledResourceBy(reservedFor: ReservedParkingType,
-                             tazWithDistance: Vector[(TAZ, Double)]): Option[Map[StallAttributes, StallValues]] = {
-    def find(idx: IndexForFilter): Option[Map[StallAttributes, StallValues]] = {
-      mapForFilter.get(idx).map { map =>
-        map.filter { case (_, value) =>
-          value.numStalls > 0
-        }
-      }
-    }
-
-    def predicate(tazId: Id[TAZ], reservedFor: ReservedParkingType): Boolean = {
-      val key = IndexForFilter(tazId = tazId, reservedFor = reservedFor)
-      find(key).isDefined
-    }
-
-    tazWithDistance.collectFirst { case (taz, _) if predicate(taz.tazId, reservedFor) =>
-      val key = IndexForFilter(tazId = taz.tazId, reservedFor = reservedFor)
-      find(key)
-    }.flatten
-  }
 
   private def maybeCreateNewStall(
     attrib: StallAttributes,
