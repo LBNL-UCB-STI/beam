@@ -15,18 +15,18 @@ import scala.concurrent.duration._
 
 class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
   private val eventManager = new ParallelEventsManagerImpl(config.parallelEventHandling().getNumberOfThreads())
-  private val numOfEvents: AtomicInteger = new AtomicInteger(0)
   logger.info(s"Created ParallelEventsManagerImpl with hashcode: ${eventManager.hashCode()}")
 
+  private val numOfEvents: AtomicInteger = new AtomicInteger(0)
+
   private val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
-  private val nonBlockingQueue: ConcurrentLinkedQueue[Event] = new ConcurrentLinkedQueue[Event]
   private val blockingQueue: BlockingQueue[Event] = new LinkedBlockingQueue[Event]
   private val isFinished: AtomicBoolean = new AtomicBoolean(false)
   private var dedicatedHandler: Option[Future[Unit]] = None
 
   override def processEvent(event: Event): Unit = {
-    // queue.add(event)
     blockingQueue.add(event)
+    numOfEvents.incrementAndGet()
   }
 
   override def addHandler(handler: EventHandler): Unit = {
@@ -82,27 +82,6 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
     }(ec)
   }
 
-  private def handleNonBlocking(): Unit = {
-    // This is going to waste some CPU
-    while (!isFinished.get()) {
-      val event = nonBlockingQueue.poll()
-      if (null != event)
-        eventManager.processEvent(event)
-    }
-    // We have to consumer the whole queue
-    var isDone = false
-    val start = System.currentTimeMillis()
-    while (!isDone) {
-      val event = nonBlockingQueue.poll()
-      if (null != event)
-        eventManager.processEvent(event)
-      else
-        isDone = true
-    }
-    val end = System.currentTimeMillis()
-    logger.info("Stopped dedicated handler(handleNonBlocking). Took {} ms to process after stop", end - start)
-  }
-
   private def handleBlocking(): Unit = {
     while (!isFinished.get()) {
       val event = blockingQueue.poll(1, TimeUnit.SECONDS)
@@ -114,10 +93,10 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
     val start = System.currentTimeMillis()
     while (!isDone) {
       val event = blockingQueue.poll()
-      if (null != event)
-        eventManager.processEvent(event)
-      else
+      if (null == event)
         isDone = true
+      else
+        eventManager.processEvent(event)
     }
     val end = System.currentTimeMillis()
     logger.info("Stopped dedicated handler(handleBlocking). Took {} ms to process after stop", end - start)  }
