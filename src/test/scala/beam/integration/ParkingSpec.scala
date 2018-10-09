@@ -2,34 +2,15 @@ package beam.integration
 
 import java.io.File
 
-import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuffer
-
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
-import java.io.File
-
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
-import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
-import org.apache.commons.io.FileUtils
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
-
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 
 class ParkingSpec
     extends WordSpecLike
@@ -110,10 +91,10 @@ class ParkingSpec
     queueEvents
   }
 
-  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
-  lazy val defaultEvents = runAndCollectForIterations("default", 10)
-  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
-  lazy val emptyEvents = runAndCollectForIterations("empty", 10)
+  private lazy val limitedEvents = runAndCollectForIterations("limited", 10)
+  private lazy val defaultEvents = runAndCollectForIterations("default", 10)
+  private lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
+  private lazy val emptyEvents = runAndCollectForIterations("empty", 10)
 
   val filterForCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
@@ -228,8 +209,8 @@ class ParkingSpec
       val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Expensive iterations $expensiveModeChoiceCarCount")
+      logger.debug("Default iterations {}", defaultModeChoiceCarCount)
+      logger.debug("Expensive iterations {}", expensiveModeChoiceCarCount)
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -240,8 +221,8 @@ class ParkingSpec
       val emptyModeChoiceCarCount = emptyEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Empty iterations $emptyModeChoiceCarCount")
+      logger.debug("Default iterations {}", defaultModeChoiceCarCount)
+      logger.debug("Empty iterations {}", emptyModeChoiceCarCount)
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -252,8 +233,8 @@ class ParkingSpec
       val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Limited iterations $limitedModeChoiceCarCount")
+      logger.debug(s"Default iterations $defaultModeChoiceCarCount")
+      logger.debug(s"Limited iterations $limitedModeChoiceCarCount")
 
       defaultModeChoiceCarCount
         .takeRight(5)
