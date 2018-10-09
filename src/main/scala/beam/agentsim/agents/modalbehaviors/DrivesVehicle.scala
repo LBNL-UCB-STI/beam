@@ -148,7 +148,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
               processLinkEvents(data.currentVehicle.head, currentLeg)
 
-              logDebug(s"PathTraversal")
+              logDebug("PathTraversal")
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
                   tick,
@@ -263,7 +263,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .headOption match {
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info(s"stopping vehicle: $id")
+            log.info("stopping vehicle: {}", id)
 
             goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
               success = true,
