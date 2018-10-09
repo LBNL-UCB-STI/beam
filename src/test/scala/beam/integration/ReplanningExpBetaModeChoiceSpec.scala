@@ -48,14 +48,6 @@ class ReplanningExpBetaModeChoiceSpec
 
       it0PlansCount should be < it5PlansCount
       it5PlansCount should be < it10PlansCount
-
-      val it0PopulationSize = getPopulationSize(0)
-      val it5PopulationSize = getPopulationSize(5)
-      val it10PopulationSize = getPopulationSize(10)
-
-      logger.info("It.0 - average number of plans per agent: {}", it0PlansCount/it0PopulationSize)
-      logger.info("It.5 - average number of plans per agent: {}", it5PlansCount/it5PopulationSize)
-      logger.info("It.10 - average number of plans per agent: {}", it10PlansCount/it10PopulationSize)
     }
 
     "increase test scores over iterations" in {
@@ -66,15 +58,6 @@ class ReplanningExpBetaModeChoiceSpec
       it0Score should be < it5Score
       it5Score should be < it10Score
     }
-  }
-
-  private def getPopulationSize(iterationNum: Int) = {
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    new PopulationReader(scenario).readFile(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iterationNum/$iterationNum.plans.xml.gz"
-    )
-
-    scenario.getPopulation.getPersons.size()
   }
 
   private def getTotalPlans(iterationNum: Int) = {
