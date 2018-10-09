@@ -21,9 +21,9 @@ private[infrastructure] case class IndexForFind
 class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]) {
   import IndexerForZonalParkingManager._
 
-  private val mapForFilter: Map[IndexForFilter, Map[StallAttributes, StallValues]] = idxForFilter(resources)
+  private[this] val mapForFilter: Map[IndexForFilter, Map[StallAttributes, StallValues]] = idxForFilter(resources)
 
-  private val mapForFind: Map[IndexForFind, Array[StallValues]] = idxForFind(resources)
+  private[this] val mapForFind: Map[IndexForFind, Array[StallValues]] = idxForFind(resources)
 
   def find(tazId: Id[TAZ], parkingType: ParkingType, reservedFor: ReservedParkingType): Option[(IndexForFind, StallValues)] = {
     def find(key: IndexForFind): Option[(IndexForFind, StallValues)] = {
@@ -65,21 +65,23 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
       .head
   }
 
-  private[this] def idxForFind(resources: Map[StallAttributes, StallValues]): Map[IndexForFind, Array[StallValues]] = {
+
+}
+
+object IndexerForZonalParkingManager {
+  // TODO How to make sure that this will be in sync? One of the solution is to make runtime check using reflection
+  val allPricingModels: Array[PricingModel] = Array(FlatFee, Block)
+
+  def idxForFind(resources: Map[StallAttributes, StallValues]): Map[IndexForFind, Array[StallValues]] = {
     resources.groupBy { case (key, _) =>
       IndexForFind(tazId = key.tazId, parkingType = key.parkingType, pricingModel = key.pricingModel,
         reservedFor = key.reservedFor)
     }.map { case (key, map) => key -> map.values.toArray }
   }
 
-  private[this] def idxForFilter(resources: Map[StallAttributes, StallValues]): Map[IndexForFilter, Map[StallAttributes, StallValues]] = {
+  def idxForFilter(resources: Map[StallAttributes, StallValues]): Map[IndexForFilter, Map[StallAttributes, StallValues]] = {
     resources.groupBy { case (key, _) =>
       IndexForFilter(tazId = key.tazId, reservedFor = key.reservedFor)
     }
   }
-}
-
-object IndexerForZonalParkingManager {
-  // TODO How to make sure that this will be in sync? One of the solution is to make runtime check using reflection
-  val allPricingModels: Array[PricingModel] = Array(FlatFee, Block)
 }
