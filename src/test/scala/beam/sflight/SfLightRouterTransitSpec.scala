@@ -13,6 +13,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
 import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -21,7 +22,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 @Ignore
-class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
+class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with LazyLogging {
 
   override def beforeAll: Unit = {
     super.beforeAll
@@ -100,7 +101,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
 
               // writeResponseToFile(origin, destination, time, response)
               if (!response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) {
-                print("failure here")
+                logger.debug("failure here")
               }
 
               assert(response.itineraries.exists(_.costEstimate > 0))
@@ -172,10 +173,10 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     destination: Location,
     time: RoutingModel.DiscreteTime,
     response: RoutingResponse
-  ) = {
+  ): Unit = {
     response.itineraries.foreach(
       it =>
-        println(
+        logger.debug(
           Vector(
             "itinerary ->",
             origin,
@@ -190,7 +191,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
                   it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum
               )
             )
-          )
+          ).toString()
       )
     )
   }
@@ -201,7 +202,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     destination: Location,
     time: RoutingModel.DiscreteTime,
     response: RoutingResponse
-  ) = {
+  ): Unit = {
     val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
     response.itineraries.foreach(
       it =>

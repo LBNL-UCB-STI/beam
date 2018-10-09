@@ -5,8 +5,6 @@ import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{Matchers, WordSpecLike}
-import scala.xml.transform.{RewriteRule, RuleTransformer}
-import scala.xml.{Elem, Node}
 
 class MultinomialCustomConfigSpec
     extends WordSpecLike
@@ -84,11 +82,6 @@ class MultinomialCustomConfigSpec
       val countPositive = bikeConfigPositive.groupedCount.getOrElse("bike", 0)
       val countNegative = bikeConfigNegative.groupedCount.getOrElse("bike", 0)
 
-//      println("Bike __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
-
       countPositive should be >= countNegative
     }
 
@@ -121,11 +114,6 @@ class MultinomialCustomConfigSpec
 
       val countPositive = rideConfigPositive.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
       val countNegative = rideConfigNegative.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
-
-//      println("Ride Hailing __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
 
       countPositive should be >= countNegative
     }
@@ -162,11 +150,6 @@ class MultinomialCustomConfigSpec
       val countNegative =
         transitConfigNegative.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0)
 
-//      println("Transit __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
-
       countPositive should be >= countNegative
     }
 
@@ -199,11 +182,6 @@ class MultinomialCustomConfigSpec
 
       val countPositive = walkConfigPositive.groupedCount.getOrElse(BeamMode.WALK.value, 0)
       val countNegative = walkConfigNegative.groupedCount.getOrElse(BeamMode.WALK.value, 0)
-
-//      println("WAlk __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
 
       countPositive should be >= countNegative
     }

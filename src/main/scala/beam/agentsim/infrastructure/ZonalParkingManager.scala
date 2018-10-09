@@ -121,13 +121,9 @@ class ZonalParkingManager(
           stallValues.copy(numStalls = stallValues.numStalls + 1)
         )
         resources.remove(stall.id)
-        log.debug(
-          "CheckInResource with {} available stalls ",
-          pooledResources
-            .filter(_._1.reservedFor == RideHailManager)
-            .map(_._2.numStalls.toLong)
-            .sum
-        )
+        if (log.isDebugEnabled) {
+          log.debug("CheckInResource with {} available stalls ", getAvailableStalls)
+        }
       }
 
     case CheckOutResource =>
@@ -137,13 +133,9 @@ class ZonalParkingManager(
       )
 
     case inquiry: DepotParkingInquiry =>
-      log.debug(
-        "DepotParkingInquiry with {} available stalls ",
-        pooledResources
-          .filter(_._1.reservedFor == RideHailManager)
-          .map(_._2.numStalls.toLong)
-          .sum
-      )
+      if (log.isDebugEnabled) {
+        log.debug("DepotParkingInquiry with {} available stalls ", getAvailableStalls)
+      }
       val tAZsWithDists = findTAZsWithinDistance(inquiry.customerLocationUtm, 10000.0, 20000.0)
       val maybeFoundStalls = tAZsWithDists
         .find {
@@ -192,14 +184,10 @@ class ZonalParkingManager(
           stallValues.copy(numStalls = stallValues.numStalls - 1)
         )
       }
-      log.debug("DepotParkingInquiry reserved stall: {}", maybeParkingStall)
-      log.debug(
-        "DepotParkingInquiry {} available stalls ",
-        pooledResources
-          .filter(_._1.reservedFor == RideHailManager)
-          .map(_._2.numStalls.toLong)
-          .sum
-      )
+      if (log.isDebugEnabled) {
+        log.debug("DepotParkingInquiry reserved stall: {}", maybeParkingStall)
+        log.debug("DepotParkingInquiry {} available stalls ", getAvailableStalls)
+      }
 
       val response = DepotParkingInquiryResponse(maybeParkingStall, inquiry.requestId)
       sender() ! response
@@ -486,6 +474,13 @@ class ZonalParkingManager(
         mapWriter.close()
       }
     }
+  }
+
+  private def getAvailableStalls: Long = {
+    pooledResources
+      .filter(_._1.reservedFor == RideHailManager)
+      .map(_._2.numStalls.toLong)
+      .sum
   }
 }
 

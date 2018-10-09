@@ -61,7 +61,7 @@ object RunCalibration extends App with BeamHelper {
     Sigopt.clientToken = SigOptApiToken.getClientAPIToken
   } catch {
 
-    case ex: APIConnectionError => {
+    case ex: APIConnectionError =>
       logger.info(ex.getMessage)
 
       if (sigoptApiToken != null) {
@@ -72,7 +72,6 @@ object RunCalibration extends App with BeamHelper {
           "No client token is present in the program arguments"
         )
       }
-    }
   }
 
   //  Context object containing experiment definition
@@ -109,7 +108,7 @@ object RunCalibration extends App with BeamHelper {
            '--num_iters', '$numIters',
            '--run_type', 'local',
            '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
-      println(execString)
+      logger.debug(execString)
       execString.!
     })
   } else {
