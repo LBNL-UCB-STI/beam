@@ -7,9 +7,9 @@ import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigValueFactory
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec
   extends WordSpecLike
@@ -265,7 +265,8 @@ class BeamWarmStartSpec
   }
 }
 
-object BeamWarmStartSpec extends LazyLogging {
+object BeamWarmStartSpec {
+  private val logger = LoggerFactory.getLogger(BeamWarmStartSpec.getClass)
   private val OUTPUT_PLANS = "output_plans"
   private val LINK_STATS = "linkstats"
   private val PLANS_GZ = "plans.xml.gz"
@@ -277,7 +278,7 @@ object BeamWarmStartSpec extends LazyLogging {
 
     } catch {
       case e: IOException =>
-        logger.error("Cannot create directories - " + e)
+        logger.error("Cannot create directories.", e)
     }
   }
 
