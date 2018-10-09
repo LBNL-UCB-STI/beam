@@ -176,7 +176,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
   ): Unit = {
     response.itineraries.foreach(
       it =>
-        logger.info(
+        logger.debug(
           Vector(
             "itinerary ->",
             origin,
