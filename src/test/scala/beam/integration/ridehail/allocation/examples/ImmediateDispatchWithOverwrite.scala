@@ -27,7 +27,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     if (!reservationCompleted) {
       bufferedRideHailRequest += vehicleAllocationRequest
-      logger.info(
+      logger.debug(
         "proposeVehicleAllocation buffered - personId: {}", vehicleAllocationRequest.request.customer.personId
       )
     }
@@ -87,7 +87,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       )
 
       logger.debug(
-        s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
+        " new vehicle assigned:{}, tick: {}", rhl.vehicleId, reply.tick
       )
 
       bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
@@ -112,7 +112,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     if (!overwriteAttemptStarted && reservationCompleted) {
       logger.debug(
-        s"trying to reassign vehicle to customer:{}, tick: {}", bufferedRideHailRequest.head.request.customer, tick
+        "trying to reassign vehicle to customer:{}, tick: {}", bufferedRideHailRequest.head.request.customer, tick
       )
       rideHailManager.attemptToCancelCurrentRideRequest(
         tick,
@@ -128,7 +128,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
   }
 
   override def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {
-    logger.debug(s"reservationCompletionNotice - personId: {}, vehicleId: {}", personId, vehicleId)
+    logger.debug("reservationCompletionNotice - personId: {}, vehicleId: {}", personId, vehicleId)
 
     if (!reservationCompleted) {
       bufferedRideHailRequest = bufferedRideHailRequest.filter(_.request.customer.personId == personId)
