@@ -20,10 +20,15 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.BeamLeg
 import beam.sim.HasServices
-import beam.utils.TravelTimeUtils
+import beam.utils.{DebugLib, TravelTimeUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -625,10 +630,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
+
+      var curTime = leg.startTime
       linksWithTime.foreach {
         case (Seq(from, to), timeAtNode) =>
-          eventsManager.processEvent(new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
+          curTime = curTime + timeAtNode
+          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
       }
     }
   }
