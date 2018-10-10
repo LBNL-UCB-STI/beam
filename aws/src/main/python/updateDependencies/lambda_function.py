@@ -28,15 +28,15 @@ def init_ec2(region):
     global ec2
     ec2 = boto3.client('ec2',region_name=region)
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name):
-    res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, en_vars):
+    res = ec2.run_instances(ImageId=en_vars[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
-                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
+                            KeyName=en_vars[region_prefix + 'KEY_NAME'],
                             MinCount=1,
                             MaxCount=1,
-                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
-                            IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
+                            SecurityGroupIds=[en_vars[region_prefix + 'SECURITY_GROUP']],
+                            IamInstanceProfile={'Name': en_vars['IAM_ROLE'] },
                             InstanceInitiatedShutdownBehavior=shutdown_behaviour,
                             TagSpecifications=[ {
                                 'ResourceType': 'instance',
@@ -48,10 +48,10 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
     return res['Instances'][0]['InstanceId']
 
 def lambda_handler(event, context):
-    
+
     lm = boto3.client('lambda')
-    en_var = lm.get_function_configuration(FunctionName='simulateBeam')['Environment']['Variables']
-    
+    en_vars = lm.get_function_configuration(FunctionName='simulateBeam')['Environment']['Variables']
+
     region = 'us-east-2'
     instance_type = os.environ['INSTANCE_TYPE']
     shutdown_behaviour = 'stop'
@@ -59,9 +59,9 @@ def lambda_handler(event, context):
     runName = 'update-beam-dependencies'
     branch = 'production-sfbay'
     script = initscript.replace('$BRANCH', branch).replace('$SHUTDOWN_WAIT', shutdown_wait)
-    
+
     init_ec2(region)
-    instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
-    
+    instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, en_vars)
+
     return instance_id
     
