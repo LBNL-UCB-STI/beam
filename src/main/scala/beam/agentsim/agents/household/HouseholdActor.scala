@@ -14,7 +14,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
-import beam.utils.plansampling.AvailableModeUtils.{isModeAvailableForPerson, _}
+import beam.utils.plan.sampling.AvailableModeUtils.{isModeAvailableForPerson, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -144,7 +144,7 @@ object HouseholdActor {
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
           person.getId.toString,
-          beam.utils.plansampling.PlansSampler.availableModeString
+          beam.utils.plan.sampling.PlansSampler.availableModeString
         )
       ).fold(BeamMode.availableModes)(
         attr => availableModeParser(attr.toString)

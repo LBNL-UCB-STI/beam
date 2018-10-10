@@ -1,12 +1,12 @@
-package beam.utils.plansampling
+package beam.utils.plan.sampling
 
 import java.util
 
 import beam.utils.gis.Plans2Shapefile
-import beam.utils.plansampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
-import beam.utils.plansampling.PopulationAttrib.Rank
+import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
+import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
 import org.geotools.geometry.jts.JTS
@@ -26,16 +26,14 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Counter
+import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
-import org.matsim.households.Income.IncomePeriod.year
-
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
-import scala.collection.mutable.ListBuffer
-import scala.collection.{immutable, mutable, AbstractSeq, JavaConverters}
-import scala.collection.generic.CanBuildFrom
+
+import scala.collection.{JavaConverters, immutable}
 import scala.util.Random
 
 case class SynthHousehold(
@@ -58,7 +56,6 @@ case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: D
 class SynthHouseholdParser(wgsConverter: WGSConverter) {
 
   import SynthHouseholdParser._
-  import scala.util.control.Breaks._
 
   /**
     * Parses the synthetic households file.
@@ -547,7 +544,7 @@ object PlansSampler {
   *
   * Run from directly from CLI with, for example:
   *
-  * $> gradle :execute -PmainClass=beam.utils.plansampling.PlansSamplerApp
+  * $> gradle :execute -PmainClass=beam.utils.sampling.PlansSamplerApp
   * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
   * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
   * 'production/application-sfbay/vehicles.xml.gz', '413187', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
