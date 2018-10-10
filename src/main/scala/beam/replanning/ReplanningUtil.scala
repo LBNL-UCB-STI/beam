@@ -50,12 +50,13 @@ object ReplanningUtil {
     if (originalPlan.getPlanElements.size() > experiencedPlan.getPlanElements.size()) {
       DebugLib.emptyFunctionForSettingBreakPoint()
       for (i <- experiencedPlan.getPlanElements.size() until originalPlan.getPlanElements.size()) {
-        if (originalPlan.getPlanElements.get(i).isInstanceOf[Activity]) {
-          experiencedPlan.addActivity(
-            PopulationUtils.createActivity(originalPlan.getPlanElements.get(i).asInstanceOf[Activity])
-          )
-        } else {
-          experiencedPlan.addLeg(PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg]))
+        originalPlan.getPlanElements.get(i) match {
+          case activity: Activity =>
+            experiencedPlan.addActivity(
+              PopulationUtils.createActivity(activity)
+            )
+          case _ =>
+            experiencedPlan.addLeg(PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg]))
         }
       }
       DebugLib.emptyFunctionForSettingBreakPoint()
