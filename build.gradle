@@ -518,13 +518,16 @@ def getCurrentTimestamp = {
 
 def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
+def jfrArgs = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
+               "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 //applicationDefaultJvmArgs = ["-Xmx140g"] + logGC
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=500M"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=500M"] + logGC + jfrArgs
 
 println(applicationDefaultJvmArgs)
 
