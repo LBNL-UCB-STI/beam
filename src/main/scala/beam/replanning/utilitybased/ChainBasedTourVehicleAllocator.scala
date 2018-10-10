@@ -118,10 +118,10 @@ case class ChainBasedTourVehicleAllocator(
         firstAvailableVehicle.availableFrom = currentSubtour.endTime
       firstAvailableVehicle.nAllocs += 1
       currentSubtour.allocatedVehicle = Some(firstAvailableVehicle.id)
-      true
-    } else {
-      false
+      return true
     }
+
+    false
   }
 
   private def getVehicularToursSortedByStartTime(householdPlans: Seq[Plan]) = {
@@ -133,7 +133,7 @@ case class ChainBasedTourVehicleAllocator(
           getSubtours(plan, stageActivitytypes)
         )
       } yield {
-        for { trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
+        for {_ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
           val usableVehicles = identifyVehiclesUsableForAgent(plan.getPerson.getId)
           val vehicleRecords = vehicleRecordFactory.getRecords(usableVehicles)
           SubtourRecord(vehicleRecords, subtour)
@@ -141,7 +141,6 @@ case class ChainBasedTourVehicleAllocator(
       }).flatten.toVector
 
     validateVehicularTours(vehicularTours).sortWith((st1, st2) => st1.startTime > st1.endTime)
-
   }
 
   private def validateVehicularTours(vehicularTours: Vector[SubtourRecord]): Seq[SubtourRecord] = {
@@ -166,6 +165,7 @@ case class ChainBasedTourVehicleAllocator(
     val l = legs.head
     if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode))
       return false
+
     true
   }
 
@@ -230,5 +230,4 @@ object ChainBasedTourVehicleAllocator {
       new SubtourRecord(startTime, endTime, possibleVehicles, subtour, None)
     }
   }
-
 }
