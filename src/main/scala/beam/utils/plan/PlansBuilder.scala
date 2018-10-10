@@ -5,15 +5,16 @@ import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, Housing
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
 import beam.utils.scripts.PopulationWriterCSV
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Node
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
@@ -27,7 +28,7 @@ object PlansBuilder {
   val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
-  var wgsConverter: Option[WGSConverter] = None
+  var utmConverter: UTMConverter = _
   val conf: Config = ConfigUtils.createConfig()
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
@@ -49,6 +50,20 @@ object PlansBuilder {
   var sampleNumber: Int = 0
   val rand = new Random(4175l)
 
+  case class UTMConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
+
+    private lazy val utm2Wgs: GeotoolsTransformation =
+      new GeotoolsTransformation(sourceCRS, targetCRS)
+
+    override def transform(coord: Coord): Coord = {
+      if (coord.getX > 1.0 | coord.getX < -0.0) {
+        utm2Wgs.transform(coord)
+      } else {
+        coord
+      }
+    }
+  }
+
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
     conf.network.setInputFile(args(1))
@@ -60,20 +75,20 @@ object PlansBuilder {
 
     val srcCSR = if(args.length > 5) args(5) else "epsg:4326"
     val tgtCSR = if(args.length > 6) args(6) else "epsg:26910"
-    wgsConverter = Some(WGSConverter(srcCSR, tgtCSR))
+    utmConverter = UTMConverter(srcCSR, tgtCSR)
     pop ++= scala.collection.JavaConverters
       .mapAsScalaMap(sc.getPopulation.getPersons)
       .values
       .toVector
 
-    val households = new SynthHouseholdParser(wgsConverter.get){
+    val households = new SynthHouseholdParser(utmConverter){
       override def parseFile(synthFileName: String): Vector[SynthHousehold] = {
         val resHHMap = scala.collection.mutable.Map[String, SynthHousehold]()
 
         val nodes = sc.getNetwork.getNodes.values().toArray(new Array[Node](0))
 
         for (indId <- 0 to sampleNumber) {
-          val node: Node = nodes(rand.nextInt(nodes.length-1))
+          val node = nodes(rand.nextInt(nodes.length-1)).getCoord
           val row = Array(indId.toString, //indId
             rand.nextInt(sampleNumber).toString, //hhId
             rand.nextInt(4).toString, //hhNum
@@ -83,8 +98,8 @@ object PlansBuilder {
             rand.nextInt(1).toString, //sex
             rand.nextInt(100).toString, //age
             0.toString, //hhTract
-            node.getCoord.getX.toString, //coord.x
-            node.getCoord.getY.toString, //coord.y
+            node.getX.toString, //coord.x
+            node.getY.toString, //coord.y
             (rand.nextDouble() * 23).toString) //time
 
             val hhIdStr = row(1)
@@ -92,6 +107,7 @@ object PlansBuilder {
               case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
               case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
             }
+            print()
           }
 
         resHHMap.values.toVector
