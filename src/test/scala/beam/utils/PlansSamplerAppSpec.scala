@@ -1,7 +1,7 @@
 package beam.utils
 
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.plansampling.PlansSampler
+import beam.utils.plan.sampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
