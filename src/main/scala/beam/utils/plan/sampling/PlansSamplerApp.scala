@@ -53,7 +53,7 @@ case class SynthHousehold(
 
 case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double)
 
-class SynthHouseholdParser(wgsConverter: WGSConverter) {
+class SynthHouseholdParser(geoConverter: GeoConverter) {
 
   import SynthHouseholdParser._
 
@@ -97,7 +97,7 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
       row(hhNumIdx).toInt,
       row(hhIncomeIdx).toDouble,
       row(hhTractIdx).toInt,
-      wgsConverter.wgs2Utm.transform(
+      geoConverter.transform(
         new Coord(row(homeCoordXIdx).toDouble, row(homeCoordYIdx).toDouble)
       ),
       Array(parseIndividual(row))
@@ -184,10 +184,16 @@ object HasXY {
 
 }
 
-case class WGSConverter(sourceCRS: String, targetCRS: String) {
+trait GeoConverter {
+  def transform(coord: Coord) : Coord
+}
 
-  val wgs2Utm: GeotoolsTransformation =
+case class WGSConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
+
+  private val wgs2Utm: GeotoolsTransformation =
     new GeotoolsTransformation(sourceCRS, targetCRS)
+
+  override def transform(coord: Coord): Coord = wgs2Utm.transform(coord)
 
   def wgs2Utm(envelope: Envelope): Envelope = {
     val ll: Coord =
