@@ -21,7 +21,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
-import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
+import beam.router.model.RoutingModel.TransitStopsInfo
+import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl

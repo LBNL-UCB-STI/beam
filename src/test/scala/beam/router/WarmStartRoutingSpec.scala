@@ -11,6 +11,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.CAR
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
+import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
@@ -40,7 +41,7 @@ class WarmStartRoutingSpec
           .withValue(
             "beam.warmStart.path",
             ConfigValueFactory
-              .fromAnyRef("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+              .fromAnyRef("test/input/beamville/test-data/")
           )
       )
     )

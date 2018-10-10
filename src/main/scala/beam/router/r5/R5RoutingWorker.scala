@@ -10,22 +10,22 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
-import beam.router.RoutingModel.BeamLeg._
-import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
+import beam.router.model.BeamLeg._
+import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
+import beam.router.model.RoutingModel
+import beam.router.model.RoutingModel.{DiscreteTime, LinksTimesDistances, WindowTime}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router.{Modes, RoutingModel, TransitInitializer}
+import beam.router.{Modes, TransitInitializer}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}

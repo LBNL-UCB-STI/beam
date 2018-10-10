@@ -13,7 +13,6 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.matsim.core.controler.events.ShutdownEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +34,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private Set<String> modesChosen = new TreeSet<>();
-    private Set cumulativeModeChosen = new TreeSet();
+    private Set<String> cumulativeModeChosenForModeChoice = new TreeSet();
+    private Set<String> cumulativeModeChosenForReference = new TreeSet();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private String benchmarkFileLoc ;
 
@@ -98,7 +98,23 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+
         createModeChosenCSV(hourModeFrequency, event.getIteration());
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
+        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
+        if (dataset != null) {
+            createRootModeChoosenGraph(dataset, graphTitle ,fileName, "# mode choosen",cumulativeModeChosenForModeChoice);
+        }
+        writeToRootCSV();
+
+        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
+        cumulativeModeChosenForReference.addAll(benchmarkCsvLoader().keySet());
+        CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
+        if (referenceDataset != null) {
+            createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)",cumulativeModeChosenForReference);
+        }
+        writeToRootCSVForReference();
     }
 
     @Override
@@ -124,7 +140,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         tags.put("hour", "" + (hour + 1));
         countOccurrenceJava(mode, 1, ShortLevel(), tags);
         modesChosen.add(mode);
-        cumulativeModeChosen.add(mode);
+        cumulativeModeChosenForModeChoice.add(mode);
+        cumulativeModeChosenForReference.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
         if (hourData != null) {
@@ -199,7 +216,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         try {
             bufferedWriter.append("Modes");
             bufferedWriter.append(SEPERATOR);
-            for (int j = 0; j < maxHour; j++) {
+            for (int j = 0; j <= maxHour; j++) {
                 bufferedWriter.append("Bin_")
                         .append(String.valueOf(j))
                         .append(SEPERATOR);
@@ -211,7 +228,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
                 bufferedWriter.append(modeChosen);
                 bufferedWriter.append(SEPERATOR);
 
-                for (int j = 0; j < maxHour; j++) {
+                for (int j = 0; j <= maxHour; j++) {
                     Map<String, Integer> modesData = hourModeChosen.get(j);
 
 
@@ -236,29 +253,11 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
-//    event hits at the end of the running scenario
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
-        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
-        if (dataset != null) {
-            createRootModeChoosenGraph(dataset, graphTitle ,fileName, "# mode choosen");
-        }
-        writeToRootCSV();
-        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
-        cumulativeModeChosen.addAll(benchmarkCsvLoader().keySet());
-        CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
-        if (referenceDataset != null) {
-            createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)");
-        }
-        writeToRootCSVForReference();
-    }
-
 
 //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosen));;
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
 
         if (dataset != null) {
             categoryDataset = createCategoryDataset("it.", dataset);
@@ -280,7 +279,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     //    dataset for root graph
     private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException{
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosen));;
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForReference));
 
         if (dataset != null) {
             categoryDataset = createReferenceCategoryDataset("it.", dataset);
@@ -323,12 +322,12 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
 
 //    generating graph in root directory
-    private void createRootModeChoosenGraph(CategoryDataset dataset,String graphTitleName, String fileName, String yAxisTitle) throws IOException {
+    private void createRootModeChoosenGraph(CategoryDataset dataset,String graphTitleName, String fileName, String yAxisTitle, Set<String> modes) throws IOException {
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, "Iteration", yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(cumulativeModeChosen);
+        modesChosenList.addAll(modes);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
@@ -341,7 +340,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            Set<String> modes = cumulativeModeChosen;
+            Set<String> modes = cumulativeModeChosenForModeChoice;
 
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
@@ -381,7 +380,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            Set<String> modes = cumulativeModeChosen;
+            Set<String> modes = cumulativeModeChosenForReference;
 
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);

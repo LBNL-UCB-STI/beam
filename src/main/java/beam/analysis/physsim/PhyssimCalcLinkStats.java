@@ -76,9 +76,8 @@ public class PhyssimCalcLinkStats {
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
 
-        linkStats = new BeamCalcLinkStats(network,beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
+        linkStats = new BeamCalcLinkStats(network);
     }
-
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 

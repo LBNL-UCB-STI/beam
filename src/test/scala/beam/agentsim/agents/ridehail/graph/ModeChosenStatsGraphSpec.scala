@@ -87,7 +87,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           override def compute(
             stat: Tuple[java.util.Map[Integer, java.util.Map[String, Integer]], util.Set[String]]
           ): Array[Array[Double]] = {
-            promise.success(stat.getFirst)
+            promise.trySuccess(stat.getFirst)
             super.compute(stat)
           }
 

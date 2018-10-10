@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -33,7 +33,6 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -72,7 +71,7 @@ class RideHailAgentSpec
     when(theServices.geo).thenReturn(geo)
     theServices
   }
-  lazy val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
   case class TestTrigger(tick: Int) extends Trigger
 
@@ -156,9 +155,7 @@ class RideHailAgentSpec
     }
 
     it("should drive around when I tell him to") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.registerResource(self)
@@ -195,7 +192,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // Still, I tell it to resume
       rideHailAgent ! Resume()
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
@@ -231,9 +228,7 @@ class RideHailAgentSpec
     }
 
     it("should let me interrupt it and tell it to cancel its job") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
@@ -274,7 +269,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // I tell it to do nothing instead
       rideHailAgent ! StopDriving(30000)
       assert(rideHailAgent.stateName == IdleInterrupted)
@@ -299,9 +294,7 @@ class RideHailAgentSpec
     }
 
     it("won't let me cancel its job after it has picked up passengers") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
@@ -347,7 +340,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
     }
 

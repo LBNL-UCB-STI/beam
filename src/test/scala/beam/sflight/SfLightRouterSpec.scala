@@ -5,8 +5,9 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
-import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
-import beam.router.{BeamRouter, Modes, RoutingModel}
+import beam.router.model.RoutingModel
+import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
+import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
 
@@ -254,7 +255,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
     }
   }
 
-  def assertMakesSense(trip: RoutingModel.BeamTrip): Unit = {
+  def assertMakesSense(trip: BeamTrip): Unit = {
     var time = trip.legs.head.startTime
     trip.legs.foreach(leg => {
       assert(leg.startTime == time, "Leg starts when previous one finishes.")

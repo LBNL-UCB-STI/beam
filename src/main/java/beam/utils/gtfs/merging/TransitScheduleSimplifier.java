@@ -369,9 +369,9 @@ public class TransitScheduleSimplifier {
 
         TransitScheduleFactoryImpl factory = new TransitScheduleFactoryImpl();
 
-        TransitSchedule transitSchedule = scenario.getTransitSchedule();
-
         mergedSchedule = factory.createTransitSchedule();
+
+        TransitSchedule transitSchedule = scenario.getTransitSchedule();
 
         for (TransitStopFacility facility : transitSchedule.getFacilities().values()) {
             mergedSchedule.addStopFacility(facility);

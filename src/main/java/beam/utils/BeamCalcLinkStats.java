@@ -48,15 +48,13 @@ public class BeamCalcLinkStats {
     private final int nofHours;
     private final Network network;
     private int count = 0;
-    private double minCarSpeedInMetersPerSecond;
 
     @Inject
-    public BeamCalcLinkStats(final Network network, double minCarSpeedInMetersPerSecond) {
+    public BeamCalcLinkStats(final Network network) {
         this.network = network;
         this.linkData = new ConcurrentHashMap<>();
         this.nofHours = 24;
         reset();
-        this.minCarSpeedInMetersPerSecond = minCarSpeedInMetersPerSecond;
     }
 
     public void addData(final VolumesAnalyzer analyzer, final TravelTime ttimes) {

@@ -4,7 +4,7 @@ import beam.agentsim.events.resources.ReservationErrorCode._
 import beam.agentsim.events.resources._
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
 
