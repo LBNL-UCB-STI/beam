@@ -1,22 +1,26 @@
 # coding=utf-8
 import os
 import boto3
-from botocore.errorfactory import ClientError
 
 initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Updating Beam dependencies----------------------"
   - cd /home/ubuntu/git/beam
+  - echo "send notification ..."
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Updating Dependencies" -b "Beam automated deployment image update started on $(ec2metadata --instance-id)."
-  - echo "notification sent..."
-  - git fetch
   - echo "git checkout ..."
-  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
-  - sudo git pull
-  - sudo git lfs pull
+  - git fetch
+  - for bn in $BRANCH
+  -  do
+  -    echo "-------------------checkout $bn----------------------"
+  -    GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $bn
+  -    sudo git pull
+  -    sudo git lfs pull
+  -  done
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - ./gradlew clean
+  - echo "invoke lambda ..."
   - sudo aws lambda invoke --invocation-type RequestResponse --function-name updateBeamAMI --region 'us-east-2' --payload '{"instance_id":"'"$(ec2metadata --instance-id)"'","region_id":"us-east-2"}' outputfile.txt
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
@@ -57,11 +61,11 @@ def lambda_handler(event, context):
     shutdown_behaviour = 'stop'
     shutdown_wait = "1"
     runName = 'update-beam-dependencies'
-    branch = 'production-sfbay'
-    script = initscript.replace('$BRANCH', branch).replace('$SHUTDOWN_WAIT', shutdown_wait)
+    branches = os.environ['BRANCHES']
+
+    script = initscript.replace('$BRANCH', branches).replace('$SHUTDOWN_WAIT', shutdown_wait)
 
     init_ec2(region)
     instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, en_vars)
 
     return instance_id
-    
