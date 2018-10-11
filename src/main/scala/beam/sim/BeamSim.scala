@@ -33,16 +33,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-  private val actorSystem: ActorSystem,
-  private val transportNetwork: TransportNetwork,
-  private val beamServices: BeamServices,
-  private val eventsManager: EventsManager,
-  private val scenario: Scenario,
-) extends StartupListener
-    with IterationEndsListener
-    with ShutdownListener
-    with LazyLogging
-    with MetricsSupport {
+                         private val actorSystem: ActorSystem,
+                         private val transportNetwork: TransportNetwork,
+                         private val beamServices: BeamServices,
+                         private val eventsManager: EventsManager,
+                         private val scenario: Scenario,
+                       ) extends StartupListener
+  with IterationEndsListener
+  with ShutdownListener
+  with LazyLogging
+  with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -182,6 +182,12 @@ class BeamSim @Inject()(
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+
+    val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
+    val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
+
+    logger.info("Generating html page to compare graphs (across all iterations)")
+    BeamGraphComparator.generateGraphComparisonHtmlPage(event,firstIteration,lastIteration)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
