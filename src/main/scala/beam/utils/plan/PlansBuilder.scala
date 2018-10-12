@@ -1,5 +1,8 @@
 package beam.utils.plan
 
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{Files, Paths}
+
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -9,7 +12,6 @@ import org.matsim.api.core.v01.network.Node
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
-import org.matsim.core.network.NetworkUtils
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.router.StageActivityTypesImpl
@@ -93,7 +95,7 @@ object PlansBuilder {
             rand.nextInt(sampleNumber).toString, //hhId
             rand.nextInt(4).toString, //hhNum
             rand.nextInt(3).toString, //carNum
-            rand.nextInt(Int.MaxValue).toString, //income
+            rand.nextInt(1000000).toString, //income
             0.toString, //
             rand.nextInt(1).toString, //sex
             rand.nextInt(100).toString, //age
@@ -107,25 +109,12 @@ object PlansBuilder {
               case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
               case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
             }
-            print()
           }
 
         resHHMap.values.toVector
       }
     }.parseFile(null)
     synthHouseholds ++= households
-  }
-
-  private def snapPlanActivityLocsToNearestLink(plan: Plan): Plan = {
-
-    val allActivities =
-      PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
-
-    allActivities.forEach(x => {
-      val nearestLink = NetworkUtils.getNearestLink(sc.getNetwork, x.getCoord)
-      x.setCoord(nearestLink.getCoord)
-    })
-    plan
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -146,11 +135,20 @@ object PlansBuilder {
 
   def run(): Unit = {
 
+    Files.createDirectories(Paths.get(outDir))
+    val csvFileName = s"$outDir/vehicles.csv"
+    val out = new BufferedWriter(new FileWriter(new File(csvFileName)))
+    out.write("vehicleId,vehicleTypeId")
+    out.newLine()
+
     val carVehicleType =
       JavaConverters
         .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
         .head
+    carVehicleType.setFlowEfficiencyFactor(1069)
+    carVehicleType.getEngineInformation.setGasConsumption(1069)
     newVehicles.addVehicleType(carVehicleType)
+
     synthHouseholds.foreach(sh => {
       val numPersons = sh.individuals.length
 
@@ -161,14 +159,15 @@ object PlansBuilder {
       newHH.getHouseholds.put(hhId, spHH)
 
       // Set hh income
-      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome.toInt, year))
 
       counter.incCounter()
-
-      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
       (0 to sh.vehicles).foreach(x => {
-        val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
+        val vId = s"${counter.getCounter}-$x"
+        val vehicleId = Id.createVehicleId(vId)
+        out.write(s"$vId,Car")
+        out.newLine()
         val vehicle: Vehicle =
           VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
         newVehicles.addVehicle(vehicle)
@@ -205,7 +204,6 @@ object PlansBuilder {
             newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
             newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
             newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            snapPlanActivityLocsToNearestLink(newPlan)
 
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
@@ -217,7 +215,6 @@ object PlansBuilder {
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
-            snapPlanActivityLocsToNearestLink(newPlan)
         }
 
         PersonUtils.setAge(newPerson, synthPerson.age)
@@ -234,6 +231,7 @@ object PlansBuilder {
     counter.printCounter()
     counter.reset()
 
+
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
@@ -242,7 +240,7 @@ object PlansBuilder {
       .writeFile(s"$outDir/householdAttributes.xml.gz")
     new ObjectAttributesXmlWriter(newPopAttributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
-
+    out.close()
   }
 
 
