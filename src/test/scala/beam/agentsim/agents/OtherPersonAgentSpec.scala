@@ -380,19 +380,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg2.beamLeg, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
         personActor
       )
       expectMsgType[PersonEntersVehicleEvent]
@@ -452,11 +444,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(35000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(40000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]

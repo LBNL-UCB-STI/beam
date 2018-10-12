@@ -695,19 +695,11 @@ class PersonAgentSpec
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(30000, busLeg2.beamLeg, busLeg.beamVehicleId),
+        AlightVehicleTrigger(30000, busLeg.beamVehicleId),
         personActor
       )
       lastSender ! ReservationResponse(
@@ -738,11 +730,11 @@ class PersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(30000, tramLeg.beamLeg, tramLeg.beamVehicleId),
+        BoardVehicleTrigger(30000, tramLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(32000, tramLeg.beamLeg, tramLeg.beamVehicleId),
+        AlightVehicleTrigger(32000, tramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
       events.expectMsgType[PersonEntersVehicleEvent]
