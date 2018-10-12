@@ -21,15 +21,21 @@ System Requirements
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.5`_.
+Download `BEAM v0.6.1`_.
 
-.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
+.. _BEAM v0.6.1: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.1/beam-gui.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
 .. image:: _static/figs/beam-gui-files.png
 
+Create an environment variable `PWD` and point it to the root of this directory.
+
+PWD=/path/to/beam/folder
+
 For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
+
+
 
 Running BEAM
 ^^^^^^^^^^^^
