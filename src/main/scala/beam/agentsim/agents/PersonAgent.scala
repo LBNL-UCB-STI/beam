@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
@@ -191,10 +191,10 @@ class PersonAgent(
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(NotifyLegStartTrigger(_, _, _), _), _) =>
+    case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
       stash()
       stay
-    case Event(TriggerWithId(NotifyLegEndTrigger(_, _, _), _), _) =>
+    case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
       stash()
       stay
     case Event(NotifyResourceInUse(_, _), _) =>
@@ -347,7 +347,7 @@ class PersonAgent(
         ReservationResponse(_, Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"replanning because ${firstErrorResponse.errorCode}")
+      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data,
@@ -360,7 +360,7 @@ class PersonAgent(
         RideHailResponse(_, _, Some(error), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"replanning because ${error.errorCode}")
+      logWarn(s"replanning because ${error.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(currentTourMode = None),
@@ -371,18 +371,10 @@ class PersonAgent(
 
   when(Waiting) {
     /*
-     * Learn as passenger that leg is starting
+     * Learn as passenger that it is time to board the vehicle
      */
-
     case Event(
-        TriggerWithId(NotifyLegStartTrigger(_, _, _), triggerId),
-        BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _)
-        ) if currentLeg.beamVehicleId == currentVehicle.head =>
-      logDebug(s"Already on vehicle: ${currentVehicle.head}")
-      goto(Moving) replying CompletionNotice(triggerId)
-
-    case Event(
-        TriggerWithId(NotifyLegStartTrigger(tick, _, vehicleToEnter), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
         data @ BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
@@ -394,29 +386,19 @@ class PersonAgent(
 
   when(Moving) {
     /*
-     * Learn as passenger that leg is ending
+     * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(NotifyLegEndTrigger(_, _, _), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
-        ) if restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
-      // The next vehicle is the same as current so just update state and go to Waiting
-      goto(Waiting) replying CompletionNotice(triggerId) using data.copy(
-        restOfCurrentTrip = restOfCurrentTrip
-      )
-
-    case Event(
-        TriggerWithId(NotifyLegEndTrigger(tick, _, vehicleToExit), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
         ) =>
-      // The next vehicle is different from current so we exit the current vehicle
+      logDebug(s"PersonLeavesVehicle: $vehicleToExit")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
-        restOfCurrentTrip = restOfCurrentTrip,
+        restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
         currentVehicle = currentVehicle.tail
       )
-
   }
 
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
