@@ -453,7 +453,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             }
         }
         catch (Exception ex) {
-            log.error("Unable to load benchmark CSV via path '{}'", path, ex);
+            log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
         }
         finally {
             if (null != fileReader) {
