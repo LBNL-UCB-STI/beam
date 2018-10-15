@@ -27,6 +27,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, Star
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
 import org.matsim.vehicles.VehicleCapacity
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -177,7 +178,13 @@ class BeamSim @Inject()(
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
+
+    val persons = scenario.getPopulation.getPersons.values().asScala
+    logger.info("Iteration {} - average number of plans per agent: {}",
+      event.getIteration,
+      persons.map(_.getPlans.size()).sum.toFloat / persons.size)
     //    Tracer.currentContext.finish()
+
     logger.info("Ending Iteration")
   }
 

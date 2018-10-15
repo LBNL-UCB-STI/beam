@@ -9,9 +9,10 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
+import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices

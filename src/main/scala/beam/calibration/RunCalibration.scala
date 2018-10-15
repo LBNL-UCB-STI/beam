@@ -1,7 +1,5 @@
 package beam.calibration
 
-import java.io.PrintWriter
-
 import beam.calibration.utils.SigOptApiToken
 import beam.sim.BeamHelper
 import com.sigopt.Sigopt
@@ -61,18 +59,15 @@ object RunCalibration extends App with BeamHelper {
     Sigopt.clientToken = SigOptApiToken.getClientAPIToken
   } catch {
 
-    case ex: APIConnectionError => {
+    case ex: APIConnectionError =>
       logger.info(ex.getMessage)
 
       if (sigoptApiToken != null) {
         Sigopt.clientToken = sigoptApiToken
         logger.info("The client token is set from the program arguments")
       } else {
-        throw new APIConnectionError(
-          "No client token is present in the program arguments"
-        )
+        throw new APIConnectionError("No client token is present in the program arguments")
       }
-    }
   }
 
   //  Context object containing experiment definition
@@ -85,9 +80,13 @@ object RunCalibration extends App with BeamHelper {
   } else if (runType == RUN_TYPE_REMOTE) {
     logger.info("Triggering the remote deployment...")
     import sys.process._
-    val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
+    val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) {
+      ".bat"
+    } else {
+      ".sh"
+    }
 
-    (1 to experimentData.numWorkers).foreach({ _ =>
+    (1 to experimentData.numWorkers).foreach { _ =>
       val execString: String =
         s"""./gradlew$gradlewEnding :deploy
             -PrunName=${experimentData.experimentDef.header.title}
@@ -109,9 +108,9 @@ object RunCalibration extends App with BeamHelper {
            '--num_iters', '$numIters',
            '--run_type', 'local',
            '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
-      println(execString)
+      logger.debug(execString)
       execString.!
-    })
+    }
   } else {
     logger.error("{} unknown", RUN_TYPE)
   }
@@ -130,14 +129,16 @@ object RunCalibration extends App with BeamHelper {
           (NUM_ITERATIONS_TAG, numIters)
         case Array("--experiment_id", experimentId: String) =>
           val trimmedExpId = experimentId.trim
-          if (trimmedExpId != "None") { (EXPERIMENT_ID_TAG, trimmedExpId) } else {
+          if (trimmedExpId == "None") {
             (EXPERIMENT_ID_TAG, NEW_EXPERIMENT_FLAG)
+          } else {
+            (EXPERIMENT_ID_TAG, trimmedExpId)
           }
         case Array("--run_type", runType: String) if runType.trim.nonEmpty =>
           (RUN_TYPE, runType)
         case Array("--sigopt_api_token", sigoptApiToken: String) if sigoptApiToken.trim.nonEmpty =>
           (SIGOPT_API_TOKEN_TAG, sigoptApiToken)
-        case arg @ _ =>
+        case arg =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap

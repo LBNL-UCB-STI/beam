@@ -37,21 +37,11 @@ public class OsmToMATSim {
     private final Set<String> unknownMaxspeedTags = new HashSet<String>();
     private final Set<String> unknownLanesTags = new HashSet<String>();
     private final Network mNetwork;
-    private final CoordinateTransformation transform;
     private long id = 0;
-    private boolean scaleMaxSpeed = false;
 
 
-//	public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
-//					   true){
-//
-//	}
-
-
-    public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
-                       boolean useBEAMHighwayDefaults) {
+    public OsmToMATSim(final Network mNetwork, boolean useBEAMHighwayDefaults) {
         this.mNetwork = mNetwork;
-        this.transform = transformation;
         if (useBEAMHighwayDefaults) {
 
             log.info("Falling back to default values.");
@@ -209,7 +199,8 @@ public class OsmToMATSim {
         // create the link(s)
         double capacity = nofLanes * laneCapacity;
 
-        if (this.scaleMaxSpeed) {
+        boolean scaleMaxSpeed = false;
+        if (scaleMaxSpeed) {
             freespeed = freespeed * freespeedFactor;
         }
 

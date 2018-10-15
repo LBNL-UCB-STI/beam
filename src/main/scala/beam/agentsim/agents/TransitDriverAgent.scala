@@ -15,7 +15,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -52,6 +52,19 @@ object TransitDriverAgent {
     )
   }
 
+  def selectByVehicleId(
+    transitVehicle: Id[Vehicle]
+  )(implicit context: ActorContext): ActorSelection = {
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
+  }
+
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
+    Id.create(
+      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString),
+      classOf[TransitDriverAgent]
+    )
+  }
+
   case class TransitDriverData(
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
@@ -66,19 +79,6 @@ object TransitDriverAgent {
 
     override def hasParkingBehaviors: Boolean = false
   }
-
-  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
-    Id.create(
-      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString),
-      classOf[TransitDriverAgent]
-    )
-  }
-
-  def selectByVehicleId(
-    transitVehicle: Id[Vehicle]
-  )(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
-  }
 }
 
 class TransitDriverAgent(
@@ -92,11 +92,16 @@ class TransitDriverAgent(
   val legs: Seq[BeamLeg]
 ) extends DrivesVehicle[TransitDriverData] {
 
-  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
-
-  override def logPrefix(): String = s"TransitDriverAgent:$id "
-
   override val id: Id[TransitDriverAgent] = transitDriverId
+
+  val myUnhandled: StateFunction = {
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
+  }
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   startWith(Uninitialized, TransitDriverData())
 
@@ -141,12 +146,7 @@ class TransitDriverAgent(
       stop
   }
 
-  val myUnhandled: StateFunction = {
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(Finish, _) =>
-      stop
-  }
+  override def logPrefix(): String = s"TransitDriverAgent:$id "
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 

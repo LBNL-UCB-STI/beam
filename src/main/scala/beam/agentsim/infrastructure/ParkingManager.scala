@@ -16,6 +16,7 @@ abstract class ParkingManager(
     with ResourceManager[ParkingStall] {}
 
 object ParkingManager {
+
   case class ParkingInquiry(
     customerId: Id[PersonAgent],
     customerLocationUtm: Location,
@@ -37,10 +38,12 @@ object ParkingManager {
   ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
+
   case class DepotParkingInquiryResponse(maybeStall: Option[ParkingStall], requestId: Int)
 
   case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int)
 
   // Use this to pass data from CSV or config file into the manager
   case class ParkingStockAttributes(numSpacesPerTAZ: Int)
+
 }

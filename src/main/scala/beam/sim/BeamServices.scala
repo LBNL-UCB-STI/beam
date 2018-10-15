@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.FileNotFoundException
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -11,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
+import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -24,6 +25,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
+import org.slf4j.LoggerFactory
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
@@ -103,6 +105,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 }
 
 object BeamServices {
+  private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
   val defaultTazTreeMap: TAZTreeMap = {
@@ -112,9 +115,16 @@ object BeamServices {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getTazTreeMap(file: String): TAZTreeMap = {
-    Try(TAZTreeMap.fromCsv(file)).getOrElse {
-      BeamServices.defaultTazTreeMap
+  def getTazTreeMap(filePath: String): TAZTreeMap = {
+    try {
+      TAZTreeMap.fromCsv(filePath)
+    } catch {
+      case fe: FileNotFoundException =>
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath,fe)
+        BeamServices.defaultTazTreeMap
+      case e: Exception =>
+        logger.error("Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,e)
+        BeamServices.defaultTazTreeMap
     }
   }
 
@@ -128,7 +138,7 @@ object BeamServices {
         val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
         val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap.get(Id.create(vehicleTypeIdString, classOf[BeamVehicleType])).get
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoule)
 
@@ -160,11 +170,11 @@ object BeamServices {
         val standingRoomCapacity = line.get("standingRoomCapacity").toDouble
         val lengthInMeter = line.get("lengthInMeter").toDouble
         val primaryFuelTypeId = line.get("primaryFuelType")
-        val primaryFuelType = fuelTypeMap.get(Id.create(primaryFuelTypeId, classOf[FuelType])).get
+        val primaryFuelType = fuelTypeMap(Id.create(primaryFuelTypeId, classOf[FuelType]))
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
         val secondaryFuelTypeId = line.get("secondaryFuelType")
-        val secondaryFuelType = fuelTypeMap.get(Id.create(secondaryFuelTypeId, classOf[FuelType])).get
+        val secondaryFuelType = fuelTypeMap(Id.create(secondaryFuelTypeId, classOf[FuelType]))
         val secondaryFuelConsumptionInJoule = line.get("secondaryFuelConsumptionInJoulePerMeter").toDouble
         val secondaryFuelCapacityInJoule = line.get("secondaryFuelCapacityInJoule").toDouble
         val automationLevel = line.get("automationLevel")

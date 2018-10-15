@@ -21,15 +21,21 @@ System Requirements
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.5`_.
+Download `BEAM v0.6.1`_.
 
-.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
+.. _BEAM v0.6.1: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.1/beam-gui.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
 .. image:: _static/figs/beam-gui-files.png
 
+Create an environment variable `PWD` and point it to the root of this directory.
+
+PWD=/path/to/beam/folder
+
 For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
+
+
 
 Running BEAM
 ^^^^^^^^^^^^
@@ -328,9 +334,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 8. Run the conversion tool
 
-* Main class to execute: beam.utils.matsim_conversion.MatsimConversionTool
-* Program arguments, path to beam config file from above, siouxfalls.conf: path/to/beam.conf
-* Environment variables: PWD=/path/to/beam/folder
+* Open command line in beam root directory and run the following command, replace [/path/to/conf/file] with the path to your config file: gradlew matsimConversion -PconfPath=[/path/to/conf/file]
 
 The tool should produce the following outputs:
 

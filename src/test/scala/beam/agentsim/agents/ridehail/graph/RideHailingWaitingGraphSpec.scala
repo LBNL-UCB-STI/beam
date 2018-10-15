@@ -37,7 +37,7 @@ object RideHailingWaitingGraphSpec {
     override def handleEvent(event: Event): Unit = {
       event match {
         case evn
-            if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
+          if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
             || event.getEventType.equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) =>
           railHailingStat.processStats(event)
         case evn @ (_: ModeChoiceEvent | _: PersonEntersVehicleEvent) =>
@@ -79,13 +79,16 @@ object RideHailingWaitingGraphSpec {
     }
 
     private def updateCounter(evn: PersonEntersVehicleEvent) = {
-      val personId = evn.getPersonId.toString
-      val personTime = personLastTime.get(personId)
-      personLastTime = personLastTime - personId
-      personTime.fold(waitingTimes) { w =>
-        val time = w.toInt / 3600
-        waitingTimes :+ (time -> (evn.getTime - w))
-      }
+      if((evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle"))) {
+        val personId = evn.getPersonId.toString
+        val personTime = personLastTime.get(personId)
+        personLastTime = personLastTime - personId
+
+        personTime.fold(waitingTimes) { w =>
+          val time = w.toInt / 3600
+          waitingTimes :+ (time -> ((evn.getTime - w)) / 60)
+        }
+      }else waitingTimes
     }
 
     def counterValue: Seq[(Int, Double)] = waitingTimes
@@ -119,18 +122,14 @@ class RideHailingWaitingGraphSpec extends WordSpecLike with Matchers with Integr
           val handler = new StatsValidationHandler
           parseEventFile(iteration, handler)
           promise.future.foreach { a =>
-            val hours = handler.counterValue
-              .groupBy(_._1)
-              .map {
-                case (k, ks) =>
-                  k -> BigDecimal(ks.map(_._2).sum).setScale(3, RoundingMode.HALF_UP).toDouble
-              }
+            val hours = handler.counterValue.groupBy(_._1).map {
+              case (k, ks) =>
+                k -> BigDecimal(ks.map(_._2).sum).setScale(3, RoundingMode.HALF_UP).toDouble
+            }
 
             val modes = a.asScala.map {
               case (i, is) =>
-                i.toInt -> BigDecimal(is.asScala.map(_.toDouble).sum)
-                  .setScale(3, RoundingMode.HALF_UP)
-                  .toDouble
+                i.toInt -> BigDecimal(is.asScala.map(_.toDouble).sum).setScale(3, RoundingMode.HALF_UP).toDouble
             }.toMap
 
             hours shouldEqual modes
