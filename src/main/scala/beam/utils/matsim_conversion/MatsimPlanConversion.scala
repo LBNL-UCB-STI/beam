@@ -1,10 +1,13 @@
 package beam.utils.matsim_conversion
 
+import java.nio.charset.StandardCharsets
+
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
+  private val UTF8: String = StandardCharsets.UTF_8.name()
 
   def generateScenarioData(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
@@ -14,18 +17,7 @@ object MatsimPlanConversion {
 
     val persons = transformedPopulationDoc \\ "person"
 
-    //Generate vehicles data
-    VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
-    val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
-      VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
-    } else {
-      val vehiclesFile = conversionConfig.vehiclesInput.get
-      val vehiclesDoc = XML.loadFile(vehiclesFile)
-      val vehicleTypes = VehiclesDataConversion.generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, vehicleTypes)
-      VehiclesDataConversion.generateVehiclesDataFromSource(conversionConfig.scenarioDirectory, vehiclesDoc)
-    }
+    val vehiclesWithTypeId: Seq[Seq[String]] = generateVehiclesData(conversionConfig, persons)
 
     val houseHolds =
       generateHouseholds(persons, vehiclesWithTypeId.map(_.head), conversionConfig.income)
@@ -49,10 +41,28 @@ object MatsimPlanConversion {
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, "UTF-8", true)
-    XML.save(householdAttrsOutput, householdAtrrs, "UTF-8", true, householdsAttrDoctype)
-    XML.save(populationAttrsOutput, populationAttrs, "UTF-8", true, populationAttrDoctype)
+    XML.save(populationOutput, transformedPopulationDoc, UTF8, xmlDecl = true, populationDoctype)
+    XML.save(householdsOutput, houseHolds, UTF8, xmlDecl = true)
+    XML.save(householdAttrsOutput, householdAtrrs, UTF8, xmlDecl = true, householdsAttrDoctype)
+    XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
+  }
+
+  private def generateVehiclesData(
+    conversionConfig: ConversionConfig,
+    persons: NodeSeq
+  ) = {
+    VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
+    val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
+      VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
+    } else {
+      val vehiclesFile = conversionConfig.vehiclesInput.get
+      val vehiclesDoc = XML.loadFile(vehiclesFile)
+      val vehicleTypes = VehiclesDataConversion.generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, vehicleTypes)
+      VehiclesDataConversion.generateVehiclesDataFromSource(conversionConfig.scenarioDirectory, vehiclesDoc)
+    }
+    vehiclesWithTypeId
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
@@ -178,8 +188,7 @@ object MatsimPlanConversion {
       Some(GenAttr(None, key, value, next))
   }
 
-  def unchainMetaData(m: MetaData): Iterable[GenAttr] =
-    m flatMap (decomposeMetaData)
+  def unchainMetaData(m: MetaData): Iterable[GenAttr] = m.flatMap(decomposeMetaData)
 
   def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
     case Nil          => Null
