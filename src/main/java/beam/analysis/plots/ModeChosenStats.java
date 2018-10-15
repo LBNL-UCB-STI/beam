@@ -37,6 +37,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Set<String> cumulativeModeChosenForModeChoice = new TreeSet();
     private Set<String> cumulativeModeChosenForReference = new TreeSet();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private final Map<String, Double> benchMarkData;
     private String benchmarkFileLoc ;
 
 
@@ -78,7 +79,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     public ModeChosenStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation , BeamConfig beamConfig) {
         benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
-
+        benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
     }
 
     @Override
@@ -109,7 +110,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         writeToRootCSV();
 
         fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
-        cumulativeModeChosenForReference.addAll(benchmarkCsvLoader().keySet());
+        cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null) {
             createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)",cumulativeModeChosenForReference);
@@ -289,13 +290,12 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     // The data is converted into average and compared with the data of benchmark.
     public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) throws IOException{
-        Map<String, Double> benchmarkData = benchmarkCsvLoader();
         DefaultCategoryDataset result = new DefaultCategoryDataset();
-        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchmarkData.keySet());
-        double sum = benchmarkData.values().stream().reduce((x,y) -> x+y).get();
+        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
+        double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
         for(int i = 0 ; i< modesChosenList.size() ;i++ ){
             String rowKey = String.valueOf(i + 1);
-            result.addValue((benchmarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
+            result.addValue((benchMarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
         }
         int max = 0;
         for (int r = 0; r < data.length; r++) {
@@ -386,12 +386,11 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             out.write("iterations," + heading);
             out.newLine();
 
-            Map<String, Double> benchmarkData = benchmarkCsvLoader();
-            double sum = benchmarkData.values().stream().reduce((x,y) -> x+y).get();
+            double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
             StringBuilder builder = new StringBuilder("benchmark");
             for (String mode : modes) {
-                if (benchmarkData.get(mode) != null) {
-                    builder.append(",").append((benchmarkData.get(mode) * 100) / sum);
+                if (benchMarkData.get(mode) != null) {
+                    builder.append(",").append((benchMarkData.get(mode) * 100) / sum);
                 }
                 else {
                     builder.append(",0");
@@ -438,18 +437,32 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
-    private Map<String, Double> benchmarkCsvLoader() throws IOException{
+    private Map<String, Double> benchmarkCsvLoader(String path) {
         Map<String, Double> benchMarkData = new HashMap<>();
-        FileReader fileReader = new FileReader(benchmarkFileLoc);
-        BufferedReader bufferedReader = new BufferedReader(fileReader);
-        String line1 = bufferedReader.readLine();
-        String line2 = bufferedReader.readLine();
-        String[] mode =line1.split(",");
-        String[] share = line2.split(",");
-        for(int i = 1;i < mode.length ;i++){
-            benchMarkData.put(mode[i], Double.parseDouble(share[i]));
+
+        FileReader fileReader = null;
+        try {
+            fileReader = new FileReader(path);
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            String line1 = bufferedReader.readLine();
+            String line2 = bufferedReader.readLine();
+            String[] mode = line1.split(",");
+            String[] share = line2.split(",");
+            for (int i = 1; i < mode.length; i++) {
+                benchMarkData.put(mode[i], Double.parseDouble(share[i]));
+            }
         }
-        fileReader.close();
+        catch (Exception ex) {
+            log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
+        }
+        finally {
+            if (null != fileReader) {
+                try {
+                    fileReader.close();
+                }
+                catch (Exception ex) {}
+            }
+        }
         return benchMarkData;
     }
 

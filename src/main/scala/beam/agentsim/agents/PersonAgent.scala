@@ -14,7 +14,11 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -33,8 +37,9 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-
 import scala.concurrent.duration._
+
+import beam.utils.logging.ExponentialLazyLogging
 
 /**
   */
@@ -297,7 +302,7 @@ class PersonAgent(
 
     /**
       * Callback from [[ChoosesMode]]
-      **/
+     **/
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false)
@@ -347,7 +352,7 @@ class PersonAgent(
         ReservationResponse(_, Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
         ) =>
-      logWarn(s"replanning because ${firstErrorResponse.errorCode}")
+      logDebug(s"replanning because ${firstErrorResponse.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data,
@@ -360,7 +365,7 @@ class PersonAgent(
         RideHailResponse(_, _, Some(error), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
         ) =>
-      logWarn(s"replanning because ${error.errorCode}")
+      logDebug(s"replanning because ${error.errorCode}")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(currentTourMode = None),
@@ -458,7 +463,7 @@ class PersonAgent(
     * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
     * of activity
     * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
-    **/
+   **/
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
         StateTimeout,
@@ -534,9 +539,11 @@ class PersonAgent(
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our ride hail portion.
-      logWarn(
-        s"Missed transit pickup during a ride_hail_transit trip, late by ${_currentTick.get - nextLeg.beamLeg.startTime} sec"
+      ExponentialLazyLogging.logger.warn(
+        "Missed transit pickup during a ride_hail_transit trip, late by {} sec",
+        _currentTick.get - nextLeg.beamLeg.startTime
       )
+
       goto(ChoosingMode) using ChoosesModeData(
         personData = data.copy(currentTourMode = Some(WALK_TRANSIT)),
         currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),

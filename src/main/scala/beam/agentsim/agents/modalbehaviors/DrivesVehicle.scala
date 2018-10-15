@@ -506,22 +506,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .toSeq
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
-      val boardTrigger = if(legsInThePast.nonEmpty) {
-        Vector(ScheduleTrigger(
-          BoardVehicleTrigger(legsInThePast.head.startTime, data.currentVehicle.head),
-          sender()
-        ))
-      }else{
+      val boardTrigger = if (legsInThePast.nonEmpty) {
+        Vector(
+          ScheduleTrigger(
+            BoardVehicleTrigger(legsInThePast.head.startTime, data.currentVehicle.head),
+            sender()
+          )
+        )
+      } else {
         Vector()
       }
-      val alightTrigger = if(legsInThePast.nonEmpty && legsInThePast.size == legs.size){
+      val alightTrigger = if (legsInThePast.nonEmpty && legsInThePast.size == legs.size) {
         Vector(
           ScheduleTrigger(
             AlightVehicleTrigger(legsInThePast.last.endTime, data.currentVehicle.head),
             sender()
           )
         )
-      }else{
+      } else {
         Vector()
       }
 
