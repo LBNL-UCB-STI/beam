@@ -6,6 +6,7 @@ import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.matsim.core.controler.events.ControlerEvent
 
 import scala.collection.immutable.ListMap
+import scala.collection.mutable
 import scala.xml.Elem
 
 /**
@@ -21,7 +22,7 @@ object BeamGraphComparator {
     * @param iterationsCount Total number of iterations.
     * @return Graph html as scala elem
     */
-  private def generateHtml(files : Map[String, Array[(String, File)]],iterationsCount : Int): Elem = {
+  private def generateHtml(files : mutable.HashMap[(String,String), Map[String, Array[(String, File)]]],iterationsCount : Int): Elem = {
     val scriptAllImages =
       """function displayAllGraphs(images){
            var counter = 0;
@@ -36,9 +37,18 @@ object BeamGraphComparator {
     def displayAllGraphs(images: Array[String]) = s"displayAllGraphs([${images.map(i =>s"\'$i\'").mkString(",")}]);"
     val graphs: Elem = <ul class="list-group">
       {
-      ListMap(files.toSeq.sortBy(_._1): _*) map { t =>
+      ListMap(files.toSeq.sortBy(_._1._1): _*) map { grp =>
         <li class="list-group-item">
-          <h4><a href="javascript:" onclick={displayAllGraphs(t._2.map(_._2.getAbsolutePath))}>{t._1}</a></h4>
+          <strong>{grp._1._2}</strong>
+          <ul>
+            {
+            ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
+              <li>
+                <h4><a href="javascript:" onclick={displayAllGraphs(t._2.map(_._2.getAbsolutePath))}>{t._1}</a></h4>
+              </li>
+            }
+            }
+          </ul>
         </li>
       }
       }
@@ -100,15 +110,40 @@ object BeamGraphComparator {
     val numberOfIterations = files.size
     val fileNameRegex = "([0-9]*).(.*)(.png)".r
     // Group all yielded files based on the graph names (file name w/o iteration prefixes)
-    val groupedCharts : Map[String, Array[(String, File)]] = (files.reduce(_ ++ _) map { f =>
+    val fileNames = files.reduce(_ ++ _) map { f =>
       (f.getName match {
         case fileNameRegex(_,name,_) => name
         case _ => ""
       }) -> f
-    }).groupBy(_._1)
+    }
+    //Group chart files by name (2 level group)
+    val groupedCharts: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
+      val index = f._1.indexOf("_")
+      if(index == -1)
+        f._1
+      else
+        f._1.substring(0,index)
+    })
+    val mapper = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
+    // set priorities for the grouped chart files
+    groupedCharts.foreach(gc => {
+      if (gc._2.size == 1){
+        val key = gc._2.headOption.map(_._1).getOrElse("")
+        key match {
+          case "mode_choice" => mapper.put("P01" -> key,gc._2)
+          case "energy_use" => mapper.put("P02" -> key,gc._2)
+          case "realized_mode" => mapper.put("P03" -> key, gc._2)
+          case _ =>
+            val map = mapper.getOrElse("P99" -> "Misc",Map.empty)
+            mapper.put("P99" -> "Misc",gc._2 ++ map )
+        }
+      }
+      else
+        mapper.put("P04"+gc._1.headOption.getOrElse("") -> gc._1,gc._2)
+    })
     //Generate graph comparison html element and write it to the html page at desired location
     val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(groupedCharts,numberOfIterations)
+    val htmlElem = this.generateHtml(mapper,numberOfIterations)
     try {
       bw.write(htmlElem.mkString)
     }
@@ -119,4 +154,5 @@ object BeamGraphComparator {
       bw.close()
     }
   }
+
 }

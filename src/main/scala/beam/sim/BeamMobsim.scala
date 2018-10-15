@@ -341,11 +341,11 @@ class BeamMobsim @Inject()(
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv")
+              .getIterationFilename(beamServices.iterationNumber, "rideHail_initialLocation.csv")
           )
           rideHailinitialLocationSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png")
+              .getIterationFilename(beamServices.iterationNumber, "rideHail_initialLocation.png")
           )
         }
         log.info("Initialized {} people", beamServices.personRefs.size)

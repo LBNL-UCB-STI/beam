@@ -117,7 +117,7 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    private static final String fileName = "rideHailWaitingStats";
+    private static final String fileName = "rideHail_waitingStats";
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private double lastMaximumTime = 0;
     private static final double NUMBER_OF_CATEGORIES = 6.0;
