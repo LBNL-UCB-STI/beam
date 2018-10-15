@@ -1,4 +1,4 @@
-package beam.analisis.physsim
+package beam.analysis.physsim
 
 import java.io.{BufferedInputStream, File, FileInputStream}
 import java.util.zip.GZIPInputStream
