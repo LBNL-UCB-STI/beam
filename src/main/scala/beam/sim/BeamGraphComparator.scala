@@ -104,7 +104,9 @@ object BeamGraphComparator {
   def generateGraphComparisonHtmlPage(event: ControlerEvent,firstIteration: Int,lastIteration: Int): Unit = {
     // Yield all the png files (graph images) across all iterations
     val files: Seq[Array[File]] = for(i <- firstIteration to lastIteration) yield {
-      FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles()
+      (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles(f =>
+        f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
+        FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
         .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
     val numberOfIterations = files.size
