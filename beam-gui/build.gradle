@@ -1,4 +1,6 @@
 apply plugin: 'application'
+apply plugin: 'maven'
+
 mainClassName = "beam.gui.Gui"
 compileJava.options.encoding = 'UTF-8'
 
