@@ -12,6 +12,8 @@ import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
+import beam.utils.TravelTimeCalculatorHelper;
+import beam.utils.TravelTimeDataWithoutLink;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -170,6 +172,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.error("exception {}", e.getMessage());
             }
         }
+
+        // Black magic happens here
+        //#########################################################################################
+        Map<String, TravelTimeDataWithoutLink> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeDataArray(travelTimeCalculator);
+        router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTime_v2(map), ActorRef.noSender());
+        //#########################################################################################
+
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);

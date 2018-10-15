@@ -5,7 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -26,7 +26,9 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.BeamServices
+import beam.utils.TravelTimeDataWithoutLink
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -36,6 +38,7 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.util.Try
 
 class BeamRouter(
   services: BeamServices,
@@ -126,10 +129,29 @@ class BeamRouter(
 
   private var traveTimeOpt: Option[TravelTime] = None
 
+  val kryoSerializer = new KryoSerializer(context.system.asInstanceOf[ExtendedActorSystem])
+
+  private val updateTravelTimeTimeout: Timeout = Timeout(3, TimeUnit.MINUTES)
+
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
+    case t: TryToSerialize =>
+      val byteArray = kryoSerializer.toBinary(t)
+      log.info("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+    case UpdateTravelTime_v2(map) =>
+      localNodes.foreach { actor =>
+        log.info("Sending UpdateTravelTime_v2 to  {}", actor)
+        actor.ask(UpdateTravelTime_v2(map))(updateTravelTimeTimeout)
+      }
+      val nodes = remoteNodes
+      nodes.foreach { address =>
+        resolveAddressBlocking(address).foreach { serviceActor =>
+          log.info("Sending UpdateTravelTime_v2 to  {}", serviceActor)
+          serviceActor.ask(UpdateTravelTime_v2(map))(updateTravelTimeTimeout)
+        }
+      }
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
         val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
@@ -345,6 +367,27 @@ class BeamRouter(
     outstandingWorkIdToTimeSent.remove(workId)
   }
 
+  private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
+    Try(Await.result(resolveAddress(addr, d), d)).recover {
+      case t: Throwable =>
+        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
+        None
+    }.get
+  }
+
+  private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
+    workerFrom(addr)
+      .resolveOne(duration)
+      .map { r =>
+        Option(r)
+      }
+      .recover {
+        case t: Throwable =>
+          log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
+          None
+      }
+  }
+
   private def initDriverAgents(
     initializer: TransitInitializer,
     scheduler: ActorRef,
@@ -390,6 +433,9 @@ object BeamRouter {
   case object GetTravelTime
   case class MATSimNetwork(network: Network)
   case object GetMatSimNetwork
+
+  case class TryToSerialize(obj: Object)
+  case class UpdateTravelTime_v2(linkIdToTravelTimeData: java.util.Map[String, TravelTimeDataWithoutLink])
 
   /**
     * It is use to represent a request object
