@@ -138,7 +138,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
               data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
-                  logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
+                  logDebug(s"Scheduling AlightVehicleTrigger for Person $personRef")
                   scheduler ! ScheduleTrigger(
                     AlightVehicleTrigger(tick, data.currentVehicle.head),
                     personRef
