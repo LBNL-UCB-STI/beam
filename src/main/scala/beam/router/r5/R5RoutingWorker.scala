@@ -31,7 +31,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{DateUtils, FileUtils, LoggingUtil}
+import beam.utils.{DateUtils, FileUtils, LoggingUtil, TravelTimeCalculatorHelper}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -42,7 +42,7 @@ import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -60,6 +60,7 @@ case class WorkerParameters(
   beamServices: BeamServices,
   transportNetwork: TransportNetwork,
   network: Network,
+  scenario: Scenario,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   transitVehicles: Vehicles,
@@ -133,6 +134,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         beamServices,
         transportNetwork,
         network,
+        scenario,
         fareCalculator,
         tollCalculator,
         scenario.getTransitVehicles,
@@ -145,6 +147,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     beamServices,
     transportNetwork,
     network,
+    scenario,
     fareCalculator,
     tollCalculator,
     transitVehicles,
@@ -246,6 +249,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         cache.invalidateAll()
       }
       askForMoreWork()
+    case UpdateTravelTime_v2(linkIdToTravelTimeData) =>
+      maybeTravelTime = Some(
+        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(network, scenario, linkIdToTravelTimeData)
+      )
+      log.info(s"{} UpdateTravelTime_v2. Set new travel time", getNameAndHashCode)
+      cache.invalidateAll()
+      askForMoreWork
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
@@ -1256,6 +1266,7 @@ object R5RoutingWorker {
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     network: Network,
+    scenario: Scenario,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles
@@ -1266,6 +1277,7 @@ object R5RoutingWorker {
           beamServices,
           transportNetwork,
           network,
+          scenario,
           fareCalculator,
           tollCalculator,
           transitVehicles,

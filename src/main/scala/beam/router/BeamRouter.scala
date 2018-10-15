@@ -30,7 +30,7 @@ import beam.utils.TravelTimeDataWithoutLink
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
@@ -44,6 +44,7 @@ class BeamRouter(
   services: BeamServices,
   transportNetwork: TransportNetwork,
   network: Network,
+  scenario: Scenario,
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
@@ -115,6 +116,7 @@ class BeamRouter(
         services,
         transportNetwork,
         network,
+        scenario,
         fareCalculator,
         tollCalculator,
         transitVehicles
@@ -482,6 +484,7 @@ object BeamRouter {
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     network: Network,
+    scenario: Scenario,
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
@@ -492,6 +495,7 @@ object BeamRouter {
         beamServices,
         transportNetwork,
         network,
+        scenario,
         eventsManager,
         transitVehicles,
         fareCalculator,

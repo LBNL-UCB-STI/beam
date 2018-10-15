@@ -92,6 +92,7 @@ class BeamSim @Inject()(
         beamServices,
         transportNetwork,
         scenario.getNetwork,
+        scenario,
         eventsManager,
         scenario.getTransitVehicles,
         fareCalculator,
