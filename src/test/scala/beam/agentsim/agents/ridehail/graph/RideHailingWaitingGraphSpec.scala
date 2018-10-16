@@ -79,14 +79,14 @@ object RideHailingWaitingGraphSpec {
     }
 
     private def updateCounter(evn: PersonEntersVehicleEvent) = {
-      if((evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle"))) {
+      if (evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle")) {
         val personId = evn.getPersonId.toString
         val personTime = personLastTime.get(personId)
         personLastTime = personLastTime - personId
 
         personTime.fold(waitingTimes) { w =>
           val time = w.toInt / 3600
-          waitingTimes :+ (time -> ((evn.getTime - w)) / 60)
+          waitingTimes :+ (time -> (evn.getTime - w) / 60)
         }
       }else waitingTimes
     }

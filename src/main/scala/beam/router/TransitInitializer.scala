@@ -211,7 +211,7 @@ class TransitInitializer(
     val vehicleType = getVehicleType(vehicleTypeId, mode)
 
     mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
+      case BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA if vehicleType != null =>
         val powertrain = Option(vehicleType.primaryFuelConsumptionInJoule)
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
