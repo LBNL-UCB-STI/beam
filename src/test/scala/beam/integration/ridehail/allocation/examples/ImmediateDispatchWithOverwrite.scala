@@ -15,7 +15,8 @@ Idea: try to overwrite one ridehail reservation
 
  */
 class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) with LazyLogging {
+    extends RideHailResourceAllocationManager(rideHailManager)
+    with LazyLogging {
 
   var bufferedRideHailRequest: Set[VehicleAllocationRequest] = Set()
   var reservationCompleted = false
@@ -28,7 +29,8 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     if (!reservationCompleted) {
       bufferedRideHailRequest += vehicleAllocationRequest
       logger.debug(
-        "proposeVehicleAllocation buffered - personId: {}", vehicleAllocationRequest.request.customer.personId
+        "proposeVehicleAllocation buffered - personId: {}",
+        vehicleAllocationRequest.request.customer.personId
       )
     }
 
@@ -87,7 +89,9 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       )
 
       logger.debug(
-        " new vehicle assigned:{}, tick: {}", rhl.vehicleId, reply.tick
+        " new vehicle assigned:{}, tick: {}",
+        rhl.vehicleId,
+        reply.tick
       )
 
       bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
@@ -112,14 +116,17 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     if (!overwriteAttemptStarted && reservationCompleted) {
       logger.debug(
-        "trying to reassign vehicle to customer:{}, tick: {}", bufferedRideHailRequest.head.request.customer, tick
+        "trying to reassign vehicle to customer:{}, tick: {}",
+        bufferedRideHailRequest.head.request.customer,
+        tick
       )
       rideHailManager.attemptToCancelCurrentRideRequest(
         tick,
         bufferedRideHailRequest.head.request.requestId
       )
       logger.debug(
-        "attempt finished, tick: {}", tick
+        "attempt finished, tick: {}",
+        tick
       )
       bufferedRideHailRequests.increaseNumberOfOpenOverwriteRequests()
       overwriteAttemptStarted = true

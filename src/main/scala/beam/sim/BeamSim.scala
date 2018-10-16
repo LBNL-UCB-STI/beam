@@ -180,9 +180,11 @@ class BeamSim @Inject()(
     stopMeasuringIteration()
 
     val persons = scenario.getPopulation.getPersons.values().asScala
-    logger.info("Iteration {} - average number of plans per agent: {}",
+    logger.info(
+      "Iteration {} - average number of plans per agent: {}",
       event.getIteration,
-      persons.map(_.getPlans.size()).sum.toFloat / persons.size)
+      persons.map(_.getPlans.size()).sum.toFloat / persons.size
+    )
     //    Tracer.currentContext.finish()
 
     logger.info("Ending Iteration")

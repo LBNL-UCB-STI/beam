@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{TAZ, readerFromFile}
+import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -120,10 +120,13 @@ object BeamServices {
       TAZTreeMap.fromCsv(filePath)
     } catch {
       case fe: FileNotFoundException =>
-        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath,fe)
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
         BeamServices.defaultTazTreeMap
       case e: Exception =>
-        logger.error("Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,e)
+        logger.error(
+          "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
+          e
+        )
         BeamServices.defaultTazTreeMap
     }
   }
