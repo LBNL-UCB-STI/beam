@@ -43,7 +43,7 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
     "Generate totals in generateTotals method" in {
       statsTotals.size shouldBe 7
       val byDay = statsTotals.map(_.day_of_week)
-      byDay should contain theSameElementsAs ((0 to 6))
+      byDay should contain theSameElementsAs (0 to 6)
       val totals = Map(
         0 -> (1.6d, 2.7d),
         1 -> (1.8d, 1.8d),

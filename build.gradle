@@ -74,6 +74,7 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
+        maven { url 'http://download.osgeo.org/webdav/geotools/'}
         maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
