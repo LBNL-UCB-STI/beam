@@ -42,17 +42,15 @@ public class R5MnetBuilder {
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
     public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
-
         final BeamConfig.Beam.Routing.R5 r5 = beamConfig.beam().routing().r5();
 
         osmFile = r5.osmMapdbFile();
 
-        this.transform = new GeotoolsTransformation(r5.mNetBuilder().fromCRS(), r5.mNetBuilder().toCRS());
+        transform = new GeotoolsTransformation(r5.mNetBuilder().fromCRS(), r5.mNetBuilder().toCRS());
 
-        log.debug("Found R5 Transport Network file, loading....");
-        this.r5Network = r5Net;
+        r5Network = r5Net;
 
-        this.mNetwork = NetworkUtils.createNetwork();
+        mNetwork = NetworkUtils.createNetwork();
     }
 
     public void buildMNet() {
@@ -120,7 +118,7 @@ public class R5MnetBuilder {
     }
 
     public Network getNetwork() {
-        return this.mNetwork;
+        return mNetwork;
     }
 
     /**
