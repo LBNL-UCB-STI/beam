@@ -132,7 +132,7 @@ object BeamConfig {
         object ModeSubsidy {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModeSubsidy = {
             BeamConfig.Beam.Agentsim.Agents.ModeSubsidy(
-              file = if(c.hasPathOrNull("file")) c.getString("file") else "/test/input/beamville/subsidies.csv"
+              file = if(c.hasPathOrNull("file")) c.getString("file") else "test/input/beamville/subsidies.csv"
             )
           }
         }

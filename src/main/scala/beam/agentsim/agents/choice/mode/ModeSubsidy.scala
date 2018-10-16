@@ -24,17 +24,23 @@ object ModeSubsidy {
   case class Subsidy(mode: BeamMode, age: Range, income: Range, amount: Double)
 
   case class Range(lowerBound: Double, upperBound: Double) {
+    val isEmpty = false
     def in(value: Double): Boolean = {
-      lowerBound < value && value < upperBound
+      isEmpty || (lowerBound < value && value < upperBound)
     }
   }
 
   object Range {
     def apply(pattern: String): Range = {
-      val bounds = pattern.split(",")
+      if(pattern == null || pattern.isEmpty) return Range.empty()
+      val bounds = pattern.split(":")
       val lowerBound = bounds(0).substring(1).toDouble + (if (bounds(0).startsWith("(")) 0 else -1)
       val upperBound = bounds(1).substring(0, bounds(1).length - 1).toDouble + (if (bounds(1).endsWith(")")) 0 else 1)
       Range(lowerBound, upperBound)
+    }
+
+    def empty(): Range = new Range(0,0) {
+      override val isEmpty = true
     }
   }
 }
