@@ -1,5 +1,7 @@
 package beam.utils.matsim_conversion
 
+import org.matsim.core.utils.io.IOUtils
+
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -13,7 +15,7 @@ object MatsimPlanConversion {
     val transformedPopulationDoc = matsimPopulationToBeam(populationDoc)
 
     val persons = transformedPopulationDoc \\ "person"
-
+    val IOUtils.
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
@@ -57,8 +59,9 @@ object MatsimPlanConversion {
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map {
-      case (_, index) =>
-        <object id={s"${index + 1}"}>
+      case (person, index) =>
+        <object id={s"${person.attribute("id").get.toString()}"}>
+          <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,ride_hail_transit</attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
     }
@@ -179,7 +182,7 @@ object MatsimPlanConversion {
   }
 
   def unchainMetaData(m: MetaData): Iterable[GenAttr] =
-    m flatMap (decomposeMetaData)
+    m flatMap decomposeMetaData
 
   def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
     case Nil          => Null

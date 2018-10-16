@@ -167,8 +167,6 @@ import java.util.Map;
                 }
             }
 
-            EventsManager eventsManager = new EventsManagerImpl() ;
-
 
 //            // Now create stop_times.txt separately, from the Singapore Matsim model events output.
 //            // NB: This file must have at least the departureId field quoted, because those IDs contain commas.
@@ -200,11 +198,10 @@ import java.util.Map;
 //
 //            });
 
-            new MatsimEventsReader(eventsManager).readFile(args[2]);
 
 
             // Write out to GTFS
-            gtfsFeed.toFile(args[3]);
+            gtfsFeed.toFile(args[2]);
 
         }
 
