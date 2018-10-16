@@ -28,8 +28,8 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.model.RoutingModel.DiscreteTime
-import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
@@ -864,23 +864,30 @@ class RideHailManager(
     customerRequestTime: Long,
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
   ): Vector[RideHailAgentETA] = {
-    val nearbyRideHailAgents = availableRideHailAgentSpatialIndex
+    var start = System.currentTimeMillis()
+    val nearbyAvailableRideHailAgents = availableRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
-      .toVector
-    val times2RideHailAgents =
-      nearbyRideHailAgents.map(rideHailAgentLocation => {
-        val distance = CoordUtils
-          .calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-        // already moving or dropping off a customer, etc.)
-        val timeToCustomer = distance * secondsPerEuclideanMeterFactor + Math
-          .max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
-        RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
-      })
+      .filter(x => availableRideHailVehicles.contains(x.vehicleId))
+    var end = System.currentTimeMillis()
+    val diff1 = end - start
+
+    start = System.currentTimeMillis()
+    val times2RideHailAgents = nearbyAvailableRideHailAgents.map { rideHailAgentLocation =>
+      val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
+      // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
+      // already moving or dropping off a customer, etc.)
+      val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
+      val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
+      RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
+    }.toVector.sortBy(_.timeToCustomer)
+    end = System.currentTimeMillis()
+    val diff2 = end - start
+
+    if (diff1 + diff2 > 100)
+      log.debug(s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms")
+
     times2RideHailAgents
-      .filter(x => availableRideHailVehicles.contains(x.agentLocation.vehicleId))
-      .sortBy(_.timeToCustomer)
   }
 
   def getClosestIdleVehiclesWithinRadius(
