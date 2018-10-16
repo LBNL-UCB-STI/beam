@@ -1,7 +1,5 @@
 package beam.utils.matsim_conversion
 
-import org.matsim.core.utils.io.IOUtils
-
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -15,7 +13,7 @@ object MatsimPlanConversion {
     val transformedPopulationDoc = matsimPopulationToBeam(populationDoc)
 
     val persons = transformedPopulationDoc \\ "person"
-    val IOUtils.
+
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
