@@ -814,13 +814,13 @@ class RideHailManager(
     request: RideHailRequest,
     responses: List[RoutingResponse] = List()
   ): Unit = {
-    log.debug(
-      "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
-      request.departAt,
-      availableRideHailVehicles.size,
-      inServiceRideHailVehicles.size,
-      outOfServiceRideHailVehicles.size
-    )
+    if (log.isDebugEnabled) {
+      log.debug("Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
+        request.departAt,
+        availableRideHailVehicles.size,
+        inServiceRideHailVehicles.size,
+        outOfServiceRideHailVehicles.size)
+    }
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
 
