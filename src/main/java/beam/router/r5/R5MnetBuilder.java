@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
@@ -74,10 +75,10 @@ public class R5MnetBuilder {
             deezNodes.add(cursor.getFromVertex());
             deezNodes.add(cursor.getToVertex());
 
-            Set<String> flagStrings = new HashSet<>();
-            for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
-                flagStrings.add(flagToString(eF));
-            }
+            Set<String> flagStrings = cursor.getFlags()
+                    .stream()
+                    .map(ef -> flagToString(ef))
+                    .collect(Collectors.toSet());
 
             //TODO - length needs to be transformed to output CRS. It is important that we calculate the length here
             //TODO - because R5 often breaks single OSM links into pieces.
