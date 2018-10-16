@@ -1,10 +1,13 @@
 package beam.utils.matsim_conversion
 
+import java.nio.charset.StandardCharsets
+
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
+  val UTF8 = StandardCharsets.UTF_8.name()
 
   def generateScenarioData(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
@@ -49,10 +52,10 @@ object MatsimPlanConversion {
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, "UTF-8", true)
-    XML.save(householdAttrsOutput, householdAtrrs, "UTF-8", true, householdsAttrDoctype)
-    XML.save(populationAttrsOutput, populationAttrs, "UTF-8", true, populationAttrDoctype)
+    XML.save(populationOutput, transformedPopulationDoc, UTF8, true, populationDoctype)
+    XML.save(householdsOutput, houseHolds, UTF8, true)
+    XML.save(householdAttrsOutput, householdAtrrs, UTF8, true, householdsAttrDoctype)
+    XML.save(populationAttrsOutput, populationAttrs, UTF8, true, populationAttrDoctype)
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
