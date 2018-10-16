@@ -59,7 +59,7 @@ public class R5MnetBuilder {
         OSM osm = new OSM(osmFile);
         Map<Long, Way> ways = osm.ways;
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
-        OsmToMATSim OTM = new OsmToMATSim(this.mNetwork, true);
+        OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
         while (cursor.advance()) {
             log.debug(String.valueOf(cursor.getEdgeIndex()));
             log.debug(cursor.toString());
@@ -91,10 +91,8 @@ public class R5MnetBuilder {
             Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
             // Add R5 start and end nodes to the MATSim network
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
-            Node fromNode = this.getOrMakeNode(fromCoord);
-            Node toNode = this.getOrMakeNode(toCoord);
-            // Make and add the link (only if way exists)
-
+            Node fromNode = getOrMakeNode(fromCoord);
+            Node toNode = getOrMakeNode(toCoord);
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
                 Link link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
