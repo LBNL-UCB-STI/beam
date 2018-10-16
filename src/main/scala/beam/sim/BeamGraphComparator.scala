@@ -4,10 +4,11 @@ import java.io.{BufferedWriter, File, FileWriter, IOException}
 
 import org.apache.commons.io.{FileUtils, FilenameUtils}
 import org.matsim.core.controler.events.ControlerEvent
+import play.api.libs.json.{JsObject, Json}
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
-import scala.xml.Elem
+import scala.xml.{Elem, NodeBuffer}
 
 /**
   * @author Bhavya Latha Bandaru.
@@ -28,13 +29,15 @@ object BeamGraphComparator {
            var counter = 0;
            images.map(function(i) {
              var holder = document.getElementById('imageHolder' + counter);
-             holder.src = i;
+             var name = document.getElementById('imageName' + counter);
+             holder.src = i.path;
+             name.innerHTML = i.name;
              counter++;
            })
            counter = 0;
          }
       """.stripMargin
-    def displayAllGraphs(images: Array[String]) = s"displayAllGraphs([${images.map(i =>s"\'$i\'").mkString(",")}]);"
+    def displayAllGraphs(images: Array[JsObject]) = s"displayAllGraphs(${Json.stringify(Json.toJson(images))});"
     val graphs: Elem = <ul class="list-group">
       {
       ListMap(files.toSeq.sortBy(_._1._1): _*) map { grp =>
@@ -44,7 +47,10 @@ object BeamGraphComparator {
             {
             ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
               <li>
-                <h4><a href="javascript:" onclick={displayAllGraphs(t._2.map(_._2.getAbsolutePath))}>{t._1}</a></h4>
+                <h4><a href="javascript:" onclick={displayAllGraphs(t._2 map { f =>
+                  Json.obj("path" -> f._2.getAbsolutePath,
+                  "name" -> f._2.getName)
+                })}>{t._1}</a></h4>
               </li>
             }
             }
@@ -53,9 +59,12 @@ object BeamGraphComparator {
       }
       }
     </ul>
-    val imageHolders: Seq[Elem] = for(i <- 0 to 3) yield{
-      val id = "imageHolder" + i
-        <img id={id}/>
+    val imageHolders: Seq[NodeBuffer] = for(i <- 0 to iterationsCount) yield {
+      val holderId = "imageHolder" + i
+      val imageName = "imageName" + i
+      <h4 align="center" id={imageName}></h4>
+          <img id={holderId}/>
+        <br/><br/><br/><hr/><br/>
     }
     <html>
       <head>
