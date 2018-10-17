@@ -431,7 +431,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             ModeHour modeHour = (ModeHour) o;
 
             return modeHour.mode.equals(mode) &&
-                    hour.equals(hour);
+                    modeHour.hour.equals(hour);
         }
 
         @Override
