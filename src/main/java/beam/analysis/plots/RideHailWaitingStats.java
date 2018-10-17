@@ -290,19 +290,16 @@ public class RideHailWaitingStats implements IGraphStats {
 
             List<Double> categories = getCategories();
 
-            for (int j = 0; j < categories.size(); j++){
-
-                Double category = categories.get(j);
+            for (Double category : categories) {
                 Double _category = getRoundedCategoryUpperBound(category);
 
                 String line = "";
                 for (int i = 0; i < this.numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
-                    if(category > 60){
+                    if (category > 60) {
                         line = "60+," + (i + 1) + "," + line;
-                    }
-                    else {
+                    } else {
                         line = _category + "," + (i + 1) + "," + line;
                     }
                     out.write(line);
