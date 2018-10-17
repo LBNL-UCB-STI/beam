@@ -152,8 +152,10 @@ class BeamSim @Inject()(
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      modalityStyleStats.processData(scenario.getPopulation, event)
-      modalityStyleStats.buildModalityStyleGraph()
+      if("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+        modalityStyleStats.processData(scenario.getPopulation, event)
+        modalityStyleStats.buildModalityStyleGraph()
+      }
       createGraphsFromEvents.createGraphs(event)
       PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
         event.getServices.getControlerIO
