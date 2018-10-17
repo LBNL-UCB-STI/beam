@@ -147,7 +147,7 @@ public final class PopulationSampler extends JFrame {
 				destFile.delete();
 				JOptionPane.showMessageDialog(null,
 				    "<html>It looks like the population file cannot be parsed without a network file.<br />Please select a matching network file in the next dialog.</html>",
-				    "Problems creating pouplation sample",
+				    "Problems creating population sample",
 				    JOptionPane.WARNING_MESSAGE);
 
 				JFileChooser netChooser = new JFileChooser();
