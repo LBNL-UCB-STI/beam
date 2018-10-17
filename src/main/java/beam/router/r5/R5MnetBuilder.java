@@ -75,10 +75,10 @@ public class R5MnetBuilder {
             deezNodes.add(cursor.getFromVertex());
             deezNodes.add(cursor.getToVertex());
 
-            Set<String> flagStrings = cursor.getFlags()
-                    .stream()
-                    .map(ef -> flagToString(ef))
-                    .collect(Collectors.toSet());
+            final Set<String> flagStrings = new HashSet<>();
+            for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
+                flagStrings.add(flagToString(eF));
+            }
 
             //TODO - length needs to be transformed to output CRS. It is important that we calculate the length here
             //TODO - because R5 often breaks single OSM links into pieces.
