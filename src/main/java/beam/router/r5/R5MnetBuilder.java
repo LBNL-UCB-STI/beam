@@ -131,7 +131,8 @@ public class R5MnetBuilder {
     private Node getOrMakeNode(Coord coord) {
         Node dummyNode;
         Id<Node> id;
-        if (coordinateNodes.containsKey(coord)) {
+        final boolean nodeAlreadyExists = coordinateNodes.containsKey(coord);
+        if (nodeAlreadyExists) {
             id = this.coordinateNodes.get(coord);
             dummyNode = this.mNetwork.getNodes().get(id);
         } else { // need to make new fromID and node and increment the matsimNetworkNodeId
