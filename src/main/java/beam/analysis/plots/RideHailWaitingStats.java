@@ -281,9 +281,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
             out.write(heading);
             out.newLine();
@@ -294,7 +292,7 @@ public class RideHailWaitingStats implements IGraphStats {
                 Double _category = getRoundedCategoryUpperBound(category);
 
                 String line = "";
-                for (int i = 0; i < this.numberOfTimeBins; i++) {
+                for (int i = 0; i < numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
                     if (category > 60) {
@@ -307,13 +305,8 @@ public class RideHailWaitingStats implements IGraphStats {
                 }
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 

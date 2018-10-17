@@ -16,5 +16,5 @@ public interface IGraphStats {
 
     default void collectEvents(Event event){
         System.out.println("Does not need to be overridden by everyone");
-    };
+    }
 }

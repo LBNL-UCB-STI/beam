@@ -181,8 +181,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public boolean isValidCase(String graphName, int numPassengers) {
-        if(numPassengers <= TNC_MAX_PASSENGERS) return true;
-        return false;
+        return numPassengers <= TNC_MAX_PASSENGERS;
     }
 
     // Deadheading Passenger Per Trip Graph
