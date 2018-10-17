@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author rwaraich
@@ -18,18 +19,17 @@ public class PathTraversalEventGenerationFromCsv {
     }
 
     public static void generatePathTraversalEventsAndForwardToHandler(String filePath, PathTraversalSpatialTemporalTableGenerator handler) {
-        String csvFile = filePath;
         BufferedReader br = null;
-        String line = "";
 
         try {
-            br = new BufferedReader(new FileReader(csvFile));
-            line = br.readLine(); // skipping header line
+            br = new BufferedReader(new FileReader(filePath));
+            // skipping header line
+            String line = br.readLine();
 
 
             String cvsSplitBy = ",";
             String[] columnLabels = line.split(cvsSplitBy);
-            HashMap<Integer, String> columnLabelMapping = new HashMap();
+            Map<Integer, String> columnLabelMapping = new HashMap<>();
             int columnIndexTime = 0;
             for (int i = 0; i < columnLabels.length; i++) {
                 columnLabelMapping.put(i, columnLabels[i]);
@@ -50,7 +50,7 @@ public class PathTraversalEventGenerationFromCsv {
                         line = lineSplit[0] + lineSplit[1].replaceAll(",", ";") + lineSplit[2];
                     }
 
-                    HashMap<String, String> attributes = new HashMap();
+                    Map<String, String> attributes = new HashMap<>();
 
                     String[] columns = line.split(cvsSplitBy);
 
@@ -71,8 +71,6 @@ public class PathTraversalEventGenerationFromCsv {
                 }
             }
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

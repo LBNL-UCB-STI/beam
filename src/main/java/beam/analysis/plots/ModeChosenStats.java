@@ -34,8 +34,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private Set<String> modesChosen = new TreeSet<>();
-    private Set<String> cumulativeModeChosenForModeChoice = new TreeSet();
-    private Set<String> cumulativeModeChosenForReference = new TreeSet();
+    private Set<String> cumulativeModeChosenForModeChoice = new TreeSet<>();
+    private Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
     private String benchmarkFileLoc ;

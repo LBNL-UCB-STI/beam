@@ -1,6 +1,5 @@
 package beam.analysis;
 
-import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.common.GeoUtils$;
@@ -19,10 +18,7 @@ import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * @author rwaraich
@@ -98,21 +94,21 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final String FOOD = "food";
 
 
-    public static HashMap<String, R5NetworkLink> r5NetworkLinks;
-    public static int numberOfLinkIdsMissingInR5NetworkFile = 0;
+    public static Map<String, R5NetworkLink> r5NetworkLinks;
+    private static int numberOfLinkIdsMissingInR5NetworkFile = 0;
     private static TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles;
-    private Table<String, String, Double>[] linkVehicleTypeTuples = new Table[NUMBER_OF_BINS];
-    private Table<String, String, Double>[] energyConsumption = new Table[NUMBER_OF_BINS];
-    private Table<String, String, Double>[] numberOfVehicles = new Table[NUMBER_OF_BINS];
-    private Table<String, String, Double>[] numberOfPassengers = new Table[NUMBER_OF_BINS];
-    private HashMap<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap();
+    private List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
+    private List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
+    private List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
+    private List<Table<String, String, Double>> numberOfPassengers = new ArrayList<>(NUMBER_OF_BINS);
+    private Map<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap<>();
 
     public PathTraversalSpatialTemporalTableGenerator() {
         for (int i = 0; i < NUMBER_OF_BINS; i++) {
-            linkVehicleTypeTuples[i] = HashBasedTable.create();
-            energyConsumption[i] = HashBasedTable.create();
-            numberOfVehicles[i] = HashBasedTable.create();
-            numberOfPassengers[i] = HashBasedTable.create();
+            linkVehicleTypeTuples.add(HashBasedTable.create());
+            energyConsumption.add(HashBasedTable.create());
+            numberOfVehicles.add(HashBasedTable.create());
+            numberOfPassengers.add(HashBasedTable.create());
         }
     }
 
@@ -318,7 +314,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             sb.append('\n');
             for (int i = 0; i < NUMBER_OF_BINS; i++) {
 
-                for (Table.Cell<String, String, Double> cell : linkVehicleTypeTuples[i].cellSet()) {
+                for (Table.Cell<String, String, Double> cell : linkVehicleTypeTuples.get(i).cellSet()) {
                     String linkId = cell.getRowKey();
                     String vehicleAndFuelType = cell.getColumnKey();
                     LinkedList<R5NetworkLink> r5Links = getR5LinkTakeCareOfTransit(linkId, vehicleAndFuelType, i);
@@ -333,13 +329,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                         sb.append("\t");
                         sb.append(convertVehicleType(vehicleType));
                         sb.append("\t");
-                        sb.append(energyConsumption[i].get(r5Link.linkId, vehicleAndFuelType));
+                        sb.append(energyConsumption.get(i).get(r5Link.linkId, vehicleAndFuelType));
                         sb.append("\t");
                         sb.append(fuelType);
                         sb.append("\t");
-                        sb.append(Math.round(numberOfVehicles[i].get(r5Link.linkId, vehicleAndFuelType)));
+                        sb.append(Math.round(numberOfVehicles.get(i).get(r5Link.linkId, vehicleAndFuelType)));
                         sb.append("\t");
-                        sb.append(Math.round(numberOfPassengers[i].get(r5Link.linkId, vehicleAndFuelType)));
+                        sb.append(Math.round(numberOfPassengers.get(i).get(r5Link.linkId, vehicleAndFuelType)));
                         sb.append("\t");
                         sb.append(r5Link.coord.getX());
                         sb.append("\t");
@@ -420,7 +416,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
         double deltaX = (endCoord.getX() - startCoord.getX()) / (numberOfInterpolationLinksUsedForNonRoadModes - 1);
         double deltaY = (endCoord.getY() - startCoord.getY()) / (numberOfInterpolationLinksUsedForNonRoadModes - 1);
-        double energyConsumptionPerLink = energyConsumption[currentBinIndex].get(r5TransitLink.linkId, vehicleAndFuelType) / numberOfInterpolationLinksUsedForNonRoadModes;
+        double energyConsumptionPerLink = energyConsumption.get(currentBinIndex).get(r5TransitLink.linkId, vehicleAndFuelType) / numberOfInterpolationLinksUsedForNonRoadModes;
 
         for (int i = 0; i < numberOfInterpolationLinksUsedForNonRoadModes; i++) {
             Coord currentLinkCoord = new Coord(startCoord.getX() + deltaX * i, startCoord.getY() + deltaY * i);
@@ -429,9 +425,9 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
             // update tables with new r5 link
             int j = currentBinIndex;
-            addValueToTable(energyConsumption[j], onTransitRouteLink.linkId, vehicleAndFuelType, energyConsumptionPerLink);
-            addValueToTable(numberOfVehicles[j], onTransitRouteLink.linkId, vehicleAndFuelType, numberOfVehicles[j].get(r5TransitLink.linkId, vehicleAndFuelType));
-            addValueToTable(numberOfPassengers[j], onTransitRouteLink.linkId, vehicleAndFuelType, numberOfPassengers[j].get(r5TransitLink.linkId, vehicleAndFuelType));
+            addValueToTable(energyConsumption.get(j), onTransitRouteLink.linkId, vehicleAndFuelType, energyConsumptionPerLink);
+            addValueToTable(numberOfVehicles.get(j), onTransitRouteLink.linkId, vehicleAndFuelType, numberOfVehicles.get(j).get(r5TransitLink.linkId, vehicleAndFuelType));
+            addValueToTable(numberOfPassengers.get(j), onTransitRouteLink.linkId, vehicleAndFuelType, numberOfPassengers.get(j).get(r5TransitLink.linkId, vehicleAndFuelType));
 
             if (r5TransitLink.linkId.equalsIgnoreCase("849856,1375838")) {
                 DebugLib.emptyFunctionForSettingBreakPoint();
@@ -503,10 +499,10 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     private void updateOutputTables(double time, Integer numOfPassengers, String vehicleTypeWithFuelType, String linkId, double fuelEnergyConsumption) {
-        addValueToTable(linkVehicleTypeTuples[getBinId(time)], linkId, vehicleTypeWithFuelType, 0);
-        addValueToTable(energyConsumption[getBinId(time)], linkId, vehicleTypeWithFuelType, fuelEnergyConsumption);
-        addValueToTable(numberOfVehicles[getBinId(time)], linkId, vehicleTypeWithFuelType, CONST_NUM_ONE);
-        addValueToTable(numberOfPassengers[getBinId(time)], linkId, vehicleTypeWithFuelType, numOfPassengers);
+        addValueToTable(linkVehicleTypeTuples.get(getBinId(time)), linkId, vehicleTypeWithFuelType, 0);
+        addValueToTable(energyConsumption.get(getBinId(time)), linkId, vehicleTypeWithFuelType, fuelEnergyConsumption);
+        addValueToTable(numberOfVehicles.get(getBinId(time)), linkId, vehicleTypeWithFuelType, CONST_NUM_ONE);
+        addValueToTable(numberOfPassengers.get(getBinId(time)), linkId, vehicleTypeWithFuelType, numOfPassengers);
     }
 
     private boolean isNonRoadMode(String vehicleType) {
