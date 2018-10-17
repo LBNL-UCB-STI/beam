@@ -18,14 +18,11 @@ public class PathTraversalEventGenerationFromCsv {
     }
 
     public static void generatePathTraversalEventsAndForwardToHandler(String filePath, PathTraversalSpatialTemporalTableGenerator handler) {
-        String csvFile = filePath;
-        BufferedReader br = null;
         String line = "";
 
-        try {
-            br = new BufferedReader(new FileReader(csvFile));
-            line = br.readLine(); // skipping header line
+        try(BufferedReader br = new BufferedReader(new FileReader(filePath))) {
 
+            br.readLine(); // skipping header line
 
             String cvsSplitBy = ",";
             String[] columnLabels = line.split(cvsSplitBy);
@@ -71,18 +68,8 @@ public class PathTraversalEventGenerationFromCsv {
                 }
             }
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (br != null) {
-                try {
-                    br.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
