@@ -37,11 +37,8 @@ class TollCalculator(val directory: String) extends LazyLogging {
 
     /**
       * Checks whether its a osm.pbf feed and has fares data.
-      *
-      * @param file specific file to check.
-      * @return true if a valid pbf.
       */
-    def hasOSM(file: File): Boolean = file.getName.endsWith(".pbf")
+    val hasOSM: FileFilter = _.getName.endsWith(".pbf")
 
     def loadOSM(osmSourceFile: String): Unit = {
       val dir = new File(osmSourceFile).getParentFile
@@ -73,7 +70,7 @@ class TollCalculator(val directory: String) extends LazyLogging {
     }
 
     if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM)
+      directory.toFile.listFiles(hasOSM).map(_.getAbsolutePath).headOption.foreach(loadOSM)
     }
 
     ways

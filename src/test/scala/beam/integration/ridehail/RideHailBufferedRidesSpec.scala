@@ -25,9 +25,9 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
     }
 
     groupedByPerson.map {
-      case (id, events) =>
+      case (id, es) =>
         val (startActEvents, endActEvents) =
-          events.partition(e => "actstart".equals(e.getEventType))
+          es.partition(e => "actstart".equals(e.getEventType))
         (id, (startActEvents, endActEvents))
     }
 

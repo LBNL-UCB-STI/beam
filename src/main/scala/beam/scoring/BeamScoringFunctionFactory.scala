@@ -84,7 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             val logsum = Option(
               math.log(
                 person
-                  .getPlans()
+                  .getPlans
                   .asScala
                   .view
                   .map(

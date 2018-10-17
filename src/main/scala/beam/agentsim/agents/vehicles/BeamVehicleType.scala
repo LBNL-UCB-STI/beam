@@ -108,7 +108,7 @@ object BeamVehicleType {
     4,
     0,
     4.5,
-    new FuelType("gasoline", 0.0),
+    FuelType("gasoline", 0.0),
     3656.0,
     3655980000.0,
     null,
