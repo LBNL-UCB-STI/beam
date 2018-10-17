@@ -7,7 +7,7 @@ import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
-  val UTF8 = StandardCharsets.UTF_8.name()
+  val UTF8: String = StandardCharsets.UTF_8.name()
 
   def generateScenarioData(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
@@ -52,15 +52,15 @@ object MatsimPlanConversion {
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, UTF8, true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, UTF8, true)
-    XML.save(householdAttrsOutput, householdAtrrs, UTF8, true, householdsAttrDoctype)
-    XML.save(populationAttrsOutput, populationAttrs, UTF8, true, populationAttrDoctype)
+    XML.save(populationOutput, transformedPopulationDoc, UTF8, xmlDecl = true, populationDoctype)
+    XML.save(householdsOutput, houseHolds, UTF8, xmlDecl = true)
+    XML.save(householdAttrsOutput, householdAtrrs, UTF8, xmlDecl = true, householdsAttrDoctype)
+    XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map {
-      case (person, index) =>
+      case (person, _) =>
         <object id={s"${person.attribute("id").get.toString()}"}>
           <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,ride_hail_transit</attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
@@ -97,7 +97,7 @@ object MatsimPlanConversion {
     </objectattributes>
   }
 
-  def generateHouseholds(persons: NodeSeq, vehicles: Seq[String], income: HouseholdIncome) = {
+  def generateHouseholds(persons: NodeSeq, vehicles: Seq[String], income: HouseholdIncome): Elem = {
 
     val mPersons = persons.map(Option(_))
     val mVehicles = vehicles.map(Option(_))
@@ -147,7 +147,7 @@ object MatsimPlanConversion {
         n match {
           case elem: Elem if elem.label == "person" =>
             val attrs = elem.attributes
-            val filteredAttrs = attrs.filter(_.key.equals("id"))
+            val filteredAttrs = attrs.filter(m => m.key.equals("id"))
             elem.copy(attributes = filteredAttrs)
           case elem: Elem if elem.label == "act" =>
             val attrs = elem.attributes

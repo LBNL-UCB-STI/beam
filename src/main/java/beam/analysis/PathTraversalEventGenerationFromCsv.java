@@ -3,7 +3,6 @@ package beam.analysis;
 import beam.utils.DebugLib;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,14 +18,11 @@ public class PathTraversalEventGenerationFromCsv {
     }
 
     public static void generatePathTraversalEventsAndForwardToHandler(String filePath, PathTraversalSpatialTemporalTableGenerator handler) {
-        BufferedReader br = null;
 
-        try {
-            br = new BufferedReader(new FileReader(filePath));
+        try(BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             // skipping header line
             String line = br.readLine();
-
-
+            
             String cvsSplitBy = ",";
             String[] columnLabels = line.split(cvsSplitBy);
             Map<Integer, String> columnLabelMapping = new HashMap<>();
@@ -64,7 +60,6 @@ public class PathTraversalEventGenerationFromCsv {
                     }
 
                     handler.handleEvent(Double.parseDouble(columns[columnIndexTime]), attributes);
-                    DebugLib.emptyFunctionForSettingBreakPoint();
                     //   String[] columns = line.split(cvsSplitBy);
                     //   R5NetworkLink r5NetworkLink = new R5NetworkLink(columns[offSet+0], new Coord(Double.parseDouble(columns[offSet+1]), Double.parseDouble(columns[offSet+2])), Double.parseDouble(columns[offSet+3]),withCounties?columns[5]:"");
                     //   r5NetworkLinks.put(r5NetworkLink.linkId, r5NetworkLink);
@@ -73,16 +68,6 @@ public class PathTraversalEventGenerationFromCsv {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (br != null) {
-                try {
-                    br.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
-
-
 }

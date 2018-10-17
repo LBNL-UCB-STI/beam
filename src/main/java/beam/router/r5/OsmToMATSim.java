@@ -33,9 +33,9 @@ public class OsmToMATSim {
     private final static String TAG_ACCESS = "access";
     private final static String[] ALL_TAGS = new String[]{TAG_LANES, TAG_HIGHWAY, TAG_MAXSPEED, TAG_JUNCTION, TAG_ONEWAY, TAG_ACCESS};
     public final Map<String, BEAMHighwayDefaults> highwayDefaults = new HashMap<>();
-    private final Set<String> unknownHighways = new HashSet<String>(); // Used for logging in OsmNetworkReader
-    private final Set<String> unknownMaxspeedTags = new HashSet<String>();
-    private final Set<String> unknownLanesTags = new HashSet<String>();
+    private final Set<String> unknownHighways = new HashSet<>(); // Used for logging in OsmNetworkReader
+    private final Set<String> unknownMaxspeedTags = new HashSet<>();
+    private final Set<String> unknownLanesTags = new HashSet<>();
     private final Network mNetwork;
     private long id = 0;
 

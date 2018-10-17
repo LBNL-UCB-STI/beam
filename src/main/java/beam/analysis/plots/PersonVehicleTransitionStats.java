@@ -80,7 +80,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     private void processPersonVehicleTransition(Event event) {
         int index = getBinIndex(event.getTime());
-        if (event.getEventType() == PersonEntersVehicleEvent.EVENT_TYPE) {
+        if (PersonEntersVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
 
             String personId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
             if (personId.toLowerCase().contains("agent")) {
@@ -137,7 +137,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         }
 
 
-        if (event.getEventType() == PersonLeavesVehicleEvent.EVENT_TYPE) {
+        if (PersonLeavesVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
 
             String personId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
             String vehicleId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
