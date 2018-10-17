@@ -132,7 +132,7 @@ public final class PopulationSampler extends JFrame {
 		}
 
 		final String namePart = srcFilename.substring(0, srcFilename.toLowerCase(Locale.ROOT).lastIndexOf(".xml"));
-		final int percentage = ((Integer) PopulationSampler.this.pctSpinner.getValue()).intValue();
+		final int percentage = (Integer) PopulationSampler.this.pctSpinner.getValue();
 		final double samplesize = percentage / 100.0;
 
 		JFileChooser chooser = new SaveFileSaver();
