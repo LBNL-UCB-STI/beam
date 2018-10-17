@@ -30,7 +30,7 @@ public class Network2ShpLines {
      */
 
 
-        public static void main(String[] args) throws Exception {
+        public static void main(String[] args) {
             ////
             // Load parameters
             ////
@@ -47,7 +47,7 @@ public class Network2ShpLines {
 
             CoordinateReferenceSystem crs = MGC.getCRS(epsgCode);    // EPSG Code for Standard UTM Zone 11
 
-            Collection features = new ArrayList();
+            Collection<SimpleFeature> features = new ArrayList<>();
             PolylineFeatureFactory linkFactory = new PolylineFeatureFactory.Builder().
                     setCrs(crs).
                     setName("link").
@@ -82,7 +82,7 @@ public class Network2ShpLines {
             }
             ShapeFileWriter.writeGeometries(features, outLinksSHP);
 
-            features = new ArrayList();
+            features = new ArrayList<>();
             PointFeatureFactory nodeFactory = new PointFeatureFactory.Builder().
                     setCrs(crs).
                     setName("nodes").
