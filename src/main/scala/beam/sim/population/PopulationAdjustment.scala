@@ -19,7 +19,7 @@ trait PopulationAdjustment extends LazyLogging {
     import scala.collection.JavaConverters._
     logger.info("Modes' Availability:")
 
-    var allAgentshaveAttributes = true;
+    var allAgentshaveAttributes = true
     population.getPersons
       .keySet()
       .asScala
