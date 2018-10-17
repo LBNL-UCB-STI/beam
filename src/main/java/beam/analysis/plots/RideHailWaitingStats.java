@@ -281,16 +281,14 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
             out.write(heading);
             out.newLine();
 
             List<Double> categories = getCategories();
 
-            for (int j = 0; j < categories.size(); j++){
+            for (int j = 0; j < categories.size(); j++) {
 
                 Double category = categories.get(j);
                 Double _category = getRoundedCategoryUpperBound(category);
@@ -299,10 +297,9 @@ public class RideHailWaitingStats implements IGraphStats {
                 for (int i = 0; i < numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
-                    if(category > 60){
+                    if (category > 60) {
                         line = "60+," + (i + 1) + "," + line;
-                    }
-                    else {
+                    } else {
                         line = _category + "," + (i + 1) + "," + line;
                     }
                     out.write(line);
@@ -310,13 +307,8 @@ public class RideHailWaitingStats implements IGraphStats {
                 }
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 
