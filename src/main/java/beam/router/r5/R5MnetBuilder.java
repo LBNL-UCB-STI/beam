@@ -43,11 +43,12 @@ public class R5MnetBuilder {
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
     public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
-        final BeamConfig.Beam.Routing.R5 r5 = beamConfig.beam().routing().r5();
+        BeamConfig.Beam beam = beamConfig.beam();
 
-        osmFile = r5.osmMapdbFile();
+        osmFile = beam.routing().r5().osmMapdbFile();
 
-        transform = new GeotoolsTransformation(r5.mNetBuilder().fromCRS(), r5.mNetBuilder().toCRS());
+        transform = new GeotoolsTransformation(beam.routing().r5().mNetBuilder().fromCRS(),
+                beam.routing().r5().mNetBuilder().toCRS());
 
         r5Network = r5Net;
 
@@ -56,13 +57,12 @@ public class R5MnetBuilder {
 
     public void buildMNet() {
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
-        OSM osm = new OSM(osmFile);
-        Map<Long, Way> ways = osm.ways;
+//        OSM osm = new OSM(osmFile);
+        Map<Long, Way> ways = new OSM(osmFile).ways;
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
         while (cursor.advance()) {
-            log.debug(String.valueOf(cursor.getEdgeIndex()));
-            log.debug(cursor.toString());
+            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();
@@ -89,6 +89,7 @@ public class R5MnetBuilder {
             Coordinate[] tempCoords = cursor.getGeometry().getCoordinates();
             Coordinate tempToCoord = tempCoords[tempCoords.length - 1];
             Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
+
             // Add R5 start and end nodes to the MATSim network
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = getOrMakeNode(fromCoord);
@@ -97,11 +98,11 @@ public class R5MnetBuilder {
                 // Made up numbers, this is a PT to road network connector or something
                 Link link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
                 mNetwork.addLink(link);
-                log.debug("Created special link: " + link);
+                log.debug("Created special link: {}", link);
             } else {
                 Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
                 mNetwork.addLink(link);
-                log.debug("Created regular link: " + link);
+                log.debug("Created regular link: {}", link);
             }
         }
     }
@@ -150,7 +151,7 @@ public class R5MnetBuilder {
      * @return
      */
     //TODO - we should probably make the cases settable for the case that we want to use custom modes in the MATSim net
-    private String flagToString(EdgeStore.EdgeFlag flag) {
+    private static String flagToString(EdgeStore.EdgeFlag flag) {
         String out = null;
         switch (flag) {
             case ALLOWS_PEDESTRIAN:
