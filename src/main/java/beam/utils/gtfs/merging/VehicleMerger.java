@@ -80,9 +80,8 @@ public class VehicleMerger {
 
     private static Vehicle copyVehicle(Vehicle vehicle) {
         final VehicleType type = vehicles.getVehicleTypes().get(vehicle.getType().getId());
-        final Vehicle newVehicle = factory.createVehicle(
+        return factory.createVehicle(
                 Id.create(vehicle.getId().toString(), Vehicle.class), type);
-        return newVehicle;
     }
 
     private static VehicleType copyVehicleType(VehicleType vehicleType) {
