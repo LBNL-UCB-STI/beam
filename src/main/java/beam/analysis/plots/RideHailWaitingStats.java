@@ -288,9 +288,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
             List<Double> categories = getCategories();
 
-            for (int j = 0; j < categories.size(); j++) {
-
-                Double category = categories.get(j);
+            for (Double category : categories) {
                 Double _category = getRoundedCategoryUpperBound(category);
 
                 String line = "";
