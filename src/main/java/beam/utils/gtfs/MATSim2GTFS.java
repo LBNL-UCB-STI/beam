@@ -158,7 +158,7 @@ import java.util.Map;
                         gtfsStopTime.arrival_time = (int) (firstDepartureTime + trs.getArrivalOffset());
                         gtfsStopTime.departure_time = (int) (firstDepartureTime + trs.getDepartureOffset());
                         gtfsFeed.stop_times.put(
-                                new Fun.Tuple2(gtfsStopTime.trip_id, Integer.valueOf(gtfsStopTime.stop_sequence)),
+                                new Fun.Tuple2(gtfsStopTime.trip_id, gtfsStopTime.stop_sequence),
                                 gtfsStopTime);
                         stopWithinTrip += 1;
                     }
