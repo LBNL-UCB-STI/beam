@@ -79,7 +79,7 @@ public class PathTraversalEvent extends Event {
         this.startY = startY;
         this.endX = endX;
         this.endY = endY;
-        this.attributes = new AtomicReference<>(Collections.EMPTY_MAP);
+        this.attributes = new AtomicReference<>(Collections.emptyMap());
     }
 
     public static PathTraversalEvent apply(Event event) {

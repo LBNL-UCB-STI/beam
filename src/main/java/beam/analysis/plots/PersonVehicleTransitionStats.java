@@ -259,7 +259,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             String path = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, filename);
             int index = path.lastIndexOf("/");
             File outDir = new File(path.substring(0, index) + "/tripHistogram");
-            if (!outDir.exists()) Files.createDirectories(outDir.toPath());
+            if (!outDir.isDirectory()) Files.createDirectories(outDir.toPath());
             String newPath = outDir.getPath() + path.substring(index);
             ChartUtilities.saveChartAsPNG(new File(newPath), getGraphic(mode, iteration), 1024, 768);
         } catch (IOException e) {
