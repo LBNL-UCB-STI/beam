@@ -296,7 +296,7 @@ public class RideHailWaitingStats implements IGraphStats {
                 Double _category = getRoundedCategoryUpperBound(category);
 
                 String line = "";
-                for (int i = 0; i < this.numberOfTimeBins; i++) {
+                for (int i = 0; i < numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
                     if(category > 60){
