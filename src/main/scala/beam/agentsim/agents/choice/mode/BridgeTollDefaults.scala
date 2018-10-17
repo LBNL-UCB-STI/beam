@@ -44,7 +44,7 @@ object BridgeTollDefaults {
     }
   }
 
-  private def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
+  def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
     if (Files.exists(Paths.get(tollPricesFile))) {
       Source
         .fromFile(tollPricesFile)

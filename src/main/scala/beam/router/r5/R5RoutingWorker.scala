@@ -8,6 +8,8 @@ import java.util.concurrent.Executors
 
 import akka.actor._
 import akka.pattern._
+import beam.agentsim.agents.choice.mode.BridgeTollDefaults
+import beam.agentsim.agents.choice.mode.BridgeTollDefaults.{readTollPrices, tollPrices}
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -256,7 +258,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
           case Some(matsimTravelTime) =>
-            getTravelTime(time, linkId, matsimTravelTime).toInt
+            getTravelTime(time, linkId, matsimTravelTime, true).toInt
           case None =>
             val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
             (edge.getLengthM / edge.calculateSpeed(
@@ -1021,7 +1023,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // MATSim network.
               (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
             } else {
-              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
+              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime, false).toFloat
             }
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
@@ -1030,7 +1032,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        getTravelTime(time, linkId, matsimTravelTime).toInt
+        getTravelTime(time, linkId, matsimTravelTime, true).toInt
 
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
@@ -1040,7 +1042,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  private def getTravelTime(time: Int, linkId: Int, matsimTravelTime: TravelTime): Double = {
+  private def getTravelTime(
+    time: Int,
+    linkId: Int,
+    matsimTravelTime: TravelTime,
+    pureTravelTimeWithoutCosts: Boolean
+  ): Double = {
     var travelTime = matsimTravelTime
       .getLinkTravelTime(
         network.getLinks.get(Id.createLinkId(linkId)),
@@ -1050,12 +1057,22 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       )
 
     val travelSpeed = network.getLinks.get(Id.createLinkId(linkId)).getLength / travelTime
-    if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+    travelTime = if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
       network.getLinks
         .get(Id.createLinkId(linkId))
         .getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
     } else {
       travelTime
+    }
+
+    if (pureTravelTimeWithoutCosts) {
+      travelTime
+    } else {
+      val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
+      val tollPrices = BridgeTollDefaults.readTollPrices(tollPriceFile)
+      val valueOfTravelTimesSavings = 10 // 10$/h
+
+      travelTime + tollPrices(linkId) / valueOfTravelTimesSavings * 3600
     }
 
   }
