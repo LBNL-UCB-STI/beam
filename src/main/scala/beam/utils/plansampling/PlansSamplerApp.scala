@@ -89,7 +89,7 @@ class SynthHouseholdParser(wgsConverter: WGSConverter) {
       Id.createPersonId(row(indIdIdx)),
       row(indSexIdx).toInt,
       row(indAgeIdx).toInt,
-      row(indValTime).toDouble
+      row(indIncomeIdx).toDouble
     )
   }
 

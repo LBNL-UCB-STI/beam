@@ -15,7 +15,6 @@ object MatsimPlanConversion {
     val transformedPopulationDoc = matsimPopulationToBeam(populationDoc)
 
     val persons = transformedPopulationDoc \\ "person"
-    val IOUtils.
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
