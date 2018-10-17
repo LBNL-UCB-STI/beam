@@ -153,8 +153,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public boolean isValidCase(String graphName, int numPassengers) {
-        if(numPassengers <= TNC_MAX_PASSENGERS) return true;
-        return false;
+        return numPassengers <= TNC_MAX_PASSENGERS;
     }
 
 
