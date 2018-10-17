@@ -1070,9 +1070,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     } else {
       val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
       val tollPrices = BridgeTollDefaults.readTollPrices(tollPriceFile)
-      val valueOfTravelTimesSavings = 10 // 10$/h
+      val valueOfTravelTimesSavings = 10.0 // 10$/h
 
-      travelTime + tollPrices(linkId) / valueOfTravelTimesSavings * 3600
+      travelTime + tollPrices.getOrElse(linkId, 0.0).asInstanceOf[Double] / valueOfTravelTimesSavings * 3600
     }
 
   }
