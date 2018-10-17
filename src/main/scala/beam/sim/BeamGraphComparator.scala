@@ -24,7 +24,7 @@ object BeamGraphComparator {
     * @return Graph html as scala elem
     */
   private def generateHtml(files : mutable.HashMap[(String,String), Map[String, Array[(String, File)]]],iterationsCount : Int): Elem = {
-    val scriptAllImages =
+    val scriptToDisplayAllImages =
       """function displayAllGraphs(images){
            var counter = 0;
            images.map(function(i) {
@@ -37,8 +37,16 @@ object BeamGraphComparator {
            counter = 0;
          }
       """.stripMargin
-    def displayAllGraphs(images: Array[JsObject]) = s"displayAllGraphs(${Json.stringify(Json.toJson(images))});"
-    val graphs: Elem = <ul class="list-group">
+
+    /**
+      * On click listener for graph links
+      * @param imageObjects A json object containing required details of the image file
+      * @return
+      */
+    def displayAllGraphs(imageObjects: Array[JsObject]) = s"displayAllGraphs(${Json.stringify(Json.toJson(imageObjects))});"
+
+    // Main menu for graph selection
+    val graphMenu: Elem = <ul class="list-group">
       {
       ListMap(files.toSeq.sortBy(_._1._1): _*) map { grp =>
         <li class="list-group-item">
@@ -49,7 +57,7 @@ object BeamGraphComparator {
               <li>
                 <h4><a href="javascript:" onclick={displayAllGraphs(t._2 map { f =>
                   Json.obj("path" -> f._2.getAbsolutePath,
-                  "name" -> f._2.getName)
+                    "name" -> f._2.getName)
                 })}>{t._1}</a></h4>
               </li>
             }
@@ -59,13 +67,17 @@ object BeamGraphComparator {
       }
       }
     </ul>
+
+    // Generate holder blocks to display the selected images and their titles
     val imageHolders: Seq[NodeBuffer] = for(i <- 0 to iterationsCount) yield {
       val holderId = "imageHolder" + i
       val imageName = "imageName" + i
       <h4 align="center" id={imageName}></h4>
           <img id={holderId}/>
-        <br/><br/><br/><hr/><br/>
+          <br/><br/><br/><hr/><br/>
     }
+
+    // The final html code to display all graphs.
     <html>
       <head>
         <meta charset="utf-8"/>
@@ -80,7 +92,7 @@ object BeamGraphComparator {
         <link rel="stylesheet" href="gallery-clean.css"/>
 
         <script type="text/javascript">
-          {scriptAllImages}
+          {scriptToDisplayAllImages}
         </script>
       </head>
       <body>
@@ -89,7 +101,7 @@ object BeamGraphComparator {
           <br/>
           <div class="row">
             <div class="col-sm-4">
-              {graphs}
+              {graphMenu}
             </div>
             <div class="col-sm-8">
               <div class="imageholder" style="position: fixed; bottom: 0%; top: 10%">
@@ -128,33 +140,33 @@ object BeamGraphComparator {
       }) -> f
     }
     //Group chart files by name (2 level group)
-    val groupedCharts: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
+    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
       val index = f._1.indexOf("_")
       if(index == -1)
         f._1
       else
         f._1.substring(0,index)
     })
-    val mapper = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
+    val subGroups = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
     // set priorities for the grouped chart files
-    groupedCharts.foreach(gc => {
+    chartsGroupedByPrefix.foreach(gc => {
       if (gc._2.size == 1){
         val key = gc._2.headOption.map(_._1).getOrElse("")
         key match {
-          case "mode_choice" => mapper.put("P01" -> key,gc._2)
-          case "energy_use" => mapper.put("P02" -> key,gc._2)
-          case "realized_mode" => mapper.put("P03" -> key, gc._2)
+          case "mode_choice" => subGroups.put("P01" -> key,gc._2)
+          case "energy_use" => subGroups.put("P02" -> key,gc._2)
+          case "realized_mode" => subGroups.put("P03" -> key, gc._2)
           case _ =>
-            val map = mapper.getOrElse("P99" -> "Misc",Map.empty)
-            mapper.put("P99" -> "Misc",gc._2 ++ map )
+            val map = subGroups.getOrElse("P99" -> "Misc",Map.empty)
+            subGroups.put("P99" -> "Misc",gc._2 ++ map )
         }
       }
       else
-        mapper.put("P04"+gc._1.headOption.getOrElse("") -> gc._1,gc._2)
+        subGroups.put("P04"+gc._1.headOption.getOrElse("") -> gc._1,gc._2)
     })
     //Generate graph comparison html element and write it to the html page at desired location
     val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(mapper,numberOfIterations)
+    val htmlElem = this.generateHtml(subGroups,numberOfIterations)
     try {
       bw.write(htmlElem.mkString)
     }
