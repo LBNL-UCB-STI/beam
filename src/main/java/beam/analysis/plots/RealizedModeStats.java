@@ -89,7 +89,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "aggregated-mode-choice");
-        hourModeFrequency.values().stream().filter(x -> x!=null).flatMap(x -> x.entrySet().stream())
+        hourModeFrequency.values().stream().filter(Objects::nonNull).flatMap(x -> x.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a + b))
                 .forEach((mode, count) -> countOccurrenceJava(mode, count, ShortLevel(), tags));
 
@@ -205,12 +205,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
                 Set<String> iterationModes = iterationHourData.keySet();
                 for (String iterationMode : iterationModes) {
                     Integer freq = iterationHourData.get(iterationMode);
-                    Integer iterationFrequency = totalModeChoice.get(iterationMode);
-                    if (iterationFrequency == null) {
-                        totalModeChoice.put(iterationMode, freq);
-                    } else {
-                        totalModeChoice.put(iterationMode, freq + iterationFrequency);
-                    }
+                    totalModeChoice.merge(iterationMode, freq, (a, b) -> b + a);
                 }
             }
         }
@@ -308,8 +303,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(cumulativeMode);
+        List<String> modesChosenList = new ArrayList<>(cumulativeMode);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
