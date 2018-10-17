@@ -23,7 +23,7 @@ import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStru
 import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.util.Random
 
 class ChangeModeForTour(

@@ -37,7 +37,7 @@ object RideHailingWaitingGraphSpec {
     override def handleEvent(event: Event): Unit = {
       event match {
         case evn
-          if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
+            if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)
             || event.getEventType.equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) =>
           railHailingStat.processStats(event)
         case evn @ (_: ModeChoiceEvent | _: PersonEntersVehicleEvent) =>
@@ -79,16 +79,16 @@ object RideHailingWaitingGraphSpec {
     }
 
     private def updateCounter(evn: PersonEntersVehicleEvent) = {
-      if((evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle"))) {
+      if (evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle")) {
         val personId = evn.getPersonId.toString
         val personTime = personLastTime.get(personId)
         personLastTime = personLastTime - personId
 
         personTime.fold(waitingTimes) { w =>
           val time = w.toInt / 3600
-          waitingTimes :+ (time -> ((evn.getTime - w)) / 60)
+          waitingTimes :+ (time -> (evn.getTime - w) / 60)
         }
-      }else waitingTimes
+      } else waitingTimes
     }
 
     def counterValue: Seq[(Int, Double)] = waitingTimes

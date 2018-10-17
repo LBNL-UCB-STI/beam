@@ -24,11 +24,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     })
     newSchedule = newSchedule ++ legs.headOption.map(boardLeg => {
       val manifest: Manifest = newSchedule.getOrElse(boardLeg, Manifest())
-      (boardLeg, manifest.copy(boarders = manifest.boarders + passenger.vehicleId))
+      (boardLeg, manifest.copy(boarders = manifest.boarders + passenger))
     })
     newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => {
       val manifest: Manifest = newSchedule.getOrElse(alightLeg, Manifest())
-      (alightLeg, manifest.copy(alighters = manifest.alighters + passenger.vehicleId))
+      (alightLeg, manifest.copy(alighters = manifest.alighters + passenger))
     })
     PassengerSchedule(newSchedule)
   }
@@ -68,8 +68,8 @@ case class VehiclePersonId(
 
 case class Manifest(
   riders: Set[VehiclePersonId] = Set.empty,
-  boarders: Set[Id[Vehicle]] = Set.empty,
-  alighters: Set[Id[Vehicle]] = Set.empty
+  boarders: Set[VehiclePersonId] = Set.empty,
+  alighters: Set[VehiclePersonId] = Set.empty
 ) {
   override def toString: String = {
     s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"

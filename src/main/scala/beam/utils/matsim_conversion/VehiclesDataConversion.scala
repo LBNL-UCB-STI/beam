@@ -221,7 +221,7 @@ object VehiclesDataConversion extends App {
     }
 
     vehicleTypeSeq.map { vt =>
-      val id = (vt \@ "id")
+      val id = vt \@ "id"
       val seatingCap = vt \ "capacity" \\ "seats" \@ "persons"
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
