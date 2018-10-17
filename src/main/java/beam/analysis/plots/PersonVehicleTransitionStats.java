@@ -17,12 +17,11 @@ import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.io.UncheckedIOException;
 import org.matsim.core.utils.misc.Time;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.List;
 
@@ -32,7 +31,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     private static Map<String, TreeMap<Integer, Integer>> personEnterCount = new HashMap<>();
     private static Map<String, TreeMap<Integer, Integer>> personExitCount = new HashMap<>();
-    private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap();
+    private static Map<String, TreeMap<Integer, Integer>> onRoutes = new HashMap<>();
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
     private static final String xAxisLabel = "time (binSize=<?> sec)";
@@ -81,7 +80,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     private void processPersonVehicleTransition(Event event) {
         int index = getBinIndex(event.getTime());
-        if (event.getEventType() == PersonEntersVehicleEvent.EVENT_TYPE) {
+        if (PersonEntersVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
 
             String personId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
             if (personId.toLowerCase().contains("agent")) {
@@ -138,7 +137,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         }
 
 
-        if (event.getEventType() == PersonLeavesVehicleEvent.EVENT_TYPE) {
+        if (PersonLeavesVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
 
             String personId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
             String vehicleId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
@@ -154,7 +153,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 unitVehicle = "car";
             }
             else {
-                unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+                unitVehicle = vehicleType.stream().filter(vehicleId::contains).findAny().orElse("others");
             }
 
             Integer count = modePerson.get(unitVehicle);
@@ -189,7 +188,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     }
 
-    JFreeChart getGraphic(String mode, int iteration) {
+    private JFreeChart getGraphic(String mode, int iteration) {
 
         final XYSeriesCollection xyData = new XYSeriesCollection();
         final XYSeries enterSeries = new XYSeries("Enter", false, true);
@@ -253,14 +252,14 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         return chart;
     }
 
-    public void writeGraphic(Integer iteration, String mode) {
+    private void writeGraphic(Integer iteration, String mode) {
         try {
 
             String filename = fileName + "_" + mode + ".png";
             String path = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, filename);
             int index = path.lastIndexOf("/");
             File outDir = new File(path.substring(0, index) + "/tripHistogram");
-            if (!outDir.exists()) outDir.mkdirs();
+            if (!outDir.isDirectory()) Files.createDirectories(outDir.toPath());
             String newPath = outDir.getPath() + path.substring(index);
             ChartUtilities.saveChartAsPNG(new File(newPath), getGraphic(mode, iteration), 1024, 768);
         } catch (IOException e) {

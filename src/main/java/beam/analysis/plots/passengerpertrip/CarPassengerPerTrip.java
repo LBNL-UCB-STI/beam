@@ -114,8 +114,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public boolean isValidCase(String graphName, int numPassengers) {
-        if(numPassengers <= maxPassengers) return true;
-        return false;
+        return numPassengers <= maxPassengers;
     }
 }
 

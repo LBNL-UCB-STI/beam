@@ -156,7 +156,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "WaitingTime(sec),Hour";
-            out.write(heading.toString());
+            out.write(heading);
             out.newLine();
 
             for (int i = 0; i < numberOfTimeBins; i++) {
