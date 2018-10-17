@@ -253,7 +253,7 @@ object SpatialPlot extends App {
 
   val spatialPlot = new SpatialPlot(1000, 1000, 20)
 
-  for (_ <- 1 until 100) {
+  (1 until 100).foreach { _ =>
     spatialPlot.addPoint(
       PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()), Color.blue, 5)
     )
