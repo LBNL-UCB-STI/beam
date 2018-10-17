@@ -202,6 +202,7 @@ trait BeamHelper extends LazyLogging {
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
           addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
+          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
@@ -236,7 +237,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "config is a required value, and must yield a valid config."
+      "Beam config is a required, Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {

@@ -11,11 +11,10 @@ object Memberships {
 
   trait RankedGroup[T <: Identifiable[T], G] {
 
-    def lookupMemberRank(id: Id[T]): Option[Int]
-
     val members: Seq[T]
-
     val rankedMembers: Vector[MemberWithRank[T]]
+
+    def lookupMemberRank(id: Id[T]): Option[Int]
 
     def sortByRank(r2: MemberWithRank[T], r1: MemberWithRank[T]): Boolean = {
       r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
@@ -47,7 +46,7 @@ object Memberships {
         * Members sorted by rank.
         */
       override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector
-        .map(memb => MemberWithRank(memb.getId, lookupMemberRank(memb.getId)))
+        .map(mbr => MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId)))
         .sortWith(sortByRank)
 
     }

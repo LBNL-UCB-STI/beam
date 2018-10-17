@@ -7,9 +7,9 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -87,10 +87,6 @@ class BicycleVehicleRoutingSpec
   }
 
   "A time-dependent router" must {
-    val origin = new BeamRouter.Location(166321.9, 1568.87)
-    val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(3000)
-
     "give updated travel times for a given route" in {
       val leg = BeamLeg(
         3000,
@@ -110,9 +106,7 @@ class BicycleVehicleRoutingSpec
       assert(response.itineraries.head.beamLegs().head.duration == 285)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
-      print("ok")
     }
-
   }
 
   override def afterAll: Unit = {

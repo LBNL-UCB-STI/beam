@@ -1,10 +1,13 @@
 package beam.utils.matsim_conversion
 
+import java.nio.charset.StandardCharsets
+
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
+  val UTF8 = StandardCharsets.UTF_8.name()
 
   def generateScenarioData(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
@@ -49,16 +52,17 @@ object MatsimPlanConversion {
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, "UTF-8", true)
-    XML.save(householdAttrsOutput, householdAtrrs, "UTF-8", true, householdsAttrDoctype)
-    XML.save(populationAttrsOutput, populationAttrs, "UTF-8", true, populationAttrDoctype)
+    XML.save(populationOutput, transformedPopulationDoc, UTF8, true, populationDoctype)
+    XML.save(householdsOutput, houseHolds, UTF8, true)
+    XML.save(householdAttrsOutput, householdAtrrs, UTF8, true, householdsAttrDoctype)
+    XML.save(populationAttrsOutput, populationAttrs, UTF8, true, populationAttrDoctype)
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map {
-      case (_, index) =>
-        <object id={s"${index + 1}"}>
+      case (person, index) =>
+        <object id={s"${person.attribute("id").get.toString()}"}>
+          <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,ride_hail_transit</attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
     }
@@ -179,7 +183,7 @@ object MatsimPlanConversion {
   }
 
   def unchainMetaData(m: MetaData): Iterable[GenAttr] =
-    m flatMap (decomposeMetaData)
+    m flatMap decomposeMetaData
 
   def chainMetaData(l: Iterable[GenAttr]): MetaData = l match {
     case Nil          => Null

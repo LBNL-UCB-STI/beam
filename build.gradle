@@ -74,6 +74,7 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
+        maven { url 'http://download.osgeo.org/webdav/geotools/'}
         maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
@@ -568,5 +569,14 @@ task execute(type:JavaExec) {
                 dest buildDir
             }
         }
+    }
+}
+
+task matsimConversion(type: JavaExec) {
+    main = 'beam.utils.matsim_conversion.MatsimConversionTool'
+    classpath = sourceSets.main.runtimeClasspath
+    environment "PWD", "na"
+    if (project.hasProperty("confPath")) {
+        args Eval.me(confPath)
     }
 }

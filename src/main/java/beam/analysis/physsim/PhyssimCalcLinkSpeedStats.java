@@ -192,8 +192,7 @@ public class PhyssimCalcLinkSpeedStats {
         return new Color(r, g, b);
     }
 
-    public void notifyIterationStarts(EventsManager eventsManager) {
-    }
+
 
     public double getAverageSpeedPercentageOfBin(int bin,TravelTimeCalculator travelTimeCalculator) {
         try {

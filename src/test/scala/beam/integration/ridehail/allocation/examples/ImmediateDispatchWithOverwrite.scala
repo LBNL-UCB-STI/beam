@@ -3,7 +3,8 @@ package beam.integration.ridehail.allocation.examples
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.allocation._
-import beam.router.RoutingModel.DiscreteTime
+import beam.router.model.RoutingModel.DiscreteTime
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -14,7 +15,8 @@ Idea: try to overwrite one ridehail reservation
 
  */
 class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
+    extends RideHailResourceAllocationManager(rideHailManager)
+    with LazyLogging {
 
   var bufferedRideHailRequest: Set[VehicleAllocationRequest] = Set()
   var reservationCompleted = false
@@ -26,8 +28,9 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
     if (!reservationCompleted) {
       bufferedRideHailRequest += vehicleAllocationRequest
-      println(
-        s"proposeVehicleAllocation buffered - personId: ${vehicleAllocationRequest.request.customer.personId}"
+      logger.debug(
+        "proposeVehicleAllocation buffered - personId: {}",
+        vehicleAllocationRequest.request.customer.personId
       )
     }
 
@@ -85,19 +88,17 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
         rhl
       )
 
-      println(
-        s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
-      )
-
       logger.debug(
-        s" new vehicle assigned:${rhl.vehicleId}, tick: ${reply.tick}"
+        " new vehicle assigned:{}, tick: {}",
+        rhl.vehicleId,
+        reply.tick
       )
 
       bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
 
     } else {
-      println(
-        s"reassignment failed"
+      logger.debug(
+        "reassignment failed"
       )
       bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
 
@@ -114,18 +115,18 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     // try to cancel first ride of day
 
     if (!overwriteAttemptStarted && reservationCompleted) {
-      println(
-        s"trying to reassign vehicle to customer:${bufferedRideHailRequest.head.request.customer}, tick: $tick"
-      )
       logger.debug(
-        s"trying to reassign vehicle to customer:${bufferedRideHailRequest.head.request.customer}, tick: $tick"
+        "trying to reassign vehicle to customer:{}, tick: {}",
+        bufferedRideHailRequest.head.request.customer,
+        tick
       )
       rideHailManager.attemptToCancelCurrentRideRequest(
         tick,
         bufferedRideHailRequest.head.request.requestId
       )
       logger.debug(
-        s"attempt finished, tick: $tick"
+        "attempt finished, tick: {}",
+        tick
       )
       bufferedRideHailRequests.increaseNumberOfOpenOverwriteRequests()
       overwriteAttemptStarted = true
@@ -134,7 +135,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
   }
 
   override def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {
-    println(s"reservationCompletionNotice - personId: $personId, vehicleId: ${vehicleId}")
+    logger.debug("reservationCompletionNotice - personId: {}, vehicleId: {}", personId, vehicleId)
 
     if (!reservationCompleted) {
       bufferedRideHailRequest = bufferedRideHailRequest.filter(_.request.customer.personId == personId)
@@ -142,7 +143,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       if (bufferedRideHailRequest.nonEmpty) {
         reservationCompleted = true
 
-        println(s"reservationCompletionNotice: true - personId: ${personId}")
+        logger.debug("reservationCompletionNotice: true - personId: {}", personId)
       } else {
         reservationCompleted = false
         bufferedRideHailRequest = Set()

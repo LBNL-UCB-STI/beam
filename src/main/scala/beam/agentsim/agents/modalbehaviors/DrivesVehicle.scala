@@ -18,12 +18,17 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.TRANSIT
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -36,24 +41,25 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Int) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class AlightVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class NotifyLegStartTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
   case class AddFuel(fuelInJoules: Double)
 
   case class StartRefuelTrigger(tick: Int) extends Trigger
-  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
-  case object GetBeamVehicleState
+  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
   case class StopDrivingIfNoPassengerOnBoard(tick: Int, requestId: Int)
 
   case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
+
+  case object GetBeamVehicleState
 
 }
 
@@ -76,7 +82,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       case Some(currentLeg) =>
         println(currentLeg)
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-          log.info(s"stopping vehicle: $id")
+          log.info("stopping vehicle: {}", id)
           goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
             success = true,
             requestId,
@@ -124,14 +130,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 )
               }
               log.debug(
-                s"DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle, vehicleId($currentVehicleUnderControl) - tick($tick)"
+                "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})",
+                nextNotifyVehicleResourceIdle,
+                currentVehicleUnderControl,
+                tick
               )
 
-              data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
+              data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
-                  logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
+                  logDebug(s"Scheduling AlightVehicleTrigger for Person $personRef")
                   scheduler ! ScheduleTrigger(
-                    NotifyLegEndTrigger(tick, currentLeg, data.currentVehicle.head),
+                    AlightVehicleTrigger(tick, data.currentVehicle.head),
                     personRef
                   )
                 }
@@ -139,7 +148,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
               processLinkEvents(data.currentVehicle.head, currentLeg)
 
-              logDebug(s"PathTraversal")
+              logDebug("PathTraversal")
               eventsManager.processEvent(
                 new VehicleLeavesTrafficEvent(
                   tick,
@@ -254,7 +263,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .headOption match {
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info(s"stopping vehicle: $id")
+            log.info("stopping vehicle: {}", id)
 
             goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
               success = true,
@@ -268,15 +277,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
+    /* TODO: fix it, this case is unreachable
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-
+   */
   }
 
   when(DrivingInterrupted) {
     case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
-      val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
+      //      val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
@@ -311,7 +321,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               )
 
               log.debug(
-                s"DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:$nextNotifyVehicleResourceIdle"
+                "DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:{}",
+                nextNotifyVehicleResourceIdle
               )
 
               eventsManager.processEvent(
@@ -390,10 +401,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
           .schedule(newLeg)
-          .riders
+          .boarders
           .map { personVehicle =>
             ScheduleTrigger(
-              NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head),
+              BoardVehicleTrigger(tick, data.currentVehicle.head),
               beamServices.personRefs(personVehicle.personId)
             )
           }
@@ -495,29 +506,35 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .toSeq
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
-      val triggersToSchedule = legsInThePast
-        .flatMap(
-          leg =>
-            Vector(
-              ScheduleTrigger(
-                NotifyLegStartTrigger(leg.startTime, leg, data.currentVehicle.head),
-                sender()
-              ),
-              ScheduleTrigger(
-                NotifyLegEndTrigger(leg.endTime, leg, data.currentVehicle.head),
-                sender()
-              )
+      val boardTrigger = if (legsInThePast.nonEmpty) {
+        Vector(
+          ScheduleTrigger(
+            BoardVehicleTrigger(legsInThePast.head.startTime, data.currentVehicle.head),
+            sender()
           )
         )
-        .toVector
-      val triggersToSchedule2 = data.passengerSchedule.schedule.keys.view
+      } else {
+        Vector()
+      }
+      val alightTrigger = if (legsInThePast.nonEmpty && legsInThePast.size == legs.size) {
+        Vector(
+          ScheduleTrigger(
+            AlightVehicleTrigger(legsInThePast.last.endTime, data.currentVehicle.head),
+            sender()
+          )
+        )
+      } else {
+        Vector()
+      }
+
+      val boardTrigger2 = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
-          if (stateName == Driving && legs.contains(currentLeg)) {
+          if (stateName == Driving && legs.head == currentLeg) {
             Vector(
               ScheduleTrigger(
-                NotifyLegStartTrigger(currentLeg.startTime, currentLeg, data.currentVehicle.head),
+                BoardVehicleTrigger(currentLeg.startTime, data.currentVehicle.head),
                 sender()
               )
             )
@@ -540,7 +557,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             req.departFrom,
             req.arriveAt,
             req.passengerVehiclePersonId,
-            triggersToSchedule ++ triggersToSchedule2
+            boardTrigger ++ alightTrigger ++ boardTrigger2
           )
         ),
         TRANSIT
@@ -558,8 +575,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     leg,
                     manifest.copy(
                       riders = manifest.riders - id,
-                      alighters = manifest.alighters - id.vehicleId,
-                      boarders = manifest.boarders - id.vehicleId
+                      alighters = manifest.alighters - id,
+                      boarders = manifest.boarders - id
                     )
                   )
               }
@@ -592,7 +609,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      println(s"DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + $stateName")
+      log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
     //stay()
@@ -619,10 +636,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
+
+      var curTime = leg.startTime
       linksWithTime.foreach {
         case (Seq(from, to), timeAtNode) =>
-          eventsManager.processEvent(new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
+          curTime = curTime + timeAtNode
+          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
       }
     }
   }

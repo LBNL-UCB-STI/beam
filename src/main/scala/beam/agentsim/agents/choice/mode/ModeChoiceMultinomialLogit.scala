@@ -1,19 +1,18 @@
 package beam.agentsim.agents.choice.mode
 
-import scala.util.Random
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import scalaz.syntax._
+
+import scala.util.Random
 
 /**
   * BEAM
@@ -22,10 +21,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     extends ModeChoiceCalculator {
 
   var expectedMaximumUtility: Double = 0.0
-
-  def timeAndCost(mct: ModeCostTimeTransfer): BigDecimal = {
-    mct.scaledTime + mct.cost
-  }
 
   override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
@@ -69,35 +64,15 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
-  def utilityOf(
-    mode: BeamMode,
-    cost: BigDecimal,
-    time: BigDecimal,
-    numTransfers: Int = 0
-  ): Double = {
-    val variables =
-      Map(
-        "transfer" -> BigDecimal(numTransfers),
-        "cost"     -> cost,
-        "time"     -> scaleTimeByVot(time, Option(mode))
-      )
-    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
-  }
-
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
-    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative)).head
-    utilityOf(
-      modeCostTimeTransfer.mode,
-      modeCostTimeTransfer.cost,
-      modeCostTimeTransfer.scaledTime,
-      modeCostTimeTransfer.numTransfers
-    )
+  def timeAndCost(mct: ModeCostTimeTransfer): BigDecimal = {
+    mct.scaledTime + mct.cost
   }
 
   def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    val walkTripStartTime = alternatives.find(_.tripClassifier == WALK)
+    val walkTripStartTime = alternatives
+      .find(_.tripClassifier == WALK)
       .map(_.legs.head.beamLeg.startTime)
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
@@ -168,17 +143,34 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
+  override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
+    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative)).head
+    utilityOf(
+      modeCostTimeTransfer.mode,
+      modeCostTimeTransfer.cost,
+      modeCostTimeTransfer.scaledTime,
+      modeCostTimeTransfer.numTransfers
+    )
+  }
+
+  def utilityOf(
+    mode: BeamMode,
+    cost: BigDecimal,
+    time: BigDecimal,
+    numTransfers: Int = 0
+  ): Double = {
+    val variables =
+      Map(
+        "transfer" -> BigDecimal(numTransfers),
+        "cost"     -> cost,
+        "time"     -> scaleTimeByVot(time, Option(mode))
+      )
+    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
+  }
+
 }
 
 object ModeChoiceMultinomialLogit {
-
-  case class ModeCostTimeTransfer(
-    mode: BeamMode,
-    cost: BigDecimal,
-    scaledTime: BigDecimal,
-    numTransfers: Int,
-    index: Int = -1
-  )
 
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
     val mnlData: Vector[MnlData] = Vector(
@@ -217,5 +209,13 @@ object ModeChoiceMultinomialLogit {
     )
     MultinomialLogit(mnlData)
   }
+
+  case class ModeCostTimeTransfer(
+    mode: BeamMode,
+    cost: BigDecimal,
+    scaledTime: BigDecimal,
+    numTransfers: Int,
+    index: Int = -1
+  )
 
 }

@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
 /**
@@ -14,9 +14,6 @@ object DrivingCostDefaults {
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
   ): IndexedSeq[BigDecimal] = {
-
-    val drivingCostConfig =
-      beamServices.beamConfig.beam.agentsim.agents.drivingCost
 
     alternatives.map { alt =>
       alt.tripClassifier match {
@@ -39,7 +36,7 @@ object DrivingCostDefaults {
             .sum
 
           val cost =
-            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
+            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType) {
               (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
             } else {
               0 //TODO

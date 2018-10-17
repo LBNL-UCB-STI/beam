@@ -88,7 +88,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           override def compute(
             stat: Tuple[java.util.Map[Integer, java.util.Map[String, Integer]], util.Set[String]]
           ): Array[Array[Double]] = {
-            promise.success(stat.getFirst)
+            promise.trySuccess(stat.getFirst)
             super.compute(stat)
           }
 
@@ -119,7 +119,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): ModeChosenStatsGraph = {
-            val graph = new ModeChosenStatsGraph(waitingStat , BeamConfig(baseConfig))
+            val graph = new ModeChosenStatsGraph(waitingStat, BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }
