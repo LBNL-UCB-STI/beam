@@ -165,9 +165,9 @@ class BeamMobsim @Inject()(
 
         beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
-            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
-              log.error(
-                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+              log.error (
+              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
               )
             }
           case None =>
@@ -300,7 +300,7 @@ class BeamMobsim @Inject()(
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
 
-            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
               .map(new Powertrain(_))
               .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
