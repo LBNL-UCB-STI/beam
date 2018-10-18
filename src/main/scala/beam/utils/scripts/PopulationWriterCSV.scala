@@ -25,7 +25,7 @@ class PopulationWriterCSV(
     * Creates a new PlansWriter to write out the specified plans to the specified file and with
     * the specified version.
     * If plans-streaming is on, the file will already be opened and the file-header be written.
-    * If plans-streaming is off, the file will not be created until {@link #write(java.lang.String)} is called.
+    * If plans-streaming is off, the file will not be created until `#write(java.lang.String)` is called.
     *
     **/
 

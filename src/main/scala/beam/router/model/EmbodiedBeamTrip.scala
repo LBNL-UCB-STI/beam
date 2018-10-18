@@ -62,11 +62,9 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   }
 
   override def toString: String = {
-    s"EmbodiedBeamTrip($tripClassifier starts ${
-      legs.headOption
-        .map(head => head.beamLeg.startTime)
-        .getOrElse("empty")
-    } legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
+      .map(head => head.beamLeg.startTime)
+      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
   }
 }
 

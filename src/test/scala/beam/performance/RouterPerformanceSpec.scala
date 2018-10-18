@@ -39,7 +39,10 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
+import org.matsim.core.router.costcalculators.{
+  FreespeedTravelTimeAndDisutility,
+  RandomizingTimeDistanceTravelDisutilityFactory
+}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
@@ -175,7 +178,10 @@ class RouterPerformanceSpec
         finally {
           val latency = System.currentTimeMillis() - start
           logger.debug(
-            "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
+            "Time to complete {} requests is : {}ms around {}sec",
+            testSet.size,
+            latency,
+            latency / 1000.0
           )
         }
       })
@@ -231,7 +237,10 @@ class RouterPerformanceSpec
           })
           val latency = System.currentTimeMillis() - start
           logger.debug(
-            "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
+            "Time to complete {} requests is : {}ms around {}sec",
+            testSet.size,
+            latency,
+            latency / 1000.0
           )
         })
       })
@@ -299,7 +308,10 @@ class RouterPerformanceSpec
       })
       val latency = System.currentTimeMillis() - start
       logger.debug(
-        "Time to complete {} requests is : {}ms around {}sec", testSet.size, latency, latency / 1000.0
+        "Time to complete {} requests is : {}ms around {}sec",
+        testSet.size,
+        latency,
+        latency / 1000.0
       )
     })
   }

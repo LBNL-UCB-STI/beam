@@ -234,7 +234,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
       eventualResponse.onComplete {
         case scala.util.Failure(ex) =>
-          log.error("calcRoute failed", ex)
+          log.error(ex, "calcRoute failed")
         case _ =>
       }
       eventualResponse pipeTo sender

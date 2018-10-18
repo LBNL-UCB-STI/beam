@@ -66,7 +66,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       helper: StuckFinderHelper[ScheduledTrigger],
       stuckAgents: ArrayBuffer[ValueWithTime[ScheduledTrigger]]
     ): Seq[ValueWithTime[ScheduledTrigger]] = {
-      helper.removeOldest match {
+      helper.removeOldest() match {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
           if (!isStuck) {

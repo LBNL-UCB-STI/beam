@@ -36,8 +36,8 @@ object DrivingCostDefaults {
             .sum
 
           val cost =
-            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType) {
-              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
+              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
             } else {
               0 //TODO
             }
