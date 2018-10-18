@@ -33,7 +33,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{DateUtils, FileUtils, LoggingUtil}
+import beam.utils.{DateUtils, DebugLib, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -1069,7 +1069,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       travelTime
     } else {
       val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
-      val tollPrices = BridgeTollDefaults.readTollPrices(tollPriceFile)
+      val tollPrices = BridgeTollDefaults.readTollPrices(tollPriceFile) // TODO: load tolls file first time only, as soon as logic works
       val valueOfTravelTimesSavings = 10.0 // 10$/h
 
       travelTime + tollPrices.getOrElse(linkId, 0.0).asInstanceOf[Double] / valueOfTravelTimesSavings * 3600
