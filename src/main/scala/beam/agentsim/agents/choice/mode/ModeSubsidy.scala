@@ -1,31 +1,38 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.choice.mode.ModeSubsidy.{Subsidy, Range}
 import beam.router.Modes.BeamMode
 
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
-object ModeSubsidy {
-  private val subsidies: ListBuffer[Subsidy] = ListBuffer()
+class ModeSubsidy(val subsidiesFile: String) {
+  private val modeSubsidies: Map[BeamMode, List[Subsidy]] = loadSubsidies(subsidiesFile)
 
-  def getSubsidy(mode: BeamMode, age: Option[Double], income: Option[Double]): Double = {
-    subsidies.find(s => s.mode == mode && age.fold(true)(s.age.in) && income.fold(true)(s.income.in)).fold(0.0)(_.amount)
+  def getSubsidy(mode: BeamMode, age: Option[Int], income: Option[Int]): Double = {
+    modeSubsidies(mode).find(s => age.fold(true)(s.age.in) && income.fold(true)(s.income.in)).fold(0.0)(_.amount)
   }
 
-  def loadSubsidies(subsidiesFile: String): List[Subsidy] = {
+  private def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
+    var subsidies: Map[BeamMode, List[Subsidy]] = Map()
     val lines = Source.fromFile(subsidiesFile).getLines().toList.tail
-     for (line <- lines) {
+    for (line <- lines) {
       val row = line.split(",")
-       subsidies += Subsidy(BeamMode.fromString(row(0)), Range(row(1)), Range(row(2)), row(3).toDouble)
-    }
-    subsidies.toList
-  }
 
+      val beamMode = BeamMode.fromString(row(0))
+      val subsidy = Subsidy(beamMode, Range(row(1)), Range(row(2)), row(3).toDouble)
+
+      subsidies += beamMode -> (subsidies.getOrElse(beamMode, List()) :+ subsidy)
+    }
+    subsidies
+  }
+}
+
+object ModeSubsidy {
   case class Subsidy(mode: BeamMode, age: Range, income: Range, amount: Double)
 
-  case class Range(lowerBound: Double, upperBound: Double) {
+  case class Range(lowerBound: Int, upperBound: Int) {
     val isEmpty = false
-    def in(value: Double): Boolean = {
+    def in(value: Int): Boolean = {
       isEmpty || (lowerBound < value && value < upperBound)
     }
   }
@@ -34,8 +41,8 @@ object ModeSubsidy {
     def apply(pattern: String): Range = {
       if(pattern == null || pattern.isEmpty) return Range.empty()
       val bounds = pattern.split(":")
-      val lowerBound = bounds(0).substring(1).toDouble + (if (bounds(0).startsWith("(")) 0 else -1)
-      val upperBound = bounds(1).substring(0, bounds(1).length - 1).toDouble + (if (bounds(1).endsWith(")")) 0 else 1)
+      val lowerBound = bounds(0).substring(1).toInt + (if (bounds(0).startsWith("(")) 0 else -1)
+      val upperBound = bounds(1).substring(0, bounds(1).length - 1).toInt + (if (bounds(1).endsWith(")")) 0 else 1)
       Range(lowerBound, upperBound)
     }
 

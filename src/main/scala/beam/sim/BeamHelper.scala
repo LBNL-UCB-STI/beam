@@ -246,7 +246,7 @@ trait BeamHelper extends LazyLogging {
       else parsedArgs.config.get
     }).resolve()
 
-    ModeSubsidy.loadSubsidies(BeamConfig(config).beam.agentsim.agents.modeSubsidy.file)
+    new ModeSubsidy(BeamConfig(config).beam.agentsim.agents.modeSubsidy.file)
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
