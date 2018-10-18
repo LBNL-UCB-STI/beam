@@ -101,7 +101,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
                 unitVehicle = "car";
             }
             else {
-                unitVehicle = vehicleType.stream().filter(vehicle -> vehicleId.contains(vehicle)).findAny().orElse("others");
+                unitVehicle = vehicleType.stream().filter(vehicleId::contains).findAny().orElse("others");
             }
 
 

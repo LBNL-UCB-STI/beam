@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.io.BufferedWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,7 +37,6 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
-    private String benchmarkFileLoc ;
 
 
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -77,7 +75,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     public ModeChosenStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation , BeamConfig beamConfig) {
-        benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
     }
@@ -284,7 +282,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     // The data is converted into average and compared with the data of benchmark.
-    public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) throws IOException{
+    public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
         DefaultCategoryDataset result = new DefaultCategoryDataset();
         List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
         double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
@@ -299,9 +297,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             }
         }
         double[] sumOfColumns = new double[max];
-        for (int r = 0; r < data.length; r++) {
-            for (int c = 0; c < data[r].length; c++) {
-                sumOfColumns[c] += data[r][c];
+        for (double[] aData : data) {
+            for (int c = 0; c < aData.length; c++) {
+                sumOfColumns[c] += aData[c];
             }
         }
 

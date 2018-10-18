@@ -198,13 +198,13 @@ object VehiclesDataConversion extends App {
     generateVehiclesDataFromSource(outputDir, vehiclesDoc)
   }
 
-  def generateFuelTypesDefaults(scenarioDirectory: String) = {
+  def generateFuelTypesDefaults(scenarioDirectory: String): Unit = {
     val beamFuelTypesPath = scenarioDirectory + "/beamFuelTypes.csv"
 
     writeCsvFile(beamFuelTypesPath, beamFuelTypes, beamFuelTypesTitles)
   }
 
-  def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]) = {
+  def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]): Unit = {
     val beamVehTypesPath = scenarioDirectory + "/vehicleTypes.csv"
 
     writeCsvFile(beamVehTypesPath, vehicleTypes, beamVehicleTypeTitles)
@@ -260,7 +260,7 @@ object VehiclesDataConversion extends App {
     vehicles
   }
 
-  def writeCsvFile(beamVehiclesPath: String, data: Seq[Seq[String]], titles: Seq[String]) = {
+  def writeCsvFile(beamVehiclesPath: String, data: Seq[Seq[String]], titles: Seq[String]): Unit = {
     FileUtils.using(new CsvMapWriter(new FileWriter(beamVehiclesPath), CsvPreference.STANDARD_PREFERENCE)) { writer =>
       writer.writeHeader(titles: _*)
       val rows = data.map { row =>
