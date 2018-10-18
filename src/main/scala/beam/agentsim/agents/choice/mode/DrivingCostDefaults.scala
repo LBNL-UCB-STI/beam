@@ -9,6 +9,7 @@ import beam.sim.BeamServices
   */
 object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
+  val zero: BigDecimal = BigDecimal(0.0)
 
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -17,7 +18,7 @@ object DrivingCostDefaults {
 
     alternatives.map { alt =>
       alt.tripClassifier match {
-        case CAR if alt.costEstimate == 0.0 =>
+        case CAR if alt.costEstimate == zero =>
           val legs = alt.legs
           val neededLeg = legs
             .collectFirst {
