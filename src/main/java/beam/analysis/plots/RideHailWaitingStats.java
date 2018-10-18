@@ -117,10 +117,8 @@ public class RideHailWaitingStats implements IGraphStats {
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    private static final String fileName = "RideHailWaitingStats";
+    private static final String fileName = "rideHail_waitingStats";
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
-    private double lastMaximumTime = 0;
-    private static final double NUMBER_OF_CATEGORIES = 6.0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
@@ -144,7 +142,6 @@ public class RideHailWaitingStats implements IGraphStats {
 
     @Override
     public void resetStats() {
-        lastMaximumTime = 0;
         waitTimeSum = 0;
         rideHailCount = 0;
         rideHailWaiting.clear();
@@ -196,6 +193,7 @@ public class RideHailWaitingStats implements IGraphStats {
         }
     }
 
+    //Prepare graph for each iteration
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         RideHailDistanceRowModel model = GraphUtils.RIDE_HAIL_REVENUE_MAP.get(event.getIteration());
@@ -225,7 +223,6 @@ public class RideHailWaitingStats implements IGraphStats {
 
             for (RideHailWaitingIndividualStat rideHailWaitingIndividualStat : rideHailWaitingIndividualStatList) {
 
-
                 String line = rideHailWaitingIndividualStat.time + "," +
                         rideHailWaitingIndividualStat.personId + "," +
                         rideHailWaitingIndividualStat.vehicleId + "," +
@@ -249,11 +246,7 @@ public class RideHailWaitingStats implements IGraphStats {
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        //waitingTime = waitingTime/60;
-
-        if (waitingTime > lastMaximumTime) {
-            lastMaximumTime = waitingTime;
-        }
+        waitingTime = waitingTime/60;
 
         List<Double> timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
@@ -286,40 +279,34 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
             out.write(heading);
             out.newLine();
 
             List<Double> categories = getCategories();
 
-            for (int j = 0; j < categories.size(); j++){
-
-                Double category = categories.get(j);
+            for (Double category : categories) {
                 Double _category = getRoundedCategoryUpperBound(category);
 
-                String line = "";
-                for (int i = 0; i < this.numberOfTimeBins; i++) {
+                String line;
+                for (int i = 0; i < numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
-
-                    line = _category + "," + (i + 1) + "," + line;
+                    if (category > 60) {
+                        line = "60+," + (i + 1) + "," + line;
+                    } else {
+                        line = _category + "," + (i + 1) + "," + line;
+                    }
                     out.write(line);
                     out.newLine();
                 }
             }
             out.flush();
-            out.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (out != null) {
-                out.close();
-            }
         }
     }
 
@@ -327,20 +314,12 @@ public class RideHailWaitingStats implements IGraphStats {
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
-
-        double upperBound = lastMaximumTime;
-        double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
-
-        //listOfBounds.add(0.0);
-
-        for (double x = bound; x < upperBound; x += bound) {
-            listOfBounds.add(x);
-        }
-
-        if (!listOfBounds.isEmpty()) {
-            listOfBounds.set(listOfBounds.size() - 1, lastMaximumTime);
-            Collections.sort(listOfBounds);
-        }
+        listOfBounds.add(5.0);
+        listOfBounds.add(10.0);
+        listOfBounds.add(20.0);
+        listOfBounds.add(30.0);
+        listOfBounds.add(60.0);
+        listOfBounds.add(Double.MAX_VALUE);
 
         return listOfBounds;
     }
@@ -351,7 +330,12 @@ public class RideHailWaitingStats implements IGraphStats {
         for (Double category : categories) {
 
             double legend = getRoundedCategoryUpperBound(category);
-            legends.add(legend + "_sec");
+            if(legend > 60 )
+                legends.add("60+");
+            else{
+                legends.add(category.intValue() + "min");
+            }
+
         }
         //Collections.sort(legends);
         return legends;

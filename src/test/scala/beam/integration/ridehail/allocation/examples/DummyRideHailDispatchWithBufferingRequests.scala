@@ -3,9 +3,11 @@ package beam.integration.ridehail.allocation.examples
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.allocation._
 import beam.router.model.RoutingModel.DiscreteTime
+import com.typesafe.scalalogging.LazyLogging
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
+    extends RideHailResourceAllocationManager(rideHailManager)
+    with LazyLogging {
 
   val enableDummyRidehailReplacement = true
 
@@ -54,8 +56,11 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
               rhl
             )
 
-            println(
-              s" new vehicle assigned:${rhl.vehicleId}, tick: $tick, person: ${request.customer.personId}"
+            logger.debug(
+              " new vehicle assigned:{}, tick: {}, person: {}",
+              rhl.vehicleId,
+              tick,
+              request.customer.personId
             )
 
             rideHailManager.removeDummyRequest(request)
@@ -63,16 +68,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
             bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
           case None =>
         }
-        //bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
-
       }
-
     }
-
   }
-
-//  override def handleRideCancellationReply(
-  //   reply: DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-  // ): Unit = ???
-
 }

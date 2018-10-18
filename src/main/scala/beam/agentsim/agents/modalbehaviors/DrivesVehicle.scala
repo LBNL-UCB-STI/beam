@@ -41,9 +41,9 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Int) extends Trigger
 
-  case class NotifyLegEndTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class AlightVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
 
-  case class NotifyLegStartTrigger(tick: Int, beamLeg: BeamLeg, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -136,11 +136,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 tick
               )
 
-              data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
+              data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
                 beamServices.personRefs.get(pv.personId).foreach { personRef =>
-                  logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
+                  logDebug(s"Scheduling AlightVehicleTrigger for Person $personRef")
                   scheduler ! ScheduleTrigger(
-                    NotifyLegEndTrigger(tick, currentLeg, data.currentVehicle.head),
+                    AlightVehicleTrigger(tick, data.currentVehicle.head),
                     personRef
                   )
                 }
@@ -401,10 +401,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
           .schedule(newLeg)
-          .riders
+          .boarders
           .map { personVehicle =>
             ScheduleTrigger(
-              NotifyLegStartTrigger(tick, newLeg, data.currentVehicle.head),
+              BoardVehicleTrigger(tick, data.currentVehicle.head),
               beamServices.personRefs(personVehicle.personId)
             )
           }
@@ -506,29 +506,35 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .toSeq
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
-      val triggersToSchedule = legsInThePast
-        .flatMap(
-          leg =>
-            Vector(
-              ScheduleTrigger(
-                NotifyLegStartTrigger(leg.startTime, leg, data.currentVehicle.head),
-                sender()
-              ),
-              ScheduleTrigger(
-                NotifyLegEndTrigger(leg.endTime, leg, data.currentVehicle.head),
-                sender()
-              )
+      val boardTrigger = if (legsInThePast.nonEmpty) {
+        Vector(
+          ScheduleTrigger(
+            BoardVehicleTrigger(legsInThePast.head.startTime, data.currentVehicle.head),
+            sender()
           )
         )
-        .toVector
-      val triggersToSchedule2 = data.passengerSchedule.schedule.keys.view
+      } else {
+        Vector()
+      }
+      val alightTrigger = if (legsInThePast.nonEmpty && legsInThePast.size == legs.size) {
+        Vector(
+          ScheduleTrigger(
+            AlightVehicleTrigger(legsInThePast.last.endTime, data.currentVehicle.head),
+            sender()
+          )
+        )
+      } else {
+        Vector()
+      }
+
+      val boardTrigger2 = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
         case Some(currentLeg) =>
-          if (stateName == Driving && legs.contains(currentLeg)) {
+          if (stateName == Driving && legs.head == currentLeg) {
             Vector(
               ScheduleTrigger(
-                NotifyLegStartTrigger(currentLeg.startTime, currentLeg, data.currentVehicle.head),
+                BoardVehicleTrigger(currentLeg.startTime, data.currentVehicle.head),
                 sender()
               )
             )
@@ -551,7 +557,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             req.departFrom,
             req.arriveAt,
             req.passengerVehiclePersonId,
-            triggersToSchedule ++ triggersToSchedule2
+            boardTrigger ++ alightTrigger ++ boardTrigger2
           )
         ),
         TRANSIT
@@ -569,8 +575,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                     leg,
                     manifest.copy(
                       riders = manifest.riders - id,
-                      alighters = manifest.alighters - id.vehicleId,
-                      boarders = manifest.boarders - id.vehicleId
+                      alighters = manifest.alighters - id,
+                      boarders = manifest.boarders - id
                     )
                   )
               }

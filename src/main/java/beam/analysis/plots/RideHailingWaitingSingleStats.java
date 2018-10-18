@@ -27,7 +27,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
-    private static final String fileName = "RideHailWaitingSingleStats";
+    private static final String fileName = "rideHail_waitingSingleStats";
     private static double numberOfTimeBins;
     private double lastMaximumTime = 0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();
@@ -156,7 +156,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "WaitingTime(sec),Hour";
-            out.write(heading.toString());
+            out.write(heading);
             out.newLine();
 
             for (int i = 0; i < numberOfTimeBins; i++) {
