@@ -127,7 +127,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private static int numberOfTimeBins = 30;
 
-    private RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                 BeamConfig beamConfig){
         this.statComputation = statComputation;
 
