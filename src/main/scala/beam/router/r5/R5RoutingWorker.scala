@@ -1041,7 +1041,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def getTravelTime(time: Int, linkId: Int, matsimTravelTime: TravelTime): Double = {
-    var travelTime = matsimTravelTime
+    val travelTime = matsimTravelTime
       .getLinkTravelTime(
         network.getLinks.get(Id.createLinkId(linkId)),
         time.toDouble,

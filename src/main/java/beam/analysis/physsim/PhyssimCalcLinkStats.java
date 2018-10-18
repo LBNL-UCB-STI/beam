@@ -1,7 +1,5 @@
 package beam.analysis.physsim;
 
-import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import org.jfree.chart.*;

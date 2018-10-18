@@ -76,11 +76,7 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
             return true;
         }
 
-        String personLabel = null;
-
-        if (person == null) {
-            DebugLib.emptyFunctionForSettingBreakPoint();
-        }
+        String personLabel;
 
         if (person.contains(BUS)) {
             personLabel = BUS;
@@ -168,7 +164,7 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
             }
         }
         if (encode) {
-            StringBuffer bf = new StringBuffer();
+            StringBuilder bf = new StringBuilder();
             for (int pos = 0; pos < len; pos++) {
                 char ch = attributeValue.charAt(pos);
                 if (ch == '<') {

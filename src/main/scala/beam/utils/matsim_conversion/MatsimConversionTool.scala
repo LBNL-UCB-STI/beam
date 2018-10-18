@@ -34,7 +34,7 @@ object MatsimConversionTool extends App {
     println("Please specify config/file/path parameter")
   }
 
-  def generateOsmFilteringCommand(cf: ConversionConfig, network: Network) = {
+  def generateOsmFilteringCommand(cf: ConversionConfig, network: Network): Unit = {
     val boundingBox =
       ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
     val outputFile = s"${cf.scenarioDirectory}/r5/${cf.scenarioName}.osm.pbf"
@@ -47,7 +47,7 @@ object MatsimConversionTool extends App {
     println(commandOut)
   }
 
-  def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
+  def generateTazDefaults(conversionConfig: ConversionConfig, network: Network): Unit = {
     val outputFilePath = s"${conversionConfig.scenarioDirectory}/taz-centers.csv"
 
     if (conversionConfig.shapeConfig.isDefined) {
@@ -63,7 +63,7 @@ object MatsimConversionTool extends App {
     default: ShapeUtils.CsvTaz,
     outputFilePath: String,
     localCRS: String
-  ) = {
+  ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter = new CsvMapWriter(new FileWriter(outputFilePath), CsvPreference.STANDARD_PREFERENCE)

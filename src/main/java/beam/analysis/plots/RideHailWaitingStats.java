@@ -127,7 +127,7 @@ public class RideHailWaitingStats implements IGraphStats {
 
     private static int numberOfTimeBins = 30;
 
-    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+    private RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                 BeamConfig beamConfig){
         this.statComputation = statComputation;
 
@@ -279,7 +279,7 @@ public class RideHailWaitingStats implements IGraphStats {
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) throws IOException {
+    private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             String heading = "WaitingTime,Hour,Count";
@@ -291,7 +291,7 @@ public class RideHailWaitingStats implements IGraphStats {
             for (Double category : categories) {
                 Double _category = getRoundedCategoryUpperBound(category);
 
-                String line = "";
+                String line;
                 for (int i = 0; i < numberOfTimeBins; i++) {
                     Map<Double, Integer> innerMap = hourModeFrequency.get(i);
                     line = (innerMap == null || innerMap.get(category) == null) ? "0" : innerMap.get(category).toString();
