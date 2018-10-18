@@ -8,7 +8,7 @@ header:
     beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
-    params:
+    deployParams:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
       S3_OUTPUT_PATH_SUFFIX: "sf-light"
