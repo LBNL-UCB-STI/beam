@@ -19,7 +19,7 @@ class ModeSubsidy(private val subsidiesFile: String) {
 
   private def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
     val subsidies: ListBuffer[Subsidy] = ListBuffer()
-    val lines = Source.fromFile(subsidiesFile).getLines().toList.tail
+    val lines = Try(Source.fromFile(subsidiesFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 
