@@ -33,9 +33,9 @@ object AvailableModeUtils {
       .get("beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
       .availableModes :+ WALK :+ WALK_TRANSIT :+ DRIVE_TRANSIT
-    if(availModes.contains(RIDE_HAIL)){
+    if (availModes.contains(RIDE_HAIL)) {
       availModes :+ RIDE_HAIL_TRANSIT
-    }else{
+    } else {
       availModes
     }
   }

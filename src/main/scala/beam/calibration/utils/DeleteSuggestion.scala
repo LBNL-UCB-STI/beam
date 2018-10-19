@@ -1,8 +1,6 @@
 package beam.calibration.utils
 
 import beam.calibration.BeamSigoptTuner
-import beam.calibration.utils.ListSuggestions.suggestions
-import beam.utils.DebugLib
 import com.sigopt.Sigopt
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
 import com.typesafe.scalalogging.LazyLogging
@@ -18,7 +16,7 @@ object DeleteSuggestion extends LazyLogging {
 
   val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 
-  def deleteSuggestion(experimentId: String, suggestionId: String) = {
+  def deleteSuggestion(experimentId: String, suggestionId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) =>
         _experiment.suggestions().delete(suggestionId).call()
@@ -41,8 +39,8 @@ object DeleteSuggestion extends LazyLogging {
   def listSuggestions(experimentId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) =>
-        val data = _experiment.suggestions().list().call().getData
-        data.forEach(println)
+        val data = _experiment.suggestions().list().call().getData.asScala
+        data.foreach(println)
         if (data.isEmpty) {
           logger.info(s"Experiment with id $experimentId has no suggestion")
         }
@@ -54,15 +52,13 @@ object DeleteSuggestion extends LazyLogging {
   def deleteAllOpenSuggestions(experimentId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
       case Some(_experiment) =>
-        val data = _experiment.suggestions().list().call().getData
+        val data = _experiment.suggestions().list().call().getData.asScala
         if (data.isEmpty) {
           logger.info(s"Experiment with id $experimentId has no suggestion")
         }
-        data.forEach { d =>
-          if (d.getState == "open") {
+        data.filter(_.getState == "open").foreach { d =>
             logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
             _experiment.suggestions().delete(d.getId).call()
-          }
         }
       case None =>
         logger.info(s"Experiment with id $experimentId not found")

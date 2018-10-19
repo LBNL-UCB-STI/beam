@@ -133,14 +133,14 @@ case class ChainBasedTourVehicleAllocator(
           getSubtours(plan, stageActivitytypes)
         )
       } yield {
-        for {_ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
+        for { _ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
           val usableVehicles = identifyVehiclesUsableForAgent(plan.getPerson.getId)
           val vehicleRecords = vehicleRecordFactory.getRecords(usableVehicles)
           SubtourRecord(vehicleRecords, subtour)
         }
       }).flatten.toVector
 
-    validateVehicularTours(vehicularTours).sortBy(_.startTime)//.sortWith((st1, st2) => st1.startTime > st1.endTime)
+    validateVehicularTours(vehicularTours).sortBy(_.startTime) //.sortWith((st1, st2) => st1.startTime > st1.endTime)
   }
 
   private def validateVehicularTours(vehicularTours: Vector[SubtourRecord]): Seq[SubtourRecord] = {

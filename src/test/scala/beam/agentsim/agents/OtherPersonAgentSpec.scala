@@ -7,7 +7,7 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -45,7 +45,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -377,19 +377,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(34400, busLeg2.beamLeg, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
         personActor
       )
       expectMsgType[PersonEntersVehicleEvent]
@@ -449,11 +441,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
