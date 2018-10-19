@@ -1,90 +1,21 @@
 package beam.calibration
 
-import java.io.File
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Paths
 
-import Bounded._
-import beam.utils.OptionalUtils.JavaOptionals._
+import beam.calibration.BeamSigoptTuner._
+import beam.calibration.Bounded._
 import beam.experiment._
+import beam.utils.OptionalUtils.JavaOptionals._
 import com.google.common.collect.Lists
 import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters
 import scala.util.Try
-import beam.calibration.BeamSigoptTuner._
-import com.typesafe.scalalogging.LazyLogging
 
-case class SigoptExperimentData(
-  experimentDef: ExperimentDef,
-  experimentPath: File,
-  benchmarkFileLoc: String,
-  experimentId: String,
-  development: Boolean = false
-) extends LazyLogging {
-
-  lazy val projectRoot: Path = {
-    if (System.getenv("BEAM_ROOT") != null) {
-      Paths.get(System.getenv("BEAM_ROOT"))
-    } else {
-      Paths.get("./").toAbsolutePath.getParent
-    }
-  }
-
-  val baseConfig: Config =
-    ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
-
-  // Always default to single JVM if incorrect entry
-  val numWorkers: Int = Try { experimentDef.header.numWorkers.toInt }.getOrElse(1)
-
-  val isParallel: Boolean = numWorkers > 1
-
-  val isMaster: Boolean = experimentId == "None"
-
-  val experiment: Experiment =
-    fetchExperiment(experimentId) match {
-      case Some(foundExperiment) =>
-        logger.info(s"Retrieved the existing experiment with experiment id $experimentId")
-        if (isParallel) {
-          Experiment.update(foundExperiment.getId).data(s"""{"parallel_bandwidth":$numWorkers}""").call()
-        }
-        foundExperiment
-      case None =>
-        val createdExperiment: Experiment = createExperiment(experimentDef)
-        logger.info("New Experiment created with experimentId [" + createdExperiment.getId + "]")
-        createdExperiment
-    }
-
-}
-
-object SigoptExperimentData {
-
-  def apply(
-    experimentLoc: String,
-    benchmarkFileLoc: String,
-    experimentId: String,
-    development: Boolean
-  ): SigoptExperimentData = {
-
-    val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath
-
-    if (!Files.exists(experimentPath)) {
-      throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
-    }
-
-    // If experiment ID is missing, create one
-
-    SigoptExperimentData(
-      loadExperimentDef(experimentPath.toFile),
-      experimentPath.toFile,
-      benchmarkFileLoc,
-      experimentId,
-      development
-    )
-  }
-}
 
 object BeamSigoptTuner {
 
@@ -101,9 +32,9 @@ object BeamSigoptTuner {
     */
   @throws[SigoptException]
   def fetchExperiment(
-    experimentId: String,
-    development: Boolean = false
-  ): Option[Experiment] = {
+                       experimentId: String,
+                       development: Boolean = false
+                     ): Option[Experiment] = {
 
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
@@ -124,13 +55,6 @@ object BeamSigoptTuner {
     val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
     val expCall = Experiment.create.data(experiment)
     expCall.call()
-  }
-
-  def loadExperimentDef(experimentFileLoc: File): ExperimentDef = {
-    val experiment = ExperimentGenerator.loadExperimentDefs(experimentFileLoc)
-    ExperimentGenerator.validateExperimentConfig(experiment)
-
-    experiment
   }
 
   /**
