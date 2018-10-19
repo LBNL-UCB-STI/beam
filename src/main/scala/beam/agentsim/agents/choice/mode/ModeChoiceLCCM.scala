@@ -11,6 +11,8 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 /**
   * ModeChoiceLCCM
@@ -42,7 +44,7 @@ class ModeChoiceLCCM(
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
@@ -269,7 +271,7 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double = 0.0
 
 }
 

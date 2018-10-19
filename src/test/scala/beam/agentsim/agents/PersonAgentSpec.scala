@@ -96,12 +96,12 @@ class PersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+    override def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double = 0.0
 
     override def utilityOf(
       mode: BeamMode,

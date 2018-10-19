@@ -54,7 +54,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
         val scoreOfThisOutcomeGivenMyClass =
-          trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
+          trips.map(trip => modeChoiceCalculator.utilityOf(trip, person.getId)).sum
 
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
@@ -70,7 +70,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, person.getId)).sum
               )
               .toArray
               .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
@@ -84,7 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             val logsum = Option(
               math.log(
                 person
-                  .getPlans()
+                  .getPlans
                   .asScala
                   .view
                   .map(

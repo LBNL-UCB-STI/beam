@@ -4,7 +4,6 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.Properties
 
-import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -245,8 +244,6 @@ trait BeamHelper extends LazyLogging {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
     }).resolve()
-
-    new ModeSubsidy(BeamConfig(config).beam.agentsim.agents.modeSubsidy.file)
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path

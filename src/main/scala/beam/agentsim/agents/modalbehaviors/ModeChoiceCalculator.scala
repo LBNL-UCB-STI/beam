@@ -8,6 +8,8 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
 import scala.util.Random
@@ -22,6 +24,8 @@ trait ModeChoiceCalculator extends HasServices {
   implicit lazy val random: Random = new Random(
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
+
+  lazy val modeSubsidy = new ModeSubsidy(beamServices.beamConfig.beam.agentsim.agents.modeSubsidy.file)
 
   /// VOT-Specific fields and methods
 
@@ -85,9 +89,9 @@ trait ModeChoiceCalculator extends HasServices {
 
   ///~
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
+  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip]
 
-  def utilityOf(alternative: EmbodiedBeamTrip): Double
+  def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double
 
   def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double
 

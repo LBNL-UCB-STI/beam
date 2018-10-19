@@ -520,7 +520,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModes.contains(itin.tripClassifier))
 
-      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq) match {
+      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, id) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>

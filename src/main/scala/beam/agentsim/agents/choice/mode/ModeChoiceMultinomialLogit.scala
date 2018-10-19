@@ -10,8 +10,10 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 /**
@@ -22,12 +24,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
-
-      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
+      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, personId)
 
       val bestInGroup =
       modeCostTimeTransfers groupBy (_.mode) map {
@@ -69,9 +70,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def altsToModeCostTimeTransfers(
-    alternatives: IndexedSeq[EmbodiedBeamTrip]
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    personId: Id[Person]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    val walkTripStartTime = alternatives.find(_.tripClassifier == WALK)
+    val walkTripStartTime = alternatives
+      .find(_.tripClassifier == WALK)
       .map(_.legs.head.beamLeg.startTime)
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
@@ -80,6 +83,16 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val bridgeTollsDefaults =
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
+
+    val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+    val household = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .find(_.getMemberIds.contains(personId))
+
+    val age = Some(person.getCustomAttributes.get("age").asInstanceOf[Int])
+    val income = Some(household.fold(0)(_.getIncome.getIncome.toInt))
+
     alternatives.zipWithIndex.map { altAndIdx =>
       val totalCost = altAndIdx._1.tripClassifier match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
@@ -107,6 +120,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           altAndIdx._1.costEstimate
       }
+      val subsidisedCost =
+        Math.max(0, totalCost.toDouble - modeSubsidy.getSubsidy(altAndIdx._1.tripClassifier, age, income))
       val numTransfers = altAndIdx._1.tripClassifier match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
           var nVeh = -1
@@ -134,7 +149,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
         altAndIdx._1.tripClassifier,
-        totalCost,
+        subsidisedCost,
         scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(altAndIdx._1.tripClassifier)),
         numTransfers,
         altAndIdx._2
@@ -142,8 +157,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
-    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative)).head
+  override def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double = {
+    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative), personId).head
     utilityOf(
       modeCostTimeTransfer.mode,
       modeCostTimeTransfer.cost,
