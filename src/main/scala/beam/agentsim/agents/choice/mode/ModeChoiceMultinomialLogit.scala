@@ -13,7 +13,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
 import scala.util.Random
 
 /**
@@ -85,10 +84,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
 
     val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
-    val household = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .find(_.getMemberIds.contains(personId))
+    val household = beamServices.personHouseholds.get(personId)
 
     val age = Some(person.getCustomAttributes.get("age").asInstanceOf[Int])
     val income = Some(household.fold(0)(_.getIncome.getIncome.toInt))

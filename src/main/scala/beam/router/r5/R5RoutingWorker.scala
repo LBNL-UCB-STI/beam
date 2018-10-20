@@ -46,6 +46,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
@@ -98,9 +99,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
         )
         override var beamRouter: ActorRef = _
-        override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
-        override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-          TrieMap[Id[BeamVehicle], BeamVehicle]()
+        override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
+        override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
+        override val personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
