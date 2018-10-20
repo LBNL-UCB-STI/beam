@@ -173,13 +173,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+        // I don't use single class `UpdateTravelTime` here and make decision in `BeamRouter` because
+        // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
+        // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
         // Black magic happens here
         //#########################################################################################
         Map<String, TravelTimeDataWithoutLink> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeDataArray(travelTimeCalculator);
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
-        router.tell(new BeamRouter.UpdateTravelTime_v2(map), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //#########################################################################################
 
+        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
@@ -213,7 +217,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
-        router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
     private boolean shouldWritePhysSimEvents(int iterationNumber) {

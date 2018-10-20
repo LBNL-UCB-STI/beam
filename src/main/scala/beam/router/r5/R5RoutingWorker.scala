@@ -242,18 +242,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
       eventualResponse pipeTo sender
       askForMoreWork()
-    case UpdateTravelTime(travelTime) =>
-      if (!beamServices.beamConfig.beam.cluster.enabled) {
-        log.info(s"{} UpdateTravelTime", getNameAndHashCode)
-        maybeTravelTime = Some(travelTime)
-        cache.invalidateAll()
-      }
+    case UpdateTravelTimeLocal(travelTime) =>
+      maybeTravelTime = Some(travelTime)
+      log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
+      cache.invalidateAll()
       askForMoreWork()
-    case UpdateTravelTime_v2(linkIdToTravelTimeData) =>
-      maybeTravelTime = Some(
-        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(network, scenario, linkIdToTravelTimeData)
-      )
-      log.info(s"{} UpdateTravelTime_v2. Set new travel time", getNameAndHashCode)
+    case UpdateTravelTimeRemote(map) =>
+      val travelTimeCalc = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(network, scenario, map)
+      maybeTravelTime = Some(travelTimeCalc)
+      log.info(s"{} UpdateTravelTimeRemote. Set new travel time", getNameAndHashCode)
       cache.invalidateAll()
       askForMoreWork
     case EmbodyWithCurrentTravelTime(

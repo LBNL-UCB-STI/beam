@@ -20,6 +20,7 @@ public class TravelTimeCalculatorHelper  {
     private static Logger log = LoggerFactory.getLogger(TravelTimeCalculatorHelper.class);
 
     public static Map<String, TravelTimeDataWithoutLink> GetLinkIdToTravelTimeDataArray(TravelTimeCalculator travelTimeCalculator) {
+        long start = System.currentTimeMillis();
         Map<String, TravelTimeDataWithoutLink> result = new HashMap<>();
         try {
             Map<Id<Link>, Object> linkData = (Map<Id<Link>, Object>) FieldUtils.readField(travelTimeCalculator, "linkData", true);
@@ -41,6 +42,10 @@ public class TravelTimeCalculatorHelper  {
         catch (Exception ex) {
             log.error("Can't read private field", ex);
         }
+        long end = System.currentTimeMillis();
+        long diff = end - start;
+        log.info("GetLinkIdToTravelTimeDataArray executed in {} ms", diff);
+
         return result;
     }
 
