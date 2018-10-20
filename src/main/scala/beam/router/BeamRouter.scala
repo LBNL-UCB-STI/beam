@@ -140,8 +140,10 @@ class BeamRouter(
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
     case t: TryToSerialize =>
-      val byteArray = kryoSerializer.toBinary(t)
-      log.info("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+      if (log.isDebugEnabled) {
+        val byteArray = kryoSerializer.toBinary(t)
+        log.info("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+      }
     case UpdateTravelTime_v2(map) =>
       localNodes.foreach { actor =>
         log.info("Sending UpdateTravelTime_v2 to  {}", actor)
