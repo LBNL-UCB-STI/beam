@@ -157,10 +157,13 @@ class BeamSim @Inject()(
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
-      PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
-        event.getServices.getControlerIO
-          .getIterationFilename(event.getIteration, "population.csv.gz")
-      )
+      val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
+      if(interval>0 && event.getIteration % interval == 0) {
+        PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
+          event.getServices.getControlerIO
+            .getIterationFilename(event.getIteration, "population.csv.gz")
+        )
+      }
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
