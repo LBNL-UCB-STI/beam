@@ -1,6 +1,6 @@
 package beam.experiment
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
@@ -15,6 +15,14 @@ case class ExperimentDef(
   @BeanProperty var defaultParams: java.util.Map[String, Object],
   @BeanProperty var factors: java.util.List[Factor]
 ) {
+
+  lazy val projectRoot: Path = {
+    if (System.getenv("BEAM_ROOT") != null) {
+      Paths.get(System.getenv("BEAM_ROOT"))
+    } else {
+      Paths.get("./").toAbsolutePath.getParent
+    }
+  }
 
   def this() = this("", "", null, null, new java.util.LinkedList())
 
@@ -102,7 +110,7 @@ case class Header(
   @BeanProperty var beamTemplateConfPath: String,
   @BeanProperty var modeChoiceTemplate: String,
   @BeanProperty var numWorkers: String,
-  @BeanProperty var params: java.util.Map[String, Object]
+  @BeanProperty var deployParams: java.util.Map[String, Object]
 ) {
   def this() = this("", "", "", "", "", new java.util.HashMap())
 }
