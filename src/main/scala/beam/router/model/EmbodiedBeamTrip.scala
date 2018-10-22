@@ -8,7 +8,7 @@ import org.matsim.vehicles.Vehicle
 case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   @transient
-  lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
+  lazy val costEstimate: Double = legs.map(_.cost).sum /// Generalize or remove
 
   @transient
   lazy val tripClassifier: BeamMode = determineTripMode(legs)

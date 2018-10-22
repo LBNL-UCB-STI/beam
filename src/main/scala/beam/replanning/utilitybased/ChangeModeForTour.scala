@@ -50,8 +50,8 @@ class ChangeModeForTour(
   private val rideHailConfig =
     beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
+  val DefaultRideHailCostPerMile: Double = rideHailConfig.defaultCostPerMile
+  val DefaultRideHailCostPerMinute: Double = rideHailConfig.defaultCostPerMinute
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
@@ -76,13 +76,8 @@ class ChangeModeForTour(
           val timeDist =
             getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
           if (alt.isTransit) {
-            modeChoiceCalculator.utilityOf(
-              if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
-              else WALK_TRANSIT,
-              timeDist._1,
-              timeDist._2,
-              numTransfers = rng.nextInt(4) + 1
-            )
+            modeChoiceCalculator.utilityOf(if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
+                          else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
           } else {
             modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
           }
