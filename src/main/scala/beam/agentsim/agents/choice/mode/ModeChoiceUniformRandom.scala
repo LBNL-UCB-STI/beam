@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.model.EmbodiedBeamTrip
@@ -12,7 +13,7 @@ import org.matsim.api.core.v01.population.Person
   */
 class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
     } else {
@@ -20,7 +21,7 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
 
   override def utilityOf(
     mode: Modes.BeamMode,

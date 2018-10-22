@@ -89,9 +89,9 @@ trait ModeChoiceCalculator extends HasServices {
 
   ///~
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], personId: Id[Person]): Option[EmbodiedBeamTrip]
+  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip]
 
-  def utilityOf(alternative: EmbodiedBeamTrip, personId: Id[Person]): Double
+  def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
 
   def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double
 
