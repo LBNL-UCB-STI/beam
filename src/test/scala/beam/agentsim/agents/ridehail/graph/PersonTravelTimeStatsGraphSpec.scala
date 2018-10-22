@@ -1,12 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
-  PersonTravelTimeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
 import beam.analysis.plots.PersonTravelTimeStats
 import beam.integration.IntegrationSpecCommon
+import beam.utils.MathUtils
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -20,7 +18,6 @@ import org.scalatest.{Matchers, WordSpecLike}
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Promise
-import scala.math.BigDecimal.RoundingMode
 
 object PersonTravelTimeStatsGraphSpec {
 
@@ -127,14 +124,12 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
               .groupBy(_._1)
               .map {
                 case (mode, ms) =>
-                  mode -> BigDecimal(ms.map(_._2).sum).setScale(3, RoundingMode.HALF_UP).toDouble
+                  mode -> MathUtils.roundDouble(ms.map(_._2).sum)
               }
 
             val all = a.asScala.map {
               case (mode, times) =>
-                mode -> BigDecimal(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
-                  .setScale(3, RoundingMode.HALF_UP)
-                  .toDouble
+                mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
             }
             handler.isEmpty shouldBe true
             modes shouldEqual all

@@ -229,7 +229,7 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal =
+  def scaleTimeByValueOfTime(time: Double, beamMode: Option[BeamMode] = None): Double =
     modeChoiceCalculator.scaleTimeByVot(time, beamMode)
 
   def currentTour(data: BasePersonData): Tour = {
