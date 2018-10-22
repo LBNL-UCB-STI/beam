@@ -98,13 +98,6 @@ allprojects {
 
 dependencies {
 
-    /*
-     The current implementation of conveyal repository contains the logback.xml as part of
-     the library. This avoid our project to have a specific logback.xml file.
-     A PR was submitted after the maintainers fix it this line can be removed.
-     */
-    implementation 'com.github.carloscaldas:osm-lib:master-SNAPSHOT'
-
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -112,40 +105,37 @@ dependencies {
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
-    compile group: 'com.google.guava', name: 'guava', version: '19.0'
-    compile group: 'de.ruedigermoeller', name: 'fst', version: '2.47'
-    compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
     compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.1'
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.5'
+    compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
+
+    // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
     compile group: 'org.geotools', name: 'gt-referencing', version: '13.0'
     compile group: 'org.geotools', name: 'gt-shapefile', version: '13.0'
-    compile group: 'net.sf.trove4j', name: 'trove4j', version: '3.0.3'
     runtime group: 'org.geotools', name: 'gt-epsg-hsql', version: '13.0'
-    compile group: 'aopalliance', name: 'aopalliance', version: '1.0'
-    compile group: 'de.ruedigermoeller', name: 'fst', version: '2.48'
+    compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
+    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
+    compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
+
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.12', version: '2.9.4'
-    compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'jdom', name: 'jdom', version: '1.1'
     compile group: 'org.jdom', name: 'jdom2', version: '2.0.5'
+    compile 'com.hubspot.jinjava:jinjava:2.0.5'
+    compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
 
-    compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
-    compile group: 'javax.media', name: 'jai_core', version: '1.1.3'
-    compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
-    compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile 'net.sf.supercsv:super-csv:2.4.0'
-    compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
-    compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
+    compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+
+    // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
-
     compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
@@ -163,13 +153,7 @@ dependencies {
 
     compile "com.sigopt:sigopt-java:4.9.0"
 
-    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
-
-
-
     testCompile group: 'junit', name: 'junit', version: '4.8'
-    // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
-    testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
@@ -182,7 +166,6 @@ dependencies {
     compile "org.scala-lang:scala-library:2.12.7"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
-
     // NEEDED FOR USING REPL //
     compile "org.scala-lang:scala-compiler:2.12.7"
 
@@ -190,6 +173,13 @@ dependencies {
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
 
     // 3rd Party Scala //
+
+    // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
+    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
+    // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
+    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
+
+    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile ('com.github.carueda:tscfg:v'+ tscfgVersion){ // config
@@ -199,22 +189,14 @@ dependencies {
     compile group: 'org.scalaz', name: "scalaz-core_${scalaBinaryVersion}", version: '7.3.0-M10'
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
     //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
-    // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
-    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
-// https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
-    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
     compile group: 'io.circe', name: "circe-generic_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
-    compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
-    compile 'com.hubspot.jinjava:jinjava:2.0.5'
-    compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
-
     compile group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2'
 
     ////////////////////////////////////
