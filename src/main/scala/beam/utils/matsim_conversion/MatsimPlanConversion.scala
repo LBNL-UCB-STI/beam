@@ -1,10 +1,15 @@
 package beam.utils.matsim_conversion
 
+import java.io.{FileOutputStream, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPOutputStream
+
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 object MatsimPlanConversion {
+  val UTF8: String = StandardCharsets.UTF_8.name()
 
   def generateScenarioData(conversionConfig: ConversionConfig): Unit = {
     val populationFile = conversionConfig.populationInput
@@ -17,7 +22,7 @@ object MatsimPlanConversion {
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, VehiclesDataConversion.beamVehicleTypes)
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
     } else {
       val vehiclesFile = conversionConfig.vehiclesInput.get
@@ -44,20 +49,40 @@ object MatsimPlanConversion {
 
     val populationDoctype = DocType("population", SystemID("../dtd/population_v6.dtd"), Nil)
 
-    val populationOutput = conversionConfig.scenarioDirectory + "/population.xml"
-    val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml"
+    val populationOutput = conversionConfig.scenarioDirectory + "/population.xml.gz"
+    val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml.gz"
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, "UTF-8", true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, "UTF-8", true)
-    XML.save(householdAttrsOutput, householdAtrrs, "UTF-8", true, householdsAttrDoctype)
-    XML.save(populationAttrsOutput, populationAttrs, "UTF-8", true, populationAttrDoctype)
+    safeGzip(populationOutput, transformedPopulationDoc, UTF8, xmlDecl = true, populationDoctype)
+    safeGzip(householdsOutput, houseHolds, UTF8, xmlDecl = true)
+    XML.save(householdAttrsOutput, householdAtrrs, UTF8, xmlDecl = true, householdsAttrDoctype)
+    XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
+  }
+
+  def safeGzip(filename: String,
+               node: Node,
+               enc: String,
+               xmlDecl: Boolean = false,
+               doctype: DocType = null) = {
+
+    val output = new FileOutputStream(filename);
+    try {
+      val writer = new OutputStreamWriter(new GZIPOutputStream(output), "UTF-8")
+      try {
+        XML.write(writer, node, enc, xmlDecl, doctype)
+      } finally {
+        writer.close();
+      }
+    } finally {
+      output.close();
+    }
+
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map {
-      case (person, index) =>
+      case (person, _) =>
         <object id={s"${person.attribute("id").get.toString()}"}>
           <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,ride_hail_transit</attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
@@ -94,7 +119,7 @@ object MatsimPlanConversion {
     </objectattributes>
   }
 
-  def generateHouseholds(persons: NodeSeq, vehicles: Seq[String], income: HouseholdIncome) = {
+  def generateHouseholds(persons: NodeSeq, vehicles: Seq[String], income: HouseholdIncome): Elem = {
 
     val mPersons = persons.map(Option(_))
     val mVehicles = vehicles.map(Option(_))
@@ -144,7 +169,7 @@ object MatsimPlanConversion {
         n match {
           case elem: Elem if elem.label == "person" =>
             val attrs = elem.attributes
-            val filteredAttrs = attrs.filter(_.key.equals("id"))
+            val filteredAttrs = attrs.filter(m => m.key.equals("id"))
             elem.copy(attributes = filteredAttrs)
           case elem: Elem if elem.label == "act" =>
             val attrs = elem.attributes

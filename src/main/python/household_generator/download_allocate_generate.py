@@ -1,7 +1,6 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import builtins
 
 import logging
 import argparse
@@ -19,6 +18,9 @@ from doppelganger import (
     Population,
     Marginals,
 )
+from future.moves import builtins
+import __builtin__
+
 from fetch_pums_data_from_db import fetch_pums_data
 
 logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
@@ -235,7 +237,7 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
         )
     except Exception as e:
         logging.exception('Error Allocating state: %s, puma: %s\n%s', state_id, puma_id, e)
-        exit()
+        __builtin__.exit()
 
     return marginals, allocator
 

@@ -3,6 +3,7 @@ package beam.utils.matsim_conversion
 import java.io.FileWriter
 import java.util
 
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.utils.FileUtils
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -13,10 +14,12 @@ object VehiclesDataConversion extends App {
 
   lazy val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
 
+  //TODO
   lazy val beamFuelTypes = Seq(
     Seq("gasoline", "0.03"),
     Seq("diesel", "0.02"),
-    Seq("electricity", "0.01")
+    Seq("electricity", "0.01"),
+    Seq("biodiesel", "0.01")
   )
 
   lazy val beamVehicleTypeTitles = Seq(
@@ -38,42 +41,47 @@ object VehiclesDataConversion extends App {
     "vehicleCategory"
   )
 
+  lazy val beamVehicleTitles = Seq(
+    "vehicleId",
+    "vehicleTypeId"
+  )
+
   lazy val beamVehicleTypes = Seq(
     Seq(
-      "CAR-1",
+      "CAR",
       "4",
       "0",
       "4.5",
       "gasoline",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "60",
-      "unit",
-      "50",
-      "40",
-      "CAR"
+      "3655.98",
+      "3655980000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
-      "SUV-2",
+      "SUV",
       "6",
       "0",
       "5.5",
       "gasoline",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "SUV"
+      "3655.98",
+      "3655980000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
       "BUS-DEFAULT",
@@ -81,53 +89,53 @@ object VehiclesDataConversion extends App {
       "50",
       "12",
       "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-BUS"
+      "20048",
+      "30000000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
       "SUBWAY-DEFAULT",
       "50",
       "50",
       "12",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-SUBWAY"
+      "electricity",
+      "46800",
+      "46800000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
       "TRAM-DEFAULT",
       "50",
       "50",
       "7.5",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-TRAM"
+      "electricity",
+      "3600",
+      "3600000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
       "RAIL-DEFAULT",
@@ -135,41 +143,36 @@ object VehiclesDataConversion extends App {
       "50",
       "7.5",
       "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-RAIL"
+      "210518",
+      "6E+11",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
     Seq(
       "CABLE_CAR-DEFAULT",
       "50",
       "50",
       "7.5",
-      "diesel",
-      "2",
-      "4",
-      "gasoline",
-      "80",
-      "3",
-      "level",
-      "50",
-      "unit",
-      "50",
-      "40",
-      "TRANSIT-CABLE_CAR"
+      "electricity",
+      "1116",
+      "1116000000",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ),
-  )
-
-  lazy val beamVehicleTitles = Seq(
-    "vehicleId",
-    "vehicleTypeId"
   )
 
   if (null == args || args.length < 3) {
@@ -195,16 +198,16 @@ object VehiclesDataConversion extends App {
     generateVehiclesDataFromSource(outputDir, vehiclesDoc)
   }
 
-  def generateFuelTypesDefaults(scenarioDirectory: String) = {
+  def generateFuelTypesDefaults(scenarioDirectory: String): Unit = {
     val beamFuelTypesPath = scenarioDirectory + "/beamFuelTypes.csv"
 
     writeCsvFile(beamFuelTypesPath, beamFuelTypes, beamFuelTypesTitles)
   }
 
-  def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]) = {
+  def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]): Unit = {
     val beamVehTypesPath = scenarioDirectory + "/vehicleTypes.csv"
 
-    writeCsvFile(beamVehTypesPath, beamVehicleTypes ++ vehicleTypes, beamVehicleTypeTitles)
+    writeCsvFile(beamVehTypesPath, vehicleTypes, beamVehicleTypeTitles)
   }
 
   def generateVehicleTypesFromSource(vehicleTypeSeq: NodeSeq): Seq[Seq[String]] = {
@@ -223,23 +226,26 @@ object VehiclesDataConversion extends App {
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
+      val litersPerMeter = (vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble
+      val joulesPerMeter = Powertrain.litersPerMeterToJoulesPerMeter(fuelType, litersPerMeter)
+
       Seq(
         id,
         seatingCap,
         standingCap,
         length,
         fuelType,
-        "2",
+        joulesPerMeter.toString,
         "4",
-        "gasoline",
-        "80",
-        "3",
-        "level",
-        "60",
-        "unit",
-        "50",
-        "40",
-        "CAR"
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       )
     }
   }
@@ -247,14 +253,14 @@ object VehiclesDataConversion extends App {
   def generateVehiclesDataFromPersons(persons: NodeSeq, conversionConfig: ConversionConfig): Seq[Seq[String]] = {
     val vehicles = persons.zipWithIndex.map {
       case (_, index) =>
-        Seq(s"${index + 1}", "CAR-1")
+        Seq(s"${index + 1}", "CAR")
     }
     val beamVehiclesPath = conversionConfig.scenarioDirectory + "/vehicles.csv"
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
   }
 
-  def writeCsvFile(beamVehiclesPath: String, data: Seq[Seq[String]], titles: Seq[String]) = {
+  def writeCsvFile(beamVehiclesPath: String, data: Seq[Seq[String]], titles: Seq[String]): Unit = {
     FileUtils.using(new CsvMapWriter(new FileWriter(beamVehiclesPath), CsvPreference.STANDARD_PREFERENCE)) { writer =>
       writer.writeHeader(titles: _*)
       val rows = data.map { row =>

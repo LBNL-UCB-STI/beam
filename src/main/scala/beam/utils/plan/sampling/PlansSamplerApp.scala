@@ -51,7 +51,7 @@ case class SynthHousehold(
   }
 }
 
-case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double)
+case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double, income:Double)
 
 class SynthHouseholdParser(geoConverter: GeoConverter) {
 
@@ -81,12 +81,17 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
     resHHMap.values.toVector
   }
 
+  def parseSex(raw_sex:String):Int={
+    if(raw_sex=="M") 0 else 1
+  }
+
   def parseIndividual(row: Array[String]): SynthIndividual = {
     SynthIndividual(
       Id.createPersonId(row(indIdIdx)),
-      row(indSexIdx).toInt,
+      parseSex(row(indSexIdx)),
       row(indAgeIdx).toInt,
-      row(indValTime).toDouble
+      if(row.length==12) {row(indValTime).toDouble} else 18.0,
+      row(indIncomeIdx).toDouble
     )
   }
 
@@ -333,6 +338,8 @@ object PlansSampler {
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
     shapeFileReader.readFileAndInitialize(args(1))
+    val sourceCrs = MGC.getCRS(args(7))
+
     wgsConverter = Some(WGSConverter(args(7), args(8)))
     pop ++= scala.collection.JavaConverters
       .mapAsScalaMap(sc.getPopulation.getPersons)
@@ -343,12 +350,12 @@ object PlansSampler {
       filterSynthHouseholds(
         new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
         shapeFileReader.getFeatureSet,
-        shapeFileReader.getCoordinateSystem
+        sourceCrs
       )
 
     planQt = Some(
       new QuadTreeBuilder(wgsConverter.get)
-        .buildQuadTree(shapeFileReader.getFeatureSet, shapeFileReader.getCoordinateSystem, pop)
+        .buildQuadTree(shapeFileReader.getFeatureSet, sourceCrs, pop)
     )
 
     outDir = args(6)
@@ -514,6 +521,7 @@ object PlansSampler {
         PersonUtils.setSex(newPerson, sex)
         newPopAttributes
           .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
+        newPopAttributes.putAttribute(newPerson.getId.toString, "income",synthPerson.income)
         addModeExclusions(newPerson)
       }
 
