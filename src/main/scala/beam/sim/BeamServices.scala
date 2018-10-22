@@ -11,7 +11,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -22,15 +22,12 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
-import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
 
 /**
   */
@@ -73,9 +70,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
-  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap[Id[BeamVehicle], BeamVehicle]()
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
     BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
@@ -107,7 +104,7 @@ object BeamServices {
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
   val defaultTazTreeMap: TAZTreeMap = {
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](-1, -1, 1, 1)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)

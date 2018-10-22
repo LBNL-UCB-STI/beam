@@ -98,9 +98,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
         )
         override var beamRouter: ActorRef = _
-        override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+        override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-          TrieMap[Id[BeamVehicle], BeamVehicle]()
+          TrieMap()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =

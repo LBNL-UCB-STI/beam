@@ -14,10 +14,9 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
   val dummyDriverId: Id[Vehicle] = Id.create("NA", classOf[Vehicle])
-  val routeReqToDriverMap: mutable.Map[Int, Id[Vehicle]] = scala.collection.mutable.Map[Int, Id[Vehicle]]()
+  val routeReqToDriverMap: mutable.Map[Int, Id[Vehicle]] = mutable.Map()
 
-  val requestToExcludedDrivers: mutable.Map[Int, Set[Id[Vehicle]]] =
-    scala.collection.mutable.Map[Int, Set[Id[Vehicle]]]()
+  val requestToExcludedDrivers: mutable.Map[Int, Set[Id[Vehicle]]] = mutable.Map()
   val repositioningLowWaitingTimes = new RepositioningLowWaitingTimes(rideHailManager)
 
   override def proposeVehicleAllocation(
