@@ -94,7 +94,7 @@ object HouseholdActor {
     modalityStyle: Option[String],
     isMale: Boolean,
     availableModes: Seq[BeamMode],
-    valueOfTime: BigDecimal
+    valueOfTime: Double
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -440,7 +440,7 @@ object HouseholdActor {
       person: Person,
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
-      valueOfTime: BigDecimal
+      valueOfTime: Double
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -461,7 +461,7 @@ object HouseholdActor {
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
       availableModes: Seq[BeamMode],
-      valueOfTime: BigDecimal
+      valueOfTime: Double
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))

@@ -125,10 +125,10 @@ object AlternativeParams {
   def empty: AlternativeParams = AlternativeParams("", Map())
 }
 
-case class UtilityParam(paramName: String, paramValue: BigDecimal, paramType: UtilityParamType)
+case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
 
 // Alternative attributes
-case class AlternativeAttributes(alternativeName: String, attributes: Map[String, BigDecimal])
+case class AlternativeAttributes(alternativeName: String, attributes: Map[String, Double])
 
 object UtilityParam {
 
