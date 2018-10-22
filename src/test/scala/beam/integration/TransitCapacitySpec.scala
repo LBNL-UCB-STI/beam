@@ -12,7 +12,7 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with BeamHelper wit
 
   "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
     "create more entries for mode choice transit as value increases" in {
-      val inputTransitCapacity = 0.1 to 1.0 by 0.9
+      val inputTransitCapacity = (BigDecimal(0.1) to BigDecimal(1.0) by BigDecimal(0.9)).map(_.toDouble)
       val modeChoice = inputTransitCapacity.map(
         tc =>
           new StartWithCustomConfig(
