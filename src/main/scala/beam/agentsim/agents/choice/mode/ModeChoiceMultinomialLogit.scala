@@ -10,6 +10,7 @@ import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRAN
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -19,7 +20,7 @@ import scala.util.Random
   * BEAM
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
-    extends ModeChoiceCalculator {
+    extends ModeChoiceCalculator with LazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
 
@@ -84,7 +85,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val income = Some(attributesOfIndividual.householdAttributes.householdIncome.toInt)
 
     alternatives.zipWithIndex.map { altAndIdx =>
-      val totalCost = altAndIdx._1.tripClassifier match {
+      val mode = altAndIdx._1.tripClassifier
+      val totalCost = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
           gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -110,9 +112,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           altAndIdx._1.costEstimate
       }
+      val subsidy = modeSubsidy.getSubsidy(mode, age, income)
       val subsidisedCost =
-        Math.max(0, totalCost.toDouble - modeSubsidy.getSubsidy(altAndIdx._1.tripClassifier, age, income))
-      val numTransfers = altAndIdx._1.tripClassifier match {
+        Math.max(0, totalCost.toDouble - subsidy)
+
+      if(totalCost < subsidy) logger.warn("Mode subsidy is even higher then the cost. Mode: {}, Cost: {}, Subsidy: {}", mode, totalCost, subsidy)
+
+      val numTransfers = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
@@ -126,7 +132,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           0
       }
-      val waitTime = altAndIdx._1.tripClassifier match {
+      val waitTime = mode match {
         case RIDE_HAIL =>
           altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
             altAndIdx._1.legs.head.beamLeg.startTime
@@ -138,9 +144,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
-        altAndIdx._1.tripClassifier,
+        mode,
         subsidisedCost,
-        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(altAndIdx._1.tripClassifier)),
+        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
         numTransfers,
         altAndIdx._2
       )
