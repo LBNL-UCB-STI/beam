@@ -101,7 +101,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-        override val personHouseholds: Map[Id[Person], Household] = Map()
+        override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
