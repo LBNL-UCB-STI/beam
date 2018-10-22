@@ -116,7 +116,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val subsidisedCost =
         Math.max(0, totalCost.toDouble - subsidy)
 
-      if(totalCost < subsidy) logger.warn("Mode subsidy is even higher then the cost. Mode: {}, Cost: {}, Subsidy: {}", mode, totalCost, subsidy)
+      if(totalCost < subsidy) logger.warn("Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}", mode, totalCost, subsidy)
 
       val numTransfers = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
