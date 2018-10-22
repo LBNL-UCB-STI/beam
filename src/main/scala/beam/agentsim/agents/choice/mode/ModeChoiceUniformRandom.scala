@@ -23,10 +23,5 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
 
   override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
 
-  override def utilityOf(
-    mode: Modes.BeamMode,
-    cost: BigDecimal,
-    time: BigDecimal,
-    numTransfers: Int
-  ): Double = 0.0
+  override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
 }

@@ -36,9 +36,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }
 
       val inputData = bestInGroup.map { mct =>
-        val theParams: Map[String, BigDecimal] =
+        val theParams: Map[String, Double] =
           Map("cost" -> mct.cost, "time" -> mct.scaledTime)
-        val transferParam: Map[String, BigDecimal] = if (mct.mode.isTransit) {
+        val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
           Map("transfer" -> mct.numTransfers)
         } else {
           Map()
@@ -65,7 +65,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
-  def timeAndCost(mct: ModeCostTimeTransfer): BigDecimal = {
+  def timeAndCost(mct: ModeCostTimeTransfer): Double = {
     mct.scaledTime + mct.cost
   }
 
@@ -86,7 +86,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
-      val totalCost = mode match {
+      val totalCost: Double = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
           gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -163,15 +163,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     )
   }
 
-  def utilityOf(
-    mode: BeamMode,
-    cost: BigDecimal,
-    time: BigDecimal,
-    numTransfers: Int = 0
-  ): Double = {
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
     val variables =
       Map(
-        "transfer" -> BigDecimal(numTransfers),
+        "transfer" -> numTransfers.toDouble,
         "cost"     -> cost,
         "time"     -> scaleTimeByVot(time, Option(mode))
       )
@@ -222,8 +217,8 @@ object ModeChoiceMultinomialLogit {
 
   case class ModeCostTimeTransfer(
     mode: BeamMode,
-    cost: BigDecimal,
-    scaledTime: BigDecimal,
+    cost: Double,
+    scaledTime: Double,
     numTransfers: Int,
     index: Int = -1
   )

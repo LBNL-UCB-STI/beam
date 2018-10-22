@@ -36,19 +36,19 @@ trait ModeChoiceCalculator extends HasServices {
     */
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
-  lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
-    mutable.Map[VotType, BigDecimal](
+  lazy val valuesOfTime: mutable.Map[VotType, Double] =
+    mutable.Map[VotType, Double](
       DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
       GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
-  def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
+  def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
     time / 3600 * getVot(beamMode)
   }
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
-  private def getVot(beamMode: Option[BeamMode]): BigDecimal =
+  private def getVot(beamMode: Option[BeamMode]): Double =
     valuesOfTime.getOrElse(
       matchMode2Vot(beamMode),
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
@@ -93,7 +93,7 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
 
-  def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {

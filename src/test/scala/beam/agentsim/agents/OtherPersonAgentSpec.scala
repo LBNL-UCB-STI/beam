@@ -100,8 +100,8 @@ class OtherPersonAgentSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
-      cost: BigDecimal,
-      time: BigDecimal,
+      cost: Double,
+      time: Double,
       numTransfers: Int
     ): Double = 0.0
   }
@@ -167,7 +167,7 @@ class OtherPersonAgentSpec
         Id.createVehicleId("my_bus"),
         asDriver = false,
         None,
-        BigDecimal(0),
+        0,
         unbecomeDriverOnCompletion = false
       )
       val busLeg2 = EmbodiedBeamLeg(
@@ -187,7 +187,7 @@ class OtherPersonAgentSpec
         Id.createVehicleId("my_bus"),
         asDriver = false,
         None,
-        BigDecimal(0),
+        0,
         unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
@@ -207,7 +207,7 @@ class OtherPersonAgentSpec
         Id.createVehicleId("my_tram"),
         asDriver = false,
         None,
-        BigDecimal(0),
+        0,
         unbecomeDriverOnCompletion = false
       )
       val replannedTramLeg = EmbodiedBeamLeg(
@@ -227,7 +227,7 @@ class OtherPersonAgentSpec
         Id.createVehicleId("my_tram"),
         asDriver = false,
         None,
-        BigDecimal(0),
+        0,
         unbecomeDriverOnCompletion = false
       )
 
@@ -324,7 +324,7 @@ class OtherPersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 None,
-                BigDecimal(0),
+                0,
                 unbecomeDriverOnCompletion = false
               ),
               busLeg,
@@ -347,7 +347,7 @@ class OtherPersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 None,
-                BigDecimal(0),
+                0,
                 unbecomeDriverOnCompletion = false
               )
             )
@@ -419,7 +419,7 @@ class OtherPersonAgentSpec
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 None,
-                BigDecimal(0),
+                0,
                 unbecomeDriverOnCompletion = false
               )
             )
