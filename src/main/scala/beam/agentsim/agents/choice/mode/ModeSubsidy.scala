@@ -35,13 +35,16 @@ class ModeSubsidy(private val subsidiesFile: String) {
 }
 
 object ModeSubsidy {
-
   case class Subsidy(mode: BeamMode, age: Range, income: Range, amount: Double)
 
   object Subsidy {
 
-    def apply(mode: String, age: String, income: String, amount: String): Subsidy =
-      new Subsidy(BeamMode.fromString(mode), Range(age), Range(income), Try(amount.toDouble).getOrElse(0D))
+    def apply(mode: String, age: String, income: String, amount: String): Subsidy = new Subsidy(
+      BeamMode.fromString(mode),
+      Range(age),
+      Range(income),
+      Try(amount.toDouble).getOrElse(0D)
+    )
   }
 
   case class Range(lowerBound: Int, upperBound: Int) {
@@ -72,11 +75,19 @@ object ModeSubsidy {
       Range(lowerBound, upperBound)
     }
 
+    def apply(lowerBound: Int, upperBound: Int): Range = {
+      if (lowerBound == 0 && upperBound == 0)
+        Range.empty()
+      else
+        new Range(lowerBound, upperBound)
+    }
+
     def empty(): Range = new Range(0, 0) {
       override val isEmpty = true
     }
 
     def test(): Unit = {
+      assert(Range(0, 0).isEmpty)
       assert(Range("[:]") == Range(0, 2147483647))
       assert(Range("[0:]") == Range(0, 2147483647))
       assert(Range("[:2147483647]") == Range(0, 2147483647))
