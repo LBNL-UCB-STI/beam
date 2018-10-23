@@ -18,7 +18,7 @@ object BridgeTollDefaults {
   def estimateBridgeFares(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
-  ): IndexedSeq[BigDecimal] = {
+  ): IndexedSeq[Double] = {
 
     val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
     if (tollPrices == null) tollPrices = readTollPrices(tollPriceFile)
@@ -26,20 +26,19 @@ object BridgeTollDefaults {
     alternatives.map { alt =>
       alt.tripClassifier match {
         case CAR =>
-          BigDecimal(
-            alt.legs.view
-              .map(_.beamLeg)
-              .map { beamLeg =>
-                if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-                  beamLeg.travelPath.linkIds.view.filter(tollPrices.contains).map(tollPrices).sum
-                } else {
-                  0
-                }
+          alt.legs.view
+            .map(_.beamLeg)
+            .map { beamLeg =>
+              if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
+                beamLeg.travelPath.linkIds.view.filter(tollPrices.contains).map(tollPrices).sum
+              } else {
+                0
               }
-              .sum
-          )
+            }
+            .sum
+
         case _ =>
-          BigDecimal(0)
+          0
       }
     }
   }
