@@ -191,10 +191,12 @@ class WarmStartRoutingSpec
       assert(carOption2.totalTravelTimeInSecs == 55)
     }
 
-    "three iteration run by doubling travel time" in {
+    "show a decrease in travel time after three iterations if warm start times are doubled" in {
 
-      iterationConfig = config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time"))
-      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter)
+
+      BeamWarmStart(BeamConfig(
+        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time")))
+      ).warmStartTravelTime(services.beamRouter)
 
       router ! RoutingRequest(
         origin,
@@ -236,10 +238,11 @@ class WarmStartRoutingSpec
       assert(carOption2.totalTravelTimeInSecs < carOption.totalTravelTimeInSecs)
     }
 
-    "three iteration run by cutting half travel time" in {
+    "show an increase in travel time after three iterations if warm start times are cut in half" in {
 
-      iterationConfig = config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time"))
-      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(
+        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time")))
+      ).warmStartTravelTime(services.beamRouter)
 
       router ! RoutingRequest(
         origin,
@@ -281,10 +284,8 @@ class WarmStartRoutingSpec
 
     }
 
-    "travel times reduced to 10x for a single link" in {
-
-      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
-
+    "path became faster by reducing travel time" in {
+      val time = RoutingModel.DiscreteTime(300000)
       router ! RoutingRequest(
         origin,
         destination,
@@ -299,13 +300,16 @@ class WarmStartRoutingSpec
           )
         )
       )
+
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      val oldLinks = carOption.beamLegs().last.travelPath.linkIds
+      val links = carOption.beamLegs().head.travelPath.linkIds
+      val travelTime1 = carOption.beamLegs().head.travelPath.linkTravelTime.reduce((x,y) => x+y)
 
-      config = config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time"))
-      BeamWarmStart(BeamConfig(config)).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(
+        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time")))
+      ).warmStartTravelTime(services.beamRouter)
 
       router ! RoutingRequest(
         origin,
@@ -325,8 +329,11 @@ class WarmStartRoutingSpec
 
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
-      val newLinks = carOption2.beamLegs().last.travelPath.linkIds
-      assert(oldLinks.equals(newLinks))
+      val newLinks = carOption2.beamLegs().head.travelPath.linkIds
+      val travelTime2 = carOption2.beamLegs().head.travelPath.linkTravelTime.reduce((x,y) => x+y)
+      assert(travelTime2 < travelTime1)
+      assert(!links.equals(newLinks))
+
 
     }
 
