@@ -13,8 +13,13 @@ class ModeSubsidy(private val subsidiesFile: String) {
   def getSubsidy(mode: BeamMode, age: Option[Int], income: Option[Int]): Double = {
     modeSubsidies
       .getOrElse(mode, List())
-      .find(s => age.fold(true)(s.age.has) && income.fold(true)(s.income.has))
-      .fold(0.0)(_.amount)
+      .filter(
+        s =>
+          (age.fold(true)(s.age.hasOrEmpty) && income.fold(false)(s.income.hasOrEmpty)) ||
+          (age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty))
+      )
+      .map(_.amount)
+      .sum
   }
 
   private def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
@@ -43,7 +48,11 @@ object ModeSubsidy {
     val isEmpty = false
 
     def has(value: Int): Boolean = {
-      isEmpty || (lowerBound <= value && value <= upperBound)
+      lowerBound <= value && value <= upperBound
+    }
+
+    def hasOrEmpty(value: Int): Boolean = {
+      isEmpty || has(value)
     }
   }
 
@@ -76,7 +85,10 @@ object ModeSubsidy {
       assert(Range("(1:10]") == Range(2, 10))
       assert(Range("[1:10)") == Range(1, 9))
 
-      new ModeSubsidy("test/input/beamville/subsidies.csv")
+      val ms = new ModeSubsidy("test/input/beamville/subsidies.csv")
+      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(5), Some(30000)) == 4)
+      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000)) == 3)
+      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, None, None) == 0)
     }
   }
 
