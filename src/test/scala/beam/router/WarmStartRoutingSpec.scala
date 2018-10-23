@@ -285,7 +285,7 @@ class WarmStartRoutingSpec
     }
 
     "path became faster by reducing travel time" in {
-      val time = RoutingModel.DiscreteTime(300000)
+      val time = RoutingModel.DiscreteTime(1000000)
       router ! RoutingRequest(
         origin,
         destination,
