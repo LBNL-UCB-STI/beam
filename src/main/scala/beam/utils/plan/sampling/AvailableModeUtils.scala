@@ -1,4 +1,4 @@
-package beam.utils.plansampling
+package beam.utils.plan.sampling
 
 import java.util
 

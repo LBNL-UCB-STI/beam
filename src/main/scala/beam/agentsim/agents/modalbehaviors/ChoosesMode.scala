@@ -21,7 +21,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel._
 import beam.router.r5.R5RoutingWorker
-import beam.utils.plansampling.AvailableModeUtils._
+import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
