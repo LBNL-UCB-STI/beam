@@ -7,6 +7,7 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgentSpec.ZERO
+import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -50,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -96,12 +97,12 @@ class PersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
   }

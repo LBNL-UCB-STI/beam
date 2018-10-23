@@ -15,8 +15,8 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils.reflection.ReflectionUtils
 import beam.utils._
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -297,12 +297,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -370,13 +365,13 @@ trait BeamHelper extends LazyLogging {
 
     // TODO ASIF
     // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
-    if(beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()) {
+    if(beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
 
       val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
       val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
       scenario.setPopulation(population)
 
-      if(beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty()){
+      if(beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty){
         logger.warn("The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning.")
       }
     }
@@ -396,6 +391,8 @@ trait BeamHelper extends LazyLogging {
 
     (matsimConfig, outputDirectory)
   }
+
+
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
@@ -443,6 +440,12 @@ trait BeamHelper extends LazyLogging {
 
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
+
+    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
   }
 }
 

@@ -40,6 +40,7 @@ object BeamConfig {
       case class Agents(
         drivingCost    : BeamConfig.Beam.Agentsim.Agents.DrivingCost,
         modalBehaviors : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
+        modeSubsidy    : BeamConfig.Beam.Agentsim.Agents.ModeSubsidy,
         population     : BeamConfig.Beam.Agentsim.Agents.Population,
         rideHail       : BeamConfig.Beam.Agentsim.Agents.RideHail,
         vehicles       : BeamConfig.Beam.Agentsim.Agents.Vehicles
@@ -118,6 +119,17 @@ object BeamConfig {
               lccm               = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm(if(c.hasPathOrNull("lccm")) c.getConfig("lccm") else com.typesafe.config.ConfigFactory.parseString("lccm{}")),
               modeChoiceClass    = if(c.hasPathOrNull("modeChoiceClass")) c.getString("modeChoiceClass") else "ModeChoiceMultinomialLogit",
               mulitnomialLogit   = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(if(c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit") else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}"))
+            )
+          }
+        }
+              
+        case class ModeSubsidy(
+          file : java.lang.String
+        )
+        object ModeSubsidy {
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModeSubsidy = {
+            BeamConfig.Beam.Agentsim.Agents.ModeSubsidy(
+              file = if(c.hasPathOrNull("file")) c.getString("file") else "/test/input/beamville/subsidies.csv"
             )
           }
         }
@@ -322,6 +334,7 @@ object BeamConfig {
           BeamConfig.Beam.Agentsim.Agents(
             drivingCost    = BeamConfig.Beam.Agentsim.Agents.DrivingCost(if(c.hasPathOrNull("drivingCost")) c.getConfig("drivingCost") else com.typesafe.config.ConfigFactory.parseString("drivingCost{}")),
             modalBehaviors = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(if(c.hasPathOrNull("modalBehaviors")) c.getConfig("modalBehaviors") else com.typesafe.config.ConfigFactory.parseString("modalBehaviors{}")),
+            modeSubsidy    = BeamConfig.Beam.Agentsim.Agents.ModeSubsidy(if(c.hasPathOrNull("modeSubsidy")) c.getConfig("modeSubsidy") else com.typesafe.config.ConfigFactory.parseString("modeSubsidy{}")),
             population     = BeamConfig.Beam.Agentsim.Agents.Population(if(c.hasPathOrNull("population")) c.getConfig("population") else com.typesafe.config.ConfigFactory.parseString("population{}")),
             rideHail       = BeamConfig.Beam.Agentsim.Agents.RideHail(if(c.hasPathOrNull("rideHail")) c.getConfig("rideHail") else com.typesafe.config.ConfigFactory.parseString("rideHail{}")),
             vehicles       = BeamConfig.Beam.Agentsim.Agents.Vehicles(if(c.hasPathOrNull("vehicles")) c.getConfig("vehicles") else com.typesafe.config.ConfigFactory.parseString("vehicles{}"))
@@ -547,7 +560,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory = !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
-          baseOutputDirectory           = if(c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "/Users/critter/Documents/beam/beam-output/",
+          baseOutputDirectory           = if(c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
           events                        = BeamConfig.Beam.Outputs.Events(if(c.hasPathOrNull("events")) c.getConfig("events") else com.typesafe.config.ConfigFactory.parseString("events{}")),
           stats                         = BeamConfig.Beam.Outputs.Stats(if(c.hasPathOrNull("stats")) c.getConfig("stats") else com.typesafe.config.ConfigFactory.parseString("stats{}")),
           writeEventsInterval           = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
@@ -628,7 +641,7 @@ object BeamConfig {
           BeamConfig.Beam.Routing.Gtfs(
             crs           = if(c.hasPathOrNull("crs")) c.getString("crs") else "epsg:26910",
             operatorsFile = if(c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile") else "src/main/resources/GTFSOperators.csv",
-            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/Users/critter/Documents/beam/beam-output//gtfs"
+            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "output/gtfs"
           )
         }
       }
@@ -698,7 +711,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-          path    = if(c.hasPathOrNull("path")) c.getString("path") else "/Users/critter/Documents/beam/beam-output/"
+          path    = if(c.hasPathOrNull("path")) c.getString("path") else "output"
         )
       }
     }
@@ -821,7 +834,7 @@ object BeamConfig {
             firstIteration   = if(c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
             lastIteration    = if(c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
             mobsim           = if(c.hasPathOrNull("mobsim")) c.getString("mobsim") else "metasim",
-            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/critter/Documents/beam/beam-output//pt-tutorial",
+            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "output/pt-tutorial",
             overwriteFiles   = if(c.hasPathOrNull("overwriteFiles")) c.getString("overwriteFiles") else "overwriteExistingFiles"
           )
         }
