@@ -20,26 +20,25 @@ object TransitFareDefaults {
     FERRY  -> 6.87,
     RAIL   -> 4.52
   )
-  val zero: BigDecimal = BigDecimal(0.0)
+  val zero: Double = 0
 
-  def estimateTransitFares(alternatives: IndexedSeq[EmbodiedBeamTrip]): IndexedSeq[BigDecimal] = {
+  def estimateTransitFares(alternatives: IndexedSeq[EmbodiedBeamTrip]): IndexedSeq[Double] = {
     alternatives.map { alt =>
       alt.tripClassifier match {
         case theMode: BeamMode if theMode.isTransit && alt.costEstimate == zero =>
           var vehId = Id.createVehicleId("dummy")
-          var theFare = BigDecimal(0.0)
+          var theFare = zero
           alt.legs.foreach { leg =>
             if (leg.beamVehicleId != vehId && faresByMode.contains(leg.beamLeg.mode)) {
-              theFare = theFare + BigDecimal(faresByMode(leg.beamLeg.mode))
+              theFare = theFare + faresByMode(leg.beamLeg.mode)
               vehId = leg.beamVehicleId
             }
           }
           theFare
 
         case _ =>
-          BigDecimal(0)
+          zero
       }
     }
   }
-
 }

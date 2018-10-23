@@ -123,12 +123,15 @@ object BeamGraphComparator {
     * @param lastIteration value of last iteration
     */
   def generateGraphComparisonHtmlPage(event: ControlerEvent,firstIteration: Int,lastIteration: Int): Unit = {
+    val existingIterations = (firstIteration to lastIteration).filter { i =>
+      FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles() != null
+    }
     // Yield all the png files (graph images) across all iterations
-    val files: Seq[Array[File]] = for(i <- firstIteration to lastIteration) yield {
-      (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles(f =>
-        f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
-        FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
-        .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
+    val files: Seq[Array[File]] = for(i <- existingIterations) yield {
+        (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles.filterNot(_ == null).filter(f =>
+          f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
+          FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
+          .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
     val numberOfIterations = files.size
     val fileNameRegex = "([0-9]*).(.*)(.png)".r

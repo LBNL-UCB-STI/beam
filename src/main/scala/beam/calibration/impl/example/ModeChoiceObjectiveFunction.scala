@@ -9,10 +9,7 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
-import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
-import beam.utils.FileUtils.using
 
 class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
