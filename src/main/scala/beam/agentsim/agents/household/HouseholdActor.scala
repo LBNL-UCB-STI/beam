@@ -201,8 +201,7 @@ object HouseholdActor {
 
     }
 
-    override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
-      collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
+    override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
     resources ++ vehicles
 
     /**
@@ -214,8 +213,7 @@ object HouseholdActor {
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
       */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] =
-      Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
+    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
 
     /**
       * Current [[Vehicle]] assignments.
@@ -225,20 +223,17 @@ object HouseholdActor {
     /**
       * These [[Vehicle]]s cannot be assigned to other agents.
       */
-    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] =
-      mutable.Map[Id[Person], Id[Vehicle]]()
+    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map()
 
     /**
       * Vehicles that are currently checked out to traveling agents.
       */
-    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] =
-      mutable.Map[Id[Vehicle], Id[Person]]()
+    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map()
 
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] =
-      mutable.Map[Id[BeamVehicle], StreetVehicle]()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] = mutable.Map()
 
     // Initial vehicle assignments.
     initializeHouseholdVehicles()
