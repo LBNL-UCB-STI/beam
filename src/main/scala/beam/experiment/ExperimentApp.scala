@@ -4,7 +4,6 @@ import java.io.{File, FileInputStream}
 import java.nio.file.{Files, Path, Paths}
 
 import beam.experiment.ExperimentApp.loadExperimentDefs
-import beam.experiment.ExperimentGenerator.EXPERIMENTS_TAG
 import org.yaml.snakeyaml.constructor.Constructor
 
 /**
