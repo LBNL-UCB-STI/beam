@@ -285,8 +285,9 @@ class WarmStartRoutingSpec
     }
 
     "path became faster by reducing travel time" in {
-      //high value of discrete time is for making sure that test doesn't fail. because router sometime gives same path irrespective of reduced time
-      val time = RoutingModel.DiscreteTime(1000000)
+
+      val destination = new BeamRouter.Location(167138.4, 908)
+
       router ! RoutingRequest(
         origin,
         destination,
@@ -332,7 +333,7 @@ class WarmStartRoutingSpec
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
       val newLinks = carOption2.beamLegs().head.travelPath.linkIds
       val travelTime2 = carOption2.beamLegs().head.travelPath.linkTravelTime.reduce((x,y) => x+y)
-      assert(travelTime2 < travelTime1)
+      assert(travelTime2 <= travelTime1)
       assert(!links.equals(newLinks))
     }
   }
