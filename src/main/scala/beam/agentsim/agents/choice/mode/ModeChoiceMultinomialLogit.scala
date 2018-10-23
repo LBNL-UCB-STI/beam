@@ -36,7 +36,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
-          Map("cost" -> mct.cost, "time" -> mct.scaledTime)
+          Map("cost" -> (mct.cost + mct.scaledTime))
         val transferParam: Map[String, Double] = if (mct.mode.isTransit) {
           Map("transfer" -> mct.numTransfers)
         } else {
@@ -152,8 +152,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val variables =
       Map(
         "transfer" -> numTransfers.toDouble,
-        "cost"     -> cost,
-        "time"     -> scaleTimeByVot(time, Option(mode))
+        "cost"     -> (cost + scaleTimeByVot(time, Option(mode)))
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
@@ -164,8 +163,7 @@ object ModeChoiceMultinomialLogit {
 
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
     val mnlData: Vector[MnlData] = Vector(
-      new MnlData("COMMON", "cost", "multiplier", mnlConfig.params.cost),
-      new MnlData("COMMON", "time", "multiplier", mnlConfig.params.time),
+      new MnlData("COMMON", "cost", "multiplier", -1.0),
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
