@@ -104,7 +104,7 @@ class ParkingSpec
   }
 
   "Parking system " must {
-    "guarantee at least some parking used " in {
+    "guarantee at least some parking used " ignore {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
@@ -161,7 +161,7 @@ class ParkingSpec
       isSameArrivalAndDeparture shouldBe true
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" ignore {
       val parkingEvents = defaultEvents.head.filter(
         e =>
           ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE

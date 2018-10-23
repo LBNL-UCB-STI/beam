@@ -93,7 +93,6 @@ public class GraphUtils {
         float r = rand.nextFloat();
         float g = rand.nextFloat();
         float b = rand.nextFloat();
-        Color randomColor = new Color(r, g, b);
-        return randomColor;
+        return new Color(r, g, b);
     }
 }

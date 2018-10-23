@@ -36,19 +36,18 @@ import beam.sim.BeamServices
   */
 class ModeChoiceLCCM(
   val beamServices: BeamServices,
-  val lccm: LatentClassChoiceModel,
-  attributesOfIndividual: Option[AttributesOfIndividual]
+  val lccm: LatentClassChoiceModel
 ) extends ModeChoiceCalculator {
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
   private def choose(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: Option[AttributesOfIndividual],
+    attributesOfIndividual: AttributesOfIndividual,
     tourType: TourType
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
@@ -66,23 +65,19 @@ class ModeChoiceLCCM(
         AlternativeAttributes(alt.mode.value, theParams)
       }
 
-      val attribIndivData: AlternativeAttributes =
-        attributesOfIndividual match {
-          case Some(theAttributes) =>
-            val theParams: Map[String, BigDecimal] = Map(
-              "income"        -> theAttributes.householdAttributes.householdIncome,
-              "householdSize" -> theAttributes.householdAttributes.householdSize,
-              "male" -> (if (theAttributes.isMale) {
+      val attribIndivData: AlternativeAttributes = {
+            val theParams: Map[String, Double] = Map(
+              "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
+              "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
+              "male" -> (if (attributesOfIndividual.isMale) {
                            1.0
                          } else {
                            0.0
                          }),
-              "numCars"  -> theAttributes.householdAttributes.numCars,
-              "numBikes" -> theAttributes.householdAttributes.numBikes
+              "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
+              "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
             )
             AlternativeAttributes("dummy", theParams)
-          case None =>
-            AlternativeAttributes("dummy", Map())
         }
 
       val classMembershipInputData =
@@ -90,7 +85,7 @@ class ModeChoiceLCCM(
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
             .getExpectedMaximumUtility(modeChoiceInputData)
-          val surplusAttrib: Map[String, BigDecimal] =
+          val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility)
           AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
         }.toVector
@@ -131,7 +126,7 @@ class ModeChoiceLCCM(
     }
   }
 
-  def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double =
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double =
     0.0
 
   def sampleMode(
@@ -187,11 +182,11 @@ class ModeChoiceLCCM(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     tourType: TourType
   ): Vector[ModeChoiceData] = {
-    val transitFareDefaults: Seq[BigDecimal] =
+    val transitFareDefaults: Seq[Double] =
       TransitFareDefaults.estimateTransitFares(alternatives)
-    val gasolineCostDefaults: Seq[BigDecimal] =
+    val gasolineCostDefaults: Seq[Double] =
       DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults: Seq[BigDecimal] =
+    val bridgeTollsDefaults: Seq[Double] =
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val modeChoiceAlternatives: Seq[ModeChoiceData] =
       alternatives.zipWithIndex.map { altAndIdx =>
@@ -260,8 +255,8 @@ class ModeChoiceLCCM(
     mode: BeamMode,
     conditionedOnModalityStyle: String,
     tourType: TourType,
-    cost: BigDecimal,
-    time: BigDecimal
+    cost: Double,
+    time: Double
   ): Double = {
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
@@ -269,7 +264,7 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
 }
 
@@ -278,11 +273,11 @@ object ModeChoiceLCCM {
   case class ModeChoiceData(
     mode: BeamMode,
     tourType: TourType,
-    vehicleTime: BigDecimal,
-    walkTime: BigDecimal,
-    waitTime: BigDecimal,
-    bikeTime: BigDecimal,
-    cost: BigDecimal,
+    vehicleTime: Double,
+    walkTime: Double,
+    waitTime: Double,
+    bikeTime: Double,
+    cost: Double,
     index: Int = -1
   )
 

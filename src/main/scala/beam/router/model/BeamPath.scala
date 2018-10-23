@@ -9,13 +9,13 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   * @param transitStops start and end stop if this path is transit (partial) route
   */
 case class BeamPath(
-    linkIds: IndexedSeq[Int],
-    linkTravelTime: IndexedSeq[Int],
-    transitStops: Option[TransitStopsInfo],
-    startPoint: SpaceTime,
-    endPoint: SpaceTime,
-    distanceInM: Double
-  ) {
+  linkIds: IndexedSeq[Int],
+  linkTravelTime: IndexedSeq[Int],
+  transitStops: Option[TransitStopsInfo],
+  startPoint: SpaceTime,
+  endPoint: SpaceTime,
+  distanceInM: Double
+) {
   def duration: Int = endPoint.time - startPoint.time
 
   def toShortString: String =

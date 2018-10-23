@@ -4,7 +4,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 
-
 /**
   *
   * @param startTime  time in seconds from base midnight
@@ -36,5 +35,6 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 object BeamLeg {
 
   def dummyWalk(startTime: Int): BeamLeg =
-    new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0)).updateStartTime(startTime)
+    new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+      .updateStartTime(startTime)
 }

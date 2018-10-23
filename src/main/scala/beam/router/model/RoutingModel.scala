@@ -110,6 +110,7 @@ object RoutingModel {
   }
 
   object WindowTime {
+
     def apply(atTime: Int, departureWindow: Double): WindowTime =
       new WindowTime(atTime, math.round(departureWindow * 60.0).toInt)
   }

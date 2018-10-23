@@ -15,7 +15,7 @@ object ListExperiments extends App {
 
     val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 
-    val data = suggestions.getData().asScala
+    val data = suggestions.getData.asScala
 
     println(experiment.getId + ", " + experiment.getName)
 
