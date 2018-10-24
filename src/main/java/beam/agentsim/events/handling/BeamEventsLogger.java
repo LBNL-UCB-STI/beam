@@ -17,7 +17,6 @@ class BeamEventsLogger {
     private final EventsManager eventsManager;
     private final MatsimServices matsimServices;
     private final BeamServices beamServices;
-//    private final Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
     private final List<BeamEventsWriterBase> writers = new ArrayList<>();
     private final Set<Class<?>> eventsToLog = new HashSet<>();
     private final List<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
@@ -47,7 +46,7 @@ class BeamEventsLogger {
             matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
             String eventsFileBasePath = matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
             for (BeamEventsFileFormats fmt : eventsFileFormatsArray) {
-                BeamEventsWriterBase newWriter = null;
+                BeamEventsWriterBase newWriter;
                 if (beamServices.beamConfig().beam().outputs().events().explodeIntoFiles()) {
                     for (Class<?> eventTypeToLog : getAllEventsToLog()) {
                         newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, eventTypeToLog, fmt);
@@ -73,10 +72,6 @@ class BeamEventsLogger {
         }
         return null;
     }
-
-//    Multimap<Class, String> getEventFieldsToDropWhenShort() {
-//        return eventFieldsToDropWhenShort;
-//    }
 
     boolean shouldLogThisEventType(Class<? extends Event> aClass) {
         //TODO in future this is where fine tuning logging based on level number could occur (e.g. info versus debug)
