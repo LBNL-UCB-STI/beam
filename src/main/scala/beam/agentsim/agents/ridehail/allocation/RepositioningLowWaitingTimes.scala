@@ -13,7 +13,6 @@ import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
 
 class RepositioningLowWaitingTimes(
@@ -275,7 +274,7 @@ class RepositioningLowWaitingTimes(
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: TrieMap[Id[Vehicle], RideHailManager.RideHailAgentLocation],
+    idleVehicles: collection.mutable.Map[Id[Vehicle], RideHailManager.RideHailAgentLocation],
     maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(

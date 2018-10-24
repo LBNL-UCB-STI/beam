@@ -9,12 +9,12 @@ import beam.sim.BeamServices
   */
 object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
-  val zero: BigDecimal = BigDecimal(0.0)
+  val zero: Double = 0
 
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
-  ): IndexedSeq[BigDecimal] = {
+  ): IndexedSeq[Double] = {
 
     alternatives.map { alt =>
       alt.tripClassifier match {
@@ -42,9 +42,9 @@ object DrivingCostDefaults {
             } else {
               0 //TODO
             }
-          BigDecimal(cost)
+          cost
         case _ =>
-          BigDecimal(0)
+          zero
       }
     }
   }

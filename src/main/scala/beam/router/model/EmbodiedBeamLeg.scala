@@ -9,7 +9,7 @@ case class EmbodiedBeamLeg(
   beamVehicleId: Id[Vehicle],
   asDriver: Boolean,
   passengerSchedule: Option[PassengerSchedule],
-  cost: BigDecimal,
+  cost: Double,
   unbecomeDriverOnCompletion: Boolean
 ) {
 
