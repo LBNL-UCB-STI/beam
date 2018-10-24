@@ -2,6 +2,7 @@ package beam.analysis.physsim;
 
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
+import beam.utils.VolumesAnalyzerFixed;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -270,7 +271,7 @@ public class PhyssimCalcLinkStats {
 
     public void notifyIterationStarts(EventsManager eventsManager, TravelTimeCalculatorConfigGroup travelTimeCalculatorConfigGroup) {
         this.linkStats.reset();
-        volumes = new VolumesAnalyzer(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network);
+        volumes = new VolumesAnalyzerFixed(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network);
         eventsManager.addHandler(volumes);
         this.relativeSpeedFrequenciesPerBin.clear();
     }
