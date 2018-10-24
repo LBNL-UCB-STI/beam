@@ -22,6 +22,8 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
+import scala.util.Try
 
 class TransitInitializer(
   services: BeamServices,
@@ -30,6 +32,7 @@ class TransitInitializer(
 ) extends LazyLogging {
   private val config = services.beamConfig.beam.routing
   private var numStopsNotFound = 0
+  private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
   /*
    * Plan of action:
@@ -182,7 +185,28 @@ class TransitInitializer(
     transitScheduleToCreate
   }
 
-  private def getVehicleType(vehicleTypeId: Id[BeamVehicleType], mode: Modes.BeamMode): BeamVehicleType = {
+  private def loadTransitVehicleTypesMap() = {
+    Try(
+      Source
+        .fromFile(services.beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
+        .getLines()
+        .toList.tail
+    ).getOrElse(List())
+      .map(_.trim.split(","))
+      .filter(_.length > 2)
+      .groupBy(_(0))
+      .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
+  }
+
+  private def getVehicleType(route: RouteInfo, mode: Modes.BeamMode) = {
+    val vehicleTypeId = Id.create(
+      transitVehicleTypesByRoute
+        .get(route.agency_id)
+        .fold(None.asInstanceOf[Option[String]])(_.get(route.route_id))
+        .getOrElse(mode.toString.toUpperCase + "-" + route.agency_id),
+      classOf[BeamVehicleType]
+    )
+
     if (services.vehicleTypes.contains(vehicleTypeId)) {
       services.vehicleTypes(vehicleTypeId)
     } else {
@@ -205,10 +229,8 @@ class TransitInitializer(
   ): Option[BeamVehicle] = {
     val mode =
       Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId =
-      Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[BeamVehicleType])
 
-    val vehicleType = getVehicleType(vehicleTypeId, mode)
+    val vehicleType = getVehicleType(route, mode)
 
     mode match {
       case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
