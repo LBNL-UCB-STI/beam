@@ -11,6 +11,7 @@ import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -59,7 +60,8 @@ public class PhyssimCalcLinkStats {
     private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
-    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {
+    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
+                                TravelTimeCalculatorConfigGroup ttcConfigGroup) {
         this.network = network;
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
@@ -74,7 +76,7 @@ public class PhyssimCalcLinkStats {
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
 
-        linkStats = new BeamCalcLinkStats(network);
+        linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
@@ -266,12 +268,10 @@ public class PhyssimCalcLinkStats {
         return new Color(r, g, b);
     }
 
-    public void notifyIterationStarts(EventsManager eventsManager) {
-
+    public void notifyIterationStarts(EventsManager eventsManager, TravelTimeCalculatorConfigGroup travelTimeCalculatorConfigGroup) {
         this.linkStats.reset();
-        volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
+        volumes = new VolumesAnalyzer(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network);
         eventsManager.addHandler(volumes);
-
         this.relativeSpeedFrequenciesPerBin.clear();
     }
 

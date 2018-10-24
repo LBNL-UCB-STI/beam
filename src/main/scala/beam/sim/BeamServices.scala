@@ -11,7 +11,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.{readerFromFile, TAZ}
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -20,17 +20,15 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
-import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
 
 /**
   */
@@ -39,6 +37,8 @@ import scala.util.Try
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   val beamConfig: BeamConfig
+
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -64,6 +64,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
+
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

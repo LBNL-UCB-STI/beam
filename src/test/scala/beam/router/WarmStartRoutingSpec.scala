@@ -1,6 +1,7 @@
 package beam.router
 
 import java.time.ZonedDateTime
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
@@ -22,6 +23,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
@@ -129,7 +131,8 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+      val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+      BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(services.beamRouter)
 
       router ! RoutingRequest(
         origin,
