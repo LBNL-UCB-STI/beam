@@ -7,7 +7,7 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -20,7 +20,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
-import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
+import beam.router.model.RoutingModel.TransitStopsInfo
+import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -45,7 +46,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -97,12 +98,7 @@ class OtherPersonAgentSpec
       Some(alternatives.head)
     override val beamServices: BeamServices = beamSvc
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
-    override def utilityOf(
-      mode: BeamMode,
-      cost: BigDecimal,
-      time: BigDecimal,
-      numTransfers: Int
-    ): Double = 0.0
+    override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
@@ -151,86 +147,58 @@ class OtherPersonAgentSpec
       vehicles.put(bus.getId, bus)
       vehicles.put(tram.getId, tram)
 
-      val busLeg = EmbodiedBeamLeg(
-        BeamLeg(
-          28800,
-          BeamMode.BUS,
-          600,
-          BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            1.0
-          )
-        ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
-      )
-      val busLeg2 = EmbodiedBeamLeg(
-        BeamLeg(
-          29400,
-          BeamMode.BUS,
-          600,
-          BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            1.0
-          )
-        ),
-        Id.createVehicleId("my_bus"),
-        false,
-        None,
-        BigDecimal(0),
-        false
-      )
-      val tramLeg = EmbodiedBeamLeg(
-        BeamLeg(
-          30000,
-          BeamMode.TRAM,
-          600,
-          BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            SpaceTime(new Coord(190000.4, 1300), 30600),
-            1.0
-          )
-        ),
-        Id.createVehicleId("my_tram"),
-        false,
-        None,
-        BigDecimal(0),
-        false
-      )
-      val replannedTramLeg = EmbodiedBeamLeg(
-        BeamLeg(
-          35000,
-          BeamMode.TRAM,
-          600,
-          BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 35000),
-            SpaceTime(new Coord(190000.4, 1300), 35600),
-            1.0
-          )
-        ),
-        Id.createVehicleId("my_tram"),
-        false,
-        None,
-        BigDecimal(0),
-        false
-      )
+      val busLeg = EmbodiedBeamLeg(BeamLeg(
+                28800,
+                BeamMode.BUS,
+                600,
+                BeamPath(
+                  Vector(),
+                  Vector(),
+                  Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
+                  SpaceTime(new Coord(166321.9, 1568.87), 28800),
+                  SpaceTime(new Coord(167138.4, 1117), 29400),
+                  1.0
+                )
+              ), Id.createVehicleId("my_bus"), false, None, 0, false)
+      val busLeg2 = EmbodiedBeamLeg(BeamLeg(
+                29400,
+                BeamMode.BUS,
+                600,
+                BeamPath(
+                  Vector(),
+                  Vector(),
+                  Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
+                  SpaceTime(new Coord(167138.4, 1117), 29400),
+                  SpaceTime(new Coord(180000.4, 1200), 30000),
+                  1.0
+                )
+              ), Id.createVehicleId("my_bus"), false, None, 0, false)
+      val tramLeg = EmbodiedBeamLeg(BeamLeg(
+                30000,
+                BeamMode.TRAM,
+                600,
+                BeamPath(
+                  Vector(),
+                  Vector(),
+                  Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+                  SpaceTime(new Coord(180000.4, 1200), 30000),
+                  SpaceTime(new Coord(190000.4, 1300), 30600),
+                  1.0
+                )
+              ), Id.createVehicleId("my_tram"), false, None, 0, false)
+      val replannedTramLeg = EmbodiedBeamLeg(BeamLeg(
+                35000,
+                BeamMode.TRAM,
+                600,
+                BeamPath(
+                  Vector(),
+                  Vector(),
+                  Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+                  SpaceTime(new Coord(180000.4, 1200), 35000),
+                  SpaceTime(new Coord(190000.4, 1300), 35600),
+                  1.0
+                )
+              ), Id.createVehicleId("my_tram"), false, None, 0, false)
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population =
@@ -308,49 +276,35 @@ class OtherPersonAgentSpec
         Vector(
           EmbodiedBeamTrip(
             Vector(
-              EmbodiedBeamLeg(
-                BeamLeg(
-                  28800,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    SpaceTime(new Coord(167138.4, 1117), 28800),
-                    1.0
-                  )
-                ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                false
-              ),
+              EmbodiedBeamLeg(BeamLeg(
+                                28800,
+                                BeamMode.WALK,
+                                0,
+                                BeamPath(
+                                  Vector(),
+                                  Vector(),
+                                  None,
+                                  SpaceTime(new Coord(166321.9, 1568.87), 28800),
+                                  SpaceTime(new Coord(167138.4, 1117), 28800),
+                                  1.0
+                                )
+                              ), Id.createVehicleId("body-dummyAgent"), true, None, 0, false),
               busLeg,
               busLeg2,
               tramLeg,
-              EmbodiedBeamLeg(
-                BeamLeg(
-                  30600,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    1.0
-                  )
-                ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                false
-              )
+              EmbodiedBeamLeg(BeamLeg(
+                                30600,
+                                BeamMode.WALK,
+                                0,
+                                BeamPath(
+                                  Vector(),
+                                  Vector(),
+                                  None,
+                                  SpaceTime(new Coord(167138.4, 1117), 30600),
+                                  SpaceTime(new Coord(167138.4, 1117), 30600),
+                                  1.0
+                                )
+                              ), Id.createVehicleId("body-dummyAgent"), true, None, 0, false)
             )
           )
         ),
@@ -379,19 +333,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(28800, busLeg.beamLeg, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(29400, busLeg.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(29400, busLeg2.beamLeg, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(34400, busLeg2.beamLeg, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
         personActor
       )
       expectMsgType[PersonEntersVehicleEvent]
@@ -411,26 +357,19 @@ class OtherPersonAgentSpec
           EmbodiedBeamTrip(
             Vector(
               replannedTramLeg,
-              EmbodiedBeamLeg(
-                BeamLeg(
-                  35600,
-                  BeamMode.WALK,
-                  0,
-                  BeamPath(
-                    Vector(),
-                    Vector(),
-                    None,
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
-                    1.0
-                  )
-                ),
-                Id.createVehicleId("body-dummyAgent"),
-                true,
-                None,
-                BigDecimal(0),
-                false
-              )
+              EmbodiedBeamLeg(BeamLeg(
+                                35600,
+                                BeamMode.WALK,
+                                0,
+                                BeamPath(
+                                  Vector(),
+                                  Vector(),
+                                  None,
+                                  SpaceTime(new Coord(167138.4, 1117), 35600),
+                                  SpaceTime(new Coord(167138.4, 1117), 35600),
+                                  1.0
+                                )
+                              ), Id.createVehicleId("body-dummyAgent"), true, None, 0, false)
             )
           )
         ),
@@ -451,11 +390,11 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg, replannedTramLeg.beamVehicleId),
+        AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]

@@ -32,8 +32,8 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel
-import beam.router.RoutingModel.DiscreteTime
+import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.RoutingModel.DiscreteTime
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
 import com.eaio.uuid.UUIDGen
@@ -101,7 +101,7 @@ object RideHailManager {
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
     timeToCustomer: Long,
-    estimatedPrice: BigDecimal,
+    estimatedPrice: Double,
     estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
@@ -238,9 +238,7 @@ class RideHailManager(
     )
   private val vehicleState: mutable.Map[Id[Vehicle], BeamVehicleState] =
     mutable.Map[Id[Vehicle], BeamVehicleState]()
-  private val DefaultCostPerMinute = BigDecimal(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
-  )
+  private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
   private val pendingDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
@@ -455,7 +453,7 @@ class RideHailManager(
           request.pickUpLocation,
           request.departAt.atTime.toDouble
         )
-      val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] =
+      val customerPlans2Costs: Map[EmbodiedBeamTrip, Double] =
         itins2Dest.map(trip => (trip, rideHailFarePerSecond * trip.totalTravelTimeInSecs)).toMap
 
       if (itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
@@ -483,19 +481,14 @@ class RideHailManager(
               customerTripPlan.copy(
                 legs = customerTripPlan.legs.zipWithIndex.map(
                   legWithInd =>
-                    legWithInd._1.copy(
-                      asDriver = legWithInd._1.beamLeg.mode == WALK,
-                      unbecomeDriverOnCompletion = legWithInd._2 == 2,
-                      beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
-                      cost =
-                        if (legWithInd._1.beamLeg == customerTripPlan
-                              .legs(1)
-                              .beamLeg) {
-                          cost
-                        } else {
-                          0.0
-                        }
-                  )
+                    legWithInd._1.copy(beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer), asDriver = legWithInd._1.beamLeg.mode == WALK, cost =
+                                            if (legWithInd._1.beamLeg == customerTripPlan
+                                                  .legs(1)
+                                                  .beamLeg) {
+                                              cost
+                                            } else {
+                                              0.0
+                                            }, unbecomeDriverOnCompletion = legWithInd._2 == 2)
                 )
               )
             ),
@@ -666,7 +659,7 @@ class RideHailManager(
             )
 
             if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: IndexedSeq[RoutingModel.EmbodiedBeamTrip] =
+              val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
                 itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
               val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
 
@@ -744,7 +737,7 @@ class RideHailManager(
       }
 
     case DepotParkingInquiryResponse(None, requestId) =>
-      val vehId = parkingInquiryCache.get(requestId).get.vehicleId
+      val vehId = parkingInquiryCache(requestId).vehicleId
       log.warning(
         "No parking stall found, ride hail vehicle {} stranded",
         vehId
@@ -818,13 +811,13 @@ class RideHailManager(
     request: RideHailRequest,
     responses: List[RoutingResponse] = List()
   ): Unit = {
-    log.debug(
-      "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
-      request.departAt,
-      availableRideHailVehicles.size,
-      inServiceRideHailVehicles.size,
-      outOfServiceRideHailVehicles.size
-    )
+    if (log.isDebugEnabled) {
+      log.debug("Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
+        request.departAt,
+        availableRideHailVehicles.size,
+        inServiceRideHailVehicles.size,
+        outOfServiceRideHailVehicles.size)
+    }
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
 
@@ -868,23 +861,30 @@ class RideHailManager(
     customerRequestTime: Long,
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
   ): Vector[RideHailAgentETA] = {
-    val nearbyRideHailAgents = availableRideHailAgentSpatialIndex
+    var start = System.currentTimeMillis()
+    val nearbyAvailableRideHailAgents = availableRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
-      .toVector
-    val times2RideHailAgents =
-      nearbyRideHailAgents.map(rideHailAgentLocation => {
-        val distance = CoordUtils
-          .calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-        // already moving or dropping off a customer, etc.)
-        val timeToCustomer = distance * secondsPerEuclideanMeterFactor + Math
-          .max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
-        RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
-      })
+      .filter(x => availableRideHailVehicles.contains(x.vehicleId))
+    var end = System.currentTimeMillis()
+    val diff1 = end - start
+
+    start = System.currentTimeMillis()
+    val times2RideHailAgents = nearbyAvailableRideHailAgents.map { rideHailAgentLocation =>
+      val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
+      // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
+      // already moving or dropping off a customer, etc.)
+      val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
+      val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
+      RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
+    }.toVector.sortBy(_.timeToCustomer)
+    end = System.currentTimeMillis()
+    val diff2 = end - start
+
+    if (diff1 + diff2 > 100)
+      log.debug(s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms")
+
     times2RideHailAgents
-      .filter(x => availableRideHailVehicles.contains(x.agentLocation.vehicleId))
-      .sortBy(_.timeToCustomer)
   }
 
   def getClosestIdleVehiclesWithinRadius(

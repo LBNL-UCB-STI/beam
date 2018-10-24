@@ -68,7 +68,7 @@ trait MetricsSupport {
     if (Metrics.currentContext != null && !Metrics.currentContext.isClosed)
       Metrics.currentContext.finish()
 
-  def startSegment(name: String, categry: String) =
+  def startSegment(name: String, categry: String): Unit =
     if (Metrics.currentContext != null && !Metrics.currentContext.isClosed && !currentSegments
           .contains(name + ":" + categry))
       currentSegments += (name + ":" + categry -> Metrics.currentContext.startSegment(

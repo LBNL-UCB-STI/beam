@@ -2,9 +2,10 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.router.BeamRouter.Location
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.RIDE_HAIL
 import org.matsim.api.core.v01.Id
+import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -41,10 +42,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       maybeId.map(rideHailManager.getIdleVehicles(_))
     }
     // If agentLoc None, we grab the closest Idle agents but filter out any with a range that
-    // obviously cannot make the trip (range is less than 1.26xEuclidean distance. this factor is
-    // based on https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3835347/pdf/nihms436252.pdf and basically
-    // means that less than 10% of the time would a vehicle with this range actually be able to cover
-    // the true trip due to the variability between Euclidean and actual distance
+    // obviously cannot make the trip
     agentLocationOpt = agentLocationOpt match {
       case None =>
         // go with nearest ETA
@@ -62,16 +60,18 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         // from future consideration if it fails this check
         val routingResponses = routeResponsesByDriver.get(agentLocation.vehicleId)
 
+        val routedDisanceInM = routingResponses
+          .getOrElse(List[RoutingResponse]())
+          .map(
+            _.itineraries
+              .find(_.tripClassifier == RIDE_HAIL)
+              .fold(Double.MaxValue)(_.beamLegs().map(_.travelPath.distanceInM).sum)
+          )
+          .sum
+
         if (rideHailManager
               .getVehicleState(agentLocation.vehicleId)
-              .remainingRangeInM < routingResponses.get
-              .map(
-                _.itineraries
-                  .find(_.tripClassifier == RIDE_HAIL)
-                  .map(_.beamLegs().map(_.travelPath.distanceInM).sum)
-                  .getOrElse(Double.MaxValue)
-              )
-              .sum) {
+              .remainingRangeInM < routedDisanceInM){
           requestToExcludedDrivers.put(
             reqId,
             requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId
@@ -107,6 +107,12 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
     }
   }
 
+  // Fine the closest Idle agents but filter out any with a range that
+  // obviously cannot make the trip (range is less than 1.36xEuclidean distance). this 1.36 factor is
+  // informed by https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3835347/pdf/nihms436252.pdf and basically
+  // means that we allow for some routes to surprise us and be less than the average ratio of routed to
+  // Euclidean distance (1.41), but we can't be more permissive because otherwise we can get into cases
+  // where we spend a lot of time routing for agents that end up not making the cut
   def findNearestByETAConsideringRange(
     request: RideHailRequest,
     excludeTheseDrivers: Set[Id[Vehicle]] = Set()
@@ -118,6 +124,9 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         request.departAt.atTime
       )
     val set2 = set1.filterNot(rhETa => excludeTheseDrivers.contains(rhETa.agentLocation.vehicleId))
+//    logger.info("num excluded: {}",excludeTheseDrivers.size)
+    val custOriginToDestEuclidDistance = CoordUtils
+      .calcProjectedEuclideanDistance(request.pickUpLocation, request.destination)
     val set3 = set2.filter { rhEta =>
       //      logger.error(rhEta.agentLocation.vehicleId.toString)
       //      logger.error(rideHailManager
@@ -126,7 +135,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       //      logger.error(rhEta.distance.toString)
       rideHailManager
         .getVehicleState(rhEta.agentLocation.vehicleId)
-        .remainingRangeInM >= rhEta.distance * 1.26
+        .remainingRangeInM >= (rhEta.distance + custOriginToDestEuclidDistance) * 1.36
     }
     //    logger.error(set1.toString())
     //    logger.error(set2.toString())

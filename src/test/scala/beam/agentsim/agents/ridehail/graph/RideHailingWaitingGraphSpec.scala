@@ -5,6 +5,7 @@ import beam.agentsim.agents.ridehail.graph.RideHailingWaitingGraphSpec.{RideHail
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.RideHailWaitingStats
 import beam.integration.IntegrationSpecCommon
+import beam.utils.MathUtils
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -18,7 +19,6 @@ import org.scalatest.{Matchers, WordSpecLike}
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Promise
-import scala.math.BigDecimal.RoundingMode
 
 object RideHailingWaitingGraphSpec {
 
@@ -79,13 +79,16 @@ object RideHailingWaitingGraphSpec {
     }
 
     private def updateCounter(evn: PersonEntersVehicleEvent) = {
-      val personId = evn.getPersonId.toString
-      val personTime = personLastTime.get(personId)
-      personLastTime = personLastTime - personId
-      personTime.fold(waitingTimes) { w =>
-        val time = w.toInt / 3600
-        waitingTimes :+ (time -> (evn.getTime - w))
-      }
+      if (evn.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE).contains("rideHailVehicle")) {
+        val personId = evn.getPersonId.toString
+        val personTime = personLastTime.get(personId)
+        personLastTime = personLastTime - personId
+
+        personTime.fold(waitingTimes) { w =>
+          val time = w.toInt / 3600
+          waitingTimes :+ (time -> (evn.getTime - w) / 60)
+        }
+      } else waitingTimes
     }
 
     def counterValue: Seq[(Int, Double)] = waitingTimes
@@ -119,18 +122,14 @@ class RideHailingWaitingGraphSpec extends WordSpecLike with Matchers with Integr
           val handler = new StatsValidationHandler
           parseEventFile(iteration, handler)
           promise.future.foreach { a =>
-            val hours = handler.counterValue
-              .groupBy(_._1)
-              .map {
-                case (k, ks) =>
-                  k -> BigDecimal(ks.map(_._2).sum).setScale(3, RoundingMode.HALF_UP).toDouble
-              }
+            val hours = handler.counterValue.groupBy(_._1).map {
+              case (k, ks) =>
+                k -> MathUtils.roundDouble(ks.map(_._2).sum)
+            }
 
             val modes = a.asScala.map {
               case (i, is) =>
-                i.toInt -> BigDecimal(is.asScala.map(_.toDouble).sum)
-                  .setScale(3, RoundingMode.HALF_UP)
-                  .toDouble
+                i.toInt -> MathUtils.roundDouble(is.asScala.map(_.toDouble).sum)
             }.toMap
 
             hours shouldEqual modes

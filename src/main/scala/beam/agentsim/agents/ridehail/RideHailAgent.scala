@@ -24,8 +24,8 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.RoutingModel
-import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.RoutingModel
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -59,7 +59,7 @@ object RideHailAgent {
       )
     )
 
-  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[RoutingModel.EmbodiedBeamLeg] = {
+  def getRideHailTrip(chosenTrip: EmbodiedBeamTrip): IndexedSeq[EmbodiedBeamLeg] = {
     chosenTrip.legs.filter(l => isRideHailLeg(l))
   }
 

@@ -1,11 +1,10 @@
 package beam.agentsim.events;
 
 import beam.agentsim.agents.vehicles.BeamVehicleType;
-import beam.router.RoutingModel;
+import beam.router.model.BeamLeg;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
-import org.matsim.vehicles.VehicleType;
 
 import java.util.Collections;
 import java.util.Map;
@@ -52,7 +51,7 @@ public class PathTraversalEvent extends Event {
     private final double endX;
     private final double endY;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
         this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 fuelConsumed,
@@ -80,7 +79,7 @@ public class PathTraversalEvent extends Event {
         this.startY = startY;
         this.endX = endX;
         this.endY = endY;
-        this.attributes = new AtomicReference<Map<String, String>>(Collections.EMPTY_MAP);
+        this.attributes = new AtomicReference<>(Collections.emptyMap());
     }
 
     public static PathTraversalEvent apply(Event event) {

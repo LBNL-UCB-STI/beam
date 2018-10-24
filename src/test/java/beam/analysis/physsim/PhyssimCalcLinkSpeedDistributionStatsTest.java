@@ -20,7 +20,6 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class PhyssimCalcLinkSpeedDistributionStatsTest {
@@ -49,8 +48,6 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
         eventsManager.addHandler(travelTimeCalculator);
 
         physsimCalcLinkSpeedDistributionStats = new PhyssimCalcLinkSpeedDistributionStats(network, null, null);
-
-        physsimCalcLinkSpeedDistributionStats.notifyIterationStarts(eventsManager);
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);

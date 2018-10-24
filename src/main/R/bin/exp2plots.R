@@ -19,7 +19,7 @@ if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Downloads/RH2Transit-2Iter/RH2Transit'
   args<-'/Users/critter/Downloads/cost-sensitivities/cost-sensitivity/'
-  #args<-'/Users/critter/Downloads/diffusion-5iter/diffusion/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-09/diffusion/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -104,7 +104,7 @@ ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit
 setkey(ev,type)
 
 ## Prep data needed to do quick version of energy calc
-en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/vehicleTypes.csv'))
+en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/production/sfbay/samples/vehicleTypes.csv'))
 setkey(en,vehicleTypeId)
 en <- u(en)
 ## Energy Density in MJ/liter or MJ/kWh

@@ -13,12 +13,10 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
-import org.matsim.core.controler.events.ShutdownEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.io.BufferedWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,9 +33,10 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
 
     private Set<String> modesChosen = new TreeSet<>();
-    private Set cumulativeModeChosen = new TreeSet();
+    private Set<String> cumulativeModeChosenForModeChoice = new TreeSet<>();
+    private Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private String benchmarkFileLoc ;
+    private final Map<String, Double> benchMarkData;
 
 
     private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
@@ -76,9 +75,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     public ModeChosenStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation , BeamConfig beamConfig) {
-        benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
-
+        benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
     }
 
     @Override
@@ -98,7 +97,23 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+
         createModeChosenCSV(hourModeFrequency, event.getIteration());
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
+        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
+        if (dataset != null) {
+            createRootModeChoosenGraph(dataset, graphTitle ,fileName, "# mode choosen",cumulativeModeChosenForModeChoice);
+        }
+        writeToRootCSV();
+
+        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
+        cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
+        CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
+        if (referenceDataset != null) {
+            createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)",cumulativeModeChosenForReference);
+        }
+        writeToRootCSVForReference();
     }
 
     @Override
@@ -124,7 +139,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         tags.put("hour", "" + (hour + 1));
         countOccurrenceJava(mode, 1, ShortLevel(), tags);
         modesChosen.add(mode);
-        cumulativeModeChosen.add(mode);
+        cumulativeModeChosenForModeChoice.add(mode);
+        cumulativeModeChosenForReference.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
         if (hourData != null) {
@@ -146,12 +162,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             Set<String> iterationModes = iterationHourData.keySet();
             for (String iterationMode : iterationModes) {
                 Integer freq = iterationHourData.get(iterationMode);
-                Integer iterationFrequency = totalModeChoice.get(iterationMode);
-                if (iterationFrequency == null) {
-                    totalModeChoice.put(iterationMode, freq);
-                } else {
-                    totalModeChoice.put(iterationMode, freq + iterationFrequency);
-                }
+                totalModeChoice.merge(iterationMode, freq, (a, b) -> b + a);
 
             }
         }
@@ -199,7 +210,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         try {
             bufferedWriter.append("Modes");
             bufferedWriter.append(SEPERATOR);
-            for (int j = 0; j < maxHour; j++) {
+            for (int j = 0; j <= maxHour; j++) {
                 bufferedWriter.append("Bin_")
                         .append(String.valueOf(j))
                         .append(SEPERATOR);
@@ -211,7 +222,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
                 bufferedWriter.append(modeChosen);
                 bufferedWriter.append(SEPERATOR);
 
-                for (int j = 0; j < maxHour; j++) {
+                for (int j = 0; j <= maxHour; j++) {
                     Map<String, Integer> modesData = hourModeChosen.get(j);
 
 
@@ -236,29 +247,11 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
-//    event hits at the end of the running scenario
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
-        CategoryDataset dataset = buildModeChoiceDatasetForGraph();
-        if (dataset != null) {
-            createRootModeChoosenGraph(dataset, graphTitle ,fileName, "# mode choosen");
-        }
-        writeToRootCSV();
-        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
-        cumulativeModeChosen.addAll(benchmarkCsvLoader().keySet());
-        CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
-        if (referenceDataset != null) {
-            createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)");
-        }
-        writeToRootCSVForReference();
-    }
-
 
 //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosen));;
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
 
         if (dataset != null) {
             categoryDataset = createCategoryDataset("it.", dataset);
@@ -280,7 +273,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     //    dataset for root graph
     private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException{
         CategoryDataset categoryDataset = null;
-        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosen));;
+        double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForReference));
 
         if (dataset != null) {
             categoryDataset = createReferenceCategoryDataset("it.", dataset);
@@ -289,25 +282,24 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     }
 
     // The data is converted into average and compared with the data of benchmark.
-    public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) throws IOException{
-        Map<String, Double> benchmarkData = benchmarkCsvLoader();
+    public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
         DefaultCategoryDataset result = new DefaultCategoryDataset();
-        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchmarkData.keySet());
-        double sum = benchmarkData.values().stream().reduce((x,y) -> x+y).get();
+        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
+        double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
         for(int i = 0 ; i< modesChosenList.size() ;i++ ){
             String rowKey = String.valueOf(i + 1);
-            result.addValue((benchmarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
+            result.addValue((benchMarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
         }
         int max = 0;
-        for (int r = 0; r < data.length; r++) {
-            if(data[r].length > max){
-                max = data[r].length;
+        for (double[] aData : data) {
+            if (aData.length > max) {
+                max = aData.length;
             }
         }
         double[] sumOfColumns = new double[max];
-        for (int r = 0; r < data.length; r++) {
-            for (int c = 0; c < data[r].length; c++) {
-                sumOfColumns[c] += data[r][c];
+        for (double[] aData : data) {
+            for (int c = 0; c < aData.length; c++) {
+                sumOfColumns[c] += aData[c];
             }
         }
 
@@ -323,12 +315,11 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
 
 //    generating graph in root directory
-    private void createRootModeChoosenGraph(CategoryDataset dataset,String graphTitleName, String fileName, String yAxisTitle) throws IOException {
+    private void createRootModeChoosenGraph(CategoryDataset dataset,String graphTitleName, String fileName, String yAxisTitle, Set<String> modes) throws IOException {
         boolean legend = true;
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, "Iteration", yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(cumulativeModeChosen);
+        List<String> modesChosenList = new ArrayList<>(modes);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
@@ -341,7 +332,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            Set<String> modes = cumulativeModeChosen;
+            Set<String> modes = cumulativeModeChosenForModeChoice;
 
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
@@ -381,18 +372,17 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            Set<String> modes = cumulativeModeChosen;
+            Set<String> modes = cumulativeModeChosenForReference;
 
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
             out.newLine();
 
-            Map<String, Double> benchmarkData = benchmarkCsvLoader();
-            double sum = benchmarkData.values().stream().reduce((x,y) -> x+y).get();
+            double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
             StringBuilder builder = new StringBuilder("benchmark");
             for (String mode : modes) {
-                if (benchmarkData.get(mode) != null) {
-                    builder.append(",").append((benchmarkData.get(mode) * 100) / sum);
+                if (benchMarkData.get(mode) != null) {
+                    builder.append(",").append((benchMarkData.get(mode) * 100) / sum);
                 }
                 else {
                     builder.append(",0");
@@ -439,18 +429,21 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
         }
     }
 
-    private Map<String, Double> benchmarkCsvLoader() throws IOException{
+    private Map<String, Double> benchmarkCsvLoader(String path) {
         Map<String, Double> benchMarkData = new HashMap<>();
-        FileReader fileReader = new FileReader(benchmarkFileLoc);
-        BufferedReader bufferedReader = new BufferedReader(fileReader);
-        String line1 = bufferedReader.readLine();
-        String line2 = bufferedReader.readLine();
-        String[] mode =line1.split(",");
-        String[] share = line2.split(",");
-        for(int i = 1;i < mode.length ;i++){
-            benchMarkData.put(mode[i], Double.parseDouble(share[i]));
+
+        try (FileReader fileReader = new FileReader(path)) {
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            String line1 = bufferedReader.readLine();
+            String line2 = bufferedReader.readLine();
+            String[] mode = line1.split(",");
+            String[] share = line2.split(",");
+            for (int i = 1; i < mode.length; i++) {
+                benchMarkData.put(mode[i], Double.parseDouble(share[i]));
+            }
+        } catch (Exception ex) {
+            log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
         }
-        fileReader.close();
         return benchMarkData;
     }
 

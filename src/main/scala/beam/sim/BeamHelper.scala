@@ -2,7 +2,6 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util
 import java.util.Properties
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -17,7 +16,7 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{BashUtils, BeamConfigUtils, FileUtils, LoggingUtil}
+import beam.utils._
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -203,6 +202,7 @@ trait BeamHelper extends LazyLogging {
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
           addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
+          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
@@ -237,7 +237,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "config is a required value, and must yield a valid config."
+      "Beam config is a required, Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
@@ -354,19 +354,32 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
-    logger.info(s"Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
+    logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
-    logger.info(s"Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val beamWarmStart = BeamWarmStart(beamConfig)
-    beamWarmStart.warmStartPopulationIfNeeded(matsimConfig)
+    beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
+
+    // TODO ASIF
+    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
+    if(beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()) {
+
+      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
+      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
+      scenario.setPopulation(population)
+
+      if(beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty()){
+        logger.warn("The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning.")
+      }
+    }
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,

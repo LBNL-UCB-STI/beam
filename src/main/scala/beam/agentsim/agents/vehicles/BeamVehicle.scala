@@ -123,8 +123,8 @@ class BeamVehicle(
           theStall.attributes.chargingType,
           fuelLevelInJoules.get,
           beamVehicleType.primaryFuelCapacityInJoule,
-          Some(beamVehicleType.rechargeLevel2RateLimitInWatts),
-          Some(beamVehicleType.rechargeLevel3RateLimitInWatts),
+          beamVehicleType.rechargeLevel2RateLimitInWatts,
+          beamVehicleType.rechargeLevel3RateLimitInWatts,
           None
         )
       case None =>

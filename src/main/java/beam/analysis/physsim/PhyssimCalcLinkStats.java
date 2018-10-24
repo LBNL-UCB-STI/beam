@@ -1,7 +1,5 @@
 package beam.analysis.physsim;
 
-import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import org.jfree.chart.*;
@@ -76,9 +74,8 @@ public class PhyssimCalcLinkStats {
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
 
-        linkStats = new BeamCalcLinkStats(network,beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
+        linkStats = new BeamCalcLinkStats(network);
     }
-
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
@@ -96,7 +93,7 @@ public class PhyssimCalcLinkStats {
     }
 
     private boolean isNotTestMode() {
-        return beamConfig != null;
+        return controllerIO != null;
     }
 
 

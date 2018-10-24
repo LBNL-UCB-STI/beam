@@ -8,7 +8,8 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
-import beam.router.RoutingModel.{BeamLeg, BeamPath, TransitStopsInfo, WindowTime}
+import beam.router.model.RoutingModel.{TransitStopsInfo, WindowTime}
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
@@ -211,7 +212,7 @@ class TransitInitializer(
 
     mode match {
       case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoule)
+        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 

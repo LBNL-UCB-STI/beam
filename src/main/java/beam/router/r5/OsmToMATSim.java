@@ -6,7 +6,6 @@ import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.network.NetworkUtils;
-import org.matsim.core.utils.geometry.CoordinateTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,25 +32,15 @@ public class OsmToMATSim {
     private final static String TAG_ACCESS = "access";
     private final static String[] ALL_TAGS = new String[]{TAG_LANES, TAG_HIGHWAY, TAG_MAXSPEED, TAG_JUNCTION, TAG_ONEWAY, TAG_ACCESS};
     public final Map<String, BEAMHighwayDefaults> highwayDefaults = new HashMap<>();
-    private final Set<String> unknownHighways = new HashSet<String>(); // Used for logging in OsmNetworkReader
-    private final Set<String> unknownMaxspeedTags = new HashSet<String>();
-    private final Set<String> unknownLanesTags = new HashSet<String>();
+    private final Set<String> unknownHighways = new HashSet<>(); // Used for logging in OsmNetworkReader
+    private final Set<String> unknownMaxspeedTags = new HashSet<>();
+    private final Set<String> unknownLanesTags = new HashSet<>();
     private final Network mNetwork;
-    private final CoordinateTransformation transform;
     private long id = 0;
-    private boolean scaleMaxSpeed = false;
 
 
-//	public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
-//					   true){
-//
-//	}
-
-
-    public OsmToMATSim(final Network mNetwork, final CoordinateTransformation transformation,
-                       boolean useBEAMHighwayDefaults) {
+    public OsmToMATSim(final Network mNetwork, boolean useBEAMHighwayDefaults) {
         this.mNetwork = mNetwork;
-        this.transform = transformation;
         if (useBEAMHighwayDefaults) {
 
             log.info("Falling back to default values.");
@@ -209,7 +198,8 @@ public class OsmToMATSim {
         // create the link(s)
         double capacity = nofLanes * laneCapacity;
 
-        if (this.scaleMaxSpeed) {
+        boolean scaleMaxSpeed = false;
+        if (scaleMaxSpeed) {
             freespeed = freespeed * freespeedFactor;
         }
 

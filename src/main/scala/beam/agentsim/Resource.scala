@@ -6,7 +6,6 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource._
-import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 

@@ -3,14 +3,11 @@ package beam.analysis.physsim;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
-import org.jfree.chart.plot.Plot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -42,7 +39,7 @@ public class PhyssimCalcLinkSpeedStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputFileName = "linkAverageSpeedPercentage";
+    private String outputFileName = "physsim_linkAverageSpeedPercentage";
 
     //Public constructor for the PhyssimCalcLinkSpeedStats class
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
@@ -192,8 +189,7 @@ public class PhyssimCalcLinkSpeedStats {
         return new Color(r, g, b);
     }
 
-    public void notifyIterationStarts(EventsManager eventsManager) {
-    }
+
 
     public double getAverageSpeedPercentageOfBin(int bin,TravelTimeCalculator travelTimeCalculator) {
         try {
