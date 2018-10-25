@@ -335,7 +335,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
             for (int iteration = 0; iteration <= max; iteration++) {
                 Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
-                StringBuilder builder = new StringBuilder(iteration + "");
+                final StringBuilder builder = new StringBuilder(String.valueOf(iteration));
                 if (modeCount != null) {
                     for (String mode : modes) {
                         if (modeCount.get(mode) != null) {
