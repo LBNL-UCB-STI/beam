@@ -61,7 +61,6 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           val file = loadPopulation(parentRunPath, statsPath)
-
           matsimConfig.plans().setInputFile(file)
           logger.info("Population successfully warm started from {}", statsPath)
         } else {
