@@ -66,7 +66,7 @@ class BeamEventsLogger {
                                                                     Class<?> theClass, BeamEventsFileFormats fmt) {
         final String path = eventsFilePathBase + "." + fmt.getSuffix();
         if (fmt == BeamEventsFileFormats.XML || fmt == BeamEventsFileFormats.XML_GZ) {
-            return new BeamEventsWriterXML(path, this, beamServices, theClass);
+            return new BeamEventsWriterXML1(path, this, beamServices, theClass);
         } else if (fmt == BeamEventsFileFormats.CSV || fmt == BeamEventsFileFormats.CSV_GZ) {
             return new BeamEventsWriterCSV(path, this, beamServices, theClass);
         }

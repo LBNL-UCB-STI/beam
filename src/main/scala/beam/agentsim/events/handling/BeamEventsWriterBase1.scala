@@ -6,6 +6,7 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.algorithms.EventWriter
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.utils.io.IOUtils
 
 /**
   * @author Bhavya Latha Bandaru.
@@ -13,7 +14,8 @@ import org.matsim.core.events.handler.BasicEventHandler
   */
 trait BeamEventsWriterBase1 extends EventWriter with BasicEventHandler {
 
-  var out: BufferedWriter
+  var outFileName : String
+  var out: BufferedWriter = IOUtils.getBufferedWriter(outFileName)
   var beamEventLogger: BeamEventsLogger
   var beamServices: BeamServices
   var eventTypeToLog: Class[_]

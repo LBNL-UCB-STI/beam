@@ -1,6 +1,6 @@
 package beam.agentsim.events.handling
 
-import java.io.{BufferedWriter, IOException}
+import java.io.IOException
 import java.util
 
 import beam.sim.BeamServices
@@ -12,15 +12,15 @@ import scala.collection.JavaConverters._
 /**
   * @author Bhavya Latha Bandaru.
   * Helper class to write BEAM events to an external file.
-  * @param out writer instance to write to external file
+  * @param outFileName writer instance to write to external file
   * @param beamEventLogger beam events logger
   * @param beamServices beam services
   * @param eventTypeToLog type of event to log
   */
-class BeamEventsWriterXML1(var out: BufferedWriter,
+class BeamEventsWriterXML1(var outFileName: String,
                            var beamEventLogger: BeamEventsLogger,
                            var beamServices: BeamServices,
-                           var eventTypeToLog: Class[_]) extends BeamEventsWriterBase1 {
+                           var eventTypeToLog: Class[_]) extends BeamEventsWriterBase(outFileName,beamEventLogger,beamServices,eventTypeToLog) {
 
   /**
     * Writes the events to the xml file.
@@ -44,7 +44,7 @@ class BeamEventsWriterXML1(var out: BufferedWriter,
   /**
     * Adds the xml header to the file.
     */
-  override protected def writeHeader(): Unit = {
+  override protected def writeHeaders(): Unit = {
     val header =
       """<?xml version="1.0" encoding="utf-8"?>
          <events version="1.0">
