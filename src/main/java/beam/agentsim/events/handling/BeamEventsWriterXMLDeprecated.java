@@ -11,8 +11,8 @@ import java.util.Map;
 /**
  * BEAM
  */
-public class BeamEventsWriterXML extends BeamEventsWriterBase {
-    public BeamEventsWriterXML(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+public class BeamEventsWriterXMLDeprecated extends BeamEventsWriterBase {
+    public BeamEventsWriterXMLDeprecated(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, beamEventLogger, beamServices, eventTypeToLog);
         writeHeaders();
     }
