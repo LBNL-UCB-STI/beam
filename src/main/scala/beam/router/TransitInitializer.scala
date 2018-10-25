@@ -30,7 +30,6 @@ class TransitInitializer(
   transportNetwork: TransportNetwork,
   transitVehicles: Vehicles,
 ) extends LazyLogging {
-  private val config = services.beamConfig.beam.routing
   private var numStopsNotFound = 0
   private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
@@ -59,7 +58,7 @@ class TransitInitializer(
           case IndexedSeq(fromStopIdx, toStopIdx) =>
             val fromStop = tripPattern.stops(fromStopIdx)
             val toStop = tripPattern.stops(toStopIdx)
-            if (config.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+            if (services.beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
               stopToStopStreetSegmentCache.getOrElseUpdate(
                 (fromStop, toStop),
                 routeTransitPathThroughStreets(fromStop, toStop)
@@ -198,7 +197,7 @@ class TransitInitializer(
       .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
   }
 
-  private def getVehicleType(route: RouteInfo, mode: Modes.BeamMode) = {
+  def getVehicleType(route: RouteInfo, mode: Modes.BeamMode): BeamVehicleType = {
     val vehicleTypeId = Id.create(
       transitVehicleTypesByRoute
         .get(route.agency_id)
