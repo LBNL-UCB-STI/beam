@@ -202,24 +202,6 @@ class BeamSim @Inject()(
     logger.info("Ending Iteration")
   }
 
-  private def writeSummaryStats(event: IterationEndsEvent) = {
-    val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
-    val alreadyExists = summaryStatsFile.exists()
-    val out = new BufferedWriter(new FileWriter(summaryStatsFile, alreadyExists))
-
-    val stats = iterationStats.flatMap(_.getIterationSummaryStats.asScala).toMap
-
-    if (!alreadyExists) {
-      out.write("Iteration,")
-      out.write(stats.keys.mkString(","))
-      out.newLine()
-    }
-    out.write(s"${event.getIteration},")
-    out.write(stats.values.mkString(","))
-    out.newLine()
-    out.close()
-  }
-
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
@@ -246,5 +228,23 @@ class BeamSim @Inject()(
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
+  }
+
+  private def writeSummaryStats(event: IterationEndsEvent): Unit = {
+    val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
+    val alreadyExists = summaryStatsFile.exists()
+    val out = new BufferedWriter(new FileWriter(summaryStatsFile, alreadyExists))
+
+    val stats = iterationStats.flatMap(_.getIterationSummaryStats.asScala).toMap
+
+    if (!alreadyExists) {
+      out.write("Iteration,")
+      out.write(stats.keys.mkString(","))
+      out.newLine()
+    }
+    out.write(s"${event.getIteration},")
+    out.write(stats.values.mkString(","))
+    out.newLine()
+    out.close()
   }
 }
