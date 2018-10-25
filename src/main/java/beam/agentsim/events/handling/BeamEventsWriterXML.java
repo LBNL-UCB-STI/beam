@@ -56,7 +56,7 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase {
             Map<String, String> eventAttributes = event.getAttributes();
             try {
                 this.out.append("\t<event ");
-                Set<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
+                    Set<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
                 for (String attrKey : attrKeys) {
                     this.out.append(attrKey);
                     this.out.append("=\"");
