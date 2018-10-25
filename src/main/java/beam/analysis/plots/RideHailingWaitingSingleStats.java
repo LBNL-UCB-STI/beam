@@ -22,7 +22,7 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailingWaitingSingleStats implements IGraphStats {
+public class RideHailingWaitingSingleStats implements BeamStats {
 
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
@@ -33,15 +33,12 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
     private Map<String, Event> rideHailWaiting = new HashMap<>();
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
-    private final IStatComputation<Map<Integer, Double>, double[][]> statComputation;
+    private final StatsComputation<Map<Integer, Double>, double[][]> statComputation;
 
-    public static class RideHailingWaitingSingleComputation implements IStatComputation<Map<Integer, Double>, double[][]> {
+    public static class RideHailingWaitingSingleComputation implements StatsComputation<Map<Integer, Double>, double[][]> {
 
         @Override
         public double[][] compute(Map<Integer, Double> stat) {
-            List<Integer> hours = new ArrayList<>(stat.keySet());
-            Collections.sort(hours);
-
             Double _numberOfTimeBins = numberOfTimeBins;
             int maxHour = _numberOfTimeBins.intValue();
 
@@ -58,7 +55,7 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
         }
     }
 
-    public RideHailingWaitingSingleStats(BeamConfig beamConfig, IStatComputation<Map<Integer, Double>, double[][]> statComputation) {
+    public RideHailingWaitingSingleStats(BeamConfig beamConfig, StatsComputation<Map<Integer, Double>, double[][]> statComputation) {
         this.statComputation = statComputation;
 
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
@@ -114,12 +111,6 @@ public class RideHailingWaitingSingleStats implements IGraphStats {
 
         writeToCSV(event.getIteration(), hoursTimesMap);
     }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-        throw new IOException("Not implemented");
-    }
-
 
     private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());

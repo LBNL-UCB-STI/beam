@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 
-public class RealizedModeStats implements IGraphStats, MetricsSupport {
+public class RealizedModeStats implements BeamStats, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
@@ -41,13 +41,13 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
     private Set<String> cumulativeMode = new TreeSet<>();
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
-    private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
+    private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
+    public RealizedModeStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
         this.statComputation = statComputation;
     }
 
-    public static class RealizedModesStatsComputation implements IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
+    public static class RealizedModesStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
@@ -81,7 +81,9 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
     @Override
     public void processStats(Event event) {
-        processRealizedMode(event);
+        if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE) ||
+                event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE))
+            processRealizedMode(event);
     }
 
     @Override
@@ -99,11 +101,6 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         writeToCSV(event);
-    }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
     }
 
     @Override
@@ -147,7 +144,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
             ModeHour modeHour = new ModeHour(mode, hour);
             Stack<ModeHour> modeHours = hourPerson.get(personId);
-            if(modeHours == null){
+            if (modeHours == null) {
                 modeHours = new Stack<>();
             }
             modeHours.push(modeHour);
@@ -201,7 +198,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
         Map<String, Integer> totalModeChoice = new HashMap<>();
         for (Integer hour : hours) {
             Map<String, Integer> iterationHourData = hourModeFrequency.get(hour);
-            if(iterationHourData!=null) {
+            if (iterationHourData != null) {
                 Set<String> iterationModes = iterationHourData.keySet();
                 for (String iterationMode : iterationModes) {
                     Integer freq = iterationHourData.get(iterationMode);
@@ -238,7 +235,7 @@ public class RealizedModeStats implements IGraphStats, MetricsSupport {
 
         Set<String> modes = new TreeSet<>();
         Map<String, Integer> modeCountBucket = new HashMap<>();
-        hourModeFrequency.keySet().stream().filter(hour -> hourModeFrequency.get(hour)!=null).forEach(hour -> hourModeFrequency.get(hour).keySet().
+        hourModeFrequency.keySet().stream().filter(hour -> hourModeFrequency.get(hour) != null).forEach(hour -> hourModeFrequency.get(hour).keySet().
                 forEach(mode -> {
                     Integer count = modeCountBucket.get(mode);
                     Map<String, Integer> modeFrequency = hourModeFrequency.get(hour);

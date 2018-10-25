@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.IterationStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
@@ -52,7 +53,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author asif and rwaraich.
  */
-public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
+public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStats {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -183,6 +184,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
+            assert eventsWriterXML != null;
             eventsWriterXML.closeFile();
         }
 
@@ -339,6 +341,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+        return null;
     }
 }
 

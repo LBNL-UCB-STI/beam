@@ -24,13 +24,13 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailWaitingStats implements IGraphStats {
+public class RideHailWaitingStats implements BeamStats {
 
-    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
+    public RideHailWaitingStats(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 
-    public static class WaitingStatsComputation implements IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
+    public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
 
         @Override
         public Tuple<Map<Integer, Map<Double, Integer>>, double[][]> compute(Tuple<List<Double>, Map<Integer, List<Double>>> stat) {
@@ -123,11 +123,11 @@ public class RideHailWaitingStats implements IGraphStats {
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
-    private final IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
+    private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
     private static int numberOfTimeBins = 30;
 
-    public RideHailWaitingStats(IStatComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+    public RideHailWaitingStats(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                 BeamConfig beamConfig){
         this.statComputation = statComputation;
 
@@ -236,11 +236,6 @@ public class RideHailWaitingStats implements IGraphStats {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-        throw new IOException("Not implemented");
     }
 
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
