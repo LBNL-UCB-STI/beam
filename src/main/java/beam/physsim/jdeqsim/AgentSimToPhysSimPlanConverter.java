@@ -40,10 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -345,7 +342,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        return null;
+        Map<String, Double> stats = new HashMap<>();
+        stats.put("AvgLinkSpeed", 80.0);
+        stats.put("CarTotalTravelTime", 360.0);
+        return stats;
     }
 }
 
