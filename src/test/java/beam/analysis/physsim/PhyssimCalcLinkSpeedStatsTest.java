@@ -16,10 +16,9 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class PhyssimCalcLinkSpeedStatsTest {
 
@@ -62,7 +61,7 @@ public class PhyssimCalcLinkSpeedStatsTest {
     public void shouldNotContainAverageRelativeSpeedPercentageOfHundredForAllBins() {
         double[] actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentagesOfAllBins(travelTimeCalculator);
         long nonHundredPercentages = Arrays.stream(actualResult).filter(f -> f != 100.0).count();
-        assertNotEquals(nonHundredPercentages,0);
+        assertTrue(nonHundredPercentages != 0);
     }
 
     @Test

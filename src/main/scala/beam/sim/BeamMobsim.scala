@@ -68,8 +68,7 @@ class BeamMobsim @Inject()(
 
   var rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
-  val rideHailHouseholds: mutable.Set[Id[Household]] =
-    mutable.Set[Id[Household]]()
+  val rideHailHouseholds: mutable.Set[Id[Household]] = mutable.Set()
 
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
@@ -165,7 +164,7 @@ class BeamMobsim @Inject()(
 
         beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
-            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoule * 0.8) {
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
               log.error(
                 "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
               )
@@ -300,7 +299,7 @@ class BeamMobsim @Inject()(
             val rideHailAgentPersonId: Id[RideHailAgent] =
               Id.create(rideHailName, classOf[RideHailAgent])
 
-            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoule)
+            val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
               .map(new Powertrain(_))
               .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
@@ -345,11 +344,11 @@ class BeamMobsim @Inject()(
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv")
+              .getIterationFilename(beamServices.iterationNumber, "rideHail_initialLocation.csv")
           )
           rideHailinitialLocationSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.png")
+              .getIterationFilename(beamServices.iterationNumber, "rideHail_initialLocation.png")
           )
         }
         log.info("Initialized {} people", beamServices.personRefs.size)

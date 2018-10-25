@@ -17,7 +17,7 @@ case class HouseholdMembershipAllocator(
 
   val memberships: Map[Id[Person], Household] = allocateMembership()
   private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
-    TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
+    TrieMap()
 
   def lookupMemberRank(id: Id[Person]): Option[Int] =
     memberships(id).lookupMemberRank(id)
@@ -29,7 +29,7 @@ case class HouseholdMembershipAllocator(
       .getOrElseUpdate(
         household.getId, {
           val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
-            mutable.Map[Id[Person], Id[Vehicle]]()
+            mutable.Map()
 
           val householdVehicles =
             JavaConverters

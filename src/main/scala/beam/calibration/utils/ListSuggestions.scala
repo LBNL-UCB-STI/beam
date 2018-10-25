@@ -2,8 +2,8 @@ package beam.calibration.utils
 
 import beam.utils.DebugLib
 import com.sigopt.Sigopt
-import com.sigopt.exception.APIConnectionError
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
+
 import scala.collection.JavaConverters._
 
 object ListSuggestions extends App {
@@ -14,7 +14,7 @@ object ListSuggestions extends App {
 
   val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 
-  val data = suggestions.getData().asScala
+  val data = suggestions.getData.asScala
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 

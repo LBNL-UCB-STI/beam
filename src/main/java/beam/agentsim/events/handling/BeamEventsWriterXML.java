@@ -1,6 +1,5 @@
 package beam.agentsim.events.handling;
 
-import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
@@ -52,23 +51,21 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase {
 
     @Override
     protected void writeEvent(final Event event) {
-        if (!(beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            try {
-                this.out.append("\t<event ");
-                Set<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
-                for (String attrKey : attrKeys) {
-                    this.out.append(attrKey);
-                    this.out.append("=\"");
-                    this.out.append(encodeAttributeValue(eventAttributes.get(attrKey)));
-                    this.out.append("\" ");
-                }
-
-                this.out.append(" />\n");
-//			this.out.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
+        Map<String, String> eventAttributes = event.getAttributes();
+        try {
+            this.out.append("\t<event ");
+            Set<String> attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes);
+            for (String attrKey : attrKeys) {
+                this.out.append(attrKey);
+                this.out.append("=\"");
+                this.out.append(encodeAttributeValue(eventAttributes.get(attrKey)));
+                this.out.append("\" ");
             }
+
+            this.out.append(" />\n");
+//			this.out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -106,7 +103,7 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase {
             }
         }
         if (encode) {
-            StringBuffer bf = new StringBuffer();
+            StringBuilder bf = new StringBuilder();
             for (int pos = 0; pos < len; pos++) {
                 char ch = attributeValue.charAt(pos);
                 if (ch == '<') {

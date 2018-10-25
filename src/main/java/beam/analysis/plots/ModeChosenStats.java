@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.io.BufferedWriter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,6 +29,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "mode_choice";
+
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
     private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -275,7 +275,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     // The data is converted into average and compared with the data of benchmark.
     private CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
-        DefaultCategoryDataset result = new DefaultCategoryDataset();
+      DefaultCategoryDataset result = new DefaultCategoryDataset();
         List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
         double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
         for (int i = 0; i < modesChosenList.size(); i++) {
@@ -289,9 +289,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             }
         }
         double[] sumOfColumns = new double[max];
-        for (int r = 0; r < data.length; r++) {
-            for (int c = 0; c < data[r].length; c++) {
-                sumOfColumns[c] += data[r][c];
+        for (double[] aData : data) {
+            for (int c = 0; c < aData.length; c++) {
+                sumOfColumns[c] += aData[c];
             }
         }
 
@@ -424,9 +424,7 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private Map<String, Double> benchmarkCsvLoader(String path) {
         Map<String, Double> benchmarkData = new HashMap<>();
 
-        FileReader fileReader = null;
-        try {
-            fileReader = new FileReader(path);
+        try (FileReader fileReader = new FileReader(path)) {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
             String line1 = bufferedReader.readLine();
             String line2 = bufferedReader.readLine();
@@ -437,13 +435,6 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             }
         } catch (Exception ex) {
             log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
-        } finally {
-            if (null != fileReader) {
-                try {
-                    fileReader.close();
-                } catch (Exception ex) {
-                }
-            }
         }
         return benchmarkData;
     }
