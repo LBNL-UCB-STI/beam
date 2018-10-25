@@ -9,23 +9,41 @@ import org.matsim.core.utils.io.UncheckedIOException
 
 import scala.collection.JavaConverters._
 
+/**
+  * @author Bhavya Latha Bandaru.
+  * Helper class to write BEAM events to an external file.
+  * @param out writer instance to write to external file
+  * @param beamEventLogger beam events logger
+  * @param beamServices beam services
+  * @param eventTypeToLog type of event to log
+  */
 class BeamEventsWriterXML1(var out: BufferedWriter,
                            var beamEventLogger: BeamEventsLogger,
                            var beamServices: BeamServices,
                            var eventTypeToLog: Class[_]) extends BeamEventsWriterBase1 {
 
+  /**
+    * Writes the events to the xml file.
+    * @param event event to written
+    */
   override protected def writeEvent(event: Event): Unit = {
+    //get all the event attributes
     val eventAttributes: util.Map[String, String] = event.getAttributes
+    //for each attribute, encode the values for special characters (if any) and append them to the event xml tag.
     try
       val attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes)
       val keyValues = attrKeys.asScala map { key =>
         val encodedString = encodeAttributeValue(eventAttributes.getOrDefault(key,""))
         s"$key=\"$encodedString\"\t"
       }
+      //write the event tag to the xml file
       val eventElem = s"<event ${keyValues.mkString(" ")} />\n"
       this.out.append(eventElem)
   }
 
+  /**
+    * Adds the xml header to the file.
+    */
   override protected def writeHeader(): Unit = {
     val header =
       """<?xml version="1.0" encoding="utf-8"?>
@@ -40,6 +58,9 @@ class BeamEventsWriterXML1(var out: BufferedWriter,
     }
   }
 
+  /**
+    * Appends the footer and closes the file stream.
+    */
   override def closeFile(): Unit = {
     try {
       this.out.write("</events>")
@@ -50,7 +71,13 @@ class BeamEventsWriterXML1(var out: BufferedWriter,
     }
   }
 
-  def encodeAttributeValue(attributeValue: String): String = {
+  /**
+    * Encodes any special character encountered in the xml attribute value.
+    * @param attributeValue xml attribute value
+    * @return encoded attribute value
+    */
+  private def encodeAttributeValue(attributeValue: String): String = {
+    // Replace special characters(if any) with encoded strings
     attributeValue.find(List('<','>','\"','&').contains(_)) match {
       case Some(_) =>
         attributeValue
