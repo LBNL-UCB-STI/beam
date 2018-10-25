@@ -532,18 +532,16 @@ object BeamConfig {
     )
     object Outputs {
       case class Events(
-        defaultWritingLevel   : java.lang.String,
-        explodeIntoFiles      : scala.Boolean,
-        fileOutputFormats     : java.lang.String,
-        overrideWritingLevels : java.lang.String
+        eventsToWrite     : java.lang.String,
+        explodeIntoFiles  : scala.Boolean,
+        fileOutputFormats : java.lang.String
       )
       object Events {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs.Events = {
           BeamConfig.Beam.Outputs.Events(
-            defaultWritingLevel   = if(c.hasPathOrNull("defaultWritingLevel")) c.getString("defaultWritingLevel") else "OFF",
-            explodeIntoFiles      = c.hasPathOrNull("explodeIntoFiles") && c.getBoolean("explodeIntoFiles"),
-            fileOutputFormats     = if(c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv",
-            overrideWritingLevels = if(c.hasPathOrNull("overrideWritingLevels")) c.getString("overrideWritingLevels") else "beam.agentsim.events.ModeChoiceEvent:VERBOSE, beam.agentsim.events.PathTraversalEvent:VERBOSE"
+            eventsToWrite     = if(c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite") else "ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelEvent,ParkEvent,LeavingParkingEvent",
+            explodeIntoFiles  = c.hasPathOrNull("explodeIntoFiles") && c.getBoolean("explodeIntoFiles"),
+            fileOutputFormats = if(c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv"
           )
         }
       }
