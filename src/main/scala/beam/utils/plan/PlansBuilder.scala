@@ -3,13 +3,12 @@ package beam.utils.plan
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
-import beam.utils.gis.Plans2Shapefile
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
 import beam.utils.scripts.PopulationWriterCSV
 import org.matsim.api.core.v01.network.Node
-import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
@@ -24,6 +23,7 @@ import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlW
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
 import scala.collection.{JavaConverters, immutable}
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 object PlansBuilder {
@@ -192,14 +192,12 @@ object PlansBuilder {
         val newPlan = PopulationUtils.createPlan(newPerson)
         newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(pop(idx % pop.size).getPlans.get(0), newPlan)
+        val homeActs = newPlan.getPlanElements.asScala
+          .collect{ case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
         homePlan match {
           case None =>
             homePlan = Some(newPlan)
-            val homeActs = JavaConverters.collectionAsScalaIterable(
-              Plans2Shapefile
-                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
-            )
             val homeCoord = homeActs.head.getCoord
             newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
             newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
@@ -208,10 +206,6 @@ object PlansBuilder {
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
-            val homeActs = JavaConverters.collectionAsScalaIterable(
-              Plans2Shapefile
-                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
-            )
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
