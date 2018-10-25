@@ -17,7 +17,7 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
 
-class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
+class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
 
   private lazy val srcPath = beamConfig.beam.warmStart.path
 
@@ -61,7 +61,6 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           val file = loadPopulation(parentRunPath, statsPath)
-
           matsimConfig.plans().setInputFile(file)
           logger.info("Population successfully warm started from {}", statsPath)
         } else {
@@ -185,12 +184,12 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize = beamConfig.beam.agentsim.timeBinSize
 
-    new LinkTravelTimeContainer(statsFile, binSize)
+    new LinkTravelTimeContainer(statsFile, binSize, maxHour)
   }
 
 }
 
 object BeamWarmStart {
 
-  def apply(beamConfig: BeamConfig): BeamWarmStart = new BeamWarmStart(beamConfig)
+  def apply(beamConfig: BeamConfig, maxHour: Int): BeamWarmStart = new BeamWarmStart(beamConfig, maxHour)
 }

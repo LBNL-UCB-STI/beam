@@ -3,9 +3,8 @@ package beam.analysis.physsim
 import java.io.{BufferedInputStream, File, FileInputStream}
 import java.util.zip.GZIPInputStream
 
-import beam.utils.BeamCalcLinkStats
 import beam.utils.TestConfigUtils.testOutputDir
-import org.matsim.analysis.VolumesAnalyzer
+import beam.utils.{BeamCalcLinkStats, VolumesAnalyzerFixed}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.{Controler, OutputDirectoryHierarchy}
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
@@ -27,7 +26,7 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 
-  private val TFHOURS = 25
+  private val TFHOURS = 31
   private val TYPESTATS = 3
 
   private var fileCsvPath: String = ""
@@ -53,9 +52,9 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
     val events = EventsUtils.createEventsManager()
     events.addHandler(travelTimeCalculator)
 
-    beamCalcLinkStats = new BeamCalcLinkStats(network)
+    beamCalcLinkStats = new BeamCalcLinkStats(network, ttccg)
     beamCalcLinkStats.reset()
-    val volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network)
+    val volumes = new VolumesAnalyzerFixed(3600, ttccg.getMaxTime() - 1, network)
     events.addHandler(volumes)
 
     val reader = new MatsimEventsReader(events)
@@ -70,13 +69,13 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
 
   "BeamCalcLinksStats" must {
 
-    "Output file contain all links * 25 Hours * 3 StatType" in {
+    "Output file contain all links * 31 Hours * 3 StatType" in {
       val expetedResult = countLinksFromFileXML(NETWORK_FILE_PATH) * TFHOURS * TYPESTATS
       val actualResult = gzToBufferedSource(fileCsvPath).getLines().size
       expetedResult shouldBe (actualResult - 1)
     }
 
-    "Each link contains 75 records" in {
+    "Each link contains 93 records" in {
       val expetedResult = TFHOURS * TYPESTATS
       val map = mapGroupRecordForLinks(0, fileCsvPath)
       map.foreach {

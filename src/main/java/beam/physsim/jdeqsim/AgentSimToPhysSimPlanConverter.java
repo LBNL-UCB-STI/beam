@@ -9,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
+import beam.sim.BeamServices;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -80,26 +81,25 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
-                                          GeoUtils geoUtils,
-                                          ActorRef router,
-                                          BeamConfig beamConfig) {
+                                          BeamServices beamServices) {
 
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
-        this.router = router;
-        this.beamConfig = beamConfig;
+        this.router = beamServices.beamRouter();
+        this.beamConfig = beamServices.beamConfig();
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
         if (agentSimPhysSimInterfaceDebuggerEnabled) {
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
+            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(beamServices.geo(), transportNetwork);
         }
 
         preparePhysSimForNewIteration();
 
-        linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
+                beamServices.travelTimeCalculatorConfigGroup());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }
@@ -140,7 +140,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
