@@ -359,7 +359,7 @@ class BeamMobsim @Inject()(
 
         if (beamServices.iterationNumber == 0) {
           val warmStart = BeamWarmStart(beamServices.beamConfig)
-          warmStart.warmStartTravelTime(beamServices.beamRouter)
+          warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
         }
 
         log.info("Transit schedule has been initialized")

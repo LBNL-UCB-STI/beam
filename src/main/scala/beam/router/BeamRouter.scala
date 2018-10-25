@@ -24,7 +24,6 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.Subscribe
-import beam.utils.TravelTimeDataWithoutLink
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -140,7 +139,7 @@ class BeamRouter(
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.info("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -418,7 +417,7 @@ object BeamRouter {
   case object GetMatSimNetwork
 
   case class TryToSerialize(obj: Object)
-  case class UpdateTravelTimeRemote(linkIdToTravelTimeData: java.util.Map[String, TravelTimeDataWithoutLink])
+  case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
 
   /**
     * It is use to represent a request object

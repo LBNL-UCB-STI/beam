@@ -4,14 +4,16 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 
 import akka.actor.ActorRef
-import beam.router.BeamRouter.UpdateTravelTimeLocal
+import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.downloadFile
+import beam.utils.TravelTimeCalculatorHelper
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.router.util.TravelTime
 
@@ -31,16 +33,16 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
   /**
     * initialize travel times.
     */
-  def warmStartTravelTime(beamRouter: ActorRef): Unit = {
+  def warmStartTravelTime(beamRouter: ActorRef, scenario: Scenario): Unit = {
     if (!isWarmMode) return
     getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
-          // TODO Need to send warm start to remote workers!
-//          val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeDataArray(travelTime)
           beamRouter ! UpdateTravelTimeLocal(travelTime)
-//          beamRouter ! UpdateTravelTimeRemote(map)
+          // TODO Fix maxHour once https://github.com/LBNL-UCB-STI/beam/pull/813 is merged!
+          val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(scenario.getNetwork.getLinks.values(), travelTime, 30)
+          beamRouter ! UpdateTravelTimeRemote(map)
           logger.info("Travel times successfully warm started from {}.", statsPath)
         } else {
           logger.warn(

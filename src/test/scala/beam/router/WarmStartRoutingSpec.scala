@@ -17,10 +17,10 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
-import beam.utils.{DateUtils, FileUtils}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{DateUtils, FileUtils}
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerImpl
@@ -59,6 +59,7 @@ class WarmStartRoutingSpec
   var services: BeamServices = _
   var config: Config = _
   var iterationConfig: Config = _
+  var scenario: Scenario = _
 
   override def beforeAll: Unit = {
     config = baseConfig
@@ -68,7 +69,7 @@ class WarmStartRoutingSpec
 
     // Have to mock a lot of things to get the router going
     services = mock[BeamServices]
-    var scenario: Scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.dates).thenReturn(
@@ -130,6 +131,7 @@ class WarmStartRoutingSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
@@ -169,7 +171,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(services.beamConfig).warmStartTravelTime(services.beamRouter, scenario)
 
       router ! RoutingRequest(
         origin,
@@ -197,7 +199,7 @@ class WarmStartRoutingSpec
 
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time")))
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(services.beamRouter, scenario)
 
       router ! RoutingRequest(
         origin,
@@ -218,7 +220,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 110)
 
-      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter, scenario)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -243,7 +245,7 @@ class WarmStartRoutingSpec
 
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time")))
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(services.beamRouter, scenario)
 
       router ! RoutingRequest(
         origin,
@@ -263,7 +265,7 @@ class WarmStartRoutingSpec
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
 
-      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(iterationConfig)).warmStartTravelTime(services.beamRouter, scenario)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -312,7 +314,7 @@ class WarmStartRoutingSpec
 
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time")))
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(services.beamRouter, scenario)
 
       router ! RoutingRequest(
         origin,

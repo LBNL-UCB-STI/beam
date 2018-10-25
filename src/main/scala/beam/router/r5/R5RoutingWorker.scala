@@ -249,7 +249,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       cache.invalidateAll()
       askForMoreWork()
     case UpdateTravelTimeRemote(map) =>
-      val travelTimeCalc = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(network, scenario, map)
+      val travelTimeCalc = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, map)
       maybeTravelTime = Some(travelTimeCalc)
       log.info(s"{} UpdateTravelTimeRemote. Set new travel time", getNameAndHashCode)
       cache.invalidateAll()

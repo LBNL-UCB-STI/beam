@@ -1,92 +1,74 @@
 package beam.utils;
 
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
-import org.matsim.core.trafficmonitoring.TravelTimeData;
-import org.matsim.core.trafficmonitoring.TravelTimeDataArray;
+import org.matsim.vehicles.Vehicle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TravelTimeCalculatorHelper  {
+public class TravelTimeCalculatorHelper {
+    public static class TravelTimePerHour implements TravelTime {
+        private Logger log = LoggerFactory.getLogger(TravelTimePerHour.class);
+
+        private final Map<Id<Link>, double[]> _linkIdToTravelTimeArray;
+        private final int _timeBinSizeInSeconds;
+
+        public TravelTimePerHour(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
+            _timeBinSizeInSeconds = timeBinSizeInSeconds;
+            _linkIdToTravelTimeArray = new HashMap<>();
+            linkIdToTravelTimeData.forEach((key, value) -> {
+                Id<Link> linkId = Id.createLinkId(key);
+                _linkIdToTravelTimeArray.put(linkId, value);
+            });
+        }
+        @Override
+        public double getLinkTravelTime(Link link, double time, Person person, Vehicle vehicle) {
+            Id<Link> linkId = link.getId();
+            double[] timePerHour = _linkIdToTravelTimeArray.get(linkId);
+            if (null == timePerHour){
+                log.warn("Can't find travel times for link '{}'", linkId);
+                return link.getFreespeed();
+            }
+            int idx = getOffset(time);
+            if (idx >= timePerHour.length) {
+                log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, time: {},  _timeBinSizeInSeconds: '{}'",
+                        linkId, idx, time, _timeBinSizeInSeconds);
+                return link.getFreespeed();
+            }
+            return timePerHour[idx];
+        }
+        private int getOffset(double time){
+            return (int)Math.round(Math.floor(time / _timeBinSizeInSeconds));
+        }
+    }
     private static Logger log = LoggerFactory.getLogger(TravelTimeCalculatorHelper.class);
 
-    public static Map<String, TravelTimeDataWithoutLink> GetLinkIdToTravelTimeDataArray(TravelTimeCalculator travelTimeCalculator) {
+    public static Map<String, double[]> GetLinkIdToTravelTimeArray(Collection<? extends Link> links, TravelTime travelTime, int maxHour) {
         long start = System.currentTimeMillis();
-        Map<String, TravelTimeDataWithoutLink> result = new HashMap<>();
-        try {
-            Map<Id<Link>, Object> linkData = (Map<Id<Link>, Object>) FieldUtils.readField(travelTimeCalculator, "linkData", true);
-            linkData.forEach((linkId, dc) -> {
-                try {
-                    TravelTimeDataArray ttda = (TravelTimeDataArray) FieldUtils.readField(dc, "ttData", true);
-                    double[] timeSum = (double[])FieldUtils.readField(ttda, "timeSum", true);
-                    int[] timeCnt = (int[])FieldUtils.readField(ttda, "timeCnt", true);
-                    double[] travelTimes = (double[])FieldUtils.readField(ttda, "travelTimes", true);
-                    TravelTimeDataWithoutLink my = new TravelTimeDataWithoutLink(timeSum, timeCnt, travelTimes);
-                    result.put(linkId.toString(), my);
-                }
-                catch (Exception ex) {
-                    log.error("Can't fill Map<String, MyTravelTimeDataArray>", ex);
-                }
-            });
-            log.info("linkData key size: {}, value size: {}", linkData.size(), linkData.values().size());
-        }
-        catch (Exception ex) {
-            log.error("Can't read private field", ex);
+        Map<String, double[]> result = new HashMap<>();
+        for (Link link : links) {
+            Id<Link> linkId = link.getId();
+            double[] times = new double[maxHour];
+            for (int hour = 0; hour < maxHour; hour++) {
+                int hourInSeconds = hour * 3600;
+                times[hour] = travelTime.getLinkTravelTime(link, hourInSeconds, null, null);
+            }
+            result.put(linkId.toString(), times);
+
         }
         long end = System.currentTimeMillis();
         long diff = end - start;
-        log.info("GetLinkIdToTravelTimeDataArray executed in {} ms", diff);
-
+        log.info("GetLinkIdToTravelTimeArray for {} links with maxHour = {} executed in {} ms", links.size(), maxHour, diff);
         return result;
     }
 
-    public static TravelTime CreateTravelTimeCalculator(Network network, Scenario scenario, Map<String, TravelTimeDataWithoutLink> linkIdToTravelTimeData){
-        TravelTimeCalculator tc = new TravelTimeCalculator(network, scenario.getConfig().travelTimeCalculator());
-        Map<Id<Link>, Object> tempLinkData = null;
-        try {
-            tempLinkData = (Map<Id<Link>, Object>) FieldUtils.readField(tc, "linkData", true);
-        }
-        catch (Exception ex) {
-            log.error("Can't read `TravelTimeCalculator.linkData`", ex);
-            throw new RuntimeException("Can't read `TravelTimeCalculator.linkData`", ex);
-        }
-        final Map<Id<Link>, Object> linkData = tempLinkData;
-        linkData.clear();
-
-        linkIdToTravelTimeData.forEach((key, value) -> {
-            Id<Link> linkId = Id.createLinkId(key);
-            Object dc = null;
-            try {
-                TravelTimeDataArray tta = CreateFrom(value, network.getLinks().get(linkId));
-                Class<?> clazz = Class.forName("org.matsim.core.trafficmonitoring.TravelTimeCalculator$DataContainer");
-                Constructor<?> ctor = clazz.getDeclaredConstructor(TravelTimeData.class);
-                ctor.setAccessible(true);
-                dc = ctor.newInstance(tta);
-            }
-            catch (Exception ex) {
-                throw new RuntimeException("Can't create `DataContainer`", ex);
-            }
-            linkData.put(linkId, dc);
-        });
-        log.info("TravelTimeCalculator is created");
-        return tc.getLinkTravelTimes();
-    }
-
-    private static TravelTimeDataArray CreateFrom(TravelTimeDataWithoutLink value, Link link) throws IllegalAccessException{
-        TravelTimeDataArray tta = new TravelTimeDataArray(null,value.timeCnt.length);
-        FieldUtils.writeField(tta, "timeSum", value.timeSum, true);
-        FieldUtils.writeField(tta, "timeCnt", value.timeCnt, true);
-        FieldUtils.writeField(tta, "travelTimes", value.travelTimes, true);
-        FieldUtils.writeField(tta, "link", link, true);
-        return tta;
+    public static TravelTime CreateTravelTimeCalculator(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
+        return new TravelTimePerHour(timeBinSizeInSeconds, linkIdToTravelTimeData);
     }
 }
