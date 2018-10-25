@@ -216,7 +216,7 @@ public class PersonTravelTimeStats implements IGraphStats {
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        String fileName = "average_travel_times_" + mode + ".png";
+        String fileName = "averageTravelTimes_" + mode + ".png";
         String graphTitle = "Average Travel Time [" + mode + "]";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);

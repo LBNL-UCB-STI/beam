@@ -1,7 +1,6 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
@@ -114,8 +113,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public boolean isValidCase(String graphName, int numPassengers) {
-        if(numPassengers <= maxPassengers) return true;
-        return false;
+        return numPassengers <= maxPassengers;
     }
 }
 

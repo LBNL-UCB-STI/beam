@@ -59,17 +59,13 @@ class BoundsCalculator() {
 // frame is good for text lables as they can be outside of the area otherwise
 class SpatialPlot(width: Int, height: Int, frame: Int) {
 
-  val pointsToPlot: ListBuffer[PointToPlot] =
-    collection.mutable.ListBuffer[PointToPlot]()
+  val pointsToPlot: ListBuffer[PointToPlot] = ListBuffer()
 
-  val linesToPlot: ListBuffer[LineToPlot] =
-    collection.mutable.ListBuffer[LineToPlot]()
+  val linesToPlot: ListBuffer[LineToPlot] = ListBuffer()
 
-  val stringsToPlot: ListBuffer[StringToPlot] =
-    collection.mutable.ListBuffer[StringToPlot]()
+  val stringsToPlot: ListBuffer[StringToPlot] = ListBuffer()
 
-  val rideHailAgentInitCoordBuffer: ListBuffer[RideHailAgentInitCoord] =
-    collection.mutable.ListBuffer[RideHailAgentInitCoord]()
+  val rideHailAgentInitCoordBuffer: ListBuffer[RideHailAgentInitCoord] = ListBuffer()
 
   val bufferedImage =
     new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
@@ -80,7 +76,7 @@ class SpatialPlot(width: Int, height: Int, frame: Int) {
     this.boundsCalculator = boundsCalculator
   }
 
-  def getBoundsCalculator(): BoundsCalculator = {
+  def getBoundsCalculator: BoundsCalculator = {
     boundsCalculator
   }
 
@@ -253,7 +249,7 @@ object SpatialPlot extends App {
 
   val spatialPlot = new SpatialPlot(1000, 1000, 20)
 
-  for (i <- 1 until 100) {
+  (1 until 100).foreach { _ =>
     spatialPlot.addPoint(
       PointToPlot(new Coord(Random.nextDouble(), Random.nextDouble()), Color.blue, 5)
     )

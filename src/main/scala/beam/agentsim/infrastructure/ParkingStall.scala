@@ -25,7 +25,10 @@ object ParkingStall {
     reservedFor: ReservedParkingType
   )
 
-  case class StallValues(numStalls: Int, feeInCents: Int)
+  case class StallValues(private[infrastructure] var _numStalls: Int, private[infrastructure] var _feeInCents: Int) {
+    def numStalls: Int = _numStalls
+    def feeInCents: Int = _feeInCents
+  }
 
   sealed trait ParkingType
   case object Residential extends ParkingType

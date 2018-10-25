@@ -14,7 +14,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
-import beam.utils.plansampling.AvailableModeUtils.{isModeAvailableForPerson, _}
+import beam.utils.plan.sampling.AvailableModeUtils.{isModeAvailableForPerson, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -94,7 +94,7 @@ object HouseholdActor {
     modalityStyle: Option[String],
     isMale: Boolean,
     availableModes: Seq[BeamMode],
-    valueOfTime: BigDecimal
+    valueOfTime: Double
   ) {
     lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   }
@@ -144,7 +144,7 @@ object HouseholdActor {
       val availableModes: Seq[BeamMode] = Option(
         personAttributes.getAttribute(
           person.getId.toString,
-          beam.utils.plansampling.PlansSampler.availableModeString
+          beam.utils.plan.sampling.PlansSampler.availableModeString
         )
       ).fold(BeamMode.availableModes)(
         attr => availableModeParser(attr.toString)
@@ -201,8 +201,7 @@ object HouseholdActor {
 
     }
 
-    override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
-      collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
+    override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
     resources ++ vehicles
 
     /**
@@ -214,8 +213,7 @@ object HouseholdActor {
     /**
       * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
       */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] =
-      Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
+    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
 
     /**
       * Current [[Vehicle]] assignments.
@@ -225,20 +223,17 @@ object HouseholdActor {
     /**
       * These [[Vehicle]]s cannot be assigned to other agents.
       */
-    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] =
-      mutable.Map[Id[Person], Id[Vehicle]]()
+    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map()
 
     /**
       * Vehicles that are currently checked out to traveling agents.
       */
-    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] =
-      mutable.Map[Id[Vehicle], Id[Person]]()
+    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map()
 
     /**
       * Mapping of [[Vehicle]] to [[StreetVehicle]]
       */
-    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] =
-      mutable.Map[Id[BeamVehicle], StreetVehicle]()
+    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] = mutable.Map()
 
     // Initial vehicle assignments.
     initializeHouseholdVehicles()
@@ -440,7 +435,7 @@ object HouseholdActor {
       person: Person,
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
-      valueOfTime: BigDecimal
+      valueOfTime: Double
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -461,7 +456,7 @@ object HouseholdActor {
       household: Household,
       vehicles: Map[Id[BeamVehicle], BeamVehicle],
       availableModes: Seq[BeamMode],
-      valueOfTime: BigDecimal
+      valueOfTime: Double
     ): AttributesOfIndividual = {
       val modalityStyle =
         Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -490,10 +485,10 @@ object HouseholdActor {
         household.getMemberIds.size(),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("car")),
+          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("car")),
         household.getVehicleIds.asScala
           .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleCategory.toLowerCase.contains("bike"))
+          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("bike"))
       )
     }
   }

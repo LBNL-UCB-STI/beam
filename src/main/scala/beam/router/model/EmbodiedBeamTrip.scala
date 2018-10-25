@@ -8,7 +8,7 @@ import org.matsim.vehicles.Vehicle
 case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   @transient
-  lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
+  lazy val costEstimate: Double = legs.map(_.cost).sum /// Generalize or remove
 
   @transient
   lazy val tripClassifier: BeamMode = determineTripMode(legs)
@@ -62,11 +62,9 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   }
 
   override def toString: String = {
-    s"EmbodiedBeamTrip($tripClassifier starts ${
-      legs.headOption
-        .map(head => head.beamLeg.startTime)
-        .getOrElse("empty")
-    } legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    s"EmbodiedBeamTrip($tripClassifier starts ${legs.headOption
+      .map(head => head.beamLeg.startTime)
+      .getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
   }
 }
 

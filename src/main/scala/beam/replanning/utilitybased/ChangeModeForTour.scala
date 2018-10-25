@@ -11,7 +11,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import beam.utils.plansampling.AvailableModeUtils.availableModeParser
+import beam.utils.plan.sampling.AvailableModeUtils.availableModeParser
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -50,8 +50,8 @@ class ChangeModeForTour(
   private val rideHailConfig =
     beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
+  val DefaultRideHailCostPerMile: Double = rideHailConfig.defaultCostPerMile
+  val DefaultRideHailCostPerMinute: Double = rideHailConfig.defaultCostPerMinute
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
@@ -76,13 +76,8 @@ class ChangeModeForTour(
           val timeDist =
             getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
           if (alt.isTransit) {
-            modeChoiceCalculator.utilityOf(
-              if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
-              else WALK_TRANSIT,
-              timeDist._1,
-              timeDist._2,
-              numTransfers = rng.nextInt(4) + 1
-            )
+            modeChoiceCalculator.utilityOf(if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
+                          else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
           } else {
             modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
           }
@@ -229,7 +224,7 @@ class ChangeModeForTour(
     val availableModes: Seq[BeamMode] = Option(
       personAttributes.getAttribute(
         person.getId.toString,
-        beam.utils.plansampling.PlansSampler.availableModeString
+        beam.utils.plan.sampling.PlansSampler.availableModeString
       )
     ).fold(BeamMode.availableModes)(
       attr => availableModeParser(attr.toString)

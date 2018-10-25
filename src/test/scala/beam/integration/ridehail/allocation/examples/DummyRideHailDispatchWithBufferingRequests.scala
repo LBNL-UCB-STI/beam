@@ -6,7 +6,8 @@ import beam.router.model.RoutingModel.DiscreteTime
 import com.typesafe.scalalogging.LazyLogging
 
 class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) with LazyLogging {
+    extends RideHailResourceAllocationManager(rideHailManager)
+    with LazyLogging {
 
   val enableDummyRidehailReplacement = true
 
@@ -56,7 +57,10 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
             )
 
             logger.debug(
-              " new vehicle assigned:{}, tick: {}, person: {}", rhl.vehicleId, tick, request.customer.personId
+              " new vehicle assigned:{}, tick: {}, person: {}",
+              rhl.vehicleId,
+              tick,
+              request.customer.personId
             )
 
             rideHailManager.removeDummyRequest(request)
