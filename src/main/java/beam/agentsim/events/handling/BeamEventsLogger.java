@@ -104,66 +104,69 @@ class BeamEventsLogger {
     private void overrideDefaultLoggerSetup() {
         Class<?> eventClass = null;
         // Generate the required event class reference based on the class name
-        for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite()
-                .split(",")) {
-            switch (className) {
-                case "ActivityStartEvent":
-                    eventClass = ActivityStartEvent.class ;
-                    break;
-                case "ActivityEndEvent":
-                    eventClass = ActivityEndEvent.class ;
-                    break;
-                case "LeavingParkingEvent":
-                    eventClass = LeavingParkingEvent.class ;
-                    break;
-                case "LinkEnterEvent":
-                    eventClass = LinkEnterEvent.class ;
-                    break;
-                case "LinkLeaveEvent":
-                    eventClass = LinkLeaveEvent.class ;
-                    break;
-                case "ModeChoiceEvent":
-                    eventClass = ModeChoiceEvent.class ;
-                    break;
-                case "ParkEvent":
-                    eventClass = ParkEvent.class ;
-                    break;
-                case "PathTraversalEvent":
-                    eventClass = PathTraversalEvent.class ;
-                    break;
-                case "PersonArrivalEvent":
-                    eventClass = PersonArrivalEvent.class ;
-                    break;
-                case "PersonDepartureEvent":
-                    eventClass = PersonDepartureEvent.class ;
-                    break;
-                case "PersonEntersVehicleEvent":
-                    eventClass = PersonEntersVehicleEvent.class ;
-                    break;
-                case "PersonLeavesVehicleEvent":
-                    eventClass = PersonLeavesVehicleEvent.class ;
-                    break;
-                case "RefuelEvent":
-                    eventClass = RefuelEvent.class ;
-                    break;
-                case "ReplanningEvent":
-                    eventClass = ReplanningEvent.class ;
-                    break;
-                case "ReserveRideHailEvent":
-                    eventClass = ReserveRideHailEvent.class ;
-                    break;
-                case "VehicleEntersTrafficEvent":
-                    eventClass = VehicleEntersTrafficEvent.class ;
-                    break;
-                case "VehicleLeavesTrafficEvent":
-                    eventClass = VehicleLeavesTrafficEvent.class ;
-                    break;
-                default:
-                    DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
+        String eventsToWrite = beamServices.beamConfig().beam().outputs().events().eventsToWrite();
+        if(!eventsToWrite.isEmpty()) {
+            for (String className : beamServices.beamConfig().beam().outputs().events().eventsToWrite()
+                    .split(",")) {
+                switch (className) {
+                    case "ActivityStartEvent":
+                        eventClass = ActivityStartEvent.class;
+                        break;
+                    case "ActivityEndEvent":
+                        eventClass = ActivityEndEvent.class;
+                        break;
+                    case "LeavingParkingEvent":
+                        eventClass = LeavingParkingEvent.class;
+                        break;
+                    case "LinkEnterEvent":
+                        eventClass = LinkEnterEvent.class;
+                        break;
+                    case "LinkLeaveEvent":
+                        eventClass = LinkLeaveEvent.class;
+                        break;
+                    case "ModeChoiceEvent":
+                        eventClass = ModeChoiceEvent.class;
+                        break;
+                    case "ParkEvent":
+                        eventClass = ParkEvent.class;
+                        break;
+                    case "PathTraversalEvent":
+                        eventClass = PathTraversalEvent.class;
+                        break;
+                    case "PersonArrivalEvent":
+                        eventClass = PersonArrivalEvent.class;
+                        break;
+                    case "PersonDepartureEvent":
+                        eventClass = PersonDepartureEvent.class;
+                        break;
+                    case "PersonEntersVehicleEvent":
+                        eventClass = PersonEntersVehicleEvent.class;
+                        break;
+                    case "PersonLeavesVehicleEvent":
+                        eventClass = PersonLeavesVehicleEvent.class;
+                        break;
+                    case "RefuelEvent":
+                        eventClass = RefuelEvent.class;
+                        break;
+                    case "ReplanningEvent":
+                        eventClass = ReplanningEvent.class;
+                        break;
+                    case "ReserveRideHailEvent":
+                        eventClass = ReserveRideHailEvent.class;
+                        break;
+                    case "VehicleEntersTrafficEvent":
+                        eventClass = VehicleEntersTrafficEvent.class;
+                        break;
+                    case "VehicleLeavesTrafficEvent":
+                        eventClass = VehicleLeavesTrafficEvent.class;
+                        break;
+                    default:
+                        DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
+                }
+                //add the matched event class to the list of events to log
+                if (eventClass != null)
+                    eventsToLog.add(eventClass);
             }
-            //add the matched event class to the list of events to log
-            if(eventClass != null)
-                eventsToLog.add(eventClass);
         }
     }
 }
