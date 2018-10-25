@@ -193,7 +193,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
         final XYSeriesCollection xyData = new XYSeriesCollection();
         final XYSeries enterSeries = new XYSeries("Enter", false, true);
         final XYSeries exitSeries = new XYSeries("Leave", false, true);
-        final XYSeries onRouteSeries = new XYSeries("on route", false, true);
+        final XYSeries onRouteSeries = new XYSeries("en route", false, true);
 
         Map<Integer, Integer> personEnter = personEnterCount.get(mode);
         if (personEnter != null && personEnter.size() > 0) {
