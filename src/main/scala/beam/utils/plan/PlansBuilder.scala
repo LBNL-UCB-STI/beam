@@ -192,8 +192,8 @@ object PlansBuilder {
         val newPlan = PopulationUtils.createPlan(newPerson)
         newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(pop(idx % pop.size).getPlans.get(0), newPlan)
-        val homeActs = newPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(pe => pe.asInstanceOf[Activity]).
-          filter(act => act.getType.equalsIgnoreCase("Home"))
+        val homeActs = newPlan.getPlanElements.asScala
+          .collect{ case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
         homePlan match {
           case None =>
