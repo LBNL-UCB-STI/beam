@@ -18,9 +18,11 @@ import scala.collection.JavaConverters._
   * @param eventTypeToLog type of event to log
   */
 class BeamEventsWriterXML1(var outFileName: String,
-                           var beamEventLogger: BeamEventsLogger,
-                           var beamServices: BeamServices,
-                           var eventTypeToLog: Class[_]) extends BeamEventsWriterBase(outFileName,beamEventLogger,beamServices,eventTypeToLog) {
+                           beamEventLogger: BeamEventsLogger,
+                           beamServices: BeamServices,
+                           eventTypeToLog: Class[_]) extends BeamEventsWriterBase(outFileName,beamEventLogger,beamServices,eventTypeToLog) {
+
+  writeHeaders()
 
   /**
     * Writes the events to the xml file.
@@ -30,15 +32,20 @@ class BeamEventsWriterXML1(var outFileName: String,
     //get all the event attributes
     val eventAttributes: util.Map[String, String] = event.getAttributes
     //for each attribute, encode the values for special characters (if any) and append them to the event xml tag.
-    try
+    try {
       val attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes)
       val keyValues = attrKeys.asScala map { key =>
-        val encodedString = encodeAttributeValue(eventAttributes.getOrDefault(key,""))
-        s"$key=\"$encodedString\"\t"
+        val encodedString = encodeAttributeValue(eventAttributes.getOrDefault(key, ""))
+        key + "=\"" + encodedString + "\" "
       }
       //write the event tag to the xml file
-      val eventElem = s"<event ${keyValues.mkString(" ")} />\n"
+      val eventElem = s"\t<event ${keyValues.mkString(" ")}/>\n"
       this.out.append(eventElem)
+    }
+    catch {
+      case e: Exception =>
+        throw e
+    }
   }
 
   /**
@@ -47,11 +54,11 @@ class BeamEventsWriterXML1(var outFileName: String,
   override protected def writeHeaders(): Unit = {
     val header =
       """<?xml version="1.0" encoding="utf-8"?>
-         <events version="1.0">
-      """.stripMargin
-    try
+<events version="1.0">""".stripMargin
+    try {
       this.out.write(header)
       this.out.write("\n")
+    }
     catch {
       case e: IOException =>
         throw new UncheckedIOException(e)
