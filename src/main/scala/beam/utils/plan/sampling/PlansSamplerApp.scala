@@ -2,7 +2,6 @@ package beam.utils.plan.sampling
 
 import java.util
 
-import beam.utils.gis.Plans2Shapefile
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -11,7 +10,7 @@ import enumeratum.EnumEntry._
 import enumeratum._
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
@@ -34,6 +33,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.{JavaConverters, immutable}
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 case class SynthHousehold(
@@ -488,14 +488,12 @@ object PlansSampler {
         val newPlan = PopulationUtils.createPlan(newPerson)
         newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(plan, newPlan)
+        val homeActs = newPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(pe => pe.asInstanceOf[Activity]).
+          filter(act => act.getType.equalsIgnoreCase("Home"))
 
         homePlan match {
           case None =>
             homePlan = Some(newPlan)
-            val homeActs = JavaConverters.collectionAsScalaIterable(
-              Plans2Shapefile
-                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
-            )
             val homeCoord = homeActs.head.getCoord
             newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
             newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
@@ -505,10 +503,6 @@ object PlansSampler {
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
-            val homeActs = JavaConverters.collectionAsScalaIterable(
-              Plans2Shapefile
-                .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home"))
-            )
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
