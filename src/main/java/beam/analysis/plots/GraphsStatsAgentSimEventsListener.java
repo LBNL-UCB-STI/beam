@@ -77,16 +77,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public void reset(int iteration) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.resetStats();
-        }
+        statsFactory.getStats().forEach(BeamStats::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.processStats(event);
-        }
+        for (BeamStats stat : statsFactory.getStats()) stat.processStats(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
