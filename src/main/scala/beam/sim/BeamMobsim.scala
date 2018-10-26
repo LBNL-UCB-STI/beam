@@ -12,11 +12,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
-  NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
@@ -69,6 +65,8 @@ class BeamMobsim @Inject()(
   var rideHailAgents: ArrayBuffer[ActorRef] = new ArrayBuffer()
 
   val rideHailHouseholds: mutable.Set[Id[Household]] = mutable.Set()
+
+  val MaxHour: Int = 24
 
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
@@ -358,7 +356,8 @@ class BeamMobsim @Inject()(
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0) {
-          val warmStart = BeamWarmStart(beamServices.beamConfig)
+          val maxHour = TimeUnit.SECONDS.toHours(beamServices.travelTimeCalculatorConfigGroup.getMaxTime).toInt
+          val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
           warmStart.warmStartTravelTime(beamServices.beamRouter)
         }
 

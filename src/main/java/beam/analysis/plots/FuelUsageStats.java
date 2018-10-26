@@ -16,7 +16,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class FuelUsageStats implements IGraphStats {
+public class FuelUsageStats implements BeamStats {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
@@ -24,13 +24,13 @@ public class FuelUsageStats implements IGraphStats {
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
-    private final IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
+    private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageStats(IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
+    public FuelUsageStats(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
         this.statsComputation = statsComputation;
     }
 
-    public static class FuelUsageStatsComputation implements IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
+    public static class FuelUsageStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
@@ -62,7 +62,8 @@ public class FuelUsageStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        processFuelUsage(event);
+        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+            processFuelUsage(event);
     }
 
     @Override
@@ -70,12 +71,6 @@ public class FuelUsageStats implements IGraphStats {
         CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
         createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
         createFuelCSV(hourModeFuelage, event.getIteration());
-    }
-
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
     }
 
     @Override

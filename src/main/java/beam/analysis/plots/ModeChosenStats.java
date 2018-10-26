@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenStats implements IGraphStats, MetricsSupport {
+public class ModeChosenStats implements BeamStats, MetricsSupport {
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
@@ -40,9 +40,9 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
     private final Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
 
-    private final IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
+    private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    public static class ModeChosenComputation implements IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
+    public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
@@ -80,7 +80,8 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
 
     @Override
     public void processStats(Event event) {
-        processModeChoice(event);
+        if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE))
+            processModeChoice(event);
     }
 
     @Override
@@ -112,11 +113,6 @@ public class ModeChosenStats implements IGraphStats, MetricsSupport {
             createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
         writeToRootCSVForReference();
-    }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
     }
 
     @Override

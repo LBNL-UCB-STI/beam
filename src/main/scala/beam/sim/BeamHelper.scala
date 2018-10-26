@@ -3,6 +3,7 @@ package beam.sim
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -357,7 +358,8 @@ trait BeamHelper extends LazyLogging {
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
-    val beamWarmStart = BeamWarmStart(beamConfig)
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]

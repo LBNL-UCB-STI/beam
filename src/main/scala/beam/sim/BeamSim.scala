@@ -112,9 +112,7 @@ class BeamSim @Inject()(
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
-        beamServices.geo,
-        beamServices.beamRouter,
-        beamServices.beamConfig
+        beamServices
       )
     }
 
