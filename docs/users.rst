@@ -16,14 +16,14 @@ System Requirements
 * Java Runtime Environment 1.8
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
-* We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
+* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
 
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.6.1`_.
+Download `BEAM v0.6.2`_.
 
-.. _BEAM v0.6.1: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.1/beam-gui.zip
+.. _BEAM v0.6.2: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.2/beam-gui-v0.6.2.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
@@ -43,7 +43,7 @@ The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-Use "Choose" to select a configuration file from your file system. Choose `test/input/beamville/beam.conf`.
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`.
 
 Click "Run BEAM". 
 
@@ -51,7 +51,7 @@ You will see output appear in the console. Congrats, you're running BEAM!
 
 Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
-You can also run bean using command line with a gradle task and configuration need to provide in `appArgs` (as gradle argument). To run for beamville, following command need to execute::
+If you want greater control over BEAM or the ability to customize classes, you should checkout of the full BEAM repository from Github and then you can run beam using from the command line with a gradle task (you will need to install gradle on your system)::
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
@@ -63,7 +63,7 @@ The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridd
 
 .. image:: _static/figs/beamville-net.png
 
-The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 1000 to 25,000 agents.
 
 .. image:: _static/figs/sf-light.png
 
@@ -78,16 +78,15 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
 * The household population and corresponding attributes files (e.g. `households.xml` and `householdAttributes.xml`)
-* The personal vehicle fleet (e.g. `vehicles.xml`)
-* The definition of vehicle types for the public transit fleet (e.g. `transitVehicles.xml`)
-* The mode choice parameters file (e.g. `modeChoiceParameters.xml`)
+* The personal vehicle fleet (e.g. `vehicles.csv`)
+* The definition of vehicle types including for personal vehicles and the public transit fleet (e.g. `vehicleTypes.csv`)
 * A directory containing network and transit data used by R5 (e.g. `r5/`)
 * The open street map network (e.g. `r5/beamville.osm`)
 * GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files in the output sub-folder should look like this when the run is complete:
 
 .. image:: _static/figs/beamville-outputs.png
 
