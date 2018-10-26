@@ -30,7 +30,6 @@ deployment:
 
 configmap:
   actorSystemName: "BeamSimulation"
-  clusterJoinTimeOut: 5000
   kubecontext: "beam-dev-context"
 
 

@@ -1,0 +1,59 @@
+service:
+  name: beam-service
+  akkaPort:
+    name: "akka-remote"
+    type: None
+    port: 2552
+
+secret:
+  docker: dockerhub
+
+deployment:
+  image: "beammodel/beam"
+  imageTag: "latest"
+  pullPolicy: Always
+  pullSecret: dockerhub
+  # Additional pod labels
+  # ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  podLabels: {}
+
+daemonset:
+  image: "kmitin/s3fs"
+  imageTag: "latest"
+  bucket: "beam-config"
+  region: "us-west-2"
+  pullPolicy: Always
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+volume:
+  fuse:
+    name: devfuse
+    path: /dev/fuse
+    host: /dev/fuse
+  data:
+    name: mount-data
+    path: /s3data
+    host: /dev/data-s3fs
+  output:
+    name: storage
+    path: /opt/output
+
+job:
+  hostname: beam-master
+  image: "beammodel/beam"
+  imageTag: "latest"
+  resources:
+    limits:
+      cpu: 300m
+      memory: 2G
+    requests:
+      cpu: 300m
+      memory: 1G
+
+

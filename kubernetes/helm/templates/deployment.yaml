@@ -54,17 +54,5 @@ spec:
         - name: akka-mgmt-http
           containerPort: 8558
           protocol: TCP
-
-      - name: "{{ template "beam-simulation.name" . }}-sidecar"
-        image: "{{ .Values.deployment.sidecarImage }}:{{ .Values.deployment.imageVersion }}"
-        imagePullPolicy: {{ .Values.deployment.pullPolicy }}
-        envFrom:
-          - configMapRef:
-              name: {{ template "beam-simulation.name" . }}
-        ports:
-        - name: kubeproxy
-          containerPort: 8000
-          protocol: TCP
-
       imagePullSecrets:
         - name: {{ .Values.deployment.pullSecret }}
