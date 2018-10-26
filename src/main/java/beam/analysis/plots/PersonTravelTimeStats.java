@@ -132,7 +132,7 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     public Map<String, Double> getIterationSummaryStats() {
 
         return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
-                e -> "ptt" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, e.getKey().toString()),
+                e -> "personTravelTime" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, e.getKey().toString()),
                 e -> e.getValue().values().stream().flatMapToDouble(
                         times -> times.stream().mapToDouble(Double::doubleValue)
                 ).sum()
