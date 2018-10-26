@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 public class ModeChosenStats implements BeamStats, MetricsSupport {
     private static final String graphTitle = "Mode Choice Histogram";
@@ -28,16 +29,16 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     private static final String fileName = "mode_choice";
-    private Set<String> iterationTypeSet = new HashSet<>();
-    private Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
-    private Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private Set<String> modesChosen = new TreeSet<>();
-    private Set<String> cumulativeModeChosenForModeChoice = new TreeSet<>();
-    private Set<String> cumulativeModeChosenForReference = new TreeSet<>();
-    private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private final Set<String> iterationTypeSet = new HashSet<>();
+    private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+    private final Set<String> modesChosen = new TreeSet<>();
+    private final Set<String> cumulativeModeChosenForModeChoice = new TreeSet<>();
+    private final Set<String> cumulativeModeChosenForReference = new TreeSet<>();
+    private final Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
-
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
@@ -46,10 +47,13 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
-            List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.getSecond());
-            if (0 == hoursList.size())
+            if (hoursList.isEmpty()) {
                 return null;
-            int maxHour = hoursList.get(hoursList.size() - 1);
+            }
+            final int maxHour = hoursList.get(hoursList.size() - 1);
+
+            List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.getSecond());
+
             double[][] dataset = new double[stat.getSecond().size()][maxHour + 1];
             for (int i = 0; i < modesChosenList.size(); i++) {
                 String modeChosen = modesChosenList.get(i);
@@ -60,22 +64,16 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
 
         private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Integer>> stat) {
             double[] modeOccurrencePerHour = new double[maxHour + 1];
-            int index = 0;
             for (int hour = 0; hour <= maxHour; hour++) {
-                Map<String, Integer> hourData = stat.get(hour);
-                if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-                } else {
-                    modeOccurrencePerHour[index] = 0;
-                }
-                index = index + 1;
+                Map<String, Integer> hourData = stat.getOrDefault(hour, Collections.emptyMap());
+                modeOccurrencePerHour[hour] = defaultIfNull(hourData.get(modeChosen), 0);
             }
             return modeOccurrencePerHour;
         }
     }
 
-    public ModeChosenStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation , BeamConfig beamConfig) {
-        String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+    public ModeChosenStats(IStatComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
     }
@@ -104,7 +102,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
         if (dataset != null) {
-            createRootModeChoosenGraph(dataset, graphTitle ,fileName, "# mode choosen",cumulativeModeChosenForModeChoice);
+            createGraphInRootDirectory(dataset, graphTitle, fileName, "# mode choosen", cumulativeModeChosenForModeChoice);
         }
         writeToRootCSV();
 
@@ -112,7 +110,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null) {
-            createRootModeChoosenGraph(referenceDataset,graphTitleBenchmark, fileName, "# mode choosen(Percent)",cumulativeModeChosenForReference);
+            createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
         writeToRootCSVForReference();
     }
@@ -150,7 +148,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
     //    accumulating data for each iteration
-    public void updateModeChoiceInIteration(Integer iteration) {
+    private void updateModeChoiceInIteration(Integer iteration) {
         Set<Integer> hours = hourModeFrequency.keySet();
         Map<String, Integer> totalModeChoice = new HashMap<>();
         for (Integer hour : hours) {
@@ -158,15 +156,13 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
             Set<String> iterationModes = iterationHourData.keySet();
             for (String iterationMode : iterationModes) {
                 Integer freq = iterationHourData.get(iterationMode);
-                totalModeChoice.merge(iterationMode, freq, (a, b) -> b + a);
-
+                Integer iterationFrequency = defaultIfNull(totalModeChoice.get(iterationMode), 0);
+                totalModeChoice.put(iterationMode, freq + iterationFrequency);
             }
         }
         iterationTypeSet.add("it." + iteration);
         modeChoiceInIteration.put(iteration, totalModeChoice);
-
     }
-
 
     private CategoryDataset buildModesFrequencyDatasetForGraph() {
         CategoryDataset categoryDataset = null;
@@ -193,11 +189,10 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
 
     private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber) {
 
-        String SEPERATOR = ",";
+        final String separator = ",";
 
         CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
-
 
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeChosen.keySet());
         List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
@@ -205,33 +200,28 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         int maxHour = hours.get(hours.size() - 1);
         try {
             bufferedWriter.append("Modes");
-            bufferedWriter.append(SEPERATOR);
+            bufferedWriter.append(separator);
             for (int j = 0; j <= maxHour; j++) {
                 bufferedWriter.append("Bin_")
                         .append(String.valueOf(j))
-                        .append(SEPERATOR);
+                        .append(separator);
             }
             bufferedWriter.append("\n");
 
             for (String modeChosen : modesFuelList) {
 
-                bufferedWriter.append(modeChosen);
-                bufferedWriter.append(SEPERATOR);
+                bufferedWriter.append(modeChosen).append(separator);
 
                 for (int j = 0; j <= maxHour; j++) {
                     Map<String, Integer> modesData = hourModeChosen.get(j);
 
-
                     String modeHourValue = "0";
 
-                    if (modesData != null) {
-                        if (modesData.get(modeChosen) != null) {
-                            modeHourValue = modesData.get(modeChosen).toString();
-                        }
+                    if (modesData != null && modesData.get(modeChosen) != null) {
+                        modeHourValue = modesData.get(modeChosen).toString();
                     }
 
-                    bufferedWriter.append(modeHourValue);
-                    bufferedWriter.append(SEPERATOR);
+                    bufferedWriter.append(modeHourValue).append(separator);
                 }
                 bufferedWriter.append("\n");
             }
@@ -244,7 +234,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
 
-//    dataset for root graph
+    //    dataset for root graph
     private CategoryDataset buildModeChoiceDatasetForGraph() {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForModeChoice));
@@ -254,6 +244,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         }
         return categoryDataset;
     }
+
     public CategoryDataset createCategoryDataset(String columnKeyPrefix, double[][] data) {
 
         DefaultCategoryDataset result = new DefaultCategoryDataset();
@@ -266,8 +257,9 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         }
         return result;
     }
+
     //    dataset for root graph
-    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException{
+    private CategoryDataset buildModeChoiceReferenceDatasetForGraph() throws IOException {
         CategoryDataset categoryDataset = null;
         double[][] dataset = statComputation.compute(new Tuple<>(modeChoiceInIteration, cumulativeModeChosenForReference));
 
@@ -278,13 +270,13 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
     // The data is converted into average and compared with the data of benchmark.
-    public CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
-        DefaultCategoryDataset result = new DefaultCategoryDataset();
+    private CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
+      DefaultCategoryDataset result = new DefaultCategoryDataset();
         List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
-        double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
-        for(int i = 0 ; i< modesChosenList.size() ;i++ ){
+        double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+        for (int i = 0; i < modesChosenList.size(); i++) {
             String rowKey = String.valueOf(i + 1);
-            result.addValue((benchMarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey , "benchmark");
+            result.addValue((benchMarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey, "benchmark");
         }
         int max = 0;
         for (double[] aData : data) {
@@ -303,26 +295,27 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
             String rowKey = String.valueOf(r + 1);
             for (int c = 0; c < data[r].length; c++) {
                 String columnKey = columnKeyPrefix + c;
-                result.addValue((data[r][c] * 100 )/sumOfColumns[c] , rowKey, columnKey);
+                result.addValue((data[r][c] * 100) / sumOfColumns[c], rowKey, columnKey);
             }
         }
         return result;
     }
 
-
-//    generating graph in root directory
-    private void createRootModeChoosenGraph(CategoryDataset dataset,String graphTitleName, String fileName, String yAxisTitle, Set<String> modes) throws IOException {
-        boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName, "Iteration", yAxisTitle, fileName, legend);
+    private void createGraphInRootDirectory(CategoryDataset dataset, String graphTitleName, String fileName,
+            String yAxisTitle, Set<String> modes) throws IOException {
+        final boolean legend = true;
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitleName,
+                "Iteration", yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modes);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+                GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     // csv for root modeChoice.png
-    public void writeToRootCSV() {
+    void writeToRootCSV() {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
 
@@ -338,7 +331,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
 
             for (int iteration = 0; iteration <= max; iteration++) {
                 Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
-                StringBuilder builder = new StringBuilder(iteration +"");
+                final StringBuilder builder = new StringBuilder(String.valueOf(iteration));
                 if (modeCount != null) {
                     for (String mode : modes) {
                         if (modeCount.get(mode) != null) {
@@ -374,13 +367,12 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
             out.write("iterations," + heading);
             out.newLine();
 
-            double sum = benchMarkData.values().stream().reduce((x,y) -> x + y).orElse(0.0);
+            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
             StringBuilder builder = new StringBuilder("benchmark");
             for (String mode : modes) {
                 if (benchMarkData.get(mode) != null) {
                     builder.append(",").append((benchMarkData.get(mode) * 100) / sum);
-                }
-                else {
+                } else {
                     builder.append(",0");
                 }
             }
@@ -388,7 +380,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
             out.newLine();
             int max = modeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
 
-            double[] sumInIteration = new double[max+1];
+            double[] sumInIteration = new double[max + 1];
             for (int iteration = 0; iteration <= max; iteration++) {
                 Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
                 if (modeCount != null) {
@@ -402,11 +394,11 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
 
             for (int iteration = 0; iteration <= max; iteration++) {
                 Map<String, Integer> modeCount = modeChoiceInIteration.get(iteration);
-                builder = new StringBuilder(iteration +"");
+                builder = new StringBuilder(iteration + "");
                 if (modeCount != null) {
                     for (String mode : modes) {
                         if (modeCount.get(mode) != null) {
-                            builder.append(",").append((modeCount.get(mode) * 100)/ sumInIteration[iteration]);
+                            builder.append(",").append((modeCount.get(mode) * 100) / sumInIteration[iteration]);
                         } else {
                             builder.append(",0");
                         }
@@ -426,7 +418,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
     private Map<String, Double> benchmarkCsvLoader(String path) {
-        Map<String, Double> benchMarkData = new HashMap<>();
+        Map<String, Double> benchmarkData = new HashMap<>();
 
         try (FileReader fileReader = new FileReader(path)) {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
@@ -435,12 +427,12 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
             String[] mode = line1.split(",");
             String[] share = line2.split(",");
             for (int i = 1; i < mode.length; i++) {
-                benchMarkData.put(mode[i], Double.parseDouble(share[i]));
+                benchmarkData.put(mode[i], Double.parseDouble(share[i]));
             }
         } catch (Exception ex) {
             log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
         }
-        return benchMarkData;
+        return benchmarkData;
     }
 
 }
