@@ -40,8 +40,8 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
         if (Files.exists(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
           beamRouter ! UpdateTravelTimeLocal(travelTime)
-          // TODO Fix maxHour once https://github.com/LBNL-UCB-STI/beam/pull/813 is merged!
-          val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(scenario.getNetwork.getLinks.values(), travelTime, 30)
+          val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(scenario.getNetwork.getLinks.values(),
+            travelTime, maxHour)
           beamRouter ! UpdateTravelTimeRemote(map)
           logger.info("Travel times successfully warm started from {}.", statsPath)
         } else {
