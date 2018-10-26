@@ -2,12 +2,14 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.IterationStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
+import beam.sim.BeamServices;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -50,7 +52,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author asif and rwaraich.
  */
-public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport {
+public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStats {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -77,26 +79,25 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
-                                          GeoUtils geoUtils,
-                                          ActorRef router,
-                                          BeamConfig beamConfig) {
+                                          BeamServices beamServices) {
 
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
-        this.router = router;
-        this.beamConfig = beamConfig;
+        this.router = beamServices.beamRouter();
+        this.beamConfig = beamServices.beamConfig();
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
         if (agentSimPhysSimInterfaceDebuggerEnabled) {
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
+            agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(beamServices.geo(), transportNetwork);
         }
 
         preparePhysSimForNewIteration();
 
-        linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+        linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
+                beamServices.travelTimeCalculatorConfigGroup());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }
@@ -137,7 +138,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
+        linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
@@ -194,6 +195,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
         if (shouldWritePhysSimEvents(iterationNumber)) {
+            assert eventsWriterXML != null;
             eventsWriterXML.closeFile();
         }
 
@@ -349,6 +351,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+        return null;
     }
 }
 

@@ -2,12 +2,14 @@ package beam.sim
 
 import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
+import java.util.concurrent.TimeUnit
 
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.slf4j.LoggerFactory
 
@@ -259,7 +261,8 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    BeamWarmStart(BeamConfig(conf))
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(BeamConfig(conf), maxHour)
   }
 }
 

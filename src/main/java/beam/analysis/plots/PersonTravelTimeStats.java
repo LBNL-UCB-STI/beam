@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeStats implements IGraphStats {
+public class PersonTravelTimeStats implements BeamStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
@@ -27,13 +27,13 @@ public class PersonTravelTimeStats implements IGraphStats {
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
-    private final IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
+    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
-    public PersonTravelTimeStats(IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
+    public PersonTravelTimeStats(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 
-    public static class PersonTravelTimeComputation implements IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
+    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
 
         @Override
         public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
@@ -119,11 +119,6 @@ public class PersonTravelTimeStats implements IGraphStats {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
     }
 
     @Override

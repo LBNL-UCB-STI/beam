@@ -20,6 +20,7 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
@@ -27,7 +28,6 @@ import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
-import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.FiniteDuration
 
@@ -38,6 +38,8 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   val beamConfig: BeamConfig
+
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -64,6 +66,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
+
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

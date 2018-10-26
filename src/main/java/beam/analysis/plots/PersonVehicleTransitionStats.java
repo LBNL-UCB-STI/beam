@@ -25,7 +25,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.List;
 
-public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport {
+public class PersonVehicleTransitionStats implements BeamStats, MetricsSupport {
 
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail" , "others"));
 
@@ -38,7 +38,7 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
     private int binSize;
     private int numOfBins;
 
-    PersonVehicleTransitionStats(BeamConfig beamConfig){
+    public PersonVehicleTransitionStats(BeamConfig beamConfig){
         binSize = beamConfig.beam().outputs().stats().binSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
@@ -50,7 +50,9 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
 
     @Override
     public void processStats(Event event) {
-        processPersonVehicleTransition(event);
+        if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) ||
+                event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE))
+            processPersonVehicleTransition(event);
     }
 
     @Override
@@ -70,13 +72,6 @@ public class PersonVehicleTransitionStats implements IGraphStats, MetricsSupport
             writeGraphic(event.getIteration(), mode);
         }
     }
-
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
-    }
-
 
     private void processPersonVehicleTransition(Event event) {
         int index = getBinIndex(event.getTime());

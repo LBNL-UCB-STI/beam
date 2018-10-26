@@ -43,6 +43,7 @@ import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -56,6 +57,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import beam.utils.{DateUtils, FileUtils, LoggingUtil, TravelTimeCalculatorHelper}
 
 case class WorkerParameters(
   beamServices: BeamServices,
@@ -124,6 +126,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
+
+        override  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)

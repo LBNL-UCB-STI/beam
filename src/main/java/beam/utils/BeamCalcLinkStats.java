@@ -25,6 +25,7 @@ import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.io.IOUtils;
 import org.slf4j.Logger;
@@ -35,6 +36,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class BeamCalcLinkStats {
 
@@ -50,10 +52,10 @@ public class BeamCalcLinkStats {
     private int count = 0;
 
     @Inject
-    public BeamCalcLinkStats(final Network network) {
+    public BeamCalcLinkStats(final Network network, final TravelTimeCalculatorConfigGroup ttConfigGroup) {
         this.network = network;
         this.linkData = new ConcurrentHashMap<>();
-        this.nofHours = 24;
+        this.nofHours = (int)TimeUnit.SECONDS.toHours(ttConfigGroup.getMaxTime());
         reset();
     }
 
