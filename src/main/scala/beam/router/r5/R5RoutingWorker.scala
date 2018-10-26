@@ -16,12 +16,11 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
-import beam.router.model.BeamLeg._
-import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
-import beam.router.model.RoutingModel
+import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.{DiscreteTime, LinksTimesDistances, WindowTime}
+import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
@@ -57,7 +56,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import beam.utils.{DateUtils, FileUtils, LoggingUtil, TravelTimeCalculatorHelper}
 
 case class WorkerParameters(
   beamServices: BeamServices,
@@ -127,7 +125,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
 
-        override  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
+        override  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = matsimConfig.travelTimeCalculator()
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
@@ -247,17 +245,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
       eventualResponse pipeTo sender
       askForMoreWork()
+
     case UpdateTravelTimeLocal(travelTime) =>
       maybeTravelTime = Some(travelTime)
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       cache.invalidateAll()
       askForMoreWork()
+
     case UpdateTravelTimeRemote(map) =>
       val travelTimeCalc = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, map)
       maybeTravelTime = Some(travelTimeCalc)
-      log.info(s"{} UpdateTravelTimeRemote. Set new travel time", getNameAndHashCode)
+      log.info(s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}", getNameAndHashCode, map.keySet().size())
       cache.invalidateAll()
       askForMoreWork
+
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
