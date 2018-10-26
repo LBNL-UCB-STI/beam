@@ -1,6 +1,8 @@
 package beam.utils.matsim_conversion
 
+import java.io.{FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPOutputStream
 
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
@@ -20,7 +22,7 @@ object MatsimPlanConversion {
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, Seq())
+      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, VehiclesDataConversion.beamVehicleTypes)
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
     } else {
       val vehiclesFile = conversionConfig.vehiclesInput.get
@@ -47,15 +49,35 @@ object MatsimPlanConversion {
 
     val populationDoctype = DocType("population", SystemID("../dtd/population_v6.dtd"), Nil)
 
-    val populationOutput = conversionConfig.scenarioDirectory + "/population.xml"
-    val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml"
+    val populationOutput = conversionConfig.scenarioDirectory + "/population.xml.gz"
+    val householdsOutput = conversionConfig.scenarioDirectory + "/households.xml.gz"
     val householdAttrsOutput = conversionConfig.scenarioDirectory + "/householdAttributes.xml"
     val populationAttrsOutput = conversionConfig.scenarioDirectory + "/populationAttributes.xml"
 
-    XML.save(populationOutput, transformedPopulationDoc, UTF8, xmlDecl = true, populationDoctype)
-    XML.save(householdsOutput, houseHolds, UTF8, xmlDecl = true)
+    safeGzip(populationOutput, transformedPopulationDoc, UTF8, xmlDecl = true, populationDoctype)
+    safeGzip(householdsOutput, houseHolds, UTF8, xmlDecl = true)
     XML.save(householdAttrsOutput, householdAtrrs, UTF8, xmlDecl = true, householdsAttrDoctype)
     XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
+  }
+
+  def safeGzip(filename: String,
+               node: Node,
+               enc: String,
+               xmlDecl: Boolean = false,
+               doctype: DocType = null) = {
+
+    val output = new FileOutputStream(filename);
+    try {
+      val writer = new OutputStreamWriter(new GZIPOutputStream(output), "UTF-8")
+      try {
+        XML.write(writer, node, enc, xmlDecl, doctype)
+      } finally {
+        writer.close();
+      }
+    } finally {
+      output.close();
+    }
+
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {

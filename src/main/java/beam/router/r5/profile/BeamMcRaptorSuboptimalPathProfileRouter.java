@@ -155,7 +155,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             round++;
 
             // NB the walk search is an initial round, so MAX_ROUNDS + 1
-            while (doOneRound() && round < MAX_ROUNDS + 1) ;
+            while (doOneRound() && round < MAX_ROUNDS + 1);
 
             // TODO this means we wind up with some duplicated states.
             if (egressTimes != null) {
@@ -330,7 +330,6 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
 
                 // get on the bus, if we can
                 if (stopPreviouslyReached) {
-                    STATES:
                     for (McRaptorState state : bestStates.get(stop).getBestStates()) {
                         if (state.round != round - 1) continue; // don't continually reexplore states
 

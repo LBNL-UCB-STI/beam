@@ -71,7 +71,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
                 PlotOrientation.VERTICAL,
                 false, true, false);
 
-        String graphImageFile = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.png");
+        String graphImageFile = outputDirectoryHiearchy.getOutputFilename("rideHail_revenue.png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
@@ -94,7 +94,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
 
     private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
-            String fileName = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.csv");
+            String fileName = outputDirectoryHiearchy.getOutputFilename("rideHail_revenue.csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
 
             out.write("iteration #,revenue");

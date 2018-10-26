@@ -8,6 +8,8 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
 import scala.util.Random
@@ -23,6 +25,8 @@ trait ModeChoiceCalculator extends HasServices {
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
+  lazy val modeSubsidy = new ModeSubsidy(beamServices.beamConfig.beam.agentsim.agents.modeSubsidy.file)
+
   /// VOT-Specific fields and methods
 
   /**
@@ -32,19 +36,19 @@ trait ModeChoiceCalculator extends HasServices {
     */
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
-  lazy val valuesOfTime: mutable.Map[VotType, BigDecimal] =
-    mutable.Map[VotType, BigDecimal](
+  lazy val valuesOfTime: mutable.Map[VotType, Double] =
+    mutable.Map[VotType, Double](
       DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
       GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
-  def scaleTimeByVot(time: BigDecimal, beamMode: Option[BeamMode] = None): BigDecimal = {
+  def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
     time / 3600 * getVot(beamMode)
   }
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
-  private def getVot(beamMode: Option[BeamMode]): BigDecimal =
+  private def getVot(beamMode: Option[BeamMode]): Double =
     valuesOfTime.getOrElse(
       matchMode2Vot(beamMode),
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
@@ -85,11 +89,11 @@ trait ModeChoiceCalculator extends HasServices {
 
   ///~
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
+  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip]
 
-  def utilityOf(alternative: EmbodiedBeamTrip): Double
+  def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
 
-  def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {

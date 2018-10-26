@@ -68,7 +68,7 @@ class OutOfServiceVehicleManager(
 
   def releaseTrigger(
     vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+    triggersToSchedule: Seq[ScheduleTrigger] = Vector()
   ): Unit = {
     val rideHailAgent = rideHailManager
       .getRideHailAgentLocation(vehicleId)

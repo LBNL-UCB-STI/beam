@@ -221,7 +221,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
             BeamVehicleType vehicleType = vehicles.get(vehicleTypeId).get();
 
-            String vehicleFuelType = vehicleType.primaryFuelType().fuelTypeId();
+            String vehicleFuelType = vehicleType.primaryFuelType().fuelTypeId().toString();
 
             if (vehicleFuelType.equalsIgnoreCase(BIODIESEL)) {
                 return NATURAL_GAS;
@@ -290,11 +290,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         oldLabelToNewLabel.put("rail", "Rail");
         oldLabelToNewLabel.put("ferry", "Ferry");
 
-        if (oldLabelToNewLabel.containsKey(vehicleType)) {
-            return oldLabelToNewLabel.get(vehicleType);
-        } else {
-            return vehicleType;
-        }
+        return oldLabelToNewLabel.getOrDefault(vehicleType, vehicleType);
     }
 
     private String getVehicleType(String vehicleAndFuelType) {
@@ -429,19 +425,18 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             r5TransitLinks.add(onTransitRouteLink);
 
             // update tables with new r5 link
-            int j = currentBinIndex;
-            addValueToTable(energyConsumption.get(j),
+            addValueToTable(energyConsumption.get(currentBinIndex),
                     onTransitRouteLink.linkId,
                     vehicleAndFuelType,
                     energyConsumptionPerLink);
-            addValueToTable(numberOfVehicles.get(j),
+            addValueToTable(numberOfVehicles.get(currentBinIndex),
                     onTransitRouteLink.linkId,
                     vehicleAndFuelType,
-                    numberOfVehicles.get(j).get(r5TransitLink.linkId, vehicleAndFuelType));
-            addValueToTable(numberOfPassengers.get(j),
+                    numberOfVehicles.get(currentBinIndex).get(r5TransitLink.linkId, vehicleAndFuelType));
+            addValueToTable(numberOfPassengers.get(currentBinIndex),
                     onTransitRouteLink.linkId,
                     vehicleAndFuelType,
-                    numberOfPassengers.get(j).get(r5TransitLink.linkId, vehicleAndFuelType));
+                    numberOfPassengers.get(currentBinIndex).get(r5TransitLink.linkId, vehicleAndFuelType));
         }
 
         return r5TransitLinks;

@@ -6,6 +6,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
+import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -40,13 +41,12 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -93,15 +93,15 @@ class OtherPersonAgentSpec
     theServices
   }
 
-  lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = beamSvc
-    override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
-      cost: BigDecimal,
-      time: BigDecimal,
+      cost: Double,
+      time: Double,
       numTransfers: Int
     ): Double = 0.0
   }
@@ -120,7 +120,7 @@ class OtherPersonAgentSpec
     "router"
   )
 
-  lazy val parkingManager = system.actorOf(
+  private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
@@ -131,8 +131,6 @@ class OtherPersonAgentSpec
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
     ignore("should also work when the first bus is late") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-
       val beamVehicleId = Id.createVehicleId("my_bus")
 
       val bus = new BeamVehicle(
@@ -167,10 +165,10 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        false,
+        asDriver = false,
         None,
-        BigDecimal(0),
-        false
+        0,
+        unbecomeDriverOnCompletion = false
       )
       val busLeg2 = EmbodiedBeamLeg(
         BeamLeg(
@@ -187,10 +185,10 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        false,
+        asDriver = false,
         None,
-        BigDecimal(0),
-        false
+        0,
+        unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -207,10 +205,10 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        false,
+        asDriver = false,
         None,
-        BigDecimal(0),
-        false
+        0,
+        unbecomeDriverOnCompletion = false
       )
       val replannedTramLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -227,10 +225,10 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        false,
+        asDriver = false,
         None,
-        BigDecimal(0),
-        false
+        0,
+        unbecomeDriverOnCompletion = false
       )
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
@@ -304,7 +302,7 @@ class OtherPersonAgentSpec
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
-      val request = expectMsgType[RoutingRequest]
+      expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -324,10 +322,10 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                true,
+                asDriver = true,
                 None,
-                BigDecimal(0),
-                false
+                0,
+                unbecomeDriverOnCompletion = false
               ),
               busLeg,
               busLeg2,
@@ -347,10 +345,10 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                true,
+                asDriver = true,
                 None,
-                BigDecimal(0),
-                false
+                0,
+                unbecomeDriverOnCompletion = false
               )
             )
           )
@@ -398,7 +396,7 @@ class OtherPersonAgentSpec
         TRANSIT
       )
 
-      val replanningRequest = expectMsgType[RoutingRequest]
+      expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -419,10 +417,10 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                true,
+                asDriver = true,
                 None,
-                BigDecimal(0),
-                false
+                0,
+                unbecomeDriverOnCompletion = false
               )
             )
           )

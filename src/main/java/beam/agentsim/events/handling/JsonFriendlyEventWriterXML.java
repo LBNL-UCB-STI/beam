@@ -132,7 +132,7 @@ public class JsonFriendlyEventWriterXML implements EventWriter, BasicEventHandle
             }
         }
         if (encode) {
-            StringBuffer bf = new StringBuffer();
+            StringBuilder bf = new StringBuilder();
             for (int pos = 0; pos < len; pos++) {
                 char ch = attributeValue.charAt(pos);
                 if (ch == '<') {

@@ -39,7 +39,7 @@ public class DeadHeadingStats implements IGraphStats {
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
-
+    private static List<String> excludeModes = Arrays.asList(new String[] {"car", "walk", "ride_hail", "subway"});
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -758,15 +758,16 @@ public class DeadHeadingStats implements IGraphStats {
     // New Code
     @Override
     public void collectEvents(Event event) {
-
         String type = event.getEventType();
+        // We care only about PathTraversalEvent!
+        if(!type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+            return;
+
         Map<String, String> attributes = event.getAttributes();
         String mode = getEventMode(attributes);
         String vehicleId = getVehicleId(attributes);
-        Double time = event.getTime();
 
-        if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")){
-
+        if(mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")){
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("car");
             if(graph == null){
                 graph = new CarPassengerPerTrip("car");
@@ -775,8 +776,7 @@ public class DeadHeadingStats implements IGraphStats {
 
             passengerPerTripMap.put("car", graph);
 
-        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && vehicleId.contains("ride")){
-
+        }else if(mode.equalsIgnoreCase("car") && vehicleId.contains("ride")){
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("tnc");
             if(graph == null){
                 graph = new TncPassengerPerTrip();
@@ -784,11 +784,8 @@ public class DeadHeadingStats implements IGraphStats {
             graph.collectEvent(event, attributes);
 
             passengerPerTripMap.put("tnc", graph);
-        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)){
-
-            String[] modesToExclude = {"car", "walk", "ride_hail", "subway"};
-
-            if(!Arrays.asList(modesToExclude).contains(mode)) {
+        }else {
+            if(!excludeModes.contains(mode)) {
                 IGraphPassengerPerTrip graph = passengerPerTripMap.get(mode);
                 if (graph == null) {
                     graph = new GenericPassengerPerTrip(mode);

@@ -45,7 +45,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.{concurrent, mutable}
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future}
@@ -101,7 +101,7 @@ object RideHailManager {
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
     timeToCustomer: Long,
-    estimatedPrice: BigDecimal,
+    estimatedPrice: Double,
     estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse
@@ -238,9 +238,7 @@ class RideHailManager(
     )
   private val vehicleState: mutable.Map[Id[Vehicle], BeamVehicleState] =
     mutable.Map[Id[Vehicle], BeamVehicleState]()
-  private val DefaultCostPerMinute = BigDecimal(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
-  )
+  private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
   private val pendingDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
@@ -275,15 +273,11 @@ class RideHailManager(
       boundingBox.getMaxY
     )
   }
-  private val availableRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val outOfServiceRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val inServiceRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val pendingModifyPassengerScheduleAcks =
-    collection.concurrent.TrieMap[String, RideHailResponse]()
-  private val parkingInquiryCache = collection.concurrent.TrieMap[Int, RideHailAgentLocation]()
+  private val availableRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val outOfServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val inServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val pendingModifyPassengerScheduleAcks = mutable.HashMap[String, RideHailResponse]()
+  private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
   var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
   private var lockedVehicles = Set[Id[Vehicle]]()
@@ -455,7 +449,7 @@ class RideHailManager(
           request.pickUpLocation,
           request.departAt.atTime.toDouble
         )
-      val customerPlans2Costs: Map[EmbodiedBeamTrip, BigDecimal] =
+      val customerPlans2Costs: Map[EmbodiedBeamTrip, Double] =
         itins2Dest.map(trip => (trip, rideHailFarePerSecond * trip.totalTravelTimeInSecs)).toMap
 
       if (itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
@@ -483,19 +477,14 @@ class RideHailManager(
               customerTripPlan.copy(
                 legs = customerTripPlan.legs.zipWithIndex.map(
                   legWithInd =>
-                    legWithInd._1.copy(
-                      asDriver = legWithInd._1.beamLeg.mode == WALK,
-                      unbecomeDriverOnCompletion = legWithInd._2 == 2,
-                      beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
-                      cost =
-                        if (legWithInd._1.beamLeg == customerTripPlan
-                              .legs(1)
-                              .beamLeg) {
-                          cost
-                        } else {
-                          0.0
-                        }
-                  )
+                    legWithInd._1.copy(beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer), asDriver = legWithInd._1.beamLeg.mode == WALK, cost =
+                                            if (legWithInd._1.beamLeg == customerTripPlan
+                                                  .legs(1)
+                                                  .beamLeg) {
+                                              cost
+                                            } else {
+                                              0.0
+                                            }, unbecomeDriverOnCompletion = legWithInd._2 == 2)
                 )
               )
             ),
@@ -1118,7 +1107,7 @@ class RideHailManager(
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
-  def getIdleVehicles: collection.concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation] = {
+  def getIdleVehicles: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {
     availableRideHailVehicles
   }
 
