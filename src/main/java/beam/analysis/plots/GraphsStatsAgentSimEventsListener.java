@@ -21,7 +21,7 @@ import java.util.*;
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationStats {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationSummaryStats {
 
     public static final String CAR = "car";
     public static final String RIDE = "ride";
@@ -127,9 +127,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        Map<String, Double> stats = new HashMap<>();
-        stats.put("RideHailRevenue", 65.0);
-        stats.put("EnergyUsed", 245.0);
-        return stats;
+        IterationSummaryStats personTravelTimes= (IterationSummaryStats)statsFactory.getStats(StatsFactory.PersonTravelTime);
+        return personTravelTimes.getIterationSummaryStats();
     }
 }

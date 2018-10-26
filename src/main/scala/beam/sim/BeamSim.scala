@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationStats}
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
@@ -57,7 +57,7 @@ class BeamSim @Inject()(
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
-  val iterationStats: ListBuffer[IterationStats] = new ListBuffer()
+  val iterationStats: ListBuffer[IterationSummaryStats] = new ListBuffer()
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
