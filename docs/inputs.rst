@@ -1,4 +1,6 @@
 
+.. _model-inputs:
+
 Model Inputs
 ============
 

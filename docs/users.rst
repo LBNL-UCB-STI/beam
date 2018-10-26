@@ -70,6 +70,8 @@ The `sf-light` scenario is based on the City of San Francisco, including the SF 
 Inputs
 ^^^^^^^
 
+For more detailed inputs documentation, see :ref:`model-inputs`.
+
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
 .. _MATSim convention: http://archive.matsim.org/docs
