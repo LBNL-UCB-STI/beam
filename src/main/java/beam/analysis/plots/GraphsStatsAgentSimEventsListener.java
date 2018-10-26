@@ -21,7 +21,7 @@ import java.util.*;
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationStats {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationSummaryStats {
 
     public static final String CAR = "car";
     public static final String RIDE = "ride";
@@ -77,16 +77,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public void reset(int iteration) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.resetStats();
-        }
+        statsFactory.getStats().forEach(BeamStats::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.processStats(event);
-        }
+        for (BeamStats stat : statsFactory.getStats()) stat.processStats(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
@@ -127,6 +123,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        return null;
+        IterationSummaryStats personTravelTimes= (IterationSummaryStats)statsFactory.getStats(StatsFactory.PersonTravelTime);
+        return personTravelTimes.getIterationSummaryStats();
     }
 }

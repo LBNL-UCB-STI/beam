@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -19,7 +20,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeStats implements BeamStats {
+public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
@@ -125,6 +126,17 @@ public class PersonTravelTimeStats implements BeamStats {
     public void resetStats() {
         personLastDepartureEvents.clear();
         hourlyPersonTravelTimes.clear();
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+
+        return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
+                e -> "personTravelTime" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, e.getKey().toString()),
+                e -> e.getValue().values().stream().flatMapToDouble(
+                        times -> times.stream().mapToDouble(Double::doubleValue)
+                ).sum()
+        ));
     }
 
     private void processPersonArrivalEvent(Event event) {

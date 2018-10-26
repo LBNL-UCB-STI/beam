@@ -2,7 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.analysis.plots.IterationStats;
+import beam.analysis.plots.IterationSummaryStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
@@ -41,10 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +51,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author asif and rwaraich.
  */
-public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStats {
+public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationSummaryStats {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -345,7 +342,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        return null;
+        Map<String, Double> stats = new HashMap<>();
+        stats.put("AvgLinkSpeed", 80.0);
+        stats.put("CarTotalTravelTime", 360.0);
+        return stats;
     }
 }
 
