@@ -60,9 +60,6 @@ Mode choice parameters::
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = -3.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
-   #DrivingCostDefaults Params
-   beam.agentsim.agents.drivingCost.defaultLitersPerMeter = 0.0001069
-   beam.agentsim.agents.drivingCost.defaultPricePerGallon = 3.115
    #Toll params
    beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
    
@@ -78,8 +75,6 @@ Mode choice parameters::
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
-* defaultLitersPerMeter: DEPRECATED -- to be removed in upcoming BEAM release.  Used only when fuel economy for a specific vehicle type is not available.
-* defaultPricePerGallon: DEPRECATED -- to be removed in upcoming BEAM release. Used only when fuel cost for a specific vehicle type is not available.
 * toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
 
 Vehicles and Population::
@@ -153,7 +148,6 @@ Ride hail management::
    beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
    beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
    beam.agentsim.agents.rideHail.vehicleTypeId="BEV"
-   beam.agentsim.agents.rideHail.vehicleRangeInMeters=20000.0
    beam.agentsim.agents.rideHail.refuelThresholdInMeters=5000.0
    beam.agentsim.agents.rideHail.refuelLocationType="AtRequestLocation"
    # SurgePricing parameters
@@ -195,7 +189,6 @@ Ride hail management::
 * defaultCostPerMile - One component of the 2 part price of ride hail calculation.
 * defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
 * vehicleTypeId: What vehicle type is used for ride hail vehicles. This is primarily relevant for when allocationManager is `EV_MANAGER`.
-* vehicleRangeInMeters: DEPRECATED -- to be removed in upcoming BEAM release. The vehicleTypeId will control the range of the vehicle based on the parameters in the vehicle types file.
 * refuelThresholdInMeters: One the fuel level (state of charge for EVs) of the vehicle falls below the level corresponding to this parameter, the `EV_MANAGER` will dispatch the vehicle to refuel. Note, do not make this value greate than 80% of the total vehicle range to avoid complications associated with EV fast charging.
 * refuelLocationType: One of `AtRequestLocation` or `AtTAZCenter` which controls whether the vehicle is assumed to charge at the it's present location (`AtRequestLocation`) or whether it will drive to a nearby charging depot (`AtTAZCenter`).
 * allocationManager.name: Controls whether fleet management is simple (DEFAULT_MANAGER for no repositioning, no refueling), includes repositioing (REPOSITIONING_LOW_WAITING_TIMES) or includes both repositioning and refueling (EV_MANAGER)
