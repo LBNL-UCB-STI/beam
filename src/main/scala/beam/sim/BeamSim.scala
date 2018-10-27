@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
+import beam.analysis.stats.{AboveCapacityPtUsageDurationInSec, CSVStatsCollector}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -34,16 +35,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -55,6 +56,8 @@ class BeamSim @Inject()(
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
+
+  val csvStatsCollector = new CSVStatsCollector()
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -141,6 +144,8 @@ class BeamSim @Inject()(
       transportNetwork
     )
 
+    csvStatsCollector.addStats(new AboveCapacityPtUsageDurationInSec(eventsManager))
+
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
   }
@@ -150,13 +155,13 @@ class BeamSim @Inject()(
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      if("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
       val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
-      if(interval>0 && event.getIteration % interval == 0) {
+      if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
           event.getServices.getControlerIO
             .getIterationFilename(event.getIteration, "population.csv.gz")
@@ -191,6 +196,10 @@ class BeamSim @Inject()(
     //    Tracer.currentContext.finish()
 
     logger.info("Ending Iteration")
+
+    println(csvStatsCollector.getIterationSummaryStats)
+
+    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -199,7 +208,7 @@ class BeamSim @Inject()(
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
 
     logger.info("Generating html page to compare graphs (across all iterations)")
-    BeamGraphComparator.generateGraphComparisonHtmlPage(event,firstIteration,lastIteration)
+    BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
