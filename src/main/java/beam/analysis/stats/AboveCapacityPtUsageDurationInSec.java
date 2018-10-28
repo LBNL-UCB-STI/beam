@@ -36,4 +36,10 @@ public class AboveCapacityPtUsageDurationInSec extends CSVStats implements Basic
             }
         }
     }
+
+    @Override
+    public void reset(int iteration) {
+        aboveCapacityPtUsageDurationInSec=0;
+    }
+
 }

@@ -21,6 +21,7 @@ public class CSVStatsCollector {
 
         for (CSVStats csvStats:stats){
             result.putAll(csvStats.getIterationSummaryStats());
+            csvStats.reset(0);
         }
 
         return result;
