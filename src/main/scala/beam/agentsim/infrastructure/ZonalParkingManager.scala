@@ -219,7 +219,8 @@ override def receive: Receive = {
                 selectStallWithCharger(inquiry, 500.0)
             }
         },
-        inquiry.requestId
+        inquiry.requestId,
+        inquiry.reserveStall
       )
   }
 
@@ -248,8 +249,8 @@ override def receive: Receive = {
     }
   }
 
-  def respondWithStall(stall: ParkingStall, requestId: Int, estimateOnly: Boolean): Unit = {
-    if(!estimateOnly) {
+  def respondWithStall(stall: ParkingStall, requestId: Int, reserveStall: Boolean): Unit = {
+    if(reserveStall) {
       resources.put(stall.id, stall)
       val stallValues = pooledResources(stall.attributes)
       stallValues._numStalls -= 1

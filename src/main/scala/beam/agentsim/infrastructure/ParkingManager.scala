@@ -18,16 +18,16 @@ abstract class ParkingManager(
 object ParkingManager {
 
   case class ParkingInquiry(
-    customerId: Id[PersonAgent],
-    customerLocationUtm: Location,
-    destinationUtm: Location,
-    activityType: String,
-    valueOfTime: Double,
-    chargingPreference: ChargingPreference,
-    arrivalTime: Long,
-    parkingDuration: Double,
-    reservedFor: ReservedParkingType = ParkingStall.Any,
-    estimateOnly:Boolean = false
+                             customerId: Id[PersonAgent],
+                             customerLocationUtm: Location,
+                             destinationUtm: Location,
+                             activityType: String,
+                             valueOfTime: Double,
+                             chargingPreference: ChargingPreference,
+                             arrivalTime: Long,
+                             parkingDuration: Double,
+                             reservedFor: ReservedParkingType = ParkingStall.Any,
+                             reserveStall:Boolean = true
   ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }
