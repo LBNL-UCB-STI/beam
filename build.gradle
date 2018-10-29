@@ -136,6 +136,7 @@ dependencies {
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+    compile group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-SNAPSHOT'
     compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }

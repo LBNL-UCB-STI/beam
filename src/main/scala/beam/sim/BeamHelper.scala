@@ -27,6 +27,7 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -224,6 +225,10 @@ trait BeamHelper extends LazyLogging {
 
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
+
+          // Add delay handler
+          this.bind(classOf[DelayAnalysis]).asEagerSingleton()
+          this.addEventHandlerBinding().to(classOf[DelayAnalysis])
         }
       }
     )
