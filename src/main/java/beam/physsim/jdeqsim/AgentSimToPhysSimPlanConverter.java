@@ -2,15 +2,14 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.analysis.plots.IterationSummaryStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
+import beam.analysis.plots.IterationSummaryStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
 import beam.sim.BeamServices;
-import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
@@ -342,10 +341,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        Map<String, Double> stats = new HashMap<>();
-        stats.put("AvgLinkSpeed", 80.0);
-        stats.put("CarTotalTravelTime", 360.0);
-        return stats;
+        return new HashMap<>();
     }
 }
 

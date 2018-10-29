@@ -2,9 +2,11 @@ package beam.analysis.plots;
 
 import beam.sim.config.BeamConfig;
 
+import java.beans.Beans;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class StatsFactory {
     public static final String RideHailWaiting = "RideHailWaiting";
@@ -15,6 +17,7 @@ public class StatsFactory {
     public static final String PersonTravelTime = "PersonTravelTime";
     public static final String RealizedMode = "RealizedMode";
     public static final String DeadHeading = "DeadHeading";
+    public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
 
     private BeamConfig beamConfig;
     private Map<String, BeamStats> beamStatsMap = new HashMap<>();
@@ -29,8 +32,12 @@ public class StatsFactory {
         return stats;
     }
 
-    public Collection<BeamStats> getStats() {
+    public Collection<BeamStats> getBeamStats() {
         return beamStatsMap.values();
+    }
+
+    public Collection<IterationSummaryStats> getSummaryStats() {
+        return beamStatsMap.values().stream().filter(s -> Beans.isInstanceOf(s, IterationSummaryStats.class)).map(s -> (IterationSummaryStats)s).collect(Collectors.toList());
     }
 
     public void createStats() {
@@ -42,6 +49,7 @@ public class StatsFactory {
         getStats(StatsFactory.ModeChosen);
         getStats(StatsFactory.PersonVehicleTransition);
         getStats(StatsFactory.RealizedMode);
+        getStats(StatsFactory.VehicleMilesTraveled);
     }
     
     private BeamStats createStats(String statsType) {
@@ -62,6 +70,8 @@ public class StatsFactory {
                 return new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
             case DeadHeading:
                 return new DeadHeadingStats();
+            case VehicleMilesTraveled:
+                return new VehicleMilesTraveledStats();
             default:
                 return null;
         }
