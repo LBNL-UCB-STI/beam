@@ -1,6 +1,6 @@
 package beam.analysis.plots;
 
-import beam.analysis.*;
+import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -77,18 +78,18 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public void reset(int iteration) {
-        statsFactory.getStats().forEach(BeamStats::resetStats);
+        statsFactory.getBeamStats().forEach(BeamStats::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        for (BeamStats stat : statsFactory.getStats()) stat.processStats(event);
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.processStats(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-        for (BeamStats stat : statsFactory.getStats()) stat.createGraph(event);
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.createGraph(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.createGraph(event, "TNC0");
 
@@ -123,7 +124,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        IterationSummaryStats personTravelTimes= (IterationSummaryStats)statsFactory.getStats(StatsFactory.PersonTravelTime);
-        return personTravelTimes.getIterationSummaryStats();
+        return statsFactory.getSummaryStats().stream()
+                .map(IterationSummaryStats::getIterationSummaryStats)
+                .map(Map::entrySet)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }
