@@ -17,6 +17,7 @@ import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResp
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -203,6 +204,8 @@ class PersonAgent(
       stay()
     case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
       stay()
+    case Event(ParkingInquiryResponse(_,_), _) =>
+      stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(StateTimeout, _) =>
