@@ -33,7 +33,7 @@ public class VehicleMilesTraveledStats implements BeamStats, IterationSummarySta
     public Map<String, Double> getIterationSummaryStats() {
         return modeMilesTraveled.entrySet().stream().collect(Collectors.toMap(
                 e -> "vehicleMilesTraveled" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, e.getKey()),
-                e -> e.getValue() * 0.000621371192
+                e -> e.getValue() * 0.000621371192 //unit conversion from meters to miles
         )); 
     }
 
