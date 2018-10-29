@@ -70,7 +70,7 @@ class ReplanningExpBetaModeChoiceSpec
   }
 
   private def getAvgBestScore(iterationNum: Int) = {
-    val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scoreStats.txt")
+    val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scorestats.txt")
     val itScores = bufferedSource.getLines.toList.find(_.startsWith(s"$iterationNum\t"))
     bufferedSource.close
 
