@@ -15,13 +15,17 @@ public class VehicleMilesTraveledStats implements BeamStats, IterationSummarySta
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            processVehicleMilesTraveled(event);
+            Map<String, String> eventAttributes = event.getAttributes();
+            String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+            double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+
+            milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
+            milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
         }
     }
 
     @Override
     public void createGraph(IterationEndsEvent event) {
-
     }
 
     @Override
@@ -35,13 +39,5 @@ public class VehicleMilesTraveledStats implements BeamStats, IterationSummarySta
                 e -> "vehicleMilesTraveled_" + e.getKey(),
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
         )); 
-    }
-
-    private void processVehicleMilesTraveled(Event event) {
-        Map<String, String> eventAttributes = event.getAttributes();
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-
-        milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
     }
 }
