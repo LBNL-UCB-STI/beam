@@ -532,7 +532,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
                 PlotOrientation.VERTICAL, true, true, false);
 
-        String fileName = graphImageFile.replace(".png", "_histogram.png");
+        String fileName = graphImageFile.replace(".png", "Histogram.png");
         //GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
 
         try {
