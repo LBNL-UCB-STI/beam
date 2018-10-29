@@ -248,10 +248,12 @@ override def receive: Receive = {
     }
   }
 
-  def respondWithStall(stall: ParkingStall, requestId: Int): Unit = {
-    resources.put(stall.id, stall)
-    val stallValues = pooledResources(stall.attributes)
-    stallValues._numStalls -= 1
+  def respondWithStall(stall: ParkingStall, requestId: Int, estimateOnly: Boolean): Unit = {
+    if(!estimateOnly) {
+      resources.put(stall.id, stall)
+      val stallValues = pooledResources(stall.attributes)
+      stallValues._numStalls -= 1
+    }
     sender() ! ParkingInquiryResponse(stall, requestId)
   }
 

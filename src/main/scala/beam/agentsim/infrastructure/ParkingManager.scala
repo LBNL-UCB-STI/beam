@@ -26,7 +26,8 @@ object ParkingManager {
     chargingPreference: ChargingPreference,
     arrivalTime: Long,
     parkingDuration: Double,
-    reservedFor: ReservedParkingType = ParkingStall.Any
+    reservedFor: ReservedParkingType = ParkingStall.Any,
+    estimateOnly:Boolean = false
   ) {
     lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
   }

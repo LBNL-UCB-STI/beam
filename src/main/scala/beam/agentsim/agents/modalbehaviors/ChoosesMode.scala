@@ -13,6 +13,9 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.ParkingStall.{Any, NoCharger, NoNeed}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes
@@ -105,7 +108,8 @@ trait ChoosesMode {
       def makeRequestWith(
         transitModes: Vector[BeamMode],
         vehicles: Vector[StreetVehicle],
-        streetVehiclesIntermodalUse: IntermodalUse = Access
+        withParking: Boolean,
+        streetVehiclesIntermodalUse: IntermodalUse = Access,
       ): Unit = {
         router ! RoutingRequest(
           currentPersonLocation.loc,
@@ -115,6 +119,17 @@ trait ChoosesMode {
           vehicles,
           streetVehiclesIntermodalUse,
           mustParkAtEnd = true
+        )
+        parkingManager ! ParkingInquiry(id,
+          nextAct.getCoord,
+          nextAct.getCoord,
+          nextAct.getType,
+          8.0,
+          NoNeed,
+          departTime.atTime,
+          nextAct.getEndTime - departTime.atTime,
+          Any,
+          true
         )
       }
 
@@ -172,6 +187,7 @@ trait ChoosesMode {
           if (hasRideHail) {
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
+              withParking = true,
               withRideHail = true,
               withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
@@ -180,7 +196,7 @@ trait ChoosesMode {
               requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
             }
           } else {
-            responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+            responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
             requestId = None
           }
           makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle)
@@ -366,6 +382,8 @@ trait ChoosesMode {
           choosesModeData.copy(rideHailResult = Some(theRideHailResult))
       }
       stay() using newPersonData
+    case Event(parkingInquiryResponse: ParkingInquiryResponse, choosesModeData: ChoosesModeData) =>
+      stay using choosesModeData.copy(parkingResponse = Some(parkingInquiryResponse))
 
   } using completeChoiceIfReady)
 
@@ -444,6 +462,7 @@ trait ChoosesMode {
           _,
           None,
           Some(routingResponse),
+          Some(parkingResponse),
           Some(rideHailResult),
           Some(rideHail2TransitRoutingResponse),
           _,
@@ -650,6 +669,7 @@ object ChoosesMode {
     currentLocation: Option[SpaceTime] = None,
     pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
     routingResponse: Option[RoutingResponse] = None,
+    parkingResponse: Option[ParkingInquiryResponse] = None,
     rideHailResult: Option[RideHailResponse] = None,
     rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
     rideHail2TransitRoutingRequestId: Option[Int] = None,
@@ -682,15 +702,17 @@ object ChoosesMode {
   }
 
   case class ChoosesModeResponsePlaceholders(
-    routingResponse: Option[RoutingResponse] = None,
-    rideHailResult: Option[RideHailResponse] = None,
-    rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
-    rideHail2TransitAccessResult: Option[RideHailResponse] = None,
-    rideHail2TransitEgressResult: Option[RideHailResponse] = None
+                                              routingResponse: Option[RoutingResponse] = None,
+                                              parkingResponse: Option[ParkingInquiryResponse] = None,
+                                              rideHailResult: Option[RideHailResponse] = None,
+                                              rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
+                                              rideHail2TransitAccessResult: Option[RideHailResponse] = None,
+                                              rideHail2TransitEgressResult: Option[RideHailResponse] = None
   )
 
   def makeResponsePlaceholders(
     withRouting: Boolean = false,
+    withParking: Boolean = false,
     withRideHail: Boolean = false,
     withRideHailTransit: Boolean = false
   ): ChoosesModeResponsePlaceholders = {
@@ -699,6 +721,11 @@ object ChoosesMode {
         None
       } else {
         Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
+      },
+      parkingResponse = if (withParking) {
+        None
+      } else {
+        Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall,0))
       },
       rideHailResult = if (withRideHail) {
         None

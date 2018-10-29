@@ -4,7 +4,7 @@ import beam.agentsim.Resource
 import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 case class ParkingStall(
   id: Id[ParkingStall],
@@ -17,6 +17,9 @@ case class ParkingStall(
 }
 
 object ParkingStall {
+  val emptyId = Id.create("NA",classOf[ParkingStall])
+  val emptyParkingStall = ParkingStall(emptyId,StallAttributes(TAZTreeMap.emptyTAZId,Public,FlatFee,NoCharger,Any),new Coord(0.0,0.0),0.0,None)
+
   case class StallAttributes(
     tazId: Id[TAZ],
     parkingType: ParkingType,
