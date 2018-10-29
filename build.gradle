@@ -140,6 +140,9 @@ dependencies {
         exclude group: 'log4j', module: 'log4j'
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.10.0'
+    compile (group: "org.matsim.contrib", name: "decongestion", version: "0.11.0-2018w43"){
+        exclude group: "org.matsim", module: "matsim"
+    }
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
     compile "ch.qos.logback:logback-classic:1.2.3"

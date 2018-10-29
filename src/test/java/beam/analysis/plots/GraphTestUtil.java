@@ -1,14 +1,19 @@
 package beam.analysis.plots;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.mockito.Mock;
+import org.mockito.Mockito.*;
 
 import java.nio.file.Paths;
+
+import static org.mockito.Mockito.when;
 
 public class GraphTestUtil {
 
@@ -26,10 +31,14 @@ public class GraphTestUtil {
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
     static boolean simRunFlag = false;
     private static BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf"));
-    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(beamconfig);
+    @Mock
+    static BeamServices services;
+    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents;
     static EventsManager events;
 
     public synchronized static void createDummySimWithXML() {
+        when(services.beamConfig()).thenReturn(beamconfig);
+        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services);
         createDummySimWithXML(graphsFromAgentSimEvents);
     }
 
