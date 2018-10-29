@@ -250,7 +250,7 @@ public class PersonVehicleTransitionStats implements BeamStats, MetricsSupport {
     private void writeGraphic(Integer iteration, String mode) {
         try {
 
-            String filename = fileName + "_" + mode + ".png";
+            String filename = fileName + mode.substring(0, 1).toUpperCase() + fileName.substring(1) + ".png";
             String path = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, filename);
             int index = path.lastIndexOf("/");
             File outDir = new File(path.substring(0, index) + "/tripHistogram");

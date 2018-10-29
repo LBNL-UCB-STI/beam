@@ -27,7 +27,7 @@ public class RideHailingWaitingSingleStats implements BeamStats {
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (seconds)";
-    private static final String fileName = "rideHail_waitingSingleStats";
+    private static final String fileName = "rideHailWaitingSingleStats";
     private static double numberOfTimeBins;
     private double lastMaximumTime = 0;
     private Map<String, Event> rideHailWaiting = new HashMap<>();

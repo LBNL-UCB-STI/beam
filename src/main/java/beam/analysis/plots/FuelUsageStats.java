@@ -20,7 +20,7 @@ public class FuelUsageStats implements BeamStats {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
-    private static final String fileName = "energy_use.png";
+    private static final String fileName = "energyUse.png";
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
@@ -140,7 +140,7 @@ public class FuelUsageStats implements BeamStats {
 
         String SEPERATOR = ",";
 
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "energy_use.csv"));
+        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "energyUse.csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
 
 

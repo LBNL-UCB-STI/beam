@@ -97,7 +97,7 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     private void createCSV(Tuple<List<String>, double[][]> data, int iteration) {
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond();
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "average_travel_times.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "averageTravelTimes.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
             int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
@@ -223,7 +223,7 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        String fileName = "averageTravelTimes_" + mode + ".png";
+        String fileName = "averageTravelTimes" + (mode.substring(0, 1).toUpperCase() + mode.substring(1)).replaceAll("_","") + ".png";
         String graphTitle = "Average Travel Time [" + mode + "]";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);

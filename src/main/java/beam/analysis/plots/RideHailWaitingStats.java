@@ -117,7 +117,7 @@ public class RideHailWaitingStats implements BeamStats {
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    private static final String fileName = "rideHail_waitingStats";
+    private static final String fileName = "rideHailWaitingStats";
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();

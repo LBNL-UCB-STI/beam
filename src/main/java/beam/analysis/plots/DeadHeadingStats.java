@@ -618,11 +618,11 @@ public class DeadHeadingStats implements BeamStats {
     // Utility Methods
     private String getFileName(String graphName, String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            return "passengerPerTrip_" + fileNameBase + "." + extension;
+            return "passengerPerTrip_" + fileNameBase.substring(0, 1).toUpperCase() + fileNameBase.substring(1) + "." + extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
             return fileNameBase + "TripDistance." + extension;
         } else {
-            return "passengerPerTrip_" + graphName + "." + extension;
+            return "passengerPerTrip_" + graphName.substring(0, 1).toUpperCase() + graphName.substring(1) + "." + extension;
         }
     }
 

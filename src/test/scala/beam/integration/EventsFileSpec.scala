@@ -141,7 +141,7 @@ class EventsFileSpec
   it should "also produce experienced plans which make sense" in {
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new PopulationReader(scenario).readFile(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.0/0.experienced_plans.xml.gz"
+      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.0/experienced_plans.xml.gz"
     )
     assert(scenario.getPopulation.getPersons.size() == 50)
     scenario.getPopulation.getPersons.values().forEach { person =>

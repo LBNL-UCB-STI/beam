@@ -28,7 +28,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "mode_choice";
+    private static final String fileName = "modeChoice";
 
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();

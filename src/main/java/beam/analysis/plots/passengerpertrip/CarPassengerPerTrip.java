@@ -77,7 +77,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getFileName(String extension) {
-        return "passengerPerTrip_" + graphName + "." + extension;
+        return "passengerPerTrip_" + graphName.substring(0, 1).toUpperCase() + graphName.substring(1) + "." + extension;
     }
 
     @Override

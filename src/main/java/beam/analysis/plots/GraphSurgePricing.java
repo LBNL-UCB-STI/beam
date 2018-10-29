@@ -82,11 +82,11 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
 
-        graphImageFile = odh.getIterationFilename(iNo, "rideHail_surgePriceLevel.png");
-        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHail_surgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
-        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHail_revenue.png");
-        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHail_revenue.csv");
+        graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
+        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv");
+        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
+        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
         this.createGraphs();
 
