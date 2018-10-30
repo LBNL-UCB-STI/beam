@@ -1048,33 +1048,28 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     matsimTravelTime: TravelTime,
     pureTravelTimeWithoutCosts: Boolean
   ): Double = {
+    val link = network.getLinks.get(Id.createLinkId(linkId))
     var travelTime = matsimTravelTime
       .getLinkTravelTime(
-        network.getLinks.get(Id.createLinkId(linkId)),
+        link,
         time.toDouble,
         null,
         null
       )
 
-    val travelSpeed = network.getLinks.get(Id.createLinkId(linkId)).getLength / travelTime
-    travelTime = if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-      network.getLinks
-        .get(Id.createLinkId(linkId))
-        .getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-    } else {
-      travelTime
+    val travelSpeed = link.getLength / travelTime
+    if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+      travelTime = link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
     }
 
-    if (pureTravelTimeWithoutCosts) {
-      travelTime
-    } else {
+    if (!pureTravelTimeWithoutCosts) {
       val tollPriceFile = beamServices.beamConfig.beam.agentsim.toll.file
       val tollPrices = BridgeTollDefaults.readTollPrices(tollPriceFile) // TODO: load tolls file first time only, as soon as logic works
       val valueOfTravelTimesSavings = 10.0 // 10$/h
 
-      travelTime + tollPrices.getOrElse(linkId, 0.0).asInstanceOf[Double] / valueOfTravelTimesSavings * 3600
+      travelTime = travelTime + tollPrices.getOrElse(linkId, 0.0) / valueOfTravelTimesSavings * 3600
     }
-
+    travelTime
   }
 
   private val turnCostCalculator: TurnCostCalculator =
