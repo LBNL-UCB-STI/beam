@@ -384,9 +384,6 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
         data @ BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _)
         ) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
-
       val attributes =
         beamServices.matsimServices.getScenario.getPopulation.getPersons
           .get(id)
@@ -410,6 +407,9 @@ class PersonAgent(
       eventsManager.processEvent(
         new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
       )
+
+      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
