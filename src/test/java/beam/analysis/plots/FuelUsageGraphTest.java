@@ -54,7 +54,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        long expectedResult = 17013494075L;
+        long expectedResult = 16566982237L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -78,7 +78,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventWalkFuel() {
-        long expectedResult = 7;
+        long expectedResult = 8;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);
