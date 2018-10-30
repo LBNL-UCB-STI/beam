@@ -21,6 +21,7 @@ public class StatsFactory {
     public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
     public static final String NumberOfVehicles = "NumberOfVehicles";
     public static final String AgentDelay = "AgentDelay";
+    public static final String PersonCost = "PersonCost";
 
     private BeamConfig beamConfig;
     private BeamServices beamServices;
@@ -57,6 +58,7 @@ public class StatsFactory {
         getStats(StatsFactory.VehicleMilesTraveled);
         getStats(StatsFactory.NumberOfVehicles);
         getStats(StatsFactory.AgentDelay);
+        getStats(StatsFactory.PersonCost);
     }
     
     private BeamStats createStats(String statsType) {
@@ -83,6 +85,8 @@ public class StatsFactory {
                 return new NumberOfVehiclesStats();
             case AgentDelay:
                 return new AgentDelayStats(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
+            case PersonCost:
+                return new PersonCostStats();
             default:
                 return null;
         }
