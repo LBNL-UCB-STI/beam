@@ -21,6 +21,7 @@ public class VehicleMilesTraveledStats implements BeamStats, IterationSummarySta
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
             milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
+
         }
     }
 
