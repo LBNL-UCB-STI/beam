@@ -16,14 +16,14 @@ System Requirements
 * Java Runtime Environment 1.8
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
-* We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
+* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
 
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.6.1`_.
+Download `BEAM v0.6.2`_.
 
-.. _BEAM v0.6.1: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.1/beam-gui.zip
+.. _BEAM v0.6.2: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.2/beam-gui-v0.6.2.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
@@ -43,7 +43,7 @@ The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-Use "Choose" to select a configuration file from your file system. Choose `test/input/beamville/beam.conf`.
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`.
 
 Click "Run BEAM". 
 
@@ -51,7 +51,7 @@ You will see output appear in the console. Congrats, you're running BEAM!
 
 Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
-You can also run bean using command line with a gradle task and configuration need to provide in `appArgs` (as gradle argument). To run for beamville, following command need to execute::
+If you want greater control over BEAM or the ability to customize classes, you should checkout of the full BEAM repository from Github and then you can run beam using from the command line with a gradle task (you will need to install gradle on your system)::
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
@@ -63,12 +63,14 @@ The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridd
 
 .. image:: _static/figs/beamville-net.png
 
-The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 1000 to 25,000 agents.
 
 .. image:: _static/figs/sf-light.png
 
 Inputs
 ^^^^^^^
+
+For more detailed inputs documentation, see :ref:`model-inputs`.
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
@@ -78,16 +80,15 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
 * The household population and corresponding attributes files (e.g. `households.xml` and `householdAttributes.xml`)
-* The personal vehicle fleet (e.g. `vehicles.xml`)
-* The definition of vehicle types for the public transit fleet (e.g. `transitVehicles.xml`)
-* The mode choice parameters file (e.g. `modeChoiceParameters.xml`)
+* The personal vehicle fleet (e.g. `vehicles.csv`)
+* The definition of vehicle types including for personal vehicles and the public transit fleet (e.g. `vehicleTypes.csv`)
 * A directory containing network and transit data used by R5 (e.g. `r5/`)
 * The open street map network (e.g. `r5/beamville.osm`)
 * GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files in the output sub-folder should look like this when the run is complete:
 
 .. image:: _static/figs/beamville-outputs.png
 
@@ -272,6 +273,29 @@ following arguments:
 .. _Log-in: http://app.sigopt.com/login
 .. _API Tokens: http://app.sigopt.com/tokens/info
 
+Timezones and GTFS
+------------------
+There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems. 
+
+BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers' minds, so they infer the time zone of the region being modeled from the "timezone" field in the "agency.txt" file in the first GTFS data archive that is parsed during the network building process.
+
+Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC. 
+
+Meanwhile, there is a parameter in beam, "beam.routing.baseDate" that is used to ensure that routing requests to R5 are send with the appropriate timestamp. This allows you to run BEAM using any sub-schedule in your GTFS archive. I.e. if your base date is a weekday, R5 will use the weekday schedules for transit, if it's a weekend day, then the weekend schedules will be used. 
+
+The time zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T00:00:00-07:00") must match the time zone in the GTFS archive(s) provided to R5.
+
+As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:
+
+https://github.com/LBNL-UCB-STI/beam/raw/master/test/input/beamville/r5/dummy.zip
+
+But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. 
+
+The date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
+
+One more word of caution. If you make changes to GTFS data, then make sure your properly zip the data back into an archive. You do this by selecting all of the individual text files and then right-click-compress. Do not compress the folder containing the GTFS files, if you do this, R5 will fail to read your data and will do so without any warning or errors.
+
+Finally, any time you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file "network.dat" under the "r5" sub-directory. This will signal to the R5 library to re-build the network.
 
 
 Converting a MATSim Scenario to Run with BEAM
@@ -330,7 +354,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 * beam.spatial.boundingBoxBuffer = 10000 (meters to pad bounding box around the MATSim network when clipping the OSM network)
 
-* The BEAM parameter beam.routing.baseDate has a time zone (e.g. for PST one might use "2016-10-17T00:00:00-07:00"). This time zone must match the time zone in the GTFS data provided to the R5 router. As a default, we provide a "dummy" GTFS data archive that happens to have a time zone of Los Angeles. But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. Finally, the date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
+* The BEAM parameter beam.routing.baseDate has a time zone (e.g. for PST one might use "2016-10-17T00:00:00-07:00"). This time zone must match the time zone in the GTFS data provided to the R5 router. As a default, we provide the latest GTFS data from the City of Sioux Falls ("siouxareametro-sd-us.zip". downloaded from transitland.org) with a timezone of America/Central. But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. Finally, the date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
 
 8. Run the conversion tool
 

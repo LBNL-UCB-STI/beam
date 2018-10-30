@@ -15,22 +15,24 @@ import org.matsim.core.utils.collections.Tuple;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
-public class FuelUsageStats implements IGraphStats {
+public class FuelUsageStats implements BeamStats, IterationSummaryStats {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     private static final String fileName = "energy_use.png";
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
+    private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
 
-    private final IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
+    private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageStats(IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
+    public FuelUsageStats(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
         this.statsComputation = statsComputation;
     }
 
-    public static class FuelUsageStatsComputation implements IStatComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
+    public static class FuelUsageStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(stat.getFirst().keySet());
@@ -62,7 +64,8 @@ public class FuelUsageStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        processFuelUsage(event);
+        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+            processFuelUsage(event);
     }
 
     @Override
@@ -70,12 +73,6 @@ public class FuelUsageStats implements IGraphStats {
         CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
         createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
         createFuelCSV(hourModeFuelage, event.getIteration());
-    }
-
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
     }
 
     @Override
@@ -128,6 +125,9 @@ public class FuelUsageStats implements IGraphStats {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        String fuelType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL_TYPE);
+        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL));
+        fuelConsumedByFuelType.merge(fuelType, fuel, (d1, d2) -> d1 + d2);
     }
 
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
@@ -139,6 +139,14 @@ public class FuelUsageStats implements IGraphStats {
         GraphUtils.plotLegendItems(plot, modesFuelList, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+        return fuelConsumedByFuelType.entrySet().stream().collect(Collectors.toMap(
+                e -> "fuelConsumedInMJ_" + e.getKey(),
+                e -> e.getValue()/1.0e6
+        ));
     }
 
     private void createFuelCSV(Map<Integer, Map<String, Double>> hourModeFuelage, int iterationNumber) {

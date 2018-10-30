@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -19,7 +20,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeStats implements IGraphStats {
+public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
@@ -27,13 +28,13 @@ public class PersonTravelTimeStats implements IGraphStats {
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
-    private final IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
+    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
-    public PersonTravelTimeStats(IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
+    public PersonTravelTimeStats(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 
-    public static class PersonTravelTimeComputation implements IStatComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
+    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
 
         @Override
         public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
@@ -122,14 +123,20 @@ public class PersonTravelTimeStats implements IGraphStats {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event, String graphType) {
-
-    }
-
-    @Override
     public void resetStats() {
         personLastDepartureEvents.clear();
         hourlyPersonTravelTimes.clear();
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+
+        return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
+                e -> "personTravelTime_" + e.getKey().toString(),
+                e -> e.getValue().values().stream().flatMapToDouble(
+                        times -> times.stream().mapToDouble(Double::doubleValue)
+                ).sum()
+        ));
     }
 
     private void processPersonArrivalEvent(Event event) {

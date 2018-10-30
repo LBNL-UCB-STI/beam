@@ -1,14 +1,11 @@
 package beam.analysis.plots;
 
-import beam.agentsim.events.ModeChoiceEvent;
-import beam.agentsim.events.PathTraversalEvent;
-import beam.agentsim.events.ReplanningEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
-import org.matsim.api.core.v01.events.*;
+import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -18,16 +15,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationSummaryStats {
 
     public static final String CAR = "car";
     public static final String RIDE = "ride";
@@ -42,25 +37,16 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     private static final int SECONDS_IN_HOUR = 3600;
     public static OutputDirectoryHierarchy CONTROLLER_IO;
     // Static Initializer
-    private final IGraphStats deadHeadingStats = new DeadHeadingStats();
-    private final IGraphStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation());
-    private final IGraphStats modeChoseStats ;
-    private final IGraphStats personTravelTimeStats = new PersonTravelTimeStats(new PersonTravelTimeStats.PersonTravelTimeComputation());
-    private final IGraphStats rideHailWaitingStats;
-    private final IGraphStats personVehicleTransitionStats;
-    private final IGraphStats rideHailingWaitingSingleStats;
-    private final IGraphStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
+    private final StatsFactory statsFactory;
     private final BeamConfig beamConfig;
 
     private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        rideHailWaitingStats = new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);
-        rideHailingWaitingSingleStats = new RideHailingWaitingSingleStats(beamConfig, new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation());
-        modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation(), beamConfig);
-        personVehicleTransitionStats = new PersonVehicleTransitionStats(beamConfig);
-       this.beamConfig=beamConfig;
+        statsFactory = new StatsFactory(beamConfig);
+        statsFactory.createStats();
+        this.beamConfig = beamConfig;
     }
 
     // Constructor
@@ -92,84 +78,56 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
 
     @Override
     public void reset(int iteration) {
-        deadHeadingStats.resetStats();
-        fuelUsageStats.resetStats();
-        modeChoseStats.resetStats();
-        personTravelTimeStats.resetStats();
-        personVehicleTransitionStats.resetStats();
-        rideHailWaitingStats.resetStats();
-        rideHailingWaitingSingleStats.resetStats();
-        realizedModeStats.resetStats();
+        statsFactory.getBeamStats().forEach(BeamStats::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE)) {
-            realizedModeStats.processStats(event);
-        }
-        if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
-            rideHailWaitingStats.processStats(event);
-            rideHailingWaitingSingleStats.processStats(event);
-            modeChoseStats.processStats(event);
-            realizedModeStats.processStats(event);
-        } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            fuelUsageStats.processStats(event);
-            deadHeadingStats.processStats(event);
-        } else if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)) {
-            personTravelTimeStats.processStats(event);
-        } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
-            personTravelTimeStats.processStats(event);
-        } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)) {
-            rideHailWaitingStats.processStats(event);
-            rideHailingWaitingSingleStats.processStats(event);
-            personVehicleTransitionStats.processStats(event);
-        }else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
-            personVehicleTransitionStats.processStats(event);
-        }
-
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.processStats(event);
+        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-        modeChoseStats.createGraph(event);
-        fuelUsageStats.createGraph(event);
-        rideHailWaitingStats.createGraph(event);
-        rideHailingWaitingSingleStats.createGraph(event);
-
-        deadHeadingStats.createGraph(event);
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.createGraph(event);
+        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.createGraph(event, "TNC0");
-        deadHeadingStats.createGraph(event, "");
 
-        personTravelTimeStats.createGraph(event);
-        personVehicleTransitionStats.createGraph(event);
-        realizedModeStats.createGraph(event);
 
         if (CONTROLLER_IO != null) {
             try {
                 // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 
                 // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
+                BeamStats modeChoseStats = statsFactory.getStats(StatsFactory.ModeChosen);
                 ((ModeChosenStats) modeChoseStats).writeToRootCSV();
-                if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length()>0) {
+                if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
                     String outPath = CONTROLLER_IO.getOutputFilename("modeChoice.csv");
-                    Double modesAbsoluteError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                    Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
                             .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
                     log.info("modesAbsoluteError: " + modesAbsoluteError);
 
-                    Double modesRMSPError =new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                    Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
                             .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
                     log.info("modesRMSPError: " + modesRMSPError);
                 }
-            } catch (Exception e){
+            } catch (Exception e) {
                 log.error("exception: {}", e.getMessage());
             }
         }
     }
 
-    public void notifyShutdown(ShutdownEvent event) throws Exception{
-        if(realizedModeStats instanceof RealizedModeStats){
-            RealizedModeStats realizedStats = (RealizedModeStats) realizedModeStats;
-            realizedStats.notifyShutdown(event);
-        }
+    public void notifyShutdown(ShutdownEvent event) throws Exception {
+        RealizedModeStats realizedModeStats = (RealizedModeStats) statsFactory.getStats(StatsFactory.RealizedMode);
+        if (realizedModeStats != null) realizedModeStats.notifyShutdown(event);
+    }
+
+    @Override
+    public Map<String, Double> getIterationSummaryStats() {
+        return statsFactory.getSummaryStats().stream()
+                .map(IterationSummaryStats::getIterationSummaryStats)
+                .map(Map::entrySet)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

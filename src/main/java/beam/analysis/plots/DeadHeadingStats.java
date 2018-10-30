@@ -13,6 +13,7 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import scala.collection.immutable.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -20,7 +21,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingStats implements IGraphStats {
+public class DeadHeadingStats implements BeamStats {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;
@@ -39,7 +40,7 @@ public class DeadHeadingStats implements IGraphStats {
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
-
+    private static List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -65,26 +66,27 @@ public class DeadHeadingStats implements IGraphStats {
 
     @Override
     public void processStats(Event event) {
-        processDeadHeading(event);
+        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+            processDeadHeading(event);
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
+    public void createGraph(IterationEndsEvent event) throws IOException {
+        processDeadHeadingPassengerPerTripRemainingRepositionings();
+        //createDeadHeadingPassengerPerTripGraph(event, graphType);
+
+        for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
+            graph.process(event);
+        }
     }
 
-    @Override
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-        if (graphType.equalsIgnoreCase("TNC0")) {
+        if ("TNC0".equalsIgnoreCase(graphType)) {
 
             processDeadHeadingDistanceRemainingRepositionings();
             createDeadHeadingDistanceGraph(event);
         } else {
-            processDeadHeadingPassengerPerTripRemainingRepositionings();
-            //createDeadHeadingPassengerPerTripGraph(event, graphType);
-
-            for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()){
-                graph.process(event);
-            }
+            createGraph(event);
         }
     }
 
@@ -756,39 +758,35 @@ public class DeadHeadingStats implements IGraphStats {
 
     //
     // New Code
-    @Override
     public void collectEvents(Event event) {
-
         String type = event.getEventType();
+        // We care only about PathTraversalEvent!
+        if (!type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+            return;
+
         Map<String, String> attributes = event.getAttributes();
         String mode = getEventMode(attributes);
         String vehicleId = getVehicleId(attributes);
-        Double time = event.getTime();
 
-        if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")){
-
+        if (mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")) {
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("car");
-            if(graph == null){
+            if (graph == null) {
                 graph = new CarPassengerPerTrip("car");
             }
             graph.collectEvent(event, attributes);
 
             passengerPerTripMap.put("car", graph);
 
-        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE) && mode.equalsIgnoreCase("car") && vehicleId.contains("ride")){
-
+        } else if (mode.equalsIgnoreCase("car") && vehicleId.contains("ride")) {
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("tnc");
-            if(graph == null){
+            if (graph == null) {
                 graph = new TncPassengerPerTrip();
             }
             graph.collectEvent(event, attributes);
 
             passengerPerTripMap.put("tnc", graph);
-        }else if(type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)){
-
-            String[] modesToExclude = {"car", "walk", "ride_hail", "subway"};
-
-            if(!Arrays.asList(modesToExclude).contains(mode)) {
+        } else {
+            if (!excludeModes.contains(mode)) {
                 IGraphPassengerPerTrip graph = passengerPerTripMap.get(mode);
                 if (graph == null) {
                     graph = new GenericPassengerPerTrip(mode);
@@ -805,7 +803,7 @@ public class DeadHeadingStats implements IGraphStats {
         return attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
     }
 
-    private String getEventMode(Map<String, String> attributes){
+    private String getEventMode(Map<String, String> attributes) {
         return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
     }
 

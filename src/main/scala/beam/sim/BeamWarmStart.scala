@@ -17,7 +17,7 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
 
-class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
+class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
 
   private lazy val srcPath = beamConfig.beam.warmStart.path
 
@@ -32,23 +32,24 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     * initialize travel times.
     */
   def warmStartTravelTime(beamRouter: ActorRef): Unit = {
-    if (!isWarmMode) return
-    getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
-      case Some(statsPath) =>
-        if (Files.exists(Paths.get(statsPath))) {
-          beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
-          logger.info("Travel times successfully warm started from {}.", statsPath)
-        } else {
+    if (!isWarmMode) {} else {
+      getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
+        case Some(statsPath) =>
+          if (Files.exists(Paths.get(statsPath))) {
+            beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
+            logger.info("Travel times successfully warm started from {}.", statsPath)
+          } else {
+            logger.warn(
+              "Travel times failed to warm start, stats not found at path ( {} )",
+              statsPath
+            )
+          }
+        case None =>
           logger.warn(
             "Travel times failed to warm start, stats not found at path ( {} )",
-            statsPath
+            srcPath
           )
-        }
-      case None =>
-        logger.warn(
-          "Travel times failed to warm start, stats not found at path ( {} )",
-          srcPath
-        )
+      }
     }
   }
 
@@ -56,25 +57,25 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
     * initialize population.
     */
   def warmStartPopulation(matsimConfig: Config): Unit = {
-    if (!isWarmMode) return
-    getWarmStartFilePath("plans.xml.gz") match {
-      case Some(statsPath) =>
-        if (Files.exists(Paths.get(statsPath))) {
-          val file = loadPopulation(parentRunPath, statsPath)
-
-          matsimConfig.plans().setInputFile(file)
-          logger.info("Population successfully warm started from {}", statsPath)
-        } else {
+    if (!isWarmMode) {} else {
+      getWarmStartFilePath("plans.xml.gz") match {
+        case Some(statsPath) =>
+          if (Files.exists(Paths.get(statsPath))) {
+            val file = loadPopulation(parentRunPath, statsPath)
+            matsimConfig.plans().setInputFile(file)
+            logger.info("Population successfully warm started from {}", statsPath)
+          } else {
+            logger.warn(
+              "Population failed to warm start, plans not found at path ( {} )",
+              statsPath
+            )
+          }
+        case None =>
           logger.warn(
             "Population failed to warm start, plans not found at path ( {} )",
-            statsPath
+            srcPath
           )
-        }
-      case None =>
-        logger.warn(
-          "Population failed to warm start, plans not found at path ( {} )",
-          srcPath
-        )
+      }
     }
   }
 
@@ -185,12 +186,12 @@ class BeamWarmStart private (beamConfig: BeamConfig) extends LazyLogging {
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize = beamConfig.beam.agentsim.timeBinSize
 
-    new LinkTravelTimeContainer(statsFile, binSize)
+    new LinkTravelTimeContainer(statsFile, binSize, maxHour)
   }
 
 }
 
 object BeamWarmStart {
 
-  def apply(beamConfig: BeamConfig): BeamWarmStart = new BeamWarmStart(beamConfig)
+  def apply(beamConfig: BeamConfig, maxHour: Int): BeamWarmStart = new BeamWarmStart(beamConfig, maxHour)
 }
