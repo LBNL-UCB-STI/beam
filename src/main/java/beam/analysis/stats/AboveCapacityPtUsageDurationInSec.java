@@ -45,7 +45,7 @@ public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSu
     @Override
     public Map<String, Double> getIterationSummaryStats() {
         Map<String, Double> result = new HashMap<>();
-        result.put("AtCapacityPtUsageDurationInSec", aboveCapacityPtUsageDurationInSec);
+        result.put("atCapacityPtUsageDurationInSec", aboveCapacityPtUsageDurationInSec);
         return result;
     }
 }

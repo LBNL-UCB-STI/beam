@@ -387,36 +387,29 @@ class PersonAgent(
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
-      if (data.currentTrip.get.costEstimate > 0) {
-        val attributes =
-          beamServices.matsimServices.getScenario.getPopulation.getPersons
-            .get(id)
-            .getCustomAttributes
-            .get("beam-attributes")
-            .asInstanceOf[AttributesOfIndividual]
-
-        val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
-        val income = Some(attributes.householdAttributes.householdIncome.toInt)
-        val mode = data.currentTrip.get.tripClassifier
-
-        val subsidy = modeSubsidy.getSubsidy(mode, age, income)
-
-        eventsManager.processEvent(
-          new PersonCostEvent(
-            tick,
-            id,
-            mode.value,
-            PersonCostEvent.COST_TYPE_COST_INCLUDING_SUBSIDY,
-            data.currentTrip.get.costEstimate
-          )
+      val attributes =
+        beamServices.matsimServices.getScenario.getPopulation.getPersons
+          .get(id)
+          .getCustomAttributes
+          .get("beam-attributes")
+          .asInstanceOf[AttributesOfIndividual]
+      val mode = data.currentTrip.get.tripClassifier
+      eventsManager.processEvent(
+        new PersonCostEvent(
+          tick,
+          id,
+          mode.value,
+          PersonCostEvent.COST_TYPE_COST_INCLUDING_SUBSIDY,
+          data.currentTrip.get.costEstimate
         )
+      )
 
-        if(subsidy  > 0) {
-          eventsManager.processEvent(
-            new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
-          )
-        }
-      }
+      val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
+      val income = Some(attributes.householdAttributes.householdIncome.toInt)
+      val subsidy = modeSubsidy.getSubsidy(mode, age, income)
+      eventsManager.processEvent(
+        new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+      )
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
