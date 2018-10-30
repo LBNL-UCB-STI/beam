@@ -1,10 +1,8 @@
 package beam.calibration
 
-import java.nio.file.{Files, Paths}
-
 import beam.calibration.utils.SigOptApiToken
-import beam.experiment.{ExperimentApp, ExperimentDef}
-import beam.sim.BeamHelper
+import beam.calibration.CalibrationArguments._
+import beam.experiment.ExperimentApp
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
 import com.typesafe.scalalogging.LazyLogging
@@ -24,6 +22,7 @@ import org.apache.commons.lang.SystemUtils
   */
 object RunCalibration extends ExperimentApp with LazyLogging {
 
+
   // requirement:
   /*
     --runType local|remote
@@ -34,18 +33,6 @@ object RunCalibration extends ExperimentApp with LazyLogging {
   // - we need to pass existing experiment id to local and remote runs we start - [DONE]
   // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token) - [LATER]
   // - provide a objective function with is a combination of modes and counts
-
-  // Private Constants //
-  private val BENCHMARK_EXPERIMENTS_TAG = "benchmark"
-  private val NUM_ITERATIONS_TAG = "num_iters"
-  private val EXPERIMENT_ID_TAG = "experiment_id"
-  private val NEW_EXPERIMENT_FLAG = "00000"
-  private val RUN_TYPE = "run_type"
-  private val SIGOPT_API_TOKEN_TAG = "sigopt_api_token"
-
-  private val RUN_TYPE_LOCAL = "local"
-  private val RUN_TYPE_REMOTE = "remote"
-
 
   // Store CLI inputs as private members
   private val experimentLoc: String = argsMap(EXPERIMENTS_TAG)

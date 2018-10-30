@@ -1,10 +1,13 @@
 package beam.analysis.plots;
 
+import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
+import java.beans.Beans;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class StatsFactory {
     public static final String RideHailWaiting = "RideHailWaiting";
@@ -15,12 +18,18 @@ public class StatsFactory {
     public static final String PersonTravelTime = "PersonTravelTime";
     public static final String RealizedMode = "RealizedMode";
     public static final String DeadHeading = "DeadHeading";
+    public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
+    public static final String NumberOfVehicles = "NumberOfVehicles";
+    public static final String AgentDelay = "AgentDelay";
+    public static final String PersonCost = "PersonCost";
 
     private BeamConfig beamConfig;
+    private BeamServices beamServices;
     private Map<String, BeamStats> beamStatsMap = new HashMap<>();
 
-    public StatsFactory(BeamConfig beamConfig) {
-        this.beamConfig = beamConfig;
+    public StatsFactory(BeamServices services) {
+        this.beamServices = services;
+        this.beamConfig = services.beamConfig();
     }
 
     public BeamStats getStats(String statsType) {
@@ -29,8 +38,12 @@ public class StatsFactory {
         return stats;
     }
 
-    public Collection<BeamStats> getStats() {
+    public Collection<BeamStats> getBeamStats() {
         return beamStatsMap.values();
+    }
+
+    public Collection<IterationSummaryStats> getSummaryStats() {
+        return beamStatsMap.values().stream().filter(s -> Beans.isInstanceOf(s, IterationSummaryStats.class)).map(s -> (IterationSummaryStats)s).collect(Collectors.toList());
     }
 
     public void createStats() {
@@ -42,6 +55,10 @@ public class StatsFactory {
         getStats(StatsFactory.ModeChosen);
         getStats(StatsFactory.PersonVehicleTransition);
         getStats(StatsFactory.RealizedMode);
+        getStats(StatsFactory.VehicleMilesTraveled);
+        getStats(StatsFactory.NumberOfVehicles);
+        getStats(StatsFactory.AgentDelay);
+        getStats(StatsFactory.PersonCost);
     }
     
     private BeamStats createStats(String statsType) {
@@ -62,6 +79,14 @@ public class StatsFactory {
                 return new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
             case DeadHeading:
                 return new DeadHeadingStats();
+            case VehicleMilesTraveled:
+                return new VehicleMilesTraveledStats();
+            case NumberOfVehicles:
+                return new NumberOfVehiclesStats();
+            case AgentDelay:
+                return new AgentDelayStats(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
+            case PersonCost:
+                return new PersonCostStats();
             default:
                 return null;
         }

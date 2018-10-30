@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{BufferedWriter, FileWriter}
+import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
@@ -9,8 +9,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
 import beam.analysis.plots.modality.ModalityStyleStats
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -36,16 +36,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -57,7 +57,8 @@ class BeamSim @Inject()(
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
-  val iterationStats: ListBuffer[IterationSummaryStats] = new ListBuffer()
+  val iterationStatsProviders: ListBuffer[IterationSummaryStats] = new ListBuffer()
+  val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -117,7 +118,7 @@ class BeamSim @Inject()(
         scenario,
         beamServices
       )
-      iterationStats += agentSimToPhysSimPlanConverter
+      iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
@@ -126,7 +127,7 @@ class BeamSim @Inject()(
       beamServices,
       beamServices.beamConfig
     )
-    iterationStats += createGraphsFromEvents
+    iterationStatsProviders += createGraphsFromEvents
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(
       eventsManager,
@@ -155,20 +156,25 @@ class BeamSim @Inject()(
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      if("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
       val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
-      if(interval>0 && event.getIteration % interval == 0) {
+      if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
           event.getServices.getControlerIO
             .getIterationFilename(event.getIteration, "population.csv.gz")
         )
       }
 
-      writeSummaryStats(event)
+      iterationSummaryStats += iterationStatsProviders
+        .flatMap(_.getIterationSummaryStats.asScala)
+        .toMap
+
+      val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
+      writeSummaryStats(summaryStatsFile)
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
@@ -206,7 +212,7 @@ class BeamSim @Inject()(
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
 
     logger.info("Generating html page to compare graphs (across all iterations)")
-    BeamGraphComparator.generateGraphComparisonHtmlPage(event,firstIteration,lastIteration)
+    BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
@@ -222,27 +228,28 @@ class BeamSim @Inject()(
 
     outputFilesToDelete.foreach(deleteOutputFile)
     createGraphsFromEvents.notifyShutdown(event)
+
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
   }
 
-  private def writeSummaryStats(event: IterationEndsEvent): Unit = {
-    val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
-    val alreadyExists = summaryStatsFile.exists()
-    val out = new BufferedWriter(new FileWriter(summaryStatsFile, alreadyExists))
+  private def writeSummaryStats(summaryStatsFile: File): Unit = {
+    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
 
-    val stats = iterationStats.flatMap(_.getIterationSummaryStats.asScala).toMap
-
-    if (!alreadyExists) {
-      out.write("Iteration,")
-      out.write(stats.keys.mkString(","))
-      out.newLine()
-    }
-    out.write(s"${event.getIteration},")
-    out.write(stats.values.mkString(","))
+    val out = new BufferedWriter(new FileWriter(summaryStatsFile))
+    out.write("Iteration,")
+    out.write(keys.mkString(","))
     out.newLine()
+
+    iterationSummaryStats.zipWithIndex.foreach {
+      case (stats, it) =>
+        out.write(s"$it,")
+        out.write(keys.map(stats.getOrElse(_, "")).mkString(","))
+        out.newLine()
+    }
+
     out.close()
   }
 }
