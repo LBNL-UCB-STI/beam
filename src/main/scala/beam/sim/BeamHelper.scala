@@ -226,9 +226,6 @@ trait BeamHelper extends LazyLogging {
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
 
-          // Add delay handler
-          this.bind(classOf[DelayAnalysis]).asEagerSingleton()
-          this.addEventHandlerBinding().to(classOf[DelayAnalysis])
         }
       }
     )
