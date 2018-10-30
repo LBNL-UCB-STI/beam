@@ -58,7 +58,7 @@ class TollRoutingSpec
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = new TollCalculator("test/input/beamville/r5")
+    val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
@@ -77,7 +77,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
 
-      assert(carOption.costEstimate == 2.0) // contains two toll links
+      assert(carOption.costEstimate == 3.0) // contains three toll links: two specified in OSM, and one in CSV file
     }
 
   }

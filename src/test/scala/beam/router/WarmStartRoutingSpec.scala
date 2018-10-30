@@ -87,7 +87,7 @@ class WarmStartRoutingSpec
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
         services,

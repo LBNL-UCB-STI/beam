@@ -4,16 +4,19 @@ import java.io._
 import java.nio.file.{Files, Path, Paths}
 
 import beam.router.osm.TollCalculator.{Charge, Toll}
+import beam.sim.config.BeamConfig
 import com.conveyal.osmlib.OSMEntity.Tag
 import com.conveyal.osmlib.{OSM, Way}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.io.Source
 
-class TollCalculator(val directory: String) extends LazyLogging {
+class TollCalculator(val beamConfig: BeamConfig, val directory: String) extends LazyLogging {
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
+  private val tollPrices = readTollPrices(beamConfig.beam.agentsim.toll.file).withDefaultValue(0.0)
 
   /**
     * agencies is a Map of FareRule by agencyId
@@ -78,7 +81,7 @@ class TollCalculator(val directory: String) extends LazyLogging {
 
   var maxOsmIdsLen: Long = Long.MinValue
 
-  def calcToll(osmIds: Vector[Long]): Double = {
+  def calcTollByOsmIds(osmIds: Vector[Long]): Double = {
     if (osmIds.length > maxOsmIdsLen) {
       maxOsmIdsLen = osmIds.length
       logger.debug("Max OsmIDS encountered: {}", maxOsmIdsLen)
@@ -88,14 +91,26 @@ class TollCalculator(val directory: String) extends LazyLogging {
     ways.view.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
   }
 
-  def main(args: Array[String]): Unit = {
-    fromDirectory(Paths.get(args(0)))
+  def calcTollByLinkIds(linkIds: IndexedSeq[Int]): Double = linkIds.view.map(tollPrices).sum
+
+  private def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
+    if (Files.exists(Paths.get(tollPricesFile))) {
+      Source
+        .fromFile(tollPricesFile)
+        .getLines()
+        .map(_.split(","))
+        .filterNot(_(0).equalsIgnoreCase("linkId"))
+        .map(t => t(0).toInt -> t(1).toDouble)
+        .toMap
+
+    } else {
+      Map()
+    }
   }
+
 }
 
 object TollCalculator {
-
-  val MIN_TOLL = 1.0
 
   case class Toll(
     charges: Vector[Charge],

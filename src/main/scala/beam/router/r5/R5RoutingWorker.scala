@@ -132,7 +132,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-      val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+      val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
       WorkerParameters(
         beamServices,
         transportNetwork,
@@ -606,6 +606,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             })
 
             val access = option.access.get(itinerary.connection.access)
+            val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
             val toll = if (access.mode == LegMode.CAR) {
               val osm = access.streetEdges.asScala
                 .map(
@@ -615,11 +616,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       .getOSMID
                 )
                 .toVector
-              tollCalculator.calcToll(osm)
+              tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath.linkIds)
             } else 0.0
             val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 
-            val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
             val theLeg = BeamLeg(
               tripStartTime,
               mapLegMode(access.mode),

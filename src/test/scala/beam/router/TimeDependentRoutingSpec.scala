@@ -64,7 +64,7 @@ class TimeDependentRoutingSpec
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
