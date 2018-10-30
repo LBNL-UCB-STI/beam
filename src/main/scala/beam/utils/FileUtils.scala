@@ -59,10 +59,8 @@ object FileUtils extends LazyLogging {
   }
 
   def getOptionalOutputPathSuffix(addTimestampToOutputDirectory: Boolean): String = {
-    if (addTimestampToOutputDirectory) {
-      return s"_$runStartTime"
-    }
-    ""
+    if (addTimestampToOutputDirectory) s"_$runStartTime"
+    else ""
   }
 
   private def getDateString: String =

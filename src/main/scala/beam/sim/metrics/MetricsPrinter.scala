@@ -86,14 +86,16 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
   private def toHistogramString(e: Entity, s: EntitySnapshot): String = {
     val hs = s.histogram("histogram").get.scale(Nanoseconds, Milliseconds)
     val num = hs.numberOfMeasurements
-    if (num <= 0) return ""
+    if (num <= 0) ""
+    else {
 
-    val ttime = hs.sum
-    val p99_9 = hs.percentile(99.9)
-    val max = hs.max
+      val ttime = hs.sum
+      val p99_9 = hs.percentile(99.9)
+      val max = hs.max
 
-    s"""
-       | ${e.name} -> count: $num; average time: ${ttime / num} [ms]; max time: $max [ms]; total time: ${ttime / 1000} [s]""".stripMargin
+      s"""
+         | ${e.name} -> count: $num; average time: ${ttime / num} [ms]; max time: $max [ms]; total time: ${ttime / 1000} [s]""".stripMargin
+    }
   }
 
   private def toCounterString(e: Entity, s: EntitySnapshot): String = {
