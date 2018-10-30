@@ -97,6 +97,9 @@ allprojects {
 }
 
 dependencies {
+    // beam-utility
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'master'
+
 
     ////////////////////////////
     // Java dependencies
