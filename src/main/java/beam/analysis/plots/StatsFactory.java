@@ -19,6 +19,7 @@ public class StatsFactory {
     public static final String RealizedMode = "RealizedMode";
     public static final String DeadHeading = "DeadHeading";
     public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
+    public static final String NumberOfVehicles = "NumberOfVehicles";
     public static final String AgentDelay = "AgentDelay";
 
     private BeamConfig beamConfig;
@@ -54,6 +55,7 @@ public class StatsFactory {
         getStats(StatsFactory.PersonVehicleTransition);
         getStats(StatsFactory.RealizedMode);
         getStats(StatsFactory.VehicleMilesTraveled);
+        getStats(StatsFactory.NumberOfVehicles);
         getStats(StatsFactory.AgentDelay);
     }
     
@@ -77,6 +79,8 @@ public class StatsFactory {
                 return new DeadHeadingStats();
             case VehicleMilesTraveled:
                 return new VehicleMilesTraveledStats();
+            case NumberOfVehicles:
+                return new NumberOfVehiclesStats();
             case AgentDelay:
                 return new AgentDelayStats(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
             default:
