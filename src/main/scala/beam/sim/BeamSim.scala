@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
@@ -8,9 +9,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
-import beam.analysis.stats.{AboveCapacityPtUsageDurationInSec, CSVStatsCollector}
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -23,6 +23,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
+import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
@@ -30,6 +31,7 @@ import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -53,11 +55,12 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
   private var rideHailIterationHistoryActor: ActorRef = _
+  private val delayAnalysis = new DelayAnalysis
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
-
-  val csvStatsCollector = new CSVStatsCollector()
+  val iterationStatsProviders: ListBuffer[IterationSummaryStats] = new ListBuffer()
+  val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -117,6 +120,7 @@ class BeamSim @Inject()(
         scenario,
         beamServices
       )
+      iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
@@ -125,6 +129,7 @@ class BeamSim @Inject()(
       beamServices,
       beamServices.beamConfig
     )
+    iterationStatsProviders += createGraphsFromEvents
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(
       eventsManager,
@@ -144,7 +149,9 @@ class BeamSim @Inject()(
       transportNetwork
     )
 
-    csvStatsCollector.addStats(new AboveCapacityPtUsageDurationInSec(eventsManager))
+    // Delay analysis
+    delayAnalysis.setScenario(scenario)
+    eventsManager.addHandler(delayAnalysis)
 
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
@@ -167,6 +174,13 @@ class BeamSim @Inject()(
             .getIterationFilename(event.getIteration, "population.csv.gz")
         )
       }
+
+      iterationSummaryStats += iterationStatsProviders
+        .flatMap(_.getIterationSummaryStats.asScala += ("agentDelay" -> delayAnalysis.getTotalDelay / 3600.0D))
+        .toMap
+
+      val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
+      writeSummaryStats(summaryStatsFile)
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
@@ -196,10 +210,6 @@ class BeamSim @Inject()(
     //    Tracer.currentContext.finish()
 
     logger.info("Ending Iteration")
-
-    println(csvStatsCollector.getIterationSummaryStats)
-
-    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -224,9 +234,28 @@ class BeamSim @Inject()(
 
     outputFilesToDelete.foreach(deleteOutputFile)
     createGraphsFromEvents.notifyShutdown(event)
+
     def deleteOutputFile(fileName: String) = {
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
+  }
+
+  private def writeSummaryStats(summaryStatsFile: File): Unit = {
+    val keys = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
+
+    val out = new BufferedWriter(new FileWriter(summaryStatsFile))
+    out.write("Iteration,")
+    out.write(keys.mkString(","))
+    out.newLine()
+
+    iterationSummaryStats.zipWithIndex.foreach {
+      case (stats, it) =>
+        out.write(s"$it,")
+        out.write(keys.map(stats.getOrElse(_, "")).mkString(","))
+        out.newLine()
+    }
+
+    out.close()
   }
 }

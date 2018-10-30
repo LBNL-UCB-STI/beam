@@ -15,6 +15,7 @@ import org.matsim.core.utils.misc.Time
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Try
 
 /**
   * numberOfRides: -> passengers =1 (sum of rides)
@@ -238,7 +239,7 @@ class TNCIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString
+    Try(beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 
