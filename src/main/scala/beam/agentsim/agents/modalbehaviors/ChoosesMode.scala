@@ -30,6 +30,7 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.GenTraversableOnce
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -109,8 +110,8 @@ trait ChoosesMode {
         transitModes: Vector[BeamMode],
         vehicles: Vector[StreetVehicle],
         withParking: Boolean,
-        streetVehiclesIntermodalUse: IntermodalUse = Access,
-      ): Unit = {
+        streetVehiclesIntermodalUse: IntermodalUse = Access
+      ): Option[Int] = {
         router ! RoutingRequest(
           currentPersonLocation.loc,
           nextAct.getCoord,
@@ -120,7 +121,11 @@ trait ChoosesMode {
           streetVehiclesIntermodalUse,
           mustParkAtEnd = true
         )
-        if(withParking)requestParkingCost(nextAct.getCoord,nextAct.getType,departTime.atTime,nextAct.getEndTime.toInt - departTime.atTime)
+        if(withParking){
+          requestParkingCost(nextAct.getCoord,nextAct.getType,departTime.atTime,nextAct.getEndTime.toInt - departTime.atTime)
+        }else{
+          None
+        }
       }
 
 
@@ -172,6 +177,7 @@ trait ChoosesMode {
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
+      var parkingRequestId: Option[Int] = None
       // Form and send requests
 
       correctedCurrentTourMode match {
@@ -179,7 +185,7 @@ trait ChoosesMode {
           if (hasRideHail) {
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
-              withParking = true,
+              withParking = willRequestDrivingRoute,
               withRideHail = true,
               withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
@@ -191,7 +197,7 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = willRequestDrivingRoute)
             requestId = None
           }
-          makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle,withParking = willRequestDrivingRoute)
+          parkingRequestId = makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle,withParking = willRequestDrivingRoute)
         case Some(WALK) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle), withParking = false)
@@ -199,7 +205,6 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
         case Some(mode @ (CAR | BIKE)) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = willRequestDrivingRoute)
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case l: Leg => Some(l)
@@ -226,18 +231,21 @@ trait ChoosesMode {
                     BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
+                  parkingRequestId = requestParkingCost(leg.travelPath.endPoint.loc,nextAct.getType,leg.endTime,nextAct.getEndTime.intValue() - leg.endTime)
+                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
                 case _ =>
                   makeRequestWith(Vector(), Vector(bodyStreetVehicle), withParking = false)
+                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
               }
             case _ =>
-              makeRequestWith(
+              parkingRequestId = makeRequestWith(
                 Vector(),
                 filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle,
                 withParking = (mode == CAR)
               )
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = (mode == CAR))
           }
         case Some(DRIVE_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
@@ -252,17 +260,20 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle,
                 withParking = false
               )
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
             case (LastTripIndex, Some(currentTourPersonalVehicleId)) =>
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
-              makeRequestWith(
+              parkingRequestId = makeRequestWith(
                 Vector(TRANSIT),
                 streetVehicles
                   .filter(_.id == currentTourPersonalVehicleId) :+ bodyStreetVehicle,
                 streetVehiclesIntermodalUse = Egress,
                 withParking = true
               )
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
           }
         case Some(RIDE_HAIL) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
@@ -287,6 +298,9 @@ trait ChoosesMode {
         personData = choosesModeData.personData.copy(currentTourMode = correctedCurrentTourMode),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         routingResponse = responsePlaceholders.routingResponse,
+        parkingResponse = responsePlaceholders.parkingResponse,
+        parkingRequestId = parkingRequestId,
+        driveTransitParkingResponse = responsePlaceholders.driveTransitParkingResponse,
         rideHail2TransitRoutingResponse = responsePlaceholders.rideHail2TransitRoutingResponse,
         rideHail2TransitRoutingRequestId = requestId,
         rideHailResult = responsePlaceholders.rideHailResult,
@@ -305,13 +319,16 @@ trait ChoosesMode {
         theRouterResult.itineraries.view
           .dropWhile(_.tripClassifier != DRIVE_TRANSIT)
           .headOption
-      if(driveTransitTrip.isDefined){
+      var newPersonData = if(driveTransitTrip.isDefined){
         val accessLeg = driveTransitTrip.get.legs.view.takeWhile(!_.beamLeg.mode.isTransit).last.beamLeg
         val dest = accessLeg.travelPath.endPoint.loc
-        requestParkingCost(dest,"ParkAndRide",accessLeg.endTime,nextActivity(choosesModeData.personData).get.getEndTime.toInt - accessLeg.endTime)
+        val driveTransitRequestId = requestParkingCost(dest,"ParkAndRide",accessLeg.endTime,nextActivity(choosesModeData.personData).get.getEndTime.toInt - accessLeg.endTime)
+        choosesModeData.copy(driveTransitParkingResponse = None, driveTransitParkingRequestId = driveTransitRequestId)
+      }else{
+        choosesModeData
       }
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
-      val newPersonData =
+      newPersonData =
         if (shouldAttemptRideHail2Transit(
               driveTransitTrip,
               choosesModeData.rideHail2TransitAccessResult
@@ -338,7 +355,7 @@ trait ChoosesMode {
             } else {
               None
             }
-          choosesModeData.copy(
+          newPersonData.copy(
             rideHail2TransitRoutingResponse = Some(driveTransitTrip.get),
             rideHail2TransitAccessInquiryId = accessId,
             rideHail2TransitEgressInquiryId = egressId,
@@ -354,7 +371,7 @@ trait ChoosesMode {
             }
           )
         } else {
-          choosesModeData.copy(
+          newPersonData.copy(
             rideHail2TransitRoutingResponse = Some(EmbodiedBeamTrip.empty),
             rideHail2TransitAccessResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
             rideHail2TransitEgressResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
@@ -385,8 +402,15 @@ trait ChoosesMode {
       }
       stay() using newPersonData
     case Event(parkingInquiryResponse: ParkingInquiryResponse, choosesModeData: ChoosesModeData) =>
-      stay using choosesModeData.copy(parkingResponse = Some(parkingInquiryResponse))
-
+      val newPersonData = Some(parkingInquiryResponse.requestId) match {
+        case choosesModeData.parkingRequestId =>
+          choosesModeData.copy(parkingResponse = Some(parkingInquiryResponse))
+        case choosesModeData.driveTransitParkingRequestId =>
+          choosesModeData.copy(driveTransitParkingResponse = Some(parkingInquiryResponse))
+        case _ =>
+          choosesModeData
+      }
+      stay using newPersonData
   } using completeChoiceIfReady)
 
   def isRideHailToTransitResponse(response: RoutingResponse): Boolean = {
@@ -456,8 +480,8 @@ trait ChoosesMode {
     }
   }
 
-  def requestParkingCost(destination: Coord, activityType: String, arrivalTime: Int, duration: Int): Unit ={
-    parkingManager ! ParkingInquiry(id,
+  def requestParkingCost(destination: Coord, activityType: String, arrivalTime: Int, duration: Int): Option[Int]={
+    val inquiry = ParkingInquiry(id,
       destination,
       destination,
       activityType,
@@ -468,6 +492,29 @@ trait ChoosesMode {
       Any,
       reserveStall = false
     )
+    parkingManager ! inquiry
+    Some(inquiry.requestId)
+  }
+
+  def addParkingCostToItins(itineraries: Seq[EmbodiedBeamTrip], parkingResponse: ParkingInquiryResponse, driveTransitParkingResponse: ParkingInquiryResponse): Seq[EmbodiedBeamTrip] = {
+    itineraries.map{itin =>
+      itin.tripClassifier match {
+        case CAR =>
+          val newLegs = itin.legs.zipWithIndex.map{case (leg, i) => if(i==2){ leg.copy(cost = parkingResponse.stall.cost) } else{ leg }}
+          itin.copy(legs = newLegs)
+        case DRIVE_TRANSIT =>
+          val newLegs = if(itin.legs.size>2 && itin.legs(2).beamLeg.mode == CAR){
+            itin.legs.zipWithIndex.map{case (leg, i) => if(i==2){ leg.copy(cost = driveTransitParkingResponse.stall.cost) } else{ leg }}
+          }else if(itin.legs.size>2 && itin.legs.takeRight(2).head.beamLeg.mode == CAR){
+            itin.legs.zipWithIndex.map{case (leg, i) => if(i==itin.legs.size-2){ leg.copy(cost = driveTransitParkingResponse.stall.cost) } else{ leg }}
+          }else{
+            itin.legs
+          }
+          itin.copy(legs = newLegs)
+        case _ =>
+          itin
+      }
+    }
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
@@ -479,6 +526,9 @@ trait ChoosesMode {
           None,
           Some(routingResponse),
           Some(parkingResponse),
+          _,
+          Some(driveTransitParkingResponse),
+          _,
           Some(rideHailResult),
           Some(rideHail2TransitRoutingResponse),
           _,
@@ -508,7 +558,7 @@ trait ChoosesMode {
       } else {
         Vector()
       }
-      val combinedItinerariesForChoice = rideHailItinerary ++ routingResponse.itineraries ++ rideHail2TransitIinerary.toVector
+      val combinedItinerariesForChoice = rideHailItinerary ++ addParkingCostToItins(routingResponse.itineraries,parkingResponse,driveTransitParkingResponse) ++ rideHail2TransitIinerary.toVector
       //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
 
       val availableModes: Seq[BeamMode] = availableModesForPerson(
@@ -686,6 +736,9 @@ object ChoosesMode {
     pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
     routingResponse: Option[RoutingResponse] = None,
     parkingResponse: Option[ParkingInquiryResponse] = None,
+    parkingRequestId: Option[Int] = None,
+    driveTransitParkingResponse: Option[ParkingInquiryResponse] = None,
+    driveTransitParkingRequestId: Option[Int] = None,
     rideHailResult: Option[RideHailResponse] = None,
     rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
     rideHail2TransitRoutingRequestId: Option[Int] = None,
@@ -720,6 +773,7 @@ object ChoosesMode {
   case class ChoosesModeResponsePlaceholders(
                                               routingResponse: Option[RoutingResponse] = None,
                                               parkingResponse: Option[ParkingInquiryResponse] = None,
+                                              driveTransitParkingResponse: Option[ParkingInquiryResponse] = None,
                                               rideHailResult: Option[RideHailResponse] = None,
                                               rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
                                               rideHail2TransitAccessResult: Option[RideHailResponse] = None,
@@ -743,6 +797,7 @@ object ChoosesMode {
       } else {
         Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall,0))
       },
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall,0)),
       rideHailResult = if (withRideHail) {
         None
       } else {
