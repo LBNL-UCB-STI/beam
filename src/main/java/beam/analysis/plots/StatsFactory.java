@@ -19,6 +19,7 @@ public class StatsFactory {
     public static final String DeadHeading = "DeadHeading";
     public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
     public static final String NumberOfVehicles = "NumberOfVehicles";
+    public static final String PersonCost = "PersonCost";
 
     private BeamConfig beamConfig;
     private Map<String, BeamStats> beamStatsMap = new HashMap<>();
@@ -52,6 +53,7 @@ public class StatsFactory {
         getStats(StatsFactory.RealizedMode);
         getStats(StatsFactory.VehicleMilesTraveled);
         getStats(StatsFactory.NumberOfVehicles);
+        getStats(StatsFactory.PersonCost);
     }
     
     private BeamStats createStats(String statsType) {
@@ -76,6 +78,8 @@ public class StatsFactory {
                 return new VehicleMilesTraveledStats();
             case NumberOfVehicles:
                 return new NumberOfVehiclesStats();
+            case PersonCost:
+                return new PersonCostStats();
             default:
                 return null;
         }
