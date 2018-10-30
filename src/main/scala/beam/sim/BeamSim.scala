@@ -37,16 +37,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -175,7 +175,9 @@ class BeamSim @Inject()(
         )
       }
 
-      iterationSummaryStats += iterationStatsProviders.flatMap(_.getIterationSummaryStats.asScala += ("agentDelay" -> delayAnalysis.getTotalDelay / 3600.0D)).toMap
+      iterationSummaryStats += iterationStatsProviders
+        .flatMap(_.getIterationSummaryStats.asScala += ("agentDelay" -> delayAnalysis.getTotalDelay / 3600.0D))
+        .toMap
 
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
       writeSummaryStats(summaryStatsFile)
