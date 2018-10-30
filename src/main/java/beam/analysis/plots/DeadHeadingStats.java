@@ -13,7 +13,6 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import scala.collection.immutable.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;

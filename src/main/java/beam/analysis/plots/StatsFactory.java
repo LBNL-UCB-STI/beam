@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
 import java.beans.Beans;
@@ -19,13 +20,16 @@ public class StatsFactory {
     public static final String DeadHeading = "DeadHeading";
     public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
     public static final String NumberOfVehicles = "NumberOfVehicles";
+    public static final String AgentDelay = "AgentDelay";
     public static final String PersonCost = "PersonCost";
 
     private BeamConfig beamConfig;
+    private BeamServices beamServices;
     private Map<String, BeamStats> beamStatsMap = new HashMap<>();
 
-    public StatsFactory(BeamConfig beamConfig) {
-        this.beamConfig = beamConfig;
+    public StatsFactory(BeamServices services) {
+        this.beamServices = services;
+        this.beamConfig = services.beamConfig();
     }
 
     public BeamStats getStats(String statsType) {
@@ -53,6 +57,7 @@ public class StatsFactory {
         getStats(StatsFactory.RealizedMode);
         getStats(StatsFactory.VehicleMilesTraveled);
         getStats(StatsFactory.NumberOfVehicles);
+        getStats(StatsFactory.AgentDelay);
         getStats(StatsFactory.PersonCost);
     }
     
@@ -78,6 +83,8 @@ public class StatsFactory {
                 return new VehicleMilesTraveledStats();
             case NumberOfVehicles:
                 return new NumberOfVehiclesStats();
+            case AgentDelay:
+                return new AgentDelayStats(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
             case PersonCost:
                 return new PersonCostStats();
             default:
