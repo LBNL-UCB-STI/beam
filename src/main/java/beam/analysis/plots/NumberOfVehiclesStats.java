@@ -35,6 +35,7 @@ public class NumberOfVehiclesStats implements BeamStats, IterationSummaryStats{
     @Override
     public void resetStats() {
         numberOfVehiclesByType.clear();
+        uniqueVehicleIds.clear();
     }
 
     @Override
