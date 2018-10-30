@@ -21,7 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
   NewDriverAlreadyControllingVehicle
 }
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -30,7 +30,6 @@ import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
-import beam.utils.DebugLib
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -389,35 +388,31 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (data.currentTrip.get.costEstimate > 0) {
-        if (data.currentTourMode.get.isTransit) {
+        val attributes =
+          beamServices.matsimServices.getScenario.getPopulation.getPersons
+            .get(id)
+            .getCustomAttributes
+            .get("beam-attributes")
+            .asInstanceOf[AttributesOfIndividual]
 
-          val attributes =
-            beamServices.matsimServices.getScenario.getPopulation.getPersons
-              .get(id)
-              .getCustomAttributes
-              .get("beam-attributes")
-              .asInstanceOf[AttributesOfIndividual]
+        val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
+        val income = Some(attributes.householdAttributes.householdIncome.toInt)
+        val mode = data.currentTrip.get.tripClassifier
 
-          val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
-          val income = Some(attributes.householdAttributes.householdIncome.toInt)
-          val mode = data.currentTrip.get.tripClassifier
+        val subsidy = modeSubsidy.getSubsidy(mode, age, income)
 
-          val subsidy = modeSubsidy.getSubsidy(mode, age, income)
-
-          DebugLib.emptyFunctionForSettingBreakPoint()
-
-          // TODO: throw new BEAM Person Cost Event, which has a cost type (e.g. subsidy, tranist, etc.).
-          // costType: String
-          // cost: Double
-          // id, time, type (BEAMPersonCostEvent)
-
-          //eventsManager.processEvent(new BEAMPersonCostEvent(tick, id, costType="transitCostInclduingSubsidy", cost=data.currentTrip.get.costEstimate))
-          //eventsManager.processEvent(new BEAMPersonCostEvent(tick, id, costType="transitSubsidy", cost=subsidy))
-
-          // -> csv: totalTransitCostInclduingSubsidy
-          // -> csv: totalTransitSubsidy
-
-        }
+        eventsManager.processEvent(
+          new PersonCostEvent(
+            tick,
+            id,
+            mode.value,
+            PersonCostEvent.COST_TYPE_COST_INCLUDING_SUBSIDY,
+            data.currentTrip.get.costEstimate
+          )
+        )
+        eventsManager.processEvent(
+          new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+        )
       }
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
