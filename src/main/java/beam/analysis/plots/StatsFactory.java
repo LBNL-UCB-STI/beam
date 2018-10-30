@@ -51,7 +51,6 @@ public class StatsFactory {
         getStats(StatsFactory.PersonVehicleTransition);
         getStats(StatsFactory.RealizedMode);
         getStats(StatsFactory.VehicleMilesTraveled);
-        getStats(StatsFactory.VehicleDelay);
     }
     
     private BeamStats createStats(String statsType) {
@@ -74,8 +73,6 @@ public class StatsFactory {
                 return new DeadHeadingStats();
             case VehicleMilesTraveled:
                 return new VehicleMilesTraveledStats();
-            case VehicleDelay:
-                return new DelayStats();
             default:
                 return null;
         }
