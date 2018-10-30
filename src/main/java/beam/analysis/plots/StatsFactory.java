@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.analysis.stats.AboveCapacityPtUsageDurationInSec;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
@@ -22,6 +23,7 @@ public class StatsFactory {
     public static final String NumberOfVehicles = "NumberOfVehicles";
     public static final String AgentDelay = "AgentDelay";
     public static final String PersonCost = "PersonCost";
+    public static final String AboveCapacityPtUsageDuration = "AboveCapacityPtUsageDuration";
 
     private BeamConfig beamConfig;
     private BeamServices beamServices;
@@ -59,6 +61,7 @@ public class StatsFactory {
         getStats(StatsFactory.NumberOfVehicles);
         getStats(StatsFactory.AgentDelay);
         getStats(StatsFactory.PersonCost);
+        getStats(StatsFactory.AboveCapacityPtUsageDuration);
     }
     
     private BeamStats createStats(String statsType) {
@@ -87,6 +90,8 @@ public class StatsFactory {
                 return new AgentDelayStats(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
             case PersonCost:
                 return new PersonCostStats();
+            case AboveCapacityPtUsageDuration:
+                return new AboveCapacityPtUsageDurationInSec();
             default:
                 return null;
         }

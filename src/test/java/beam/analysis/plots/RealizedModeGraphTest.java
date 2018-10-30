@@ -56,8 +56,8 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
-        int expectedWalkResult = 32;
-        int expectedCarResult = 8;
+        int expectedWalkResult = 37;
+        int expectedCarResult = 3;
         int expectedRideHailResult = 7;
         int hour = 19;
 
@@ -73,18 +73,18 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
-        int expectedWalkResult = 1;
-        int expectedCarResult = 8;
+        int expectedDriveTransitResult = 16;
+        int expectedCarResult = 2;
         int expectedRideHailResult = 7;
         int expectedWalkTransitResult = 20;
         int hour = 6;
 
-        int actaulWalkResult = stats.get(hour).get(WALK);
+        int actaulDriveTransitResult = stats.get(hour).get(DRIVE_TRANS);
         int actaulCarResult = stats.get(hour).get(CAR);
         int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
         int actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
 
-        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedDriveTransitResult, actaulDriveTransitResult);
         assertEquals(expectedCarResult, actaulCarResult);
         assertEquals(expectedRideHailResult, actaulRideHailResult);
         assertEquals(expectedWalkTransitResult, actaulWalkTransitResult);
@@ -94,7 +94,7 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
 
-        int expectedRideHailResult = 3;
+        int expectedRideHailResult = 2;
         int hour = 10;
 
         int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
