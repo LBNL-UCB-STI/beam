@@ -45,8 +45,6 @@ import scala.concurrent.Await
 import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
-  private var beamServices: BeamServices = ???
-
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -331,8 +329,8 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
-    val (matsimConfig, outputDir, services) = setupBeamWithConfig(config)
-    run()
+    val (matsimConfig, outputDir, beamServices) = setupBeamWithConfig(config)
+    run(beamServices)
     (matsimConfig, outputDir)
   }
 
@@ -391,14 +389,14 @@ trait BeamHelper extends LazyLogging {
       module(config, scenario, networkCoordinator)
     )
 
-    beamServices = injector.getInstance(classOf[BeamServices])
+    val beamServices = injector.getInstance(classOf[BeamServices])
 
     samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
     (matsimConfig, outputDirectory, beamServices)
   }
 
-  def run(){
+  def run(beamServices: BeamServices){
     beamServices.controler.run()
     if (isMetricsEnable) Kamon.shutdown()
   }
