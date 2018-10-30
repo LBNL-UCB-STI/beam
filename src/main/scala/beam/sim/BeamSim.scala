@@ -23,7 +23,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
-import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
@@ -55,7 +54,6 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
   private var rideHailIterationHistoryActor: ActorRef = _
-  private val delayAnalysis = new DelayAnalysis
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
@@ -149,10 +147,6 @@ class BeamSim @Inject()(
       transportNetwork
     )
 
-    // Delay analysis
-    delayAnalysis.setScenario(scenario)
-    eventsManager.addHandler(delayAnalysis)
-
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
   }
@@ -176,7 +170,7 @@ class BeamSim @Inject()(
       }
 
       iterationSummaryStats += iterationStatsProviders
-        .flatMap(_.getIterationSummaryStats.asScala += ("agentDelay" -> delayAnalysis.getTotalDelay / 3600.0D))
+        .flatMap(_.getIterationSummaryStats.asScala)
         .toMap
 
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile

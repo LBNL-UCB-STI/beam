@@ -43,17 +43,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        statsFactory = new StatsFactory(beamConfig);
-        statsFactory.createStats();
-        this.beamConfig = beamConfig;
+    public GraphsStatsAgentSimEventsListener(BeamServices services) {
+        this.beamConfig = services.beamConfig();
+        statsFactory = new StatsFactory(services);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
                                              BeamServices services, BeamConfig beamConfig) {
-        this(beamConfig);
+        this(services);
+        statsFactory.createStats();
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
