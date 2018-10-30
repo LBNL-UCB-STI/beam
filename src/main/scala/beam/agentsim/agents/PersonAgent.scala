@@ -410,9 +410,12 @@ class PersonAgent(
             data.currentTrip.get.costEstimate
           )
         )
-        eventsManager.processEvent(
-          new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
-        )
+
+        if(subsidy  > 0) {
+          eventsManager.processEvent(
+            new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+          )
+        }
       }
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
