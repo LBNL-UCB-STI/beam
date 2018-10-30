@@ -407,7 +407,16 @@ class PersonAgent(
           DebugLib.emptyFunctionForSettingBreakPoint()
 
           // TODO: throw new BEAM Person Cost Event, which has a cost type (e.g. subsidy, tranist, etc.).
-          //
+          // costType: String
+          // cost: Double
+          // id, time, type (BEAMPersonCostEvent)
+
+          //eventsManager.processEvent(new BEAMPersonCostEvent(tick, id, costType="transitCostInclduingSubsidy", cost=data.currentTrip.get.costEstimate))
+          //eventsManager.processEvent(new BEAMPersonCostEvent(tick, id, costType="transitSubsidy", cost=subsidy))
+
+          // -> csv: totalTransitCostInclduingSubsidy
+          // -> csv: totalTransitSubsidy
+
         }
       }
 
