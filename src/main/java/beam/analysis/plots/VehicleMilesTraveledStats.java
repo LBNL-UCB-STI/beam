@@ -1,7 +1,6 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
-import com.google.common.base.CaseFormat;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
