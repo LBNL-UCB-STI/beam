@@ -20,6 +20,7 @@ public class StatsFactory {
     public static final String RealizedMode = "RealizedMode";
     public static final String DeadHeading = "DeadHeading";
     public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
+    public static final String VehicleHoursTraveled = "VehicleHoursTraveled";
     public static final String NumberOfVehicles = "NumberOfVehicles";
     public static final String AgentDelay = "AgentDelay";
     public static final String PersonCost = "PersonCost";
@@ -58,6 +59,7 @@ public class StatsFactory {
         getStats(StatsFactory.PersonVehicleTransition);
         getStats(StatsFactory.RealizedMode);
         getStats(StatsFactory.VehicleMilesTraveled);
+        getStats(StatsFactory.VehicleHoursTraveled);
         getStats(StatsFactory.NumberOfVehicles);
         getStats(StatsFactory.AgentDelay);
         getStats(StatsFactory.PersonCost);
@@ -82,6 +84,8 @@ public class StatsFactory {
                 return new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation());
             case DeadHeading:
                 return new DeadHeadingStats();
+            case VehicleHoursTraveled:
+                return new VehicleTravelTimeStats();
             case VehicleMilesTraveled:
                 return new VehicleMilesTraveledStats();
             case NumberOfVehicles:
