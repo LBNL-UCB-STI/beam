@@ -2,6 +2,6 @@ package beam.analysis.plots;
 
 import java.util.Map;
 
-public interface IterationStats {
+public interface IterationSummaryStats {
     Map<String, Double> getIterationSummaryStats();
 }

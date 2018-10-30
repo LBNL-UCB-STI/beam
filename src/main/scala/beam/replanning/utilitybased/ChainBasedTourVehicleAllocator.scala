@@ -118,10 +118,8 @@ case class ChainBasedTourVehicleAllocator(
         firstAvailableVehicle.availableFrom = currentSubtour.endTime
       firstAvailableVehicle.nAllocs += 1
       currentSubtour.allocatedVehicle = Some(firstAvailableVehicle.id)
-      return true
-    }
-
-    false
+      true
+    } else { false }
   }
 
   private def getVehicularToursSortedByStartTime(householdPlans: Seq[Plan]) = {
@@ -144,29 +142,33 @@ case class ChainBasedTourVehicleAllocator(
   }
 
   private def validateVehicularTours(vehicularTours: Vector[SubtourRecord]): Seq[SubtourRecord] = {
-
+    import scala.util.control.Breaks._
     var homeLoc: Option[Id[Link]] = None
-    for (record <- vehicularTours) {
-      val s = record.subtour
-      val anchor: Option[Id[Link]] = Option(s.getTrips.get(0).getOriginActivity.getLinkId)
-      if (anchor.isEmpty) throw new NullPointerException("null anchor location")
-      if (homeLoc.isEmpty) homeLoc = anchor
-      else if (!(homeLoc == anchor)) { // invalid
-        return Seq[SubtourRecord]()
+    var returnVal: Option[Seq[SubtourRecord]] = None
+    breakable {
+      for (record <- vehicularTours) {
+        val s = record.subtour
+        val anchor: Option[Id[Link]] = Option(s.getTrips.get(0).getOriginActivity.getLinkId)
+        if (anchor.isEmpty) throw new NullPointerException("null anchor location")
+        if (homeLoc.isEmpty) homeLoc = anchor
+        else if (!(homeLoc == anchor)) { // invalid
+          returnVal = Some(Seq[SubtourRecord]())
+          break
+        }
       }
     }
-    vehicularTours
+    returnVal.getOrElse(vehicularTours)
   }
 
   private def isChainBased(t: Trip): Boolean = {
     val legs = JavaConverters.collectionAsScalaIterable(t.getLegsOnly).toSeq
-    if (legs.isEmpty) return false
-    // XXX what to do if several legs???
-    val l = legs.head
-    if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode))
-      return false
-
-    true
+    if (legs.isEmpty) false
+    else {
+      // XXX what to do if several legs???
+      val l = legs.head
+      if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode)) false
+      else true
+    }
   }
 
 }

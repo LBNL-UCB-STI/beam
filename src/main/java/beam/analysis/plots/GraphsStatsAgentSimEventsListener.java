@@ -1,6 +1,6 @@
 package beam.analysis.plots;
 
-import beam.analysis.*;
+import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
@@ -16,12 +16,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationStats {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationSummaryStats {
 
     public static final String CAR = "car";
     public static final String RIDE = "ride";
@@ -42,17 +43,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        statsFactory = new StatsFactory(beamConfig);
-        statsFactory.createStats();
-        this.beamConfig = beamConfig;
+    public GraphsStatsAgentSimEventsListener(BeamServices services) {
+        this.beamConfig = services.beamConfig();
+        statsFactory = new StatsFactory(services);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
                                              BeamServices services, BeamConfig beamConfig) {
-        this(beamConfig);
+        this(services);
+        statsFactory.createStats();
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
@@ -77,22 +78,18 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public void reset(int iteration) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.resetStats();
-        }
+        statsFactory.getBeamStats().forEach(BeamStats::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        for (BeamStats beamStats : statsFactory.getStats()) {
-            beamStats.processStats(event);
-        }
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.processStats(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-        for (BeamStats stat : statsFactory.getStats()) stat.createGraph(event);
+        for (BeamStats stat : statsFactory.getBeamStats()) stat.createGraph(event);
         DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
         deadHeadingStats.createGraph(event, "TNC0");
 
@@ -127,6 +124,10 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
-        return null;
+        return statsFactory.getSummaryStats().stream()
+                .map(IterationSummaryStats::getIterationSummaryStats)
+                .map(Map::entrySet)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

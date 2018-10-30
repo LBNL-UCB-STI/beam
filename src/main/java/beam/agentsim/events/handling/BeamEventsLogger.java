@@ -160,6 +160,9 @@ class BeamEventsLogger {
                     case "VehicleLeavesTrafficEvent":
                         eventClass = VehicleLeavesTrafficEvent.class;
                         break;
+                    case "PersonCostEvent":
+                        eventClass = PersonCostEvent.class;
+                        break;
                     default:
                         DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
                 }
