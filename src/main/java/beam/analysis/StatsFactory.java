@@ -30,8 +30,8 @@ public class StatsFactory {
         AboveCapacityPtUsageDuration
     }
 
-    private BeamConfig beamConfig;
-    private BeamServices beamServices;
+    private final BeamConfig beamConfig;
+    private final BeamServices beamServices;
     private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
 
     public StatsFactory(BeamServices services) {
@@ -50,17 +50,23 @@ public class StatsFactory {
     }
 
     public Collection<GraphAnalysis> getGraphAnalysis() {
-        return beamStatsMap.values().stream().filter(s -> Beans.isInstanceOf(s, GraphAnalysis.class)).map(s -> (GraphAnalysis)s).collect(Collectors.toList());
+        return beamStatsMap.values()
+                .stream()
+                .filter(s -> Beans.isInstanceOf(s, GraphAnalysis.class))
+                .map(s -> (GraphAnalysis) s).collect(Collectors.toList());
     }
 
     public Collection<IterationSummaryAnalysis> getSummaryAnalysis() {
-        return beamStatsMap.values().stream().filter(s -> Beans.isInstanceOf(s, IterationSummaryAnalysis.class)).map(s -> (IterationSummaryAnalysis)s).collect(Collectors.toList());
+        return beamStatsMap.values()
+                .stream()
+                .filter(s -> Beans.isInstanceOf(s, IterationSummaryAnalysis.class))
+                .map(s -> (IterationSummaryAnalysis) s).collect(Collectors.toList());
     }
 
     public void createStats() {
         Arrays.stream(StatsType.values()).forEach(this::getAnalysis);
     }
-    
+
     private BeamAnalysis createStats(StatsType statsType) {
         switch (statsType) {
             case RideHailWaiting:
