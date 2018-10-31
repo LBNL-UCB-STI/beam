@@ -7,9 +7,12 @@ class RangeSpec extends FlatSpec {
     assert(Range(0, 0).isEmpty)
   }
 
-  "[:], [0:], [:<number>] and [0:<number>]" should "all mean Range(0, <number>)" in {
+  "[:] and [0:]" should "mean Range(0, Int.MaxValue)" in {
     assert(Range("[:]") == Range(0, Int.MaxValue))
     assert(Range("[0:]") == Range(0, Int.MaxValue))
+  }
+
+  "[:<number>] and [0:<number>]" should "mean Range(0, <number>)" in {
     assert(Range("[:2147483647]") == Range(0, 2147483647))
     assert(Range("[0:2147483647]") == Range(0, 2147483647))
   }
