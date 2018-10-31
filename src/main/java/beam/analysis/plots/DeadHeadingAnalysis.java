@@ -21,7 +21,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingStats implements BeamStats {
+public class DeadHeadingAnalysis implements GraphAnalysis {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;

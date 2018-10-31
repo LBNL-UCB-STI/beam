@@ -26,7 +26,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.List;
 
-public class PersonVehicleTransitionStats implements BeamStats, MetricsSupport {
+public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSupport {
 
     private static final List<String> vehicleType = new ArrayList<>(Arrays.asList("body", "rideHail" , "others"));
 
@@ -39,7 +39,7 @@ public class PersonVehicleTransitionStats implements BeamStats, MetricsSupport {
     private int binSize;
     private int numOfBins;
 
-    public PersonVehicleTransitionStats(BeamConfig beamConfig){
+    public PersonVehicleTransitionAnalysis(BeamConfig beamConfig){
         binSize = beamConfig.beam().outputs().stats().binSize();
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);

@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 
-public class RealizedModeStats implements BeamStats, MetricsSupport {
+public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
@@ -43,7 +43,7 @@ public class RealizedModeStats implements BeamStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
+    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
         this.statComputation = statComputation;
     }
 

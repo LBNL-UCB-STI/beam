@@ -2,16 +2,12 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
-import beam.router.Modes;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,9 +17,9 @@ import static org.junit.Assert.assertEquals;
 public class RealizedModeGraphTest {
     private static class RealizedModeHandler implements BasicEventHandler {
 
-        private final RealizedModeStats realizedModeStats;
+        private final RealizedModeAnalysis realizedModeStats;
 
-        RealizedModeHandler(RealizedModeStats stats) {
+        RealizedModeHandler(RealizedModeAnalysis stats) {
             this.realizedModeStats = stats;
         }
 
@@ -39,7 +35,7 @@ public class RealizedModeGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
-    private RealizedModeStats realizedModeStats = new RealizedModeStats(new RealizedModeStats.RealizedModesStatsComputation() {
+    private RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();

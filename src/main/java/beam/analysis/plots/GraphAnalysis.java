@@ -1,14 +1,11 @@
 package beam.analysis.plots;
 
-import org.matsim.api.core.v01.events.Event;
+import beam.analysis.BeamAnalysis;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
 
-public interface BeamStats {
-    void processStats(Event event);
+public interface GraphAnalysis extends BeamAnalysis {
 
     void createGraph(IterationEndsEvent event) throws IOException;
-
-    void resetStats();
 }

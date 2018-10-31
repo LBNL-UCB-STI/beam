@@ -8,7 +8,8 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 

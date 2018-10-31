@@ -1,19 +1,10 @@
 package beam.analysis.plots;
 
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.utils.collections.Tuple;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -21,9 +12,9 @@ public class PersonTravelTimeTest {
 
     private class PersonTravelTimeHandler implements BasicEventHandler {
 
-        private final PersonTravelTimeStats personTravelTimeStats;
+        private final PersonTravelTimeAnalysis personTravelTimeStats;
 
-        PersonTravelTimeHandler(PersonTravelTimeStats personTravelTimeStats){
+        PersonTravelTimeHandler(PersonTravelTimeAnalysis personTravelTimeStats){
             this.personTravelTimeStats = personTravelTimeStats;
         }
 
@@ -37,8 +28,8 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeStats personTravelTimeStats = new PersonTravelTimeStats(
-            new PersonTravelTimeStats.PersonTravelTimeComputation() {});
+    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
+            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {});
 
     @Before
     public void setUpClass() {
