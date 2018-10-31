@@ -223,7 +223,7 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        String fileName = "averageTravelTimes" + (mode.substring(0, 1).toUpperCase() + mode.substring(1)).replaceAll("_","") + ".png";
+        String fileName = "averageTravelTimes" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, mode) + ".png";
         String graphTitle = "Average Travel Time [" + mode + "]";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);

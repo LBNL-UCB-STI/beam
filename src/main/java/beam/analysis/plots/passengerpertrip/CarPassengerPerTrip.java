@@ -1,6 +1,7 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
+import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
@@ -77,7 +78,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getFileName(String extension) {
-        return "passengerPerTrip" + graphName.substring(0, 1).toUpperCase() + graphName.substring(1) + "." + extension;
+        return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, graphName) + "." + extension;
     }
 
     @Override
