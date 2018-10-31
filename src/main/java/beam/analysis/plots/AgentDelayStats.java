@@ -35,7 +35,7 @@ public class AgentDelayStats implements BeamStats, IterationSummaryStats {
     @Override
     public Map<String, Double> getIterationSummaryStats() {
         Map<String, Double> stats = new HashMap<>();
-        stats.put("totalAgentDelay", delayAnalysis.getTotalDelay() / 3600); //unit conversion from sec to hrs
+        stats.put("totalVehicleDelay", delayAnalysis.getTotalDelay() / 3600); //unit conversion from sec to hrs
         stats.put("totalTravelTime", delayAnalysis.getTotalTravelTime() / 3600); //unit conversion from sec to hrs
         return stats;
     }

@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSummaryStats {
 
-    private double aboveCapacityPtUsageDurationInSec = 0;
+    private double aboveCapacityPtUsageDurationInSec = 0.0;
 
     public AboveCapacityPtUsageDurationInSec() {
 
@@ -39,13 +39,13 @@ public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSu
 
     @Override
     public void resetStats() {
-        aboveCapacityPtUsageDurationInSec = 0;
+        aboveCapacityPtUsageDurationInSec = 0.0;
     }
 
     @Override
     public Map<String, Double> getIterationSummaryStats() {
         Map<String, Double> result = new HashMap<>();
-        result.put("atCapacityPtUsageDurationInSec", aboveCapacityPtUsageDurationInSec);
+        result.put("agentHoursOnCrowdedTransit", aboveCapacityPtUsageDurationInSec/3600.0);
         return result;
     }
 }
