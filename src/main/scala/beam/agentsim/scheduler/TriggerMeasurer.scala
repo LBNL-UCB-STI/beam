@@ -19,14 +19,14 @@ class TriggerMeasurer extends LazyLogging {
     mutable.Map[TriggerWithId, Long]()
   private val triggerTypeToOccurrence: mutable.Map[Class[_], ArrayBuffer[Long]] =
     mutable.Map[Class[_], ArrayBuffer[Long]]()
-  private val actorToNumOfTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
+  private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
     mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
   def sent(t: TriggerWithId, actor: ActorRef): Unit = {
     triggerWithIdToStartTime.put(t, System.nanoTime())
 
     val triggerClazz = t.trigger.getClass
-    actorToNumOfTriggerMessages.get(actor) match {
+    actorToTriggerMessages.get(actor) match {
       case Some(triggerTypeToOccur) =>
         triggerTypeToOccur.get(triggerClazz) match {
           case Some(current) =>
@@ -35,7 +35,7 @@ class TriggerMeasurer extends LazyLogging {
             triggerTypeToOccur.put(triggerClazz, 1)
         }
       case None =>
-        actorToNumOfTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
+        actorToTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
     }
   }
 
@@ -70,7 +70,7 @@ class TriggerMeasurer extends LazyLogging {
     sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
     // Do not remove `toIterable` (Map can't contain duplicates!)
     val actorTypeToTriggers: Iterable[(String, mutable.Map[Class[_], Int])] =
-      actorToNumOfTriggerMessages.toIterable.map {
+      actorToTriggerMessages.toIterable.map {
         case (actorRef, map) =>
           getType(actorRef) -> map
       }

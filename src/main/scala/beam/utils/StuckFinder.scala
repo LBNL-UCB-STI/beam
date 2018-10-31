@@ -1,5 +1,6 @@
 package beam.utils
 
+import akka.actor.ActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
@@ -7,6 +8,7 @@ import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
@@ -14,6 +16,9 @@ import scala.collection.mutable.ArrayBuffer
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private var tickValue: Int = -1
   private var lastUpdatedTime: Long = 0
+
+  private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
+    mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
@@ -134,6 +139,20 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     val allSubClasses = new ReflectionUtils { val packageName = "beam.agentsim" }.classesOfType[Trigger]
     allSubClasses.diff(definedTypes).foreach { clazz =>
       logger.warn("There is no configuration for '{}'", clazz)
+    }
+  }
+
+  private def getActorType(actorRef: ActorRef): String = {
+    if (actorRef.path.parent.name == "router" && actorRef.path.name.indexOf("TransitDriverAgent-") != -1) {
+      "TransitDriverAgent"
+    } else if (actorRef.path.parent.parent.name == "population") {
+      "Population"
+    } else if (actorRef.path.name.contains("rideHailAgent-")) {
+      "RideHailAgent"
+    } else if (actorRef.path.name == "RideHailManager") {
+      "RideHailManager"
+    } else {
+      actorRef.path.toString
     }
   }
 }
