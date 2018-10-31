@@ -5,37 +5,40 @@ import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
 import java.beans.Beans;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class StatsFactory {
-    public static final String RideHailWaiting = "RideHailWaiting";
-    public static final String RideHailingWaitingSingle = "RideHailingWaitingSingle";
-    public static final String ModeChosen = "ModeChosen";
-    public static final String PersonVehicleTransition = "PersonVehicleTransition";
-    public static final String FuelUsage = "FuelUsage";
-    public static final String PersonTravelTime = "PersonTravelTime";
-    public static final String RealizedMode = "RealizedMode";
-    public static final String DeadHeading = "DeadHeading";
-    public static final String VehicleMilesTraveled = "VehicleMilesTraveled";
-    public static final String VehicleHoursTraveled = "VehicleHoursTraveled";
-    public static final String NumberOfVehicles = "NumberOfVehicles";
-    public static final String AgentDelay = "AgentDelay";
-    public static final String PersonCost = "PersonCost";
-    public static final String AboveCapacityPtUsageDuration = "AboveCapacityPtUsageDuration";
+    enum StatsType {
+        RideHailWaiting,
+        RideHailingWaitingSingle,
+        ModeChosen,
+        PersonVehicleTransition,
+        PersonTravelTime,
+        PersonCost,
+        RealizedMode,
+        FuelUsage,
+        DeadHeading,
+        VehicleMilesTraveled,
+        VehicleHoursTraveled,
+        NumberOfVehicles,
+        AgentDelay,
+        AboveCapacityPtUsageDuration
+    }
 
     private BeamConfig beamConfig;
     private BeamServices beamServices;
-    private Map<String, BeamStats> beamStatsMap = new HashMap<>();
+    private Map<StatsType, BeamStats> beamStatsMap = new HashMap<>();
 
     public StatsFactory(BeamServices services) {
         this.beamServices = services;
         this.beamConfig = services.beamConfig();
     }
 
-    public BeamStats getStats(String statsType) {
+    public BeamStats getStats(StatsType statsType) {
         BeamStats stats = beamStatsMap.getOrDefault(statsType, createStats(statsType));
         beamStatsMap.putIfAbsent(statsType, stats);
         return stats;
@@ -50,23 +53,10 @@ public class StatsFactory {
     }
 
     public void createStats() {
-        getStats(DeadHeading);
-        getStats(StatsFactory.FuelUsage);
-        getStats(StatsFactory.PersonTravelTime);
-        getStats(StatsFactory.RideHailWaiting);
-        getStats(StatsFactory.RideHailingWaitingSingle);
-        getStats(StatsFactory.ModeChosen);
-        getStats(StatsFactory.PersonVehicleTransition);
-        getStats(StatsFactory.RealizedMode);
-        getStats(StatsFactory.VehicleMilesTraveled);
-        getStats(StatsFactory.VehicleHoursTraveled);
-        getStats(StatsFactory.NumberOfVehicles);
-        getStats(StatsFactory.AgentDelay);
-        getStats(StatsFactory.PersonCost);
-        getStats(StatsFactory.AboveCapacityPtUsageDuration);
+        Arrays.stream(StatsType.values()).forEach(this::getStats);
     }
     
-    private BeamStats createStats(String statsType) {
+    private BeamStats createStats(StatsType statsType) {
         switch (statsType) {
             case RideHailWaiting:
                 return new RideHailWaitingStats(new RideHailWaitingStats.WaitingStatsComputation(), beamConfig);

@@ -5,6 +5,7 @@ import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
+import beam.analysis.plots.StatsFactory.StatsType;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -84,13 +85,13 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     @Override
     public void handleEvent(Event event) {
         for (BeamStats stat : statsFactory.getBeamStats()) stat.processStats(event);
-        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
+        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsType.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
         for (BeamStats stat : statsFactory.getBeamStats()) stat.createGraph(event);
-        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
+        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsType.DeadHeading);
         deadHeadingStats.createGraph(event, "TNC0");
 
 
@@ -99,7 +100,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                 // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 
                 // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
-                BeamStats modeChoseStats = statsFactory.getStats(StatsFactory.ModeChosen);
+                BeamStats modeChoseStats = statsFactory.getStats(StatsType.ModeChosen);
                 ((ModeChosenStats) modeChoseStats).writeToRootCSV();
                 if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
                     String outPath = CONTROLLER_IO.getOutputFilename("modeChoice.csv");
@@ -118,7 +119,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception {
-        RealizedModeStats realizedModeStats = (RealizedModeStats) statsFactory.getStats(StatsFactory.RealizedMode);
+        RealizedModeStats realizedModeStats = (RealizedModeStats) statsFactory.getStats(StatsType.RealizedMode);
         if (realizedModeStats != null) realizedModeStats.notifyShutdown(event);
     }
 
