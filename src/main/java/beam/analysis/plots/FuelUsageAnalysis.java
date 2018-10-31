@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
@@ -17,7 +18,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class FuelUsageStats implements BeamStats, IterationSummaryStats {
+public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
@@ -28,7 +29,7 @@ public class FuelUsageStats implements BeamStats, IterationSummaryStats {
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageStats(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
+    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
         this.statsComputation = statsComputation;
     }
 
@@ -142,7 +143,7 @@ public class FuelUsageStats implements BeamStats, IterationSummaryStats {
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
         return fuelConsumedByFuelType.entrySet().stream().collect(Collectors.toMap(
                 e -> "fuelConsumedInMJ_" + e.getKey(),
                 e -> e.getValue()/1.0e6

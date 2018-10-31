@@ -1,14 +1,14 @@
-package beam.analysis.plots;
+package beam.analysis.summary;
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.IterationSummaryAnalysis;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class VehicleMilesTraveledStats implements BeamStats, IterationSummaryStats{
+public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
 
     @Override
@@ -23,19 +23,13 @@ public class VehicleMilesTraveledStats implements BeamStats, IterationSummarySta
 
         }
     }
-
-    @Override
-    public void createGraph(IterationEndsEvent event) {
-
-    }
-
     @Override
     public void resetStats() {
         milesTraveledByVehicleType.clear();
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
         return milesTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
                 e -> "vehicleMilesTraveled_" + e.getKey(),
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles

@@ -9,8 +9,9 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.analysis.IterationStatsProvider
 import beam.analysis.plots.modality.ModalityStyleStats
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -57,7 +58,7 @@ class BeamSim @Inject()(
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
-  val iterationStatsProviders: ListBuffer[IterationSummaryStats] = new ListBuffer()
+  val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -170,7 +171,7 @@ class BeamSim @Inject()(
       }
 
       iterationSummaryStats += iterationStatsProviders
-        .flatMap(_.getIterationSummaryStats.asScala)
+        .flatMap(_.getSummaryStats.asScala)
         .toMap
 
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
