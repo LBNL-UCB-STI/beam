@@ -17,6 +17,10 @@ class RangeSpec extends FlatSpec {
     assert(Range("[0:2147483647]") == Range(0, 2147483647))
   }
 
+  "The empty string" should "mean the empty range" in {
+    assert(Range("") == Range.empty())
+  }
+
   "[1:10]" should "mean Range(1, 10)" in {
     assert(Range("[1:10]") == Range(1, 10))
   }

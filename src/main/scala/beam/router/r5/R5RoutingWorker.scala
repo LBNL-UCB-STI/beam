@@ -616,7 +616,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       .getOSMID
                 )
                 .toVector
-              tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath.linkIds)
+              tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath)
             } else 0.0
             val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 

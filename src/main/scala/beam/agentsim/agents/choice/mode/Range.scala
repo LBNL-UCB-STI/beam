@@ -1,6 +1,4 @@
 package beam.agentsim.agents.choice.mode
-import beam.router.Modes.BeamMode
-
 import scala.util.Try
 
 case class Range(lowerBound: Int, upperBound: Int) {

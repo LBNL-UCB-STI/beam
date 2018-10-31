@@ -66,15 +66,21 @@ class TollRoutingSpec
 
   "A time-dependent router with toll calculator" must {
     val time = RoutingModel.DiscreteTime(3000)
+    val origin = new Location(0.00005, 0.01995)
+    val destination = new Location(0.02005, 0.01995)
 
     "report a toll on a route where the fastest route has tolls" in {
-      val origin = new Location(0.00005, 0.01995)
-      val destination = new Location(0.02005, 0.01995)
       val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.costEstimate == 3.0) // contains three toll links: two specified in OSM, and one in CSV file
+      assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
+
+      val earlierRequest = request.copy(departureTime = RoutingModel.DiscreteTime(2000))
+      router ! earlierRequest
+      val earlierResponse = expectMsgType[RoutingResponse]
+      val earlierCarOption = earlierResponse.itineraries.find(_.tripClassifier == CAR).get
+      assert(earlierCarOption.costEstimate == 2.0, "the link toll starts at 3000; when we go earlier, we don't pay it")
 
       val configWithTollTurnedUp = BeamConfig(system.settings.config
         .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
