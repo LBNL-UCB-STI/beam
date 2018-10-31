@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.router.Modes;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
@@ -55,103 +56,50 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
-        int expectedWalkResult = 17;
-        int expectedCarResult = 16;
-        int expectedRideHailResult = 11;
-        int expectedOtherResult = 4;
-        int hour = 6;
+        int expectedWalkResult = 37;
+        int expectedCarResult = 3;
+        int expectedRideHailResult = 7;
+        int hour = 19;
 
         int actaulWalkResult = stats.get(hour).get(WALK);
         int actaulCarResult = stats.get(hour).get(CAR);
         int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
-        int actaulOtherResult = stats.get(hour).get(OTHERS);
 
         assertEquals(expectedWalkResult, actaulWalkResult);
         assertEquals(expectedCarResult, actaulCarResult);
         assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedOtherResult, actaulOtherResult);
-
     }
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
-        int expectedWalkResult = 2;
-        int expectedCarResult = 3;
-        int expectedRideHailResult = 2;
-        int expectedOtherResult = 4;
-        int hour = 7;
+        int expectedDriveTransitResult = 16;
+        int expectedCarResult = 2;
+        int expectedRideHailResult = 7;
+        int expectedWalkTransitResult = 20;
+        int hour = 6;
 
-        int actaulWalkResult = stats.get(hour).get(WALK);
+        int actaulDriveTransitResult = stats.get(hour).get(DRIVE_TRANS);
         int actaulCarResult = stats.get(hour).get(CAR);
         int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
-        int actaulOtherResult = stats.get(hour).get(OTHERS);
+        int actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
 
-        assertEquals(expectedWalkResult, actaulWalkResult);
+        assertEquals(expectedDriveTransitResult, actaulDriveTransitResult);
         assertEquals(expectedCarResult, actaulCarResult);
         assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedOtherResult, actaulOtherResult);
+        assertEquals(expectedWalkTransitResult, actaulWalkTransitResult);
 
     }
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
 
-        int expectedWalkResult = 2;
-        int expectedCarResult = 2;
-        int expectedRideHailResult = 3;
-        int expectedOtherResult = 3;
-        int hour = 8;
+        int expectedRideHailResult = 2;
+        int hour = 10;
 
-        int actaulWalkResult = stats.get(hour).get(WALK);
-        int actaulCarResult = stats.get(hour).get(CAR);
         int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
-        int actaulOtherResult = stats.get(hour).get(OTHERS);
 
-        assertEquals(expectedWalkResult, actaulWalkResult);
-        assertEquals(expectedCarResult, actaulCarResult);
         assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedOtherResult, actaulOtherResult);
-
     }
 
-    @Test // when replanning and upper mode choice are in same hour
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeA() {
-
-        int expectedWalkResult = 2;
-        int expectedCarResult = 2;
-        int expectedRideHailResult = 2;
-        int expectedOtherResult = 4;
-
-        int actaulCarResult = stats.get(9).get(CAR);
-        int actaulRideHailResult = stats.get(9).get(RIDE_HAIL);
-        int actaulOtherResult = stats.get(9).get(OTHERS);
-        int actaulWalkResult = stats.get(10).get(WALK);
-
-        assertEquals(expectedWalkResult, actaulWalkResult);
-        assertEquals(expectedCarResult, actaulCarResult);
-        assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedOtherResult, actaulOtherResult);
-
-    }
-
-    @Test// when replanning and lower mode choice are in same hour
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCForDifferentHoursTypeB() {
-
-        int expectedWalkResult = 2;
-        int expectedCarResult = 2;
-        int expectedRideHailResult = 2;
-        int expectedOtherResult = 4;
-
-        int actaulCarResult = stats.get(11).get(CAR);
-        int actaulRideHailResult = stats.get(11).get(RIDE_HAIL);
-        int actaulOtherResult = stats.get(12).get(OTHERS);
-        int actaulWalkResult = stats.get(12).get(WALK);
-
-        assertEquals(expectedWalkResult, actaulWalkResult);
-        assertEquals(expectedCarResult, actaulCarResult);
-        assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedOtherResult, actaulOtherResult);
-
-    }
 }

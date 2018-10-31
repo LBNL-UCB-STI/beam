@@ -39,8 +39,6 @@ case class BeamVehicleType(
 
 object BeamVehicleType {
 
-  lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
-
   //TODO
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "BIKE-TYPE-DEFAULT",
@@ -53,7 +51,9 @@ object BeamVehicleType {
   )
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
-  // 400 calories/hour == 1255 J/hr @ 7km/hr or 2m/s == 0.17928571428 J/m
+  // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
+  // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
+  // 85 calories / mile == 85k J/mi or 53 J/m
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
@@ -61,11 +61,12 @@ object BeamVehicleType {
       0,
       0,
       0.5,
-      null,
-      0.17928571428,
-      7500,
+      new FuelType(Food, 0.0),
+      53,
+      2.21e6,
       null
     )
+  val powerTrainForHumanBody: Powertrain = new Powertrain(BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
   //TODO
   val defaultTransitBeamVehicleType: BeamVehicleType =
@@ -119,6 +120,7 @@ object BeamVehicleType {
   }
 
   sealed trait FuelTypeId
+  case object Food extends FuelTypeId
   case object Gasoline extends FuelTypeId
   case object Diesel extends FuelTypeId
   case object Electricity extends FuelTypeId
