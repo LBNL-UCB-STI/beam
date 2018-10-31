@@ -507,7 +507,7 @@ docker {
         baseImage = 'anapsix/alpine-java:8u181b13_jdk_unlimited'
         maintainer = 'Kirill Mitin "mitin.kirill.ol@gmail.com"'
         ports = [2552]
-        tag = 'beammodel/beam:latest'
+        tag = 'beammodel/beam:0.6.2'
     }
 
     startScripts {
