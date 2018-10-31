@@ -142,19 +142,11 @@ object BeamGraphComparator {
         case _ => ""
       }) -> f
     }
-    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy {
-      case f if f._1.startsWith("rideHail") => "rideHail".capitalize
-      case f if f._1.startsWith("passengerPerTrip") => "passengerPerTrip".capitalize
-      case f if f._1.startsWith("legHistogram") => "legHistogram".capitalize
-      case f if f._1.startsWith("averageTravelTimes") => "averageTravelTimes".capitalize
-      case f if f._1.startsWith("energyUse") => "energyUse".capitalize
-      case f if f._1.startsWith("modeChoice") => "modeChoice".capitalize
-      case f if f._1.startsWith("physsim") => "physsim".capitalize
-      case f if f._1.startsWith("realizedMode") => "realizedMode".capitalize
-      case f if f._1.startsWith("tripHistogram") => "tripHistogram".capitalize
-      case f if f._1.startsWith("freeFlowSpeedDistribution") => "freeFlowSpeedDistribution".capitalize
-      case _ => "misc".capitalize
-    }
+
+    val knownChartPrefixes = List("rideHail", "passengerPerTrip","legHistogram","averageTravelTimes","energyUse","modeChoice","physsim","realizedMode","tripHistogram","freeFlowSpeedDistribution")
+    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy(grouping =>
+      knownChartPrefixes.collectFirst{ case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
+        .getOrElse("Misc"))
     val subGroups = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
     // set priorities for the grouped chart files
     chartsGroupedByPrefix.foreach(gc => {
