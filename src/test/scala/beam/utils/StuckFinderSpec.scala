@@ -6,11 +6,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
+import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm.ActorTypeToMaxNumberOfMessages
 import org.scalatest.{Matchers, WordSpec}
 
 class StuckFinderSpec extends WordSpec with Matchers {
 
-  val threshold = Thresholds$Elm(100, classOf[InitializeTrigger].getCanonicalName)
+  val threshold = Thresholds$Elm(ActorTypeToMaxNumberOfMessages() 100, classOf[InitializeTrigger].getCanonicalName)
 
   val stuckAgentDetectionCfg =
     StuckAgentDetection(

@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
+import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
 import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
@@ -20,11 +21,16 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
     mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
+
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
   } else {
     verifyTypesExist()
   }
+
+  private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = getPerActorTypeThreshold(cfg.thresholds)
+
+  private val exceedMaxNumberOfMessages: ArrayBuffer[ScheduledTrigger] = new ArrayBuffer[ScheduledTrigger]()
 
   private val class2Helper: Map[Class[_], StuckFinderHelper[ScheduledTrigger]] = if (!cfg.enabled) {
     Map.empty
@@ -52,9 +58,11 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }
   }
 
-  def add(time: Long, st: ScheduledTrigger): Unit = {
+  def add(time: Long, st: ScheduledTrigger, isNew: Boolean): Unit = {
     if (cfg.enabled) {
       updateTickIfNeeded(st.triggerWithId.trigger.tick)
+      if (isNew)
+        checkIfExiceedMaxNumOfMsgPerActorType(st)
       class2Helper
         .get(toKey(st))
         .foreach { helper =>
@@ -86,8 +94,9 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
           if (!isStuck) {
+            val stat = actorToTriggerMessages.get(oldest.value.agent)
             // We have to add it back
-            add(oldest.time, oldest.value)
+            add(oldest.time, oldest.value, false)
             stuckAgents
           } else {
             stuckAgents += oldest
@@ -104,6 +113,8 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         detectStuckAgents0(helper, result)
       }
     }
+    result.appendAll(exceedMaxNumberOfMessages.map { x => ValueWithTime(x, -1) })
+    exceedMaxNumberOfMessages.clear()
     result
   }
 
@@ -140,6 +151,61 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     allSubClasses.diff(definedTypes).foreach { clazz =>
       logger.warn("There is no configuration for '{}'", clazz)
     }
+  }
+
+  private def checkIfExiceedMaxNumOfMsgPerActorType(st: ScheduledTrigger): Unit = {
+    val actor = st.agent
+    val triggerClazz = st.triggerWithId.trigger.getClass
+    val msgCount = updateAndGetNumOfTriggerMessagesPerActor(actor, triggerClazz)
+    val maxMsgPerActorType = triggerTypeToActorThreshold.get(triggerClazz).flatMap { m => m.get(getActorType(actor)) }
+        .getOrElse {
+          logger.warn("Can't get max number of messages with trigger class '{}' for actor '{}' which has type '{}'",
+            triggerClazz, actor, getActorType(actor))
+          Int.MaxValue
+        }
+    if (msgCount > maxMsgPerActorType) {
+      exceedMaxNumberOfMessages.append(st)
+      logger.warn(s"$st is exceed max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType")
+    }
+  }
+
+  private def updateAndGetNumOfTriggerMessagesPerActor(actor:ActorRef, triggerClazz: Class[_ <: Trigger]): Int = {
+    val newCount = actorToTriggerMessages.get(actor) match {
+      case Some(triggerTypeToOccur) =>
+        triggerTypeToOccur.get(triggerClazz) match {
+          case Some(current) =>
+            triggerTypeToOccur.update(triggerClazz, current + 1)
+            current + 1
+          case None =>
+            triggerTypeToOccur.put(triggerClazz, 1)
+            1
+        }
+      case None =>
+        actorToTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
+        1
+    }
+    newCount
+  }
+
+  private def getPerActorTypeThreshold(thresholds: Seq[Thresholds$Elm]): Map[Class[_], Map[String, Int]] = {
+    thresholds.map { t =>
+      val popilationOpt = t.actorTypeToMaxNumberOfMessages.population.map { n =>
+        "Population" -> n
+      }
+      val rideHailManagerOpt = t.actorTypeToMaxNumberOfMessages.rideHailManager.map { n =>
+        "RideHailManager" -> n
+      }
+      val rideHailAgentOpt = t.actorTypeToMaxNumberOfMessages.rideHailAgent.map { n =>
+        "RideHailAgent" -> n
+      }
+      val transitDriverAgentOpt = t.actorTypeToMaxNumberOfMessages.transitDriverAgent.map { n =>
+        "TransitDriverAgent" -> n
+      }
+      val actorTypeToMaxNumOfMessages = Seq(popilationOpt, rideHailManagerOpt,
+        rideHailAgentOpt, transitDriverAgentOpt).flatten.toMap
+      val clazz = Class.forName(t.triggerType)
+      (clazz, actorTypeToMaxNumOfMessages)
+    }.toMap
   }
 
   private def getActorType(actorRef: ActorRef): String = {

@@ -74,14 +74,22 @@ class TriggerMeasurer extends LazyLogging {
         case (actorRef, map) =>
           getType(actorRef) -> map
       }
-    val maxPerActorType = actorTypeToTriggers
+    val groupedByActorType = actorTypeToTriggers
       .groupBy { case (actorType, _) => actorType }
-      .map { case (actorType, seq) => actorType -> seq.view.maxBy { case (_, map) => map.values.size }._2 }
+
+    val maxPerActorType = groupedByActorType.map { case (actorType, seq) =>
+      val typeToCount: Iterable[(Class[_], Int)] = seq.flatMap { case (key, value) => value }
+      val classToMaxMsgCount = typeToCount.groupBy { case (clazz, _) =>
+        clazz
+      }.map { case (clazz, iter) =>  clazz -> iter.map { case (k, v) => v}.max }
+      actorType -> classToMaxMsgCount
+    }
 
     maxPerActorType.foreach {
-      case (actorType, map) =>
-        val s = map.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
-        val str = s"""\t$actorType => ${map.values.sum}
+      case (actorType, triggetTypeToMaxMsgs) =>
+        val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
+        val str = s"""\t$actorType => ${
+          triggetTypeToMaxMsgs.map { case (_, v) => v }.sum }
         |$s""".stripMargin
         sb.append(str)
     }
