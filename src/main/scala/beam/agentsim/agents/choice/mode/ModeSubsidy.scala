@@ -47,63 +47,15 @@ object ModeSubsidy {
     )
   }
 
-  case class Range(lowerBound: Int, upperBound: Int) {
-    val isEmpty = false
-
-    def has(value: Int): Boolean = {
-      lowerBound <= value && value <= upperBound
-    }
-
-    def hasOrEmpty(value: Int): Boolean = {
-      isEmpty || has(value)
-    }
-  }
-
-  object Range {
-
-    def apply(pattern: String): Range = {
-      if (pattern == null || pattern.isEmpty) return Range.empty()
-      val bounds = pattern.split(":")
-      val lowerBound = Try(
-        bounds(0).substring(1).toInt
-        + (if (bounds(0).startsWith("(")) 1 else 0)
-      ).getOrElse(0)
-      val upperBound = Try(
-        bounds(1).substring(0, bounds(1).length - 1).toInt
-        - (if (bounds(1).endsWith(")")) 1 else 0)
-      ).getOrElse(Int.MaxValue)
-      Range(lowerBound, upperBound)
-    }
-
-    def apply(lowerBound: Int, upperBound: Int): Range = {
-      if (lowerBound == 0 && upperBound == 0)
-        Range.empty()
-      else
-        new Range(lowerBound, upperBound)
-    }
-
-    def empty(): Range = new Range(0, 0) {
-      override val isEmpty = true
-    }
-
-    def test(): Unit = {
-      assert(Range(0, 0).isEmpty)
-      assert(Range("[:]") == Range(0, 2147483647))
-      assert(Range("[0:]") == Range(0, 2147483647))
-      assert(Range("[:2147483647]") == Range(0, 2147483647))
-      assert(Range("[0:2147483647]") == Range(0, 2147483647))
-      assert(Range("[1:10]") == Range(1, 10))
-      assert(Range("(1:10]") == Range(2, 10))
-      assert(Range("[1:10)") == Range(1, 9))
-
-      val ms = new ModeSubsidy("test/input/beamville/subsidies.csv")
-      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(5), Some(30000)) == 4)
-      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000)) == 3)
-      assert(ms.getSubsidy(BeamMode.RIDE_HAIL, None, None) == 0)
-    }
-  }
-
   def main(args: Array[String]): Unit = {
-    Range.test()
+    test()
   }
+
+  def test(): Unit = {
+    val ms = new ModeSubsidy("test/input/beamville/subsidies.csv")
+    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(5), Some(30000)) == 4)
+    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000)) == 3)
+    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, None, None) == 0)
+  }
+
 }
