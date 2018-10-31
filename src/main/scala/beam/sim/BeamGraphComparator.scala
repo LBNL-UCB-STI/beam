@@ -142,14 +142,6 @@ object BeamGraphComparator {
         case _ => ""
       }) -> f
     }
-    //Group chart files by name (2 level group)
-    //    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
-    //      val index = f._1.indexOf("_")
-    //      if(index == -1)
-    //        f._1
-    //      else
-    //        f._1.substring(0,index)
-    //    })
     val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy {
       case f if f._1.startsWith("rideHail") => "rideHail".capitalize
       case f if f._1.startsWith("passengerPerTrip") => "passengerPerTrip".capitalize
