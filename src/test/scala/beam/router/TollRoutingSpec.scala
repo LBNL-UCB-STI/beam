@@ -18,7 +18,8 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
-import org.matsim.api.core.v01.{Coord, Id}
+import com.typesafe.config.ConfigValueFactory
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
@@ -44,19 +45,21 @@ class TollRoutingSpec
   var networkCoordinator: NetworkCoordinator = _
 
   val services: BeamServices = mock[BeamServices]
+  var scenario: Scenario = _
+  var fareCalculator: FareCalculator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
 
     // Have to mock a lot of things to get the router going
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = mock[FareCalculator]
+    fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
@@ -73,11 +76,25 @@ class TollRoutingSpec
     "report a toll on a route where the fastest route has tolls" in {
       val origin = new Location(0.00005, 0.01995)
       val destination = new Location(0.02005, 0.01995)
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-
       assert(carOption.costEstimate == 3.0) // contains three toll links: two specified in OSM, and one in CSV file
+
+      val configWithTollTurnedUp = BeamConfig(system.settings.config
+        .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
+      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp,"test/input/beamville/r5")
+      val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
+      within(60 seconds) { // Router can take a while to initialize
+        moreExpensiveRouter ! Identify(0)
+        expectMsgType[ActorIdentity]
+      }
+      moreExpensiveRouter ! request
+      val moreExpensiveResponse = expectMsgType[RoutingResponse]
+      val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
+      // the factor in the config only applies to link tolls at the moment, i.e. one of the three paid is 2.0
+      assert(moreExpensiveCarOption.costEstimate == 4.0)
     }
 
   }

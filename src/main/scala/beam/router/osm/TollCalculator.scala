@@ -13,10 +13,10 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.io.Source
 
-class TollCalculator(val beamConfig: BeamConfig, val directory: String) extends LazyLogging {
+class TollCalculator(val config: BeamConfig, val directory: String) extends LazyLogging {
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
-  private val tollPrices = readTollPrices(beamConfig.beam.agentsim.toll.file).withDefaultValue(0.0)
+  private val tollPrices = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(0.0)
 
   /**
     * agencies is a Map of FareRule by agencyId
@@ -91,7 +91,7 @@ class TollCalculator(val beamConfig: BeamConfig, val directory: String) extends 
     ways.view.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
   }
 
-  def calcTollByLinkIds(linkIds: IndexedSeq[Int]): Double = linkIds.view.map(tollPrices).sum
+  def calcTollByLinkIds(linkIds: IndexedSeq[Int]): Double = linkIds.view.map(tollPrices).sum * config.beam.agentsim.tuning.tollPrice
 
   private def readTollPrices(tollPricesFile: String): Map[Int, Double] = {
     if (Files.exists(Paths.get(tollPricesFile))) {
