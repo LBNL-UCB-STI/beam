@@ -2,7 +2,7 @@ package beam.router
 
 import java.time.ZonedDateTime
 
-import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -28,7 +28,6 @@ import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class TollRoutingSpec
@@ -63,11 +62,6 @@ class TollRoutingSpec
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
-
-    within(60 seconds) { // Router can take a while to initialize
-      router ! Identify(0)
-      expectMsgType[ActorIdentity]
-    }
   }
 
   "A time-dependent router with toll calculator" must {
@@ -86,10 +80,6 @@ class TollRoutingSpec
         .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
       val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp,"test/input/beamville/r5")
       val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
-      within(60 seconds) { // Router can take a while to initialize
-        moreExpensiveRouter ! Identify(0)
-        expectMsgType[ActorIdentity]
-      }
       moreExpensiveRouter ! request
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
