@@ -18,9 +18,6 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
   private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
   private val tollPrices = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(0.0)
 
-  /**
-    * agencies is a Map of FareRule by agencyId
-    */
   val ways: mutable.Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
     new ObjectInputStream(new FileInputStream(cacheFile))
       .readObject()
@@ -65,10 +62,10 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
     }
 
     def wayToToll(w: Way) = {
-      Toll(tagToChange(w.tags.asScala.find(_.key == "charge")))
+      Toll(tagToCharge(w.tags.asScala.find(_.key == "charge")))
     }
 
-    def tagToChange(tag: Option[Tag]) = {
+    def tagToCharge(tag: Option[Tag]) = {
       Charge(tag.getOrElse(new Tag("", "")).value)
     }
 
@@ -112,19 +109,8 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
 
 object TollCalculator {
 
-  case class Toll(
-    charges: Vector[Charge],
-    vehicleTypes: Set[String] = Set(),
-    isExclusionType: Boolean = false
-  )
-
-  case class Charge(
-    amount: Double,
-    currency: String,
-    item: String = "",
-    timeUnit: Option[String] = None,
-    dates: Vector[ChargeDate] = Vector()
-  )
+  case class Toll(charges: Vector[Charge])
+  case class Charge(amount: Double)
 
   object Charge {
 
@@ -135,24 +121,8 @@ object TollCalculator {
           val tokens = c.split(" ")
           val tts = tokens.length
           if (tts >= 2) {
-            val sfxTokens = tokens(tts - 1).split("/")
-
             new Charge(
-              tokens(tts - 2).toDouble,
-              sfxTokens(0),
-              sfxTokens(1),
-              if (sfxTokens.length == 3) Option(sfxTokens(2)) else None,
-              tts match {
-                case 2 => Vector()
-                case 3 => Vector(ChargeDate.apply(tokens(0)))
-                case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
-                case 5 =>
-                  Vector(
-                    ChargeDate.apply(tokens(0)),
-                    ChargeDate.apply(tokens(1)),
-                    ChargeDate.apply(tokens(2))
-                  )
-              }
+              tokens(tts - 2).toDouble
             )
           } else empty
         })
@@ -160,44 +130,8 @@ object TollCalculator {
     }
 
     def empty: Charge = {
-      Charge(0.0, "USD")
+      Charge(0.0)
     }
   }
 
-  trait ChargeDate {
-    val dType: String
-    val on: String
-  }
-
-  case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
-
-  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
-
-  object ChargeDate {
-    private val months =
-      Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-    private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
-    private val events = Set("dawn", "sunrise", "sunset", "dusk")
-
-    def apply(pattern: String): ChargeDate = {
-      val dateTokens = pattern.split("-")
-      val dType = if (isMonth(dateTokens(0))) {
-        "m"
-      } else if (isDay(dateTokens(0))) {
-        "d"
-      } else if (isHour(dateTokens(0))) {
-        "h"
-      } else {
-        "y"
-      }
-      if (dateTokens.length == 1) DiscreteDate(dType, dateTokens(0))
-      else DateRange(dType, dateTokens(0), dateTokens(1))
-    }
-
-    def isMonth(m: String): Boolean = months.contains(m.toLowerCase)
-
-    def isDay(d: String): Boolean = days.contains(d.toLowerCase)
-
-    def isHour(h: String): Boolean = h.contains(":") || events.exists(h.contains)
-  }
 }
