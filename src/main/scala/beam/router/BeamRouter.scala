@@ -408,7 +408,8 @@ object BeamRouter {
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false
+    mustParkAtEnd: Boolean = false,
+    timeValueOfMoney: Double = 0.0
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()
