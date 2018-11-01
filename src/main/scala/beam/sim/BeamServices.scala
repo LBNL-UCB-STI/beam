@@ -57,6 +57,7 @@ trait BeamServices extends ActorInject {
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
 
+  var metricsPrinter: ActorRef
   var iterationNumber: Int = -1
   def startNewIteration()
 }
@@ -75,6 +76,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   )
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
+  var metricsPrinter: ActorRef = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()

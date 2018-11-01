@@ -17,7 +17,8 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.sim.metrics.MetricsSupport
+import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
+import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.DebugLib
 import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
@@ -89,6 +90,11 @@ class BeamSim @Inject()(
           alreadyScaled.add(theCap)
         }
     }
+
+    beamServices.metricsPrinter = actorSystem.actorOf(MetricsPrinter.props())
+    Await.result(beamServices.metricsPrinter ? Identify(0), timeout.duration)
+    beamServices.metricsPrinter ! Subscribe("counter", "**")
+    beamServices.metricsPrinter ! Subscribe("histogram", "**")
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
@@ -203,7 +209,12 @@ class BeamSim @Inject()(
       persons.map(_.getPlans.size()).sum.toFloat / persons.size
     )
     //    Tracer.currentContext.finish()
-
+    beamServices.metricsPrinter ! Print(
+      Seq(
+        "r5-plans-count"
+      ),
+      Nil
+    )
     logger.info("Ending Iteration")
   }
 
