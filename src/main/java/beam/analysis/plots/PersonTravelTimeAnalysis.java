@@ -13,6 +13,7 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
+import com.google.common.base.CaseFormat;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
