@@ -211,11 +211,18 @@ class BeamSim @Inject()(
       .listFiles()
       .filter(f => matsimGeneratedGraphNameRegexes.exists(f.getName.replace(event.getIteration.toString + ".","").matches(_)))
       .foreach { file =>
-        val newFilePath = file.getAbsolutePath.replace(file.getName,CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, file.getName))
-        logger.info(s"Renaming file - ${file.getName} to match the standard naming convention of camel case : " + newFilePath)
-        FileUtils.moveFile(
-          file,
-          FileUtils.getFile(newFilePath));
+        val newFile = FileUtils.getFile(file.getAbsolutePath.replace(file.getName,CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, file.getName)))
+        logger.info(s"Renaming file - ${file.getName} to match the standard naming convention of camel case : " + newFile.getAbsoluteFile)
+        try {
+          if(file != newFile) {
+            FileUtils.moveFile(
+              file,
+              newFile)
+          }
+        } catch {
+          case e : Exception =>
+            logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}",e)
+        }
       }
     logger.info("Ending Iteration")
   }

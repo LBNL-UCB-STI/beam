@@ -106,7 +106,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
         }
         writeToRootCSV();
 
-        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
+        fileName = outputDirectoryHierarchy.getOutputFilename("referenceModeChoice.png");
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null) {
@@ -357,7 +357,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
     //csv for reference mode choice
     public void writeToRootCSVForReference() {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("reference_modeChoice.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("referenceModeChoice.csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
