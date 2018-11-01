@@ -409,7 +409,7 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false,
-    timeValueOfMoney: Double = 0.0
+    timeValueOfMoney: Double = 360.0 // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()

@@ -70,7 +70,8 @@ class TollRoutingSpec
     val destination = new Location(0.02005, 0.01995)
 
     "report a toll on a route where the fastest route has tolls" in {
-      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      val timeValueOfMoney = 0.0 // I don't mind tolls
+      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)), Access, false, timeValueOfMoney)
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
@@ -95,8 +96,8 @@ class TollRoutingSpec
 
       // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
       // (which takes 288 seconds)
-      val timeValueOfMoney = 145.0
-      val tollSensitiveRequest = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)), Access, false, timeValueOfMoney)
+      val higherTimeValueOfMoney = 145.0
+      val tollSensitiveRequest = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)), Access, false, higherTimeValueOfMoney)
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
@@ -109,7 +110,6 @@ class TollRoutingSpec
       router ! request
       val response = expectMsgType[RoutingResponse]
       val walkOption = response.itineraries.find(_.tripClassifier == WALK).get
-      println(walkOption.beamLegs().head.travelPath.linkIds)
       assert(walkOption.costEstimate == 0.0)
     }
 
