@@ -7,7 +7,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
@@ -102,6 +102,15 @@ class TollRoutingSpec
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate == 2.0, "if I'm toll sensitive, I don't go over the tolled link")
       assert(tollSensitiveCarOption.totalTravelTimeInSecs == 288)
+    }
+
+    "not report a toll when walking" in {
+      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)))
+      router ! request
+      val response = expectMsgType[RoutingResponse]
+      val walkOption = response.itineraries.find(_.tripClassifier == WALK).get
+      println(walkOption.beamLegs().head.travelPath.linkIds)
+      assert(walkOption.costEstimate == 0.0)
     }
 
   }
