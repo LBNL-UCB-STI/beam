@@ -87,11 +87,12 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
 
     def readTolls(osm: OSM): Map[Long, Seq[Toll]] = {
       osm.ways.asScala.view.flatMap {
-        case (id, way) =>
+        case (id, way) if way.tags != null =>
           val tolls = way.tags.asScala.find(_.key == "charge")
             .map(chargeTag => parseTolls(chargeTag.value))
             .getOrElse(Nil)
           if (tolls.nonEmpty) Some(Long2long(id) -> tolls) else None
+        case _ => None
       }.toMap
     }
 

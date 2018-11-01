@@ -23,6 +23,7 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -71,8 +72,7 @@ class AbstractSfLightSpec
     networkCoordinator.loadNetwork()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
+    val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(
