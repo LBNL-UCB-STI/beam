@@ -8,7 +8,7 @@ header:
     beamTemplateConfPath: production/sfbay/base.conf
     modeChoiceTemplate: production/sfbay/calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
-    params:
+    deployParams:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
       S3_OUTPUT_PATH_SUFFIX: "application-sfbay"
@@ -17,7 +17,7 @@ header:
 
       runName: "sfbay_modes_10kCalib_1stNov_2018"
       beamBranch: "production-sfbay"
-      beamCommit: "92091cad91c2b1c23318401883318ee16b03b9c7"
+      beamCommit: "6144dc41273155c1923688cd94981aff7af60860"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"
