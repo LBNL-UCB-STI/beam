@@ -3,11 +3,11 @@
 # Header
 
 header:
-    title: modes_intercept_AbsErrorMinLevel_28thSep2018_D
+    title: sfbay_modes_10kCalib_1stNov_2018
     author: BEAM Developers
-    beamTemplateConfPath: production/application-sfbay/diffusion-base-calib.conf
-    modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
-    numWorkers: 10
+    beamTemplateConfPath: production/sfbay/base.conf
+    modeChoiceTemplate: production/sfbay/calibration/modeChoiceParameters.xml.tpl
+    numWorkers: 1
     params:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
@@ -15,8 +15,8 @@ header:
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
 
-      runName: "modes_intercept_AbsErrorMinLevel_28thSep2018_D"
-      beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
+      runName: "sfbay_modes_10kCalib_1stNov_2018"
+      beamBranch: "production-sfbay"
       beamCommit: "92091cad91c2b1c23318401883318ee16b03b9c7"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
