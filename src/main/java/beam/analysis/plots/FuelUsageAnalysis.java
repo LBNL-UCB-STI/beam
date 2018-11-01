@@ -80,6 +80,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     public void resetStats() {
         hourModeFuelage.clear();
         modesFuel.clear();
+        fuelConsumedByFuelType.clear();
     }
 
     private CategoryDataset buildModesFuelageGraphDataset() {
