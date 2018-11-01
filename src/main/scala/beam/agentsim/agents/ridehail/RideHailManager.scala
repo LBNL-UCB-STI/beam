@@ -45,7 +45,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.{concurrent, mutable}
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future}
@@ -273,15 +273,11 @@ class RideHailManager(
       boundingBox.getMaxY
     )
   }
-  private val availableRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val outOfServiceRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val inServiceRideHailVehicles =
-    concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation]()
-  private val pendingModifyPassengerScheduleAcks =
-    collection.concurrent.TrieMap[String, RideHailResponse]()
-  private val parkingInquiryCache = collection.concurrent.TrieMap[Int, RideHailAgentLocation]()
+  private val availableRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val outOfServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val inServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
+  private val pendingModifyPassengerScheduleAcks = mutable.HashMap[String, RideHailResponse]()
+  private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
   var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
   private var lockedVehicles = Set[Id[Vehicle]]()
@@ -1111,7 +1107,7 @@ class RideHailManager(
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
-  def getIdleVehicles: collection.concurrent.TrieMap[Id[Vehicle], RideHailAgentLocation] = {
+  def getIdleVehicles: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {
     availableRideHailVehicles
   }
 

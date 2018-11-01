@@ -3,7 +3,7 @@ import java.{lang, util}
 
 import beam.agentsim.agents.ridehail.graph.RideHailingWaitingGraphSpec.{RideHailingWaitingGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.RideHailWaitingStats
+import beam.analysis.plots.RideHailWaitingAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
 import com.google.inject.Provides
@@ -23,12 +23,12 @@ import scala.concurrent.Promise
 object RideHailingWaitingGraphSpec {
 
   class RideHailingWaitingGraph(
-    waitingComp: RideHailWaitingStats.WaitingStatsComputation with EventAnalyzer
+    waitingComp: RideHailWaitingAnalysis.WaitingStatsComputation with EventAnalyzer
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val railHailingStat =
-      new RideHailWaitingStats(waitingComp)
+      new RideHailWaitingAnalysis(waitingComp)
 
     override def reset(iteration: Int): Unit = {
       railHailingStat.resetStats()
@@ -100,7 +100,7 @@ class RideHailingWaitingGraphSpec extends WordSpecLike with Matchers with Integr
   "Ride Haling Graph Collected Data" must {
 
     "contains valid rideHailing stats" in {
-      val rideHailWaitingComputation = new RideHailWaitingStats.WaitingStatsComputation with EventAnalyzer {
+      val rideHailWaitingComputation = new RideHailWaitingAnalysis.WaitingStatsComputation with EventAnalyzer {
 
         private val promise = Promise[util.Map[Integer, util.List[lang.Double]]]()
 

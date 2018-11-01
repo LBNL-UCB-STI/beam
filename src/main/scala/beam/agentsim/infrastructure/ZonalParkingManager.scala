@@ -33,8 +33,7 @@ class ZonalParkingManager(
 ) extends ParkingManager(parkingStockAttributes)
     with HasServices
     with ActorLogging {
-  override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
-    collection.mutable.Map[Id[ParkingStall], ParkingStall]()
+  override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = mutable.Map()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
   var stallNum = 0
 

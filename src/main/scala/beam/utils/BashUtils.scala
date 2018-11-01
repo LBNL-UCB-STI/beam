@@ -12,8 +12,8 @@ object BashUtils {
     */
   def getCommitHash: String = {
     val resp = readCommandResponse("git rev-parse HEAD")
-    if (resp != null) return resp
-    "HEAD" //for the env where git is not present
+    if (resp != null) resp
+    else "HEAD" //for the env where git is not present
 
   }
 
@@ -24,8 +24,8 @@ object BashUtils {
     */
   def getBranch: String = {
     val resp = readCommandResponse("git rev-parse --abbrev-ref HEAD")
-    if (resp != null) return resp
-    "master"
+    if (resp != null) resp
+    else "master"
   }
 
   private def readCommandResponse(command: String) = {

@@ -7,13 +7,14 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgentSpec.ZERO
+import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -29,7 +30,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.plansampling.PlansSampler
+import beam.utils.plan.sampling.PlansSampler
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
@@ -50,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -96,12 +97,12 @@ class PersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] =
+    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
   }
@@ -668,6 +669,8 @@ class PersonAgentSpec
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[PersonCostEvent]
+      events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
@@ -690,7 +693,10 @@ class PersonAgentSpec
         AlightVehicleTrigger(32000, tramLeg.beamVehicleId),
         personActor
       ) // My tram is late!
+
       events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[PersonCostEvent]
+      events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       events.expectMsgType[VehicleEntersTrafficEvent]

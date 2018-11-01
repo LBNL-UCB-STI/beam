@@ -6,7 +6,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -21,7 +21,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel._
 import beam.router.r5.R5RoutingWorker
-import beam.utils.plansampling.AvailableModeUtils._
+import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
@@ -504,8 +504,9 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModes.contains(itin.tripClassifier))
 
+      val attributesOfIndividual = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id).getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
-      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq) match {
+      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, attributesOfIndividual) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>

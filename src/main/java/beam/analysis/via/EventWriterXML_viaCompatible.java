@@ -1,7 +1,6 @@
 package beam.analysis.via;
 
 
-import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.events.algorithms.EventWriter;
 import org.matsim.core.events.handler.BasicEventHandler;

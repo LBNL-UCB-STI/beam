@@ -48,10 +48,10 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer[ActorRef]()
+  private val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
-    mutable.Map[Id[Person], Id[Household]]()
+    mutable.Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
     personToHouseholdId ++= matSimHousehold.getMemberIds.asScala
       .map(personId => personId -> householdId)
