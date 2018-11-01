@@ -14,7 +14,7 @@ case class ExperimentDef(
   @BeanProperty var batchRunScript: String,
   @BeanProperty var header: Header,
   private val initialDefaultParams: JavaMap[String, Object],
-  private val initialFactors: java.util.List[Factor]
+  private val initialFactors: JavaList[Factor]
 ) {
 
   private val _defaultParams: JavaMap[String, Object] = {
