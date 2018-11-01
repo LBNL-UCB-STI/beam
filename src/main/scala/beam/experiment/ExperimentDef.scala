@@ -35,7 +35,7 @@ case class ExperimentDef(
   def defaultParams: JavaMap[String, Object] = Collections.unmodifiableMap(_defaultParams)
 
   private val _factors: JavaList[Factor] = {
-    if (_factors == null) {
+    if (initialFactors == null) {
       new util.ArrayList[Factor]()
     } else {
       new util.ArrayList[Factor](initialFactors)
