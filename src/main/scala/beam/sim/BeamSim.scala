@@ -214,10 +214,8 @@ class BeamSim @Inject()(
         val newFile = FileUtils.getFile(file.getAbsolutePath.replace(file.getName,CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, file.getName)))
         logger.info(s"Renaming file - ${file.getName} to match the standard naming convention of camel case : " + newFile.getAbsoluteFile)
         try {
-          if(file != newFile) {
-            FileUtils.moveFile(
-              file,
-              newFile)
+          if(file != newFile && !newFile.exists()) {
+            file.renameTo(newFile)
           }
         } catch {
           case e : Exception =>
