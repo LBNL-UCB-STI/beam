@@ -49,7 +49,7 @@ case class ExperimentDef(
     }
   }
 
-  def factors :JavaList[Factor] = Collections.unmodifiableList(_factors)
+  def factors: JavaList[Factor] = Collections.unmodifiableList(_factors)
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
