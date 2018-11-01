@@ -30,10 +30,10 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
       .linkIds
       .zip(linkEnterTimes)
       .map(calcTollByLinkId _ tupled)
-      .sum * config.beam.agentsim.tuning.tollPrice
+      .sum
   }
 
-  def calcTollByLinkId(linkId: Int, time: Int): Double = applyTimeDependentTollAtTime(tollsByLinkId(linkId), time)
+  def calcTollByLinkId(linkId: Int, time: Int): Double = applyTimeDependentTollAtTime(tollsByLinkId(linkId), time) * config.beam.agentsim.tuning.tollPrice
 
   private def applyTimeDependentTollAtTime(tolls: TimeDependentToll, time: Int) = {
     tolls.view.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
