@@ -39,7 +39,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -51,12 +51,13 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
   beamServices: BeamServices,
@@ -184,6 +185,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   var workAssigner: ActorRef = context.parent
 
   private var maybeTravelTime: Option[TravelTime] = None
+
+  private val links = network.getLinks
+
+  private val linkIdMap: HashMap[Int, Id[Link]] = {
+    val start = System.currentTimeMillis()
+    val pairs = network.getLinks.keySet().asScala.map { v => v.toString.toInt -> v }.toSeq
+    val map = HashMap(pairs :_*)
+    val end = System.currentTimeMillis()
+    log.info("linkIdMap is built in {} ms", end - start)
+    map
+  }
 
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
 
@@ -853,7 +865,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      if (!network.getLinks.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
+      if (!links.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
         throw new RuntimeException("Link not found: " + edge.edgeId)
       }
       activeLinkIds += edge.edgeId.intValue()
@@ -1022,26 +1034,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  private def getTravelTime(time: Int, linkId: Int, matsimTravelTime: TravelTime): Double = {
-    val travelTime = matsimTravelTime
-      .getLinkTravelTime(
-        network.getLinks.get(Id.createLinkId(linkId)),
-        time.toDouble,
-        null,
-        null
-      )
-
-    val travelSpeed = network.getLinks.get(Id.createLinkId(linkId)).getLength / travelTime
+  private def getTravelTime(time: Int, linkId: Int, travelTime: TravelTime): Double = {
+    val link = links.get(idLink(linkId))
+    val tt = travelTime.getLinkTravelTime(link, time,null,null)
+    val travelSpeed = link.getLength / tt
     if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-      network.getLinks
-        .get(Id.createLinkId(linkId))
-        .getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+      link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
     } else {
-      travelTime
+      tt
     }
-
   }
 
+  private def idLink(linkId: Int): Id[Link] = {
+    linkIdMap(linkId)
+  }
   private val turnCostCalculator: TurnCostCalculator =
     new TurnCostCalculator(transportNetwork.streetLayer, true) {
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
