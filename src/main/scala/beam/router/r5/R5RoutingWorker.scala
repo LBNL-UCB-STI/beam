@@ -188,9 +188,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private val links = network.getLinks
 
-  private val linkIdMap: HashMap[Int, Id[Link]] = {
+  private val linkIdMap: HashMap[Int, Link] = {
     val start = System.currentTimeMillis()
-    val pairs = network.getLinks.keySet().asScala.map { v => v.toString.toInt -> v }.toSeq
+    val pairs = links.asScala.map { case (k, v) => k.toString.toInt -> v }.toSeq
     val map = HashMap(pairs :_*)
     val end = System.currentTimeMillis()
     log.info("linkIdMap is built in {} ms", end - start)
@@ -1035,7 +1035,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def getTravelTime(time: Int, linkId: Int, travelTime: TravelTime): Double = {
-    val link = links.get(idLink(linkId))
+    val link = linkIdMap(linkId)
     val tt = travelTime.getLinkTravelTime(link, time,null,null)
     val travelSpeed = link.getLength / tt
     if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
@@ -1045,9 +1045,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  private def idLink(linkId: Int): Id[Link] = {
-    linkIdMap(linkId)
-  }
   private val turnCostCalculator: TurnCostCalculator =
     new TurnCostCalculator(transportNetwork.streetLayer, true) {
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
