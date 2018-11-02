@@ -143,7 +143,7 @@ object BeamGraphComparator {
       }) -> f
     }
 
-    val knownChartPrefixes = List("rideHail", "passengerPerTrip","leghistogram","averageTravelTimes","energyUse","modeChoice","physsim","realizedMode","tripHistogram","freeFlowSpeedDistribution")
+    val knownChartPrefixes = List("rideHail", "passengerPerTrip","legHistogram","averageTravelTimes","energyUse","modeChoice","physsim","realizedMode","tripHistogram","freeFlowSpeedDistribution")
     val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy(grouping =>
       knownChartPrefixes.collectFirst{ case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
         .getOrElse("Misc"))
@@ -156,7 +156,7 @@ object BeamGraphComparator {
           case "modeChoice" => subGroups.put("P01" -> key,gc._2)
           case "energyUse" => subGroups.put("P02" -> key,gc._2)
           case "realizedMode" => subGroups.put("P03" -> key, gc._2)
-          case "misc" => subGroups.put("P99" -> key, gc._2)
+          case "misc" => subGroups.put("P50" -> key, gc._2)
           case _ =>
             val map = subGroups.getOrElse("P04" -> key,Map.empty)
             subGroups.put("P04" -> key,gc._2 ++ map )
