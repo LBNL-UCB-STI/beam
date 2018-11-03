@@ -13,7 +13,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
 class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
-
+ignore {
   it should "be able to run for three iterations with LCCM without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
@@ -46,5 +46,5 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     val controler = injector.getInstance(classOf[BeamServices]).controler
     controler.run()
   }
-
+}
 }
