@@ -1,9 +1,14 @@
 service:
   name: beam-service
   akkaPort:
-    name: "akka-remote"
-    type: None
-    port: 2552
+    master:
+      name: "akka-remote"
+      type: None
+      port : "2551"
+    worker:
+      name: "akka-remote"
+      type: None
+      port: 2552
 
 secret:
   docker: dockerhub
@@ -38,6 +43,10 @@ volume:
     path: /opt/output
 
 job:
-  hostname: beam-master
+  master:
+    hostname: beam-master
+  worker:
+    hostname: beam-worker
+    replicas: 3
   image: "beammodel/beam"
   imageTag: "latest"
