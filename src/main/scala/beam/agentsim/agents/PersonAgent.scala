@@ -26,6 +26,7 @@ import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -189,8 +190,6 @@ class PersonAgent(
   with ChoosesMode
   with ChoosesParking
   with Stash {
-
-  lazy val modeSubsidy = new ModeSubsidy(beamServices.beamConfig.beam.agentsim.agents.modeSubsidy.file)
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
@@ -403,7 +402,7 @@ class PersonAgent(
 
       val age = attributes.age
       val income = attributes.income
-      val subsidy = modeSubsidy.getSubsidy(mode, age, income.map(x => x.toInt))
+      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, age, income.map(x => x.toInt))
       eventsManager.processEvent(
         new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
       )
