@@ -27,7 +27,6 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -445,16 +444,22 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
+
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+    }else {
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
     }
-
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
-    populationAdjustment.update(scenario)
-
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
   }
 }
 

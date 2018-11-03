@@ -5,7 +5,6 @@ import java.time.ZonedDateTime
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
@@ -14,6 +13,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -28,6 +28,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -36,16 +37,16 @@ import scala.language.postfixOps
 // TODO: probably test needs to be updated due to update in rideHailManager
 @Ignore
 class SingleModeSpec
-    extends TestKit(
-      ActorSystem(
-        "single-mode-test",
-        ConfigFactory.parseString(
-          """
+  extends TestKit(
+    ActorSystem(
+      "single-mode-test",
+      ConfigFactory.parseString(
+        """
   akka.test.timefactor=10
   """
-        )
       )
     )
+  )
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -129,13 +130,12 @@ class SingleModeSpec
     "let everybody walk when their plan says so" in {
       scenario.getPopulation.getPersons
         .values()
-        .forEach { person =>
-          {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("walk")
-            }
+        .forEach { person => {
+          person.getSelectedPlan.getPlanElements.asScala.collect {
+            case leg: Leg =>
+              leg.setMode("walk")
           }
+        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -208,27 +208,26 @@ class SingleModeSpec
       // We want to make sure that our car is returned home.
       scenario.getPopulation.getPersons
         .values()
-        .forEach { person =>
-          {
-            val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-              case activity: Activity if activity.getType == "Home" =>
-                Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity =>
-                Seq(activity)
-              case leg: Leg =>
-                Nil
-            }.flatten
-            if (newPlanElements.last.isInstanceOf[Leg]) {
-              newPlanElements.remove(newPlanElements.size - 1)
-            }
-            person.getSelectedPlan.getPlanElements.clear()
-            newPlanElements.foreach {
-              case activity: Activity =>
-                person.getSelectedPlan.addActivity(activity)
-              case leg: Leg =>
-                person.getSelectedPlan.addLeg(leg)
-            }
+        .forEach { person => {
+          val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+            case activity: Activity if activity.getType == "Home" =>
+              Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+            case activity: Activity =>
+              Seq(activity)
+            case leg: Leg =>
+              Nil
+          }.flatten
+          if (newPlanElements.last.isInstanceOf[Leg]) {
+            newPlanElements.remove(newPlanElements.size - 1)
           }
+          person.getSelectedPlan.getPlanElements.clear()
+          newPlanElements.foreach {
+            case activity: Activity =>
+              person.getSelectedPlan.addActivity(activity)
+            case leg: Leg =>
+              person.getSelectedPlan.addLeg(leg)
+          }
+        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -236,7 +235,7 @@ class SingleModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
+              case event@(_: PersonDepartureEvent | _: ActivityEndEvent) =>
                 events += event
               case _ =>
             }

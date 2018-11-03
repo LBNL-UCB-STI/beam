@@ -12,7 +12,7 @@ import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 
-class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
 
