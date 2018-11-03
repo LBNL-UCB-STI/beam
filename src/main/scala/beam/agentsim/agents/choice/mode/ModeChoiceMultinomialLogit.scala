@@ -81,9 +81,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
 
-    val age = Some(attributesOfIndividual.person.getCustomAttributes.get("age").asInstanceOf[Int])
-    val income = Some(attributesOfIndividual.householdAttributes.householdIncome.toInt)
-
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
       val totalCost: Double = mode match {
@@ -112,7 +109,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           altAndIdx._1.costEstimate
       }
-      val subsidy = modeSubsidy.getSubsidy(mode, age, income)
+      val subsidy = modeSubsidy.getSubsidy(mode, attributesOfIndividual.age, attributesOfIndividual.income.map(x=>x.toInt))
       val subsidisedCost =
         Math.max(0, totalCost.toDouble - subsidy)
 

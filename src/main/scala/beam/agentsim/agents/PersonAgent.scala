@@ -404,9 +404,9 @@ class PersonAgent(
         )
       )
 
-      val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
-      val income = Some(attributes.householdAttributes.householdIncome.toInt)
-      val subsidy = modeSubsidy.getSubsidy(mode, age, income)
+      val age = attributes.age
+      val income = attributes.income
+      val subsidy = modeSubsidy.getSubsidy(mode, age, income.map(x=>x.toInt))
       eventsManager.processEvent(
         new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
       )
