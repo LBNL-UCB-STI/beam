@@ -15,7 +15,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.PopulationAdjustment
+import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -331,6 +331,7 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (matsimConfig, outputDir, beamServices) = setupBeamWithConfig(config)
+
     run(beamServices)
     (matsimConfig, outputDir)
   }
@@ -454,7 +455,8 @@ trait BeamHelper extends LazyLogging {
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
     }else {
-
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()
         .asScala

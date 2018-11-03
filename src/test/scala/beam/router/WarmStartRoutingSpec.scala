@@ -17,6 +17,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{DateUtils, FileUtils}
@@ -126,8 +127,8 @@ class WarmStartRoutingSpec
       }
     )
 
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
+    DefaultPopulationAdjustment(services).update(scenario)
+    services.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
         services,
