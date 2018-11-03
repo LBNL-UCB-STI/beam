@@ -245,7 +245,7 @@ class ChangeModeForTour(
     val income = Option(beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(person.getId.toString, "income").asInstanceOf[Int])
 
     val attributesOfIndividual =
-      AttributesOfIndividual(HouseholdAttributes(household, householdVehicles), household.getId,
+      AttributesOfIndividual(HouseholdAttributes(household, householdVehicles),
         modalityStyle, PersonUtils.getSex(person).equalsIgnoreCase("M"), availableModes,
         valueOfTime, Option(PersonUtils.getAge(person)), income.map{x=>x})
 

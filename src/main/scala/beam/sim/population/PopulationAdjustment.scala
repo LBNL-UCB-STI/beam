@@ -13,6 +13,7 @@ import org.matsim.core.population.PersonUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters
+import scala.util.Try
 
 trait PopulationAdjustment extends LazyLogging {
 
@@ -26,11 +27,6 @@ trait PopulationAdjustment extends LazyLogging {
       .map {
         person => {
 
-          val household = beamServices.personHouseholds(person.getId)
-
-          val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-            agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
-
           val valueOfTime: Double =
             personAttributes.getAttribute(person.getId.toString, "valueOfTime") match {
               case null =>
@@ -43,18 +39,24 @@ trait PopulationAdjustment extends LazyLogging {
           ).fold(BeamMode.availableModes)(
             attr => availableModeParser(attr.toString)
           )
-
-          val income = Option(personAttributes.getAttribute(person.getId.toString, "income").asInstanceOf[Double])
-
-
+          val income = Try{personAttributes.getAttribute(person.getId.toString, "income")} match {
+            case scala.util.Success(value) => Option(value.asInstanceOf[Double])
+            case scala.util.Failure(exception) => Some(0.0)
+          }
           val modalityStyle =
             Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
               .map(_.asInstanceOf[String])
 
-          val attributes =
-            AttributesOfIndividual(HouseholdAttributes(household, houseHoldVehicles), household.getId, modalityStyle, PersonUtils.getSex(person).equalsIgnoreCase("M"), availableModes, valueOfTime, Option(PersonUtils.getAge(person)), income)
+          val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) { household =>
 
-          person.getCustomAttributes.put("beam-attributes", attributes)
+            val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+              agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
+            HouseholdAttributes(household, houseHoldVehicles)
+          }
+            val attributes =
+              AttributesOfIndividual(householdAttributes, modalityStyle, Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"), availableModes, valueOfTime, Option(PersonUtils.getAge(person)), income)
+
+            person.getCustomAttributes.put("beam-attributes", attributes)
 
 
         }

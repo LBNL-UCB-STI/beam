@@ -454,6 +454,7 @@ trait BeamHelper extends LazyLogging {
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
     }else {
+
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()
         .asScala

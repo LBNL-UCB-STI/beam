@@ -11,7 +11,6 @@ sealed trait PopulationAttributes
 
 
   case class AttributesOfIndividual(householdAttributes: HouseholdAttributes,
-                                     householdId: Id[Household],
                                      modalityStyle: Option[String],
                                      isMale: Boolean,
                                      availableModes: Seq[BeamMode],
@@ -32,6 +31,8 @@ case class HouseholdAttributes(
                                 numBikes: Int
                               ) extends PopulationAttributes
 object HouseholdAttributes {
+
+  val EMPTY = HouseholdAttributes(0.0,0,0,0)
 
   def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(
