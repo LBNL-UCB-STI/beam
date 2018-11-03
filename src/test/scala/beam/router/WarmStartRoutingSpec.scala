@@ -22,12 +22,14 @@ import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{DateUtils, FileUtils}
 import com.typesafe.config.{Config, ConfigValueFactory}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.households.Household
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
@@ -76,6 +78,7 @@ class WarmStartRoutingSpec
     var scenario: Scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.personHouseholds).thenReturn(Map[Id[Person],Household]())
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -126,9 +129,9 @@ class WarmStartRoutingSpec
         }
       }
     )
-
-    DefaultPopulationAdjustment(services).update(scenario)
-    services.controler.run()
+    val bs = injector.getInstance(classOf[BeamServices])
+    DefaultPopulationAdjustment(bs).update(scenario)
+    bs.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
         services,
