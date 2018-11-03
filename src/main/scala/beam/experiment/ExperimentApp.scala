@@ -9,7 +9,7 @@ import org.yaml.snakeyaml.constructor.Constructor
 /**
   * Prov
   */
-trait ExperimentApp extends App {
+class ExperimentApp extends App {
 
   val EXPERIMENTS_TAG = "experiments"
 

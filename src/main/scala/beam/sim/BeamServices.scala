@@ -6,12 +6,15 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
+import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.router.Modes.BeamMode
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -56,8 +59,10 @@ trait BeamServices extends ActorInject {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
+  val modeSubsidies: ModeSubsidy
 
   var iterationNumber: Int = -1
+
   def startNewIteration()
 }
 
@@ -94,6 +99,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var matsimServices: MatsimServices = _
 
   val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+  val modeSubsidies = ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
 
   def clearAll(): Unit = {
     personRefs.clear
@@ -135,9 +142,9 @@ object BeamServices {
   }
 
   def readVehiclesFile(
-    filePath: String,
-    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+                        filePath: String,
+                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
@@ -167,18 +174,18 @@ object BeamServices {
 
   private def getFuelTypeId(fuelType: String): FuelTypeId = {
     fuelType match {
-      case "gasoline"    => BeamVehicleType.Gasoline
-      case "diesel"      => BeamVehicleType.Diesel
+      case "gasoline" => BeamVehicleType.Gasoline
+      case "diesel" => BeamVehicleType.Diesel
       case "electricity" => BeamVehicleType.Electricity
-      case "biodiesel"   => BeamVehicleType.Biodiesel
-      case _             => throw new RuntimeException("Invalid fuel type id")
+      case "biodiesel" => BeamVehicleType.Biodiesel
+      case _ => throw new RuntimeException("Invalid fuel type id")
     }
   }
 
   def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypeMap: TrieMap[Id[FuelType], FuelType]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+                               filePath: String,
+                               fuelTypeMap: TrieMap[Id[FuelType], FuelType]
+                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
@@ -227,10 +234,10 @@ object BeamServices {
 
   private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
     vehicleCategory match {
-      case "car"      => BeamVehicleType.Car
-      case "bike"     => BeamVehicleType.Bike
+      case "car" => BeamVehicleType.Car
+      case "bike" => BeamVehicleType.Bike
       case "ridehail" => BeamVehicleType.RideHail
-      case _          => throw new RuntimeException("Invalid vehicleCategory")
+      case _ => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 

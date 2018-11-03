@@ -1,6 +1,6 @@
 package beam.analysis.plots;
 
-import com.google.common.base.CaseFormat;
+import beam.analysis.IterationSummaryAnalysis;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
+public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
@@ -30,7 +30,7 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
 
-    public PersonTravelTimeStats(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
+    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 
@@ -129,10 +129,10 @@ public class PersonTravelTimeStats implements BeamStats, IterationSummaryStats {
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
 
         return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
-                e -> "personTravelTime" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, e.getKey().toString()),
+                e -> "personTravelTime_" + e.getKey().toString(),
                 e -> e.getValue().values().stream().flatMapToDouble(
                         times -> times.stream().mapToDouble(Double::doubleValue)
                 ).sum()

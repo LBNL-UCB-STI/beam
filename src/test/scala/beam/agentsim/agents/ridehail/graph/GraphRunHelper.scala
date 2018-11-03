@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail.graph
 import beam.router.r5.NetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.FileUtils
 import com.typesafe.config.Config
 import org.matsim.core.controler.AbstractModule
@@ -38,6 +39,8 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
   private lazy val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
   def run(): Unit = {
+    val popAdjustment = DefaultPopulationAdjustment
+    popAdjustment(beamServices).update(scenario)
     beamServices.controler.run()
   }
 

@@ -45,12 +45,16 @@ object BeamLegOrdering extends Ordering[BeamLeg] {
 
   def compare(a: BeamLeg, b: BeamLeg): Int = {
     val compare1 = java.lang.Long.compare(a.startTime, b.startTime)
-    if (compare1 != 0) return compare1
-    val compare2 = java.lang.Long.compare(a.duration, b.duration)
-    if (compare2 != 0) return compare2
-    val compare3 = a.travelPath == b.travelPath
-    if (!compare3) return 1
-    0
+    if (compare1 != 0) compare1
+    else {
+      val compare2 = java.lang.Long.compare(a.duration, b.duration)
+      if (compare2 != 0) compare2
+      else {
+        val compare3 = a.travelPath == b.travelPath
+        if (!compare3) 1
+        else 0
+      }
+    }
   }
 }
 
