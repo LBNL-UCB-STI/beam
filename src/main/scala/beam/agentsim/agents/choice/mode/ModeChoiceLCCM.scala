@@ -186,23 +186,17 @@ class ModeChoiceLCCM(
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults: Seq[Double] =
       DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults: Seq[Double] =
-      BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val modeChoiceAlternatives: Seq[ModeChoiceData] =
       alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
             (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(
               altAndIdx._2
-            ) + bridgeTollsDefaults(altAndIdx._2)
+            )
           case RIDE_HAIL =>
-            altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(
-              altAndIdx._2
-            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+            altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
           case CAR =>
-            altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-              altAndIdx._2
-            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+            altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2)
           case _ =>
             altAndIdx._1.costEstimate
         }

@@ -91,7 +91,7 @@ class BeamSim @Inject()(
     }
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,

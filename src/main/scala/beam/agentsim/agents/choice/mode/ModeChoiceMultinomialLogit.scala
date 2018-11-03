@@ -77,8 +77,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
       DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults =
-      BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
 
     alternatives.zipWithIndex.map { altAndIdx =>
@@ -86,10 +84,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val totalCost: Double = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+            gasolineCostDefaults(altAndIdx._2)
         case RIDE_HAIL =>
-          (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
         case RIDE_HAIL_TRANSIT =>
           (altAndIdx._1.legs.view
             .filter(_.beamLeg.mode.isTransit)
@@ -97,15 +94,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
             .sum + transitFareDefaults(
             altAndIdx._2
           )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            (altAndIdx._1.legs.view
-              .filter(_.isRideHail)
-              .map(_.cost)
-              .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice +
-            bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          (altAndIdx._1.legs.view
+            .filter(_.isRideHail)
+            .map(_.cost)
+            .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
         case CAR =>
-          altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-            altAndIdx._2
-          ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+          altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2)
         case _ =>
           altAndIdx._1.costEstimate
       }
