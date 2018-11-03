@@ -18,7 +18,7 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
-import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -192,7 +192,7 @@ class PersonAgentSpec
     // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
     // TODO: probably test needs to be updated due to update in rideHailManager
 
-    ignore("should demonstrate a complete trip, throwing MATSim events") {
+    it("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
         new BasicEventHandler {
@@ -202,32 +202,18 @@ class PersonAgentSpec
         }
       )
 
-      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(matsimConfig)
-
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
-      population.getPersonAttributes.putAttribute(
-        person.getId.toString,
-        PlansSampler.availableModeString,
-        "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
-      )
-      population.getPersonAttributes
-        .putAttribute(person.getId.toString, "valueOfTime", 15.0)
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
@@ -258,8 +244,24 @@ class PersonAgentSpec
 
       scheduler ! StartSchedule(0)
 
-      // The agent will ask for a route, and we provide it.
-      expectMsgType[RoutingRequest]
+      // The agent will ask for a ride, and we will answer.
+      val inquiry = expectMsgType[RideHailRequest]
+      personActor ! RideHailResponse(inquiry, None, None)
+
+      // This is the ridehail to transit request.
+      // We don't provide an option.
+      val request1 = expectMsgType[RoutingRequest]
+      assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
+      personActor ! RoutingResponse(
+        itineraries = Vector(),
+        requestId = Some(request1.requestId),
+        staticRequestId = java.util.UUID.randomUUID()
+      )
+
+      // This is the regular routing request.
+      // We provide an option.
+      val request2 = expectMsgType[RoutingRequest]
+      assert(request2.streetVehiclesUseIntermodalUse == Access)
       personActor ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -270,7 +272,7 @@ class PersonAgentSpec
                 duration = 100,
                 travelPath = BeamPath(
                   linkIds = Vector(1, 2),
-                  linkTravelTime = Vector(10, 10), // TODO FIXME
+                  linkTravelTime = Vector(50, 50),
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(1.0, 1.0, 28900),
@@ -280,12 +282,9 @@ class PersonAgentSpec
             )
           )
         ),
+        requestId = Some(request2.requestId),
         staticRequestId = java.util.UUID.randomUUID()
       )
-
-      // The agent will ask for a ride, and we will answer.
-      val inquiry = expectMsgType[RideHailRequest]
-      personActor ! RideHailResponse(inquiry, None, None)
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -434,29 +433,19 @@ class PersonAgentSpec
 
           expectMsgType[PersonEntersVehicleEvent]
           expectMsgType[VehicleEntersTrafficEvent]
-    //      expectMsgType[LinkLeaveEvent]
-    //      expectMsgType[LinkEnterEvent]
           expectMsgType[VehicleLeavesTrafficEvent]
-
-          expectMsgType[PathTraversalEvent]
-//      expectMsgType[PersonLeavesVehicleEvent]
+      expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
-      //      expectMsgType[LinkLeaveEvent]
-      //      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-
-//      expectMsgType[TeleportationArrivalEvent]
       expectMsgType[PathTraversalEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
-      //      expectMsgType[LinkLeaveEvent]
-      //      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[ParkEvent]
       expectMsgType[PersonLeavesVehicleEvent]
-      expectMsgType[PersonEntersVehicleEvent]
 
+      expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
