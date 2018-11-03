@@ -6,11 +6,11 @@ import java.util.Collections
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdAttributes}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.plan.sampling.AvailableModeUtils.availableModeParser
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -21,7 +21,6 @@ import org.matsim.core.population.PersonUtils
 import org.matsim.core.population.algorithms.PlanAlgorithm
 import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
-import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters._
 import scala.collection.{JavaConverters, mutable}
@@ -220,8 +219,6 @@ class ChangeModeForTour(
     val person = plan.getPerson
     val household =
       chainBasedTourVehicleAllocator.householdMemberships(person.getId)
-    val personAttributes: ObjectAttributes =
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
 
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, beamServices)
@@ -249,8 +246,8 @@ class ChangeModeForTour(
 
     val attributesOfIndividual =
       AttributesOfIndividual(HouseholdAttributes(household, householdVehicles), household.getId,
-        modalityStyle, PersonUtils.getSex(person).contentEquals("M"), availableModes,
-        valueOfTime, Option(PersonUtils.getAge(person)), income)
+        modalityStyle, PersonUtils.getSex(person).equalsIgnoreCase("M"), availableModes,
+        valueOfTime, Option(PersonUtils.getAge(person)), income.map{x=>x})
 
     person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
 
