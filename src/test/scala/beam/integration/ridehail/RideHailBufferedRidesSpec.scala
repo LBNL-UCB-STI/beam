@@ -1,6 +1,6 @@
 package beam.integration.ridehail
 
-import beam.integration.EventsFileHandlingCommon
+import beam.integration.{EventsFileHandlingCommon, ReadEventsBeam}
 import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
@@ -8,12 +8,11 @@ import org.matsim.api.core.v01.events.Event
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
 class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar with EventsFileHandlingCommon {
 
-  def getActivitiesGroupedByPerson(events: Queue[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
+  def getActivitiesGroupedByPerson(events: Seq[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
     val activities = events.filter(e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
 
     val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) {
@@ -47,7 +46,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = collectEvents(filePath)
+    val events = ReadEventsBeam.fromFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
@@ -76,7 +75,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = collectEvents(filePath)
+    val events = ReadEventsBeam.fromFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 

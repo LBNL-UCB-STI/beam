@@ -18,19 +18,4 @@ trait EventsFileHandlingCommon {
     )
   }
 
-  def collectEvents(filePath: String): Queue[Event] = {
-    var events: Queue[Event] = Queue()
-    val handler = new BasicEventHandler {
-      def handleEvent(event: Event): Unit = {
-        events = events :+ event
-      }
-    }
-    val eventsMan = EventsUtils.createEventsManager()
-    eventsMan.addHandler(handler)
-
-    val reader = new MatsimEventsReader(eventsMan)
-    reader.readFile(filePath)
-
-    events
-  }
 }

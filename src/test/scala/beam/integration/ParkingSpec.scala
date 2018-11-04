@@ -20,11 +20,11 @@ class ParkingSpec
     with IntegrationSpecCommon
     with EventsFileHandlingCommon {
 
-  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
+  def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
   }
 
-  def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
+  def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Seq[Event]] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
@@ -79,10 +79,10 @@ class ParkingSpec
 
     val (matsimConfig, outputDirectory) = runBeamWithConfig(config)
 
-    val queueEvents = ArrayBuffer[Queue[Event]]()
+    val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
       val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(collectEvents(filePath))
+      queueEvents.append(ReadEventsBeam.fromFile(filePath).toSeq)
     }
 
     val outputDirectoryFile = new File(outputDirectory)
