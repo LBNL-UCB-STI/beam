@@ -8,7 +8,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private DeadHeadingStats deadHeadingStats = new DeadHeadingStats();
+    private DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis();
 
     @BeforeClass
     public static void setUpClass() {
@@ -24,7 +24,7 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPassengerPerTripInBusForSecondBucket() {
-        int expectedResult = 5;
+        int expectedResult = 6;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(1, GraphTestUtil.BUS);
         assertEquals(expectedResult, actualResult);
     }
@@ -54,7 +54,7 @@ public class DeadHeadingGraphTest {
 
     @Test
     public void testShouldPassShouldReturnDeadHeadingAllDistanceForSpecificHour() {
-        int expectedResultOfHour[] = {0, 12, 22, 0, 0, 0, 0};
+        int expectedResultOfHour[] = {0, 11, 24, 0, 0, 0, 0};
         int actualResultOfHour[] = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getDeadHeadingTnc0HourDataCount(i, 6);

@@ -5,7 +5,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{ModeChosenStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.ModeChosenStats
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenAnalysis}
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.BeamConfig
 import com.google.inject.Provides
@@ -15,6 +15,7 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -24,12 +25,12 @@ import scala.concurrent.Promise
 
 object ModeChosenStatsGraphSpec {
 
-  class ModeChosenStatsGraph(compute: ModeChosenStats.ModeChosenComputation with EventAnalyzer, beamConfig: BeamConfig)
+  class ModeChosenStatsGraph(compute: ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer, beamConfig: BeamConfig)
       extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val modeChosenStats =
-      new ModeChosenStats(compute, beamConfig)
+      new ModeChosenAnalysis(compute, beamConfig)
 
     override def reset(iteration: Int): Unit = {
       modeChosenStats.resetStats()
@@ -81,7 +82,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
 
     "contains valid mode chosen stats" in {
       val waitingStat =
-        new ModeChosenStats.ModeChosenComputation with EventAnalyzer {
+        new ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer {
           private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
 
           override def compute(

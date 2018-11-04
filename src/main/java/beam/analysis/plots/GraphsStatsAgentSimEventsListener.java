@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
-import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.analysis.*;
+import beam.analysis.StatsFactory.StatsType;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
 import beam.sim.BeamServices;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
 /**
  * @Authors asif and rwaraich.
  */
-public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationSummaryStats {
+public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, IterationStatsProvider {
 
     public static final String CAR = "car";
     public static final String RIDE = "ride";
@@ -43,17 +44,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamConfig beamConfig) {
-        statsFactory = new StatsFactory(beamConfig);
-        statsFactory.createStats();
-        this.beamConfig = beamConfig;
+    public GraphsStatsAgentSimEventsListener(BeamServices services) {
+        this.beamConfig = services.beamConfig();
+        statsFactory = new StatsFactory(services);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
                                              BeamServices services, BeamConfig beamConfig) {
-        this(beamConfig);
+        this(services);
+        statsFactory.createStats();
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
@@ -78,19 +79,19 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     @Override
     public void reset(int iteration) {
-        statsFactory.getBeamStats().forEach(BeamStats::resetStats);
+        statsFactory.getBeamAnalysis().forEach(BeamAnalysis::resetStats);
     }
 
     @Override
     public void handleEvent(Event event) {
-        for (BeamStats stat : statsFactory.getBeamStats()) stat.processStats(event);
-        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
+        for (BeamAnalysis stat : statsFactory.getBeamAnalysis()) stat.processStats(event);
+        DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
         deadHeadingStats.collectEvents(event);
     }
 
     public void createGraphs(IterationEndsEvent event) throws IOException {
-        for (BeamStats stat : statsFactory.getBeamStats()) stat.createGraph(event);
-        DeadHeadingStats deadHeadingStats = (DeadHeadingStats) statsFactory.getStats(StatsFactory.DeadHeading);
+        for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(event);
+        DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
         deadHeadingStats.createGraph(event, "TNC0");
 
 
@@ -99,8 +100,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                 // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 
                 // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
-                BeamStats modeChoseStats = statsFactory.getStats(StatsFactory.ModeChosen);
-                ((ModeChosenStats) modeChoseStats).writeToRootCSV();
+                BeamAnalysis modeChoseStats = statsFactory.getAnalysis(StatsType.ModeChosen);
+                ((ModeChosenAnalysis) modeChoseStats).writeToRootCSV();
                 if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
                     String outPath = CONTROLLER_IO.getOutputFilename("modeChoice.csv");
                     Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
@@ -118,14 +119,14 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception {
-        RealizedModeStats realizedModeStats = (RealizedModeStats) statsFactory.getStats(StatsFactory.RealizedMode);
+        RealizedModeAnalysis realizedModeStats = (RealizedModeAnalysis) statsFactory.getAnalysis(StatsType.RealizedMode);
         if (realizedModeStats != null) realizedModeStats.notifyShutdown(event);
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
-        return statsFactory.getSummaryStats().stream()
-                .map(IterationSummaryStats::getIterationSummaryStats)
+    public Map<String, Double> getSummaryStats() {
+        return statsFactory.getSummaryAnalysis().stream()
+                .map(IterationSummaryAnalysis::getSummaryStats)
                 .map(Map::entrySet)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

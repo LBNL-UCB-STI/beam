@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
 import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
-import beam.analysis.plots.PersonTravelTimeStats
+import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
 import com.google.inject.Provides
@@ -22,12 +22,12 @@ import scala.concurrent.Promise
 object PersonTravelTimeStatsGraphSpec {
 
   class PersonTravelTimeStatsGraph(
-    computation: PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer
+    computation: PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val personTravelTimeStats =
-      new PersonTravelTimeStats(computation)
+      new PersonTravelTimeAnalysis(computation)
 
     override def reset(iteration: Int): Unit = {
       personTravelTimeStats.resetStats()
@@ -100,7 +100,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
   "Person Travel Time Graph Collected Data" must {
 
     "contains valid travel time stats" ignore {
-      val travelTimeComputation = new PersonTravelTimeStats.PersonTravelTimeComputation with EventAnalyzer {
+      val travelTimeComputation = new PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer {
 
         private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
 

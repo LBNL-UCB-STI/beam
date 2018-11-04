@@ -2,9 +2,9 @@ package beam.scoring
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event
@@ -58,7 +58,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-                .equals("ModeChoiceLCCM")) {
+            .equals("ModeChoiceLCCM")) {
             // Compute and log all-day score w.r.t. all modality styles
             // One of them has many suspicious-looking 0.0 values. Probably something which
             // should be minus infinity or exception instead.
@@ -106,16 +106,16 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
                 AlternativeAttributes(
                   attributes.modalityStyle.get,
                   Map(
-                    "income"        -> attributes.householdAttributes.householdIncome,
+                    "income" -> attributes.householdAttributes.householdIncome,
                     "householdSize" -> attributes.householdAttributes.householdSize.toDouble,
                     "male" -> (if (attributes.isMale) {
-                                 1.0
-                               } else {
-                                 0.0
-                               }),
-                    "numCars"  -> attributes.householdAttributes.numCars.toDouble,
+                      1.0
+                    } else {
+                      0.0
+                    }),
+                    "numCars" -> attributes.householdAttributes.numCars.toDouble,
                     "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-                    "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+                    "surplus" -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
                   )
                 )
               )

@@ -9,8 +9,9 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.analysis.IterationStatsProvider
 import beam.analysis.plots.modality.ModalityStyleStats
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, IterationSummaryStats}
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -23,7 +24,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
-import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
@@ -55,11 +55,10 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
   private var rideHailIterationHistoryActor: ActorRef = _
-  private val delayAnalysis = new DelayAnalysis
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
-  val iterationStatsProviders: ListBuffer[IterationSummaryStats] = new ListBuffer()
+  val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -92,7 +91,7 @@ class BeamSim @Inject()(
     }
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,
@@ -149,10 +148,6 @@ class BeamSim @Inject()(
       transportNetwork
     )
 
-    // Delay analysis
-    delayAnalysis.setScenario(scenario)
-    eventsManager.addHandler(delayAnalysis)
-
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
   }
@@ -176,7 +171,7 @@ class BeamSim @Inject()(
       }
 
       iterationSummaryStats += iterationStatsProviders
-        .flatMap(_.getIterationSummaryStats.asScala += ("agentDelay" -> delayAnalysis.getTotalDelay / 3600.0D))
+        .flatMap(_.getSummaryStats.asScala)
         .toMap
 
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
