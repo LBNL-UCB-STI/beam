@@ -2,8 +2,8 @@ package beam.integration
 
 import java.io.File
 
+import beam.integration.ReadEventsBeam.fromFile
 import beam.sim.BeamHelper
-import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.config.ConfigUtils
@@ -13,11 +13,8 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import scala.io.Source
 
-/**
-  * Created by fdariasm on 29/08/2017
-  *
-  */
 class EventsFileSpec
     extends FlatSpec
     with BeforeAndAfterAll
@@ -31,106 +28,62 @@ class EventsFileSpec
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
 
-  lazy val beamConfig = BeamConfig(config)
   var matsimConfig: org.matsim.core.config.Config = _
 
   override protected def beforeAll(): Unit = {
     matsimConfig = runBeamWithConfig(config)._1
   }
 
-  it should "contain all bus routes" in {
-    val listTrips =
-      getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam()
-      .getListTagsFromFile(
-        getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "BUS-DEFAULT"),
-        "vehicle"
-      )
-      .groupBy(identity)
-    listValueTagEventFile.size shouldBe listTrips.size
-  }
-
-  it should "contain all train routes" in {
-    val listTrips =
-      getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam()
-      .getListTagsFromFile(
-        getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "SUBWAY-DEFAULT"),
-        "vehicle"
-      )
-      .groupBy(identity)
-    listValueTagEventFile.size shouldBe listTrips.size
-  }
-
   it should "contain the same bus trips entries" in {
-    val listTrips =
-      getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam()
-      .getListTagsFromFile(
-        getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "BUS-DEFAULT"),
-        "vehicle"
-      )
-      .groupBy(identity)
-      .keys
-      .toSeq
-    val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-    listTripsEventFile shouldBe listTrips
+    tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
+      tripsFromGtfs(new File("test/input/beamville/r5/bus/trips.txt"))
   }
 
   it should "contain the same train trips entries" in {
-    val listTrips =
-      getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
-    val listValueTagEventFile = new ReadEventsBeam()
-      .getListTagsFromFile(
-        getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "SUBWAY-DEFAULT"),
-        "vehicle"
-      )
-      .groupBy(identity)
-      .keys
-      .toSeq
-    val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-    listTripsEventFile shouldBe listTrips
+    tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
+      tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
+  }
+
+  private def tripsFromEvents(vehicleType: String) = {
+    val trips = for {
+      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      if event.getAttributes.get("vehicle_type") == vehicleType
+      vehicleTag <- event.getAttributes.asScala.get("vehicle")
+    } yield vehicleTag.split(":")(1)
+    trips.toSet
+  }
+
+  private def tripsFromGtfs(file: File) = {
+    val trips = for (line <- Source.fromFile(file.getPath).getLines.drop(1))
+      yield line.split(",")(2)
+    trips.toSet
   }
 
   it should "contain same pathTraversal defined at stop times file for bus input file" in {
-    val listTrips =
-      getListIDsWithTag(new File("test/input/beamville/r5/bus/stop_times.txt"), "trip_id", 0).sorted
-    val grouped = listTrips.groupBy(identity)
-    val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
-    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(
-      getEventsFilePath(matsimConfig, "xml"),
-      Some("vehicle_type", "BUS-DEFAULT"),
-      "vehicle",
-      Some("PathTraversal")
-    )
-    val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1))
-    val groupedXml = listTripsEventFile.groupBy(identity)
-    val groupedXmlWithCount = groupedXml.map { case (k, v) => (k, v.size) }
-    groupedXmlWithCount should contain theSameElementsAs groupedWithCount
+    stopToStopLegsFromEventsByTrip("BUS-DEFAULT") should contain theSameElementsAs
+      stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus/stop_times.txt")
   }
 
   it should "contain same pathTraversal defined at stop times file for train input file" in {
-    val listTrips = getListIDsWithTag(
-      new File("test/input/beamville/r5/train/stop_times.txt"),
-      "trip_id",
-      0
-    ).sorted
-    val grouped = listTrips.groupBy(identity)
-    val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
-    val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(
-      getEventsFilePath(matsimConfig, "xml"),
-      Some("vehicle_type", "SUBWAY-DEFAULT"),
-      "vehicle",
-      Some("PathTraversal")
-    )
-    val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-    val groupedXml = listTripsEventFile.groupBy(identity)
-    val groupedXmlWithCount = groupedXml.map { case (k, v) => (k, v.size) }
-    groupedXmlWithCount should contain theSameElementsAs groupedWithCount
+    stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT") should contain theSameElementsAs
+      stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train/stop_times.txt")
+  }
+
+  private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
+    val pathTraversals = for {
+      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      if event.getEventType == "PathTraversal"
+      if event.getAttributes.get("vehicle_type") == vehicleType
+    } yield event
+    val eventsByTrip = pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1))
+    eventsByTrip.map { case (k, v) => (k, v.size) }
+  }
+
+  private def stopToStopLegsFromGtfsByTrip(stopTimesFile: String) = {
+    val stopTimes = for (line <- Source.fromFile(new File(stopTimesFile).getPath).getLines.drop(1))
+      yield line.split(",")
+    val stopTimesByTrip = stopTimes.toList.groupBy(_(0))
+    stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }
 
   it should "also be available as csv file" in {

@@ -12,16 +12,6 @@ import scala.io.Source
 
 trait EventsFileHandlingCommon {
 
-  def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
-    var listResult = List[String]()
-    for (line <- Source.fromFile(file.getPath).getLines) {
-      if (!line.startsWith(tagIgnore)) {
-        listResult = line.split(",")(positionID) :: listResult
-      }
-    }
-    listResult
-  }
-
   def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
     new File(
       s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
