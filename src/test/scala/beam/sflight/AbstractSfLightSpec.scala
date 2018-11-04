@@ -69,8 +69,7 @@ class AbstractSfLightSpec
     networkCoordinator.loadNetwork()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(

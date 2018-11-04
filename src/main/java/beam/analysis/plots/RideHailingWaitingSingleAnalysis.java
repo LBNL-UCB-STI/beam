@@ -17,12 +17,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author abid
  */
-public class RideHailingWaitingSingleStats implements BeamStats {
+public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
 
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
@@ -55,7 +56,7 @@ public class RideHailingWaitingSingleStats implements BeamStats {
         }
     }
 
-    public RideHailingWaitingSingleStats(BeamConfig beamConfig, StatsComputation<Map<Integer, Double>, double[][]> statComputation) {
+    public RideHailingWaitingSingleAnalysis(BeamConfig beamConfig, StatsComputation<Map<Integer, Double>, double[][]> statComputation) {
         this.statComputation = statComputation;
 
         double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());

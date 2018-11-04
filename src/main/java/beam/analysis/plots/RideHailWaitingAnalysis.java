@@ -24,9 +24,9 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailWaitingStats implements BeamStats {
+public class RideHailWaitingAnalysis implements GraphAnalysis {
 
-    public RideHailWaitingStats(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
+    public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
 
@@ -127,8 +127,8 @@ public class RideHailWaitingStats implements BeamStats {
 
     private static int numberOfTimeBins = 30;
 
-    public RideHailWaitingStats(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
-                                BeamConfig beamConfig){
+    public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
+                                   BeamConfig beamConfig){
         this.statComputation = statComputation;
 
         final int timeBinSize = beamConfig.beam().outputs().stats().binSize();

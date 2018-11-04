@@ -17,16 +17,19 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{DateUtils, FileUtils}
 import com.typesafe.config.{Config, ConfigValueFactory}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.households.Household
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
@@ -76,6 +79,7 @@ class WarmStartRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.personHouseholds).thenReturn(Map[Id[Person],Household]())
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -88,7 +92,7 @@ class WarmStartRoutingSpec
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -127,9 +131,9 @@ class WarmStartRoutingSpec
         }
       }
     )
-
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
+    val bs = injector.getInstance(classOf[BeamServices])
+    DefaultPopulationAdjustment(bs).update(scenario)
+    bs.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
         services,

@@ -15,7 +15,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.PopulationAdjustment
+import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -27,7 +27,6 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -332,6 +331,7 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (matsimConfig, outputDir, beamServices) = setupBeamWithConfig(config)
+
     run(beamServices)
     (matsimConfig, outputDir)
   }
@@ -445,16 +445,24 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
+
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+    }else {
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
     }
-
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
-    populationAdjustment.update(scenario)
-
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
   }
 }
 

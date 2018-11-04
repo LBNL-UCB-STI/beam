@@ -1,13 +1,13 @@
-package beam.analysis.plots;
+package beam.analysis.summary;
 
 import beam.agentsim.events.PersonCostEvent;
+import beam.analysis.IterationSummaryAnalysis;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class PersonCostStats implements BeamStats, IterationSummaryStats {
+public class PersonCostAnalysis implements IterationSummaryAnalysis {
     private Map<String,Double> personCostByCostType = new HashMap<>();
 
     @Override
@@ -25,17 +25,12 @@ public class PersonCostStats implements BeamStats, IterationSummaryStats {
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
-
-    }
-
-    @Override
     public void resetStats() {
         personCostByCostType.clear();
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
         return personCostByCostType;
     }
 }

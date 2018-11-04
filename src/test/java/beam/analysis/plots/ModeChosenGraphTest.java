@@ -22,9 +22,9 @@ public class ModeChosenGraphTest {
 
     private static class ModeChosenHandler implements BasicEventHandler {
 
-        private final ModeChosenStats modeChoseStats;
+        private final ModeChosenAnalysis modeChoseStats;
 
-        ModeChosenHandler(ModeChosenStats modeChoseStats) {
+        ModeChosenHandler(ModeChosenAnalysis modeChoseStats) {
             this.modeChoseStats = modeChoseStats;
         }
 
@@ -37,7 +37,7 @@ public class ModeChosenGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
-    private ModeChosenStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation() {
+    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();
