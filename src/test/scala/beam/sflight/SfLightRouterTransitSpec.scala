@@ -2,7 +2,6 @@ package beam.sflight
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.TestProbe
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -21,7 +20,6 @@ import org.scalatest._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
 class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with LazyLogging {
 
   override def beforeAll: Unit = {
@@ -29,7 +27,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, Some(router))
     within(5 minutes) { // Router can take a while to initialize
       router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
-      expectMsgType[Success]
+      expectMsgType[Any] // success
     }
   }
 
@@ -66,7 +64,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
       assert(transitOption.legs.head.beamLeg.startTime == 25990)
     }
 
-    "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
+    "respond with a drive_transit and a walk_transit route for each trip in sflight" ignore {
       scenario.getPopulation.getPersons
         .values()
         .forEach(person => {
@@ -105,10 +103,8 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
               }
 
               assert(response.itineraries.exists(_.costEstimate > 0))
-              assert(
-                response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0)
-              )
-//              assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+              assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
+              assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
               assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
             })
         })
