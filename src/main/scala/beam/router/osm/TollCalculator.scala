@@ -11,6 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import beam.agentsim.agents.choice.mode.Range
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.io.Source
 
 class TollCalculator(val config: BeamConfig, val directory: String) extends LazyLogging {
@@ -18,7 +19,7 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
   type TimeDependentToll = Seq[Toll]
 
   private val tollsByLinkId: Map[Int, TimeDependentToll] = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(Vector())
-  private val tollsByWayId: Map[Long, TimeDependentToll] = readFromCacheFileOrOSM().withDefaultValue(Vector())
+  private val tollsByWayId = readFromCacheFileOrOSM().withDefaultValue(Vector())
 
   logger.info("Ways keys size: {}", tollsByWayId.keys.size)
 
@@ -56,20 +57,20 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
     }
   }
 
-  def readFromCacheFileOrOSM(): Map[Long, Seq[Toll]] = {
+  def readFromCacheFileOrOSM(): mutable.HashMap[Long, Seq[Toll]] = {
     val dataDirectory: Path = Paths.get(directory)
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
     if (cacheFile.exists()) {
       new ObjectInputStream(new FileInputStream(cacheFile))
         .readObject()
-        .asInstanceOf[Map[Long, Seq[Toll]]]
+        .asInstanceOf[mutable.HashMap[Long, Seq[Toll]]]
     } else {
       val ways = fromDirectory()
       val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
       stream.writeObject(ways)
       stream.close()
       ways
-    }
+    }.asInstanceOf[mutable.HashMap[Long, Seq[Toll]]]
   }
 
   def fromDirectory(): Map[Long, Seq[Toll]] = {
