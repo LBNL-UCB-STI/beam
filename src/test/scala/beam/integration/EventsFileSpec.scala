@@ -38,40 +38,39 @@ class EventsFileSpec
     matsimConfig = runBeamWithConfig(config)._1
   }
 
-  // TODO: probably test needs to be updated due to update in rideHailManager
-  ignore should "contain all bus routes" in {
+  it should "contain all bus routes" in {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
       .getListTagsFromFile(
         getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "bus"),
+        Some("vehicle_type", "BUS-DEFAULT"),
         "vehicle"
       )
       .groupBy(identity)
     listValueTagEventFile.size shouldBe listTrips.size
   }
 
-  it should "contain all train routes" ignore {
+  it should "contain all train routes" in {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
       .getListTagsFromFile(
         getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "subway"),
+        Some("vehicle_type", "SUBWAY-DEFAULT"),
         "vehicle"
       )
       .groupBy(identity)
     listValueTagEventFile.size shouldBe listTrips.size
   }
 
-  ignore should "contain the same bus trips entries" in {
+  it should "contain the same bus trips entries" in {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/bus/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
       .getListTagsFromFile(
         getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "bus"),
+        Some("vehicle_type", "BUS-DEFAULT"),
         "vehicle"
       )
       .groupBy(identity)
@@ -81,13 +80,13 @@ class EventsFileSpec
     listTripsEventFile shouldBe listTrips
   }
 
-  it should "contain the same train trips entries" ignore {
+  it should "contain the same train trips entries" in {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/train/trips.txt"), "route_id", 2).sorted
     val listValueTagEventFile = new ReadEventsBeam()
       .getListTagsFromFile(
         getEventsFilePath(matsimConfig, "xml"),
-        Some("vehicle_type", "subway"),
+        Some("vehicle_type", "SUBWAY-DEFAULT"),
         "vehicle"
       )
       .groupBy(identity)
@@ -97,14 +96,14 @@ class EventsFileSpec
     listTripsEventFile shouldBe listTrips
   }
 
-  ignore should "contain same pathTraversal defined at stop times file for bus input file" in {
+  it should "contain same pathTraversal defined at stop times file for bus input file" in {
     val listTrips =
       getListIDsWithTag(new File("test/input/beamville/r5/bus/stop_times.txt"), "trip_id", 0).sorted
     val grouped = listTrips.groupBy(identity)
     val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
     val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(
       getEventsFilePath(matsimConfig, "xml"),
-      Some("vehicle_type", "bus"),
+      Some("vehicle_type", "BUS-DEFAULT"),
       "vehicle",
       Some("PathTraversal")
     )
@@ -114,7 +113,7 @@ class EventsFileSpec
     groupedXmlWithCount should contain theSameElementsAs groupedWithCount
   }
 
-  it should "contain same pathTraversal defined at stop times file for train input file" ignore {
+  it should "contain same pathTraversal defined at stop times file for train input file" in {
     val listTrips = getListIDsWithTag(
       new File("test/input/beamville/r5/train/stop_times.txt"),
       "trip_id",
@@ -124,7 +123,7 @@ class EventsFileSpec
     val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
     val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(
       getEventsFilePath(matsimConfig, "xml"),
-      Some("vehicle_type", "subway"),
+      Some("vehicle_type", "SUBWAY-DEFAULT"),
       "vehicle",
       Some("PathTraversal")
     )
