@@ -22,7 +22,7 @@ public class PersonVehicleTransitionStats implements BeamStats, MetricsSupport {
     private static Map<String, Integer> modePerson = new HashMap<>();
     private static final String fileName = "tripHistogram";
     private static final String xAxisLabel = "time (binSize=<?> sec)";
-    public PlotGraph plotGraph = new PlotGraph();
+    private PlotGraph plotGraph = new PlotGraph();
     private int binSize;
     private int numOfBins;
 
