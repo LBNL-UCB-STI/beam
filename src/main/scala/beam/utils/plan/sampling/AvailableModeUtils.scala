@@ -2,9 +2,9 @@ package beam.utils.plan.sampling
 
 import java.util
 
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
@@ -41,10 +41,10 @@ object AvailableModeUtils {
   }
 
   def isModeAvailableForPerson[T <: BeamMode](
-    person: Person,
-    vehicleId: Id[Vehicle],
-    mode: BeamMode
-  ): Boolean = {
+                                               person: Person,
+                                               vehicleId: Id[Vehicle],
+                                               mode: BeamMode
+                                             ): Boolean = {
     AvailableModeUtils.availableModesForPerson(person).contains(mode)
   }
 

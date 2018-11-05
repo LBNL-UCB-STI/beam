@@ -2,6 +2,7 @@ package beam.integration
 
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -9,9 +10,10 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.FlatSpec
+import org.scalatest.{FlatSpec, Ignore}
 import org.scalatest.mockito.MockitoSugar
 
+@Ignore
 class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for three iterations with LCCM without exceptions" in {
@@ -43,8 +45,13 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
         }
       }
     )
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
+    val popAdjustment = DefaultPopulationAdjustment
+
+    val beamServices = injector.getInstance(classOf[BeamServices])
+    val controller = beamServices.controler
+    popAdjustment(beamServices).update(scenario)
+
+    controller.run()
   }
 
 }

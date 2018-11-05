@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.household.HouseholdActor
+import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
@@ -16,12 +16,11 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
-import beam.router.model.BeamLeg._
-import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
-import beam.router.model.RoutingModel
+import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.{DiscreteTime, LinksTimesDistances, WindowTime}
+import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
@@ -30,6 +29,7 @@ import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
@@ -57,17 +57,17 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
-  beamServices: BeamServices,
-  transportNetwork: TransportNetwork,
-  network: Network,
-  fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  transitVehicles: Vehicles,
-  transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-)
+                             beamServices: BeamServices,
+                             transportNetwork: TransportNetwork,
+                             network: Network,
+                             fareCalculator: FareCalculator,
+                             tollCalculator: TollCalculator,
+                             transitVehicles: Vehicles,
+                             transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
+                           )
 
 object DestinationUnreachableException extends Exception
 
@@ -97,7 +97,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
-        override var modeChoiceCalculatorFactory: HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+        override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
@@ -112,6 +112,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+        override val modeSubsidies: ModeSubsidy =  ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
 
         override def startNewIteration(): Unit = throw new Exception("???")
 
@@ -128,7 +129,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
 
-        override  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
+        override val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
         override var metricsPrinter: ActorRef = _
       }
 
@@ -136,7 +137,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-      val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+      val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
       WorkerParameters(
         beamServices,
         transportNetwork,
@@ -150,13 +151,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   val WorkerParameters(
-    beamServices,
-    transportNetwork,
-    network,
-    fareCalculator,
-    tollCalculator,
-    transitVehicles,
-    transitMap
+  beamServices,
+  transportNetwork,
+  network,
+  fareCalculator,
+  tollCalculator,
+  transitVehicles,
+  transitMap
   ) = workerParams
 
   private val distanceThresholdToIgnoreWalking =
@@ -178,6 +179,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     Runtime.getRuntime.availableProcessors(),
     numOfThreads
   )
+
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   var workAssigner: ActorRef = context.parent
@@ -255,11 +257,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
       askForMoreWork()
     case EmbodyWithCurrentTravelTime(
-        leg: BeamLeg,
-        vehicleId: Id[Vehicle],
-        embodyRequestId: UUID,
-        mustParkAtEnd: Boolean
-        ) =>
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    embodyRequestId: UUID,
+    mustParkAtEnd: Boolean
+    ) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
@@ -271,7 +273,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               new ProfileRequest,
               StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
             )).toInt
-      }
+        }
       val duration = RoutingModel
         .traverseStreetLeg(leg, vehicleId, travelTime)
         .maxBy(e => e.getTime)
@@ -283,7 +285,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = false),
           EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = true)
         )
-        if (legPair.size == 1) { Vector(embodiedPair.head) } else { embodiedPair }
+        if (legPair.size == 1) {
+          Vector(embodiedPair.head)
+        } else {
+          embodiedPair
+        }
       } else {
         Vector(
           EmbodiedBeamLeg(leg.copy(duration = duration.toInt), vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = true)
@@ -361,7 +367,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = if (request.directMode == null) {
       util.EnumSet.noneOf(classOf[LegMode])
-    } else { util.EnumSet.of(request.directMode) }
+    } else {
+      util.EnumSet.of(request.directMode)
+    }
     profileRequest.suboptimalMinutes = 0
     if (request.transitModes.nonEmpty) {
       profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
@@ -370,7 +378,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     //    log.debug(profileRequest.toString)
     val result = try {
-      getPlan(profileRequest)
+      getPlan(profileRequest, request.timeValueOfMoney)
     } catch {
       case _: IllegalStateException =>
         new ProfileResponse
@@ -436,7 +444,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
               cache.get(
-                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
+                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode, routingRequest.timeValueOfMoney)
               )
             }
           if (profileResponse.options.isEmpty) {
@@ -496,7 +504,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val profileResponse =
             latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
               cache.get(
-                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
+                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode, routingRequest.timeValueOfMoney)
               )
             }
           if (!profileResponse.options.isEmpty) {
@@ -572,7 +580,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val profileResponse: ProfileResponse =
             latency(latencyTag, Metrics.RegularLevel) {
               cache.get(
-                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)
+                R5Request(from, to, time, directMode, accessMode, transitModes, egressMode, routingRequest.timeValueOfMoney)
               )
             }
 
@@ -615,6 +623,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 })
 
                 val access = option.access.get(itinerary.connection.access)
+                val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
                 val toll = if (access.mode == LegMode.CAR) {
                   val osm = access.streetEdges.asScala
                     .map(
@@ -624,25 +633,24 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                           .getOSMID
                     )
                     .toVector
-                  tollCalculator.calcToll(osm)
+                  tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath)
                 } else 0.0
                 val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 
-                val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
                 val theLeg = BeamLeg(
-                  tripStartTime,
-                  mapLegMode(access.mode),
-                  theTravelPath.duration,
-                  travelPath = theTravelPath
-                )
-                val splitLegs = if (access.mode != LegMode.WALK && routingRequest.mustParkAtEnd) {
-                  splitLegForParking(theLeg)
-                } else {
-                  Vector(theLeg)
-                }
-                // assign toll to first part of the split
-                legsWithFares += ((splitLegs.head, toll))
-                splitLegs.tail.foreach(leg => legsWithFares += ((leg, 0.0)))
+              tripStartTime,
+              mapLegMode(access.mode),
+              theTravelPath.duration,
+              travelPath = theTravelPath
+            )
+            val splitLegs = if (access.mode != LegMode.WALK && routingRequest.mustParkAtEnd) {
+              splitLegForParking(theLeg)
+            } else {
+              Vector(theLeg)
+            }
+            // assign toll to first part of the split
+            legsWithFares += ((splitLegs.head, toll))
+            splitLegs.tail.foreach(leg => legsWithFares += ((leg, 0.0)))
 
                 //add a Dummy walk BeamLeg to the end of that trip
                 if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -840,10 +848,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def buildStreetPath(
-    segment: StreetSegment,
-    tripStartTime: Int,
-    mode: StreetMode
-  ): BeamPath = {
+                               segment: StreetSegment,
+                               tripStartTime: Int,
+                               mode: StreetMode
+                             ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       if (!network.getLinks.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
@@ -877,10 +885,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       segment.distance.toDouble / 1000
     )
   }
+
   private def buildStreetPath(
-    linksTimesDistances: LinksTimesDistances,
-    tripStartTime: Int
-  ): BeamPath = {
+                               linksTimesDistances: LinksTimesDistances,
+                               tripStartTime: Int
+                             ): BeamPath = {
     val startLoc = beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.head)
     val endLoc = beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
     BeamPath(
@@ -904,8 +913,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     * @return a collection of FareSegments for an itinerary.
     */
   private def getFareSegments(
-    segments: IndexedSeq[(TransitSegment, TransitJourneyID)]
-  ): IndexedSeq[BeamFareSegment] = {
+                               segments: IndexedSeq[(TransitSegment, TransitJourneyID)]
+                             ): IndexedSeq[BeamFareSegment] = {
     segments
       .groupBy(s => getRoute(s._1, s._2).agency_id)
       .flatMap(t => {
@@ -940,10 +949,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def getFareSegments(
-    transitSegment: TransitSegment,
-    transitJourneyID: TransitJourneyID,
-    fromTime: ZonedDateTime
-  ): IndexedSeq[BeamFareSegment] = {
+                               transitSegment: TransitSegment,
+                               transitJourneyID: TransitJourneyID,
+                               fromTime: ZonedDateTime
+                             ): IndexedSeq[BeamFareSegment] = {
     val pattern = getPattern(transitSegment, transitJourneyID)
     val route = getRoute(pattern)
     val routeId = route.route_id
@@ -964,12 +973,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def getFareSegments(
-    agencyId: String,
-    routeId: String,
-    fromId: String,
-    toId: String,
-    containsIds: Set[String] = null
-  ): IndexedSeq[BeamFareSegment] =
+                               agencyId: String,
+                               routeId: String,
+                               fromId: String,
+                               toId: String,
+                               containsIds: Set[String] = null
+                             ): IndexedSeq[BeamFareSegment] =
     fareCalculator.getFareSegments(agencyId, routeId, fromId, toId, containsIds)
 
   private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
@@ -989,16 +998,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def travelTimeCalculator(startTime: Int): TravelTimeCalculator =
     maybeTravelTime match {
       case Some(travelTime) =>
-        (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) =>
-          {
-            if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
-              // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
-              // MATSim network.
-              (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
-            } else {
-              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
-            }
+        (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+          if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
+            // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
+            // MATSim network.
+            (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
+          } else {
+            getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
           }
+        }
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
 
@@ -1040,8 +1048,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
     }
 
+  private def travelCostCalculator(timeValueOfMoney: Double, startTime: Int): TravelCostCalculator =
+    (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) => {
+      traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(edge.getEdgeIndex, startTime + legDurationSeconds)).toFloat
+
+    }
+
   //Does point to point routing with data from request
-  def getPlan(request: ProfileRequest): ProfileResponse = {
+  def getPlan(request: ProfileRequest, timeValueOfMoney: Double): ProfileResponse = {
     val startRouting = System.currentTimeMillis
     request.zoneId = transportNetwork.getTimeZone
     //Do the query and return result
@@ -1054,7 +1068,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(request.fromTime),
-        turnCostCalculator
+        turnCostCalculator,
+        travelCostCalculator(timeValueOfMoney, request.fromTime)
       )
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
@@ -1085,8 +1100,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     option.summary = option.generateSummary
     profileResponse.addOption(option)
     if (request.hasTransit) {
-      val accessRouter = findAccessPaths(request)
-      val egressRouter = findEgressPaths(request)
+      val accessRouter = findAccessPaths(request, timeValueOfMoney)
+      val egressRouter = findEgressPaths(request, timeValueOfMoney)
       import scala.collection.JavaConverters._
       //latency 2nd step
       val router = new BeamMcRaptorSuboptimalPathProfileRouter(
@@ -1156,7 +1171,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     *
     * @param request ProfileRequest
     */
-  private def findEgressPaths(request: ProfileRequest) = {
+  private def findEgressPaths(request: ProfileRequest, timeValueOfMoney: Double) = {
     val egressRouter = mutable.Map[LegMode, StreetRouter]()
     //For egress
     //TODO: this must be reverse search
@@ -1166,7 +1181,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(request.fromTime),
-        turnCostCalculator
+        turnCostCalculator,
+        travelCostCalculator(timeValueOfMoney, request.fromTime)
       )
       streetRouter.transitStopSearch = true
       streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
@@ -1192,7 +1208,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     *
     * @param request ProfileRequest
     */
-  private def findAccessPaths(request: ProfileRequest) = {
+  private def findAccessPaths(request: ProfileRequest, timeValueOfMoney: Double) = {
     request.reverseSearch = false
     // Routes all access modes
     val accessRouter = mutable.Map[LegMode, StreetRouter]()
@@ -1201,7 +1217,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(request.fromTime),
-        turnCostCalculator
+        turnCostCalculator,
+        travelCostCalculator(timeValueOfMoney, request.fromTime)
       )
       streetRouter.profileRequest = request
       streetRouter.streetMode = toR5StreetMode(mode)
@@ -1228,13 +1245,13 @@ object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   def props(
-    beamServices: BeamServices,
-    transportNetwork: TransportNetwork,
-    network: Network,
-    fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    transitVehicles: Vehicles
-  ) =
+             beamServices: BeamServices,
+             transportNetwork: TransportNetwork,
+             network: Network,
+             fareCalculator: FareCalculator,
+             tollCalculator: TollCalculator,
+             transitVehicles: Vehicles
+           ) =
     Props(
       new R5RoutingWorker(
         WorkerParameters(
@@ -1250,14 +1267,16 @@ object R5RoutingWorker {
     )
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
+
   case class R5Request(
-    from: Coord,
-    to: Coord,
-    time: WindowTime,
-    directMode: LegMode,
-    accessMode: LegMode,
-    transitModes: Seq[TransitModes],
-    egressMode: LegMode
+                        from: Coord,
+                        to: Coord,
+                        time: WindowTime,
+                        directMode: LegMode,
+                        accessMode: LegMode,
+                        transitModes: Seq[TransitModes],
+                        egressMode: LegMode,
+    timeValueOfMoney: Double
   )
 
   def createBushwackingBeamLeg(atTime: Int, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
@@ -1267,23 +1286,23 @@ object R5RoutingWorker {
   }
 
   def createBushwackingBeamLeg(
-    atTime: Int,
-    duration: Int,
-    start: Location,
-    end: Location,
-    distance: Double
-  ): BeamLeg = {
+                                atTime: Int,
+                                duration: Int,
+                                start: Location,
+                                end: Location,
+                                distance: Double
+                              ): BeamLeg = {
     val path = BeamPath(Vector(), Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
     BeamLeg(atTime, WALK, duration, path)
   }
 
   def createBushwackingTrip(
-    origin: Location,
-    dest: Location,
-    atTime: Int,
-    bodyId: Id[Vehicle],
-    beamServices: BeamServices
-  ): EmbodiedBeamTrip = {
+                             origin: Location,
+                             dest: Location,
+                             atTime: Int,
+                             bodyId: Id[Vehicle],
+                             beamServices: BeamServices
+                           ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(createBushwackingBeamLeg(atTime, origin, dest, beamServices), bodyId, asDriver = true, None, 0, unbecomeDriverOnCompletion = false)
