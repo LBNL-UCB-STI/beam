@@ -11,14 +11,24 @@ import com.typesafe.scalalogging.LazyLogging
 import beam.agentsim.agents.choice.mode.Range
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Map
+import scala.collection.mutable
 import scala.io.Source
 
 class TollCalculator(val config: BeamConfig, val directory: String) extends LazyLogging {
 
-  type TimeDependentToll = Seq[Toll]
-
-  private val tollsByLinkId: Map[Int, TimeDependentToll] = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(Vector())
-  private val tollsByWayId: Map[Long, TimeDependentToll] = readFromCacheFileOrOSM().withDefaultValue(Vector())
+  private val tollsByLinkId: Map[Int, Seq[Toll]] = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(Vector())
+  private val tollsByWayId:  scala.collection.Map[Long, Seq[Toll]] = {
+    val map: collection.Map[Long, Seq[Toll]] = readFromCacheFileOrOSM()
+    new scala.collection.Map.WithDefault[Long, Seq[Toll]] (map, x => Vector()) {
+      override def +[V1 >: Seq[Toll]](
+        kv: (Long, V1)
+      ): collection.Map[Long, V1] = ???
+      override def -(
+        key: Long
+      ): collection.Map[Long, Seq[Toll]] = ???
+    }
+  }
 
   logger.info("Ways keys size: {}", tollsByWayId.keys.size)
 
@@ -35,7 +45,7 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
 
   def calcTollByLinkId(linkId: Int, time: Int): Double = applyTimeDependentTollAtTime(tollsByLinkId(linkId), time) * config.beam.agentsim.tuning.tollPrice
 
-  private def applyTimeDependentTollAtTime(tolls: TimeDependentToll, time: Int) = {
+  private def applyTimeDependentTollAtTime(tolls: Seq[Toll], time: Int) = {
     tolls.view.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
   }
 
@@ -56,13 +66,13 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
     }
   }
 
-  def readFromCacheFileOrOSM(): Map[Long, Seq[Toll]] = {
+  def readFromCacheFileOrOSM(): scala.collection.Map[Long, Seq[Toll]] = {
     val dataDirectory: Path = Paths.get(directory)
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
     if (cacheFile.exists()) {
-      new ObjectInputStream(new FileInputStream(cacheFile))
+      val obj = new ObjectInputStream(new FileInputStream(cacheFile))
         .readObject()
-        .asInstanceOf[Map[Long, Seq[Toll]]]
+      obj.asInstanceOf[mutable.HashMap[Long, Seq[Toll]]]
     } else {
       val ways = fromDirectory()
       val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
