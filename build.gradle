@@ -132,6 +132,9 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+    compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
+    compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
+
 
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
