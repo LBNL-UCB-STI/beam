@@ -1,10 +1,13 @@
 package beam.integration
 
+import java.io.File
+
 import org.matsim.api.core.v01.events.Event
+import org.matsim.core.config.Config
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 
-object ReadEventsBeam {
+object ReadEvents {
 
   def fromFile(filePath: String): Traversable[Event] =
     new Traversable[Event] {
@@ -16,5 +19,11 @@ object ReadEventsBeam {
         new MatsimEventsReader(eventsManager).readFile(filePath)
       }
     }
+
+  def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
+    new File(
+      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
+    )
+  }
 
 }

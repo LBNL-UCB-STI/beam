@@ -1,12 +1,11 @@
 package beam.integration
-import beam.integration.ReadEventsBeam.fromFile
+import beam.integration.ReadEvents.{fromFile, _}
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 
 class StartWithCustomConfig(val config: Config)
-    extends EventsFileHandlingCommon
-    with IntegrationSpecCommon
+    extends IntegrationSpecCommon
     with BeamHelper {
 
   lazy val (matsimConfig, _) = runBeamWithConfig(config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0)))

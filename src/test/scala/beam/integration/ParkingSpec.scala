@@ -3,13 +3,13 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec
@@ -17,8 +17,7 @@ class ParkingSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with IntegrationSpecCommon
-    with EventsFileHandlingCommon {
+    with IntegrationSpecCommon {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
@@ -82,7 +81,7 @@ class ParkingSpec
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
       val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(ReadEventsBeam.fromFile(filePath).toSeq)
+      queueEvents.append(ReadEvents.fromFile(filePath).toSeq)
     }
 
     val outputDirectoryFile = new File(outputDirectory)

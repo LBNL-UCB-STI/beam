@@ -2,7 +2,7 @@ package beam.integration
 
 import java.io.File
 
-import beam.integration.ReadEventsBeam.fromFile
+import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -20,7 +20,6 @@ class EventsFileSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with EventsFileHandlingCommon
     with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig

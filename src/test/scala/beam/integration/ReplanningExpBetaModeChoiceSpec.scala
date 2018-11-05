@@ -20,7 +20,6 @@ class ReplanningExpBetaModeChoiceSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with EventsFileHandlingCommon
     with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
