@@ -34,8 +34,6 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
-// TODO: probably test needs to be updated due to update in rideHailManager
-@Ignore
 class SingleModeSpec
   extends TestKit(
     ActorSystem(
