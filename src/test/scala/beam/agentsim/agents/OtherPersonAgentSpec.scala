@@ -121,11 +121,11 @@ class OtherPersonAgentSpec
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
+      val mockDriverProps = Props(new ForwardActor(self))
       val router: ActorRef = system.actorOf(
         Props(new Actor() {
-          context.actorOf(Props(new ForwardActor(self)), "TransitDriverAgent-my_bus")
-          context.actorOf(Props(new ForwardActor(self)), "TransitDriverAgent-my_tram")
-
+          context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
+          context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
           override def receive: Receive = {
             case _ =>
           }
@@ -138,7 +138,6 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
@@ -365,6 +364,15 @@ class OtherPersonAgentSpec
       expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
+      scheduler ! ScheduleTrigger(
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        personActor
+      )
+      scheduler ! ScheduleTrigger(
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        personActor
+      )
+
       lastSender ! ReservationResponse(
         reservationRequestBus.requestId,
         Right(
@@ -375,14 +383,6 @@ class OtherPersonAgentSpec
           )
         ),
         TRANSIT
-      )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
-        personActor
       )
       expectMsgType[PersonEntersVehicleEvent]
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
