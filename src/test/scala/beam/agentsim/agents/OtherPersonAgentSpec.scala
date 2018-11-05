@@ -44,6 +44,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import PersonTestUtil._
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
@@ -110,21 +111,6 @@ class OtherPersonAgentSpec
                           ): Double = 0.0
   }
 
-  // Mock a transit driver (who has to be a child of a mock router)
-  lazy val transitDriverProps = Props(new ForwardActor(self))
-
-  lazy val router: ActorRef = system.actorOf(
-    Props(new Actor() {
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-
-      override def receive: Receive = {
-        case _ =>
-      }
-    }),
-    "router"
-  )
-
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
@@ -134,8 +120,19 @@ class OtherPersonAgentSpec
   private lazy val networkCoordinator = new NetworkCoordinator(config)
 
   describe("A PersonAgent FSM") {
-    // TODO: probably test needs to be updated due to update in rideHailManager
-    ignore("should also work when the first bus is late") {
+    it("should also work when the first bus is late") {
+      val router: ActorRef = system.actorOf(
+        Props(new Actor() {
+          context.actorOf(Props(new ForwardActor(self)), "TransitDriverAgent-my_bus")
+          context.actorOf(Props(new ForwardActor(self)), "TransitDriverAgent-my_tram")
+
+          override def receive: Receive = {
+            case _ =>
+          }
+        }),
+        "router"
+      )
+
       val beamVehicleId = Id.createVehicleId("my_bus")
 
       val bus = new BeamVehicle(
@@ -237,13 +234,11 @@ class OtherPersonAgentSpec
       )
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population =
-        PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person =
-        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      putDefaultBeamAttributes(person)
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity =
-        PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
+      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -254,8 +249,7 @@ class OtherPersonAgentSpec
       )
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity =
-        PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
+      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)

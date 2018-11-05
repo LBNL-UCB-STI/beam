@@ -7,6 +7,7 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgentSpec.ZERO
+import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
@@ -28,10 +29,9 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
@@ -701,23 +701,6 @@ class PersonAgentSpec
       expectMsgType[CompletionNotice]
     }
 
-  }
-
-  private def putDefaultBeamAttributes(person: Person) = {
-    person.getCustomAttributes.put(
-      "beam-attributes",
-      AttributesOfIndividual(
-        HouseholdAttributes.EMPTY,
-        None,
-        false,
-        AvailableModeUtils.availableModeParser(
-          "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
-        ),
-        15.0,
-        None,
-        None
-      )
-    )
   }
 
   override def beforeAll: Unit = {
