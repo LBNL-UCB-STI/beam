@@ -191,9 +191,8 @@ class PersonAgent(
   with ChoosesParking
   with Stash {
 
-  val attributes =
-    beamServices.matsimServices.getScenario.getPopulation.getPersons
-      .get(id)
+  val attributes: AttributesOfIndividual =
+    matsimPlan.getPerson
       .getCustomAttributes
       .get("beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
