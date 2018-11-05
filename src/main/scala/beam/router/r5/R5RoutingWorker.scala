@@ -131,7 +131,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
 
-        override val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
+        override val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = matsimConfig.travelTimeCalculator()
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
