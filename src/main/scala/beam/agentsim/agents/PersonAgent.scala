@@ -191,6 +191,13 @@ class PersonAgent(
   with ChoosesParking
   with Stash {
 
+  val attributes =
+    beamServices.matsimServices.getScenario.getPopulation.getPersons
+      .get(id)
+      .getCustomAttributes
+      .get("beam-attributes")
+      .asInstanceOf[AttributesOfIndividual]
+
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   val myUnhandled: StateFunction = {
@@ -383,12 +390,6 @@ class PersonAgent(
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
-      val attributes =
-        beamServices.matsimServices.getScenario.getPopulation.getPersons
-          .get(id)
-          .getCustomAttributes
-          .get("beam-attributes")
-          .asInstanceOf[AttributesOfIndividual]
       val mode = data.currentTrip.get.tripClassifier
       eventsManager.processEvent(
         new PersonCostEvent(
@@ -400,9 +401,7 @@ class PersonAgent(
         )
       )
 
-      val age = attributes.age
-      val income = attributes.income
-      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, age, income.map(x => x.toInt))
+      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
       eventsManager.processEvent(
         new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
       )
