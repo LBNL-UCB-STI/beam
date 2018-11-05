@@ -61,6 +61,7 @@ class BeamSim @Inject()(
   val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
+  var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -91,10 +92,8 @@ class BeamSim @Inject()(
         }
     }
 
-    beamServices.metricsPrinter = actorSystem.actorOf(MetricsPrinter.props())
-    Await.result(beamServices.metricsPrinter ? Identify(0), timeout.duration)
-    beamServices.metricsPrinter ! Subscribe("counter", "**")
-    beamServices.metricsPrinter ! Subscribe("histogram", "**")
+    metricsPrinter ! Subscribe("counter", "**")
+    metricsPrinter ! Subscribe("histogram", "**")
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
@@ -209,7 +208,7 @@ class BeamSim @Inject()(
       persons.map(_.getPlans.size()).sum.toFloat / persons.size
     )
     //    Tracer.currentContext.finish()
-    beamServices.metricsPrinter ! Print(
+    metricsPrinter ! Print(
       Seq(
         "r5-plans-count"
       ),
