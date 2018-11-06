@@ -36,8 +36,8 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputAsSpeedUnitFileName = "freeFlowSpeedDistribution";
-    private String outputAsPercentageFileName = "freeFlowSpeedDistributionAsPercentage";
+    private String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
+    private String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
 
     public PhyssimCalcLinkSpeedDistributionStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;

@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
@@ -250,7 +251,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     private void writeGraphic(Integer iteration, String mode) {
         try {
 
-            String filename = fileName + "_" + mode + ".png";
+            String filename = fileName + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, mode) + ".png";
             String path = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, filename);
             int index = path.lastIndexOf("/");
             File outDir = new File(path.substring(0, index) + "/tripHistogram");
