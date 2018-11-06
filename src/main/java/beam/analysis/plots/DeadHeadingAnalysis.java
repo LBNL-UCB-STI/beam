@@ -7,6 +7,8 @@ import beam.analysis.plots.passengerpertrip.CarPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -21,7 +23,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingAnalysis implements GraphAnalysis {
+public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;
@@ -30,6 +32,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
     private static final String deadHeadingXAxisTitle = "Hour";
     private static final String deadHeadingYAxisTitle = "# trips";
     private static final String fileNameBase = "rideHail";
+    private static final String dataFileBaseName = "rideHailStats";
     private static final int DEFAULT_OCCURRENCE = 1;
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
@@ -721,7 +724,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
 
     private void writeRideHailStatsCSV(IterationEndsEvent event) {
 
-        String csvFileName = event.getServices().getControlerIO().getOutputFilename("rideHailStats.csv");
+        String csvFileName = event.getServices().getControlerIO().getOutputFilename(dataFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTimeInSeconds,totalRideHailWaitingTimeInSeconds,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
@@ -807,4 +810,22 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
         return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
     }
 
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(dataFileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", ""));
+        return list;
+    }
 }
