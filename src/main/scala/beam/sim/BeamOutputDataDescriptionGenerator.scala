@@ -2,7 +2,8 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
-import beam.analysis.plots.ModeChosenAnalysis
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.analysis.plots.{ModeChosenAnalysis, RealizedModeAnalysis, RideHailRevenueAnalysis}
 import beam.utils.OutputDataDescriptor
 import org.matsim.core.controler.events.ControlerEvent
 
@@ -40,7 +41,9 @@ object BeamOutputDataDescriptionGenerator {
     * @return collected class instances
     */
   private def getClassesGeneratingOutputs(beamServices: BeamServices): List[OutputDataDescriptor] = List(
-    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, beamServices.beamConfig)
+    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, beamServices.beamConfig),
+    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation),
+    new RideHailRevenueAnalysis(new RideHailSurgePricingManager(beamServices))
   )
 
   /**
