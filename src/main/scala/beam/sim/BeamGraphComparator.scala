@@ -127,10 +127,10 @@ object BeamGraphComparator {
     }
     // Yield all the png files (graph images) across all iterations
     val files: Seq[Array[File]] = for(i <- existingIterations) yield {
-        (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles.filterNot(_ == null).filter(f =>
-          f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
-          FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
-          .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
+      (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles.filterNot(_ == null).filter(f =>
+        f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
+        FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
+        .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
     val numberOfIterations = files.size
     val fileNameRegex = "([0-9]*).(.*)(.png)".r
@@ -141,26 +141,24 @@ object BeamGraphComparator {
         case _ => ""
       }) -> f
     }
-    //Group chart files by name (2 level group)
-    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
-      val index = f._1.indexOf("_")
-      if(index == -1)
-        f._1
-      else
-        f._1.substring(0,index)
-    })
+
+    val knownChartPrefixes = List("rideHail", "passengerPerTrip","legHistogram","averageTravelTimes","energyUse","modeChoice","physsim","realizedMode","tripHistogram","freeFlowSpeedDistribution")
+    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy(grouping =>
+      knownChartPrefixes.collectFirst{ case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
+        .getOrElse("Misc"))
     val subGroups = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
     // set priorities for the grouped chart files
     chartsGroupedByPrefix.foreach(gc => {
       if (gc._2.size == 1){
         val key = gc._2.headOption.map(_._1).getOrElse("")
         key match {
-          case "mode_choice" => subGroups.put("P01" -> key,gc._2)
-          case "energy_use" => subGroups.put("P02" -> key,gc._2)
-          case "realized_mode" => subGroups.put("P03" -> key, gc._2)
+          case "modeChoice" => subGroups.put("P01" -> key,gc._2)
+          case "energyUse" => subGroups.put("P02" -> key,gc._2)
+          case "realizedMode" => subGroups.put("P03" -> key, gc._2)
+          case "misc" => subGroups.put("P50" -> key, gc._2)
           case _ =>
-            val map = subGroups.getOrElse("P99" -> "Misc",Map.empty)
-            subGroups.put("P99" -> "Misc",gc._2 ++ map )
+            val map = subGroups.getOrElse("P04" -> key,Map.empty)
+            subGroups.put("P04" -> key,gc._2 ++ map )
         }
       }
       else
