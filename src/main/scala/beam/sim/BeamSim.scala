@@ -218,6 +218,7 @@ class BeamSim @Inject()(
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
+    BeamOutputDataDescriptionGenerator.generateDescriptors(event,beamServices)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")

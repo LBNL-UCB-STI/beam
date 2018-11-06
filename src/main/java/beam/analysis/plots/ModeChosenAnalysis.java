@@ -52,7 +52,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
         String referenceModeChoiceOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(referenceModeChoiceFileBaseName + ".csv");
         String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
         String modeChoiceRelativePath = modeChoiceOutputFilePath.replace(outputDirPath, "");
-        String referenceModeChoiceRelativePath = modeChoiceOutputFilePath.replace(referenceModeChoiceOutputFilePath, "");
+        String referenceModeChoiceRelativePath = referenceModeChoiceOutputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "iterations", "iteration number"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "car", "Car chosen as mode of transportation"));
