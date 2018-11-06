@@ -330,13 +330,14 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
-    val (matsimConfig, outputDir, beamServices) = setupBeamWithConfig(config)
+    val (matsimConfig, outputDir, beamServices, networkCoordinator) = setupBeamWithConfig(config)
+    networkCoordinator.convertFrequenciesToTrips()
 
     run(beamServices)
     (matsimConfig, outputDir)
   }
 
-  def setupBeamWithConfig(config: TypesafeConfig): (Config, String, BeamServices) = {
+  def setupBeamWithConfig(config: TypesafeConfig): (Config, String, BeamServices, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -395,7 +396,7 @@ trait BeamHelper extends LazyLogging {
 
     samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
 
-    (matsimConfig, outputDirectory, beamServices)
+    (matsimConfig, outputDirectory, beamServices, networkCoordinator)
   }
 
   def run(beamServices: BeamServices){

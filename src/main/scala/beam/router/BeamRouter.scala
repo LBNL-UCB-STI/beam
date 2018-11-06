@@ -124,7 +124,7 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-  private val metricsPrinter = context.actorOf(MetricsPrinter.props())
+
 
   private var traveTimeOpt: Option[TravelTime] = None
 
@@ -157,7 +157,6 @@ class BeamRouter(
         val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
-        metricsPrinter ! Subscribe("histogram", "**")
         localNodes.map { localWorker =>
           localWorker ! TransitInited(transits)
           Success(s"local worker '$localWorker' inited")

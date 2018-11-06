@@ -182,9 +182,9 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
       val caseDataPath = Paths.get(testDataPath.toString, "case8")
       createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1/"))
 
-      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.experienced_plans")
-      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experienced_plans")
-      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experienced_plans_scores")
+      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.experiencedPlans")
+      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experiencedPlans")
+      copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experiencedPlansScores")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
       copyLinkStats(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0." + LINK_STATS)
