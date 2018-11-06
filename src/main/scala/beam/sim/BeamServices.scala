@@ -60,7 +60,6 @@ trait BeamServices extends ActorInject {
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
   val modeSubsidies: ModeSubsidy
-
   var iterationNumber: Int = -1
 
   def startNewIteration()
