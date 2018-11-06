@@ -1,17 +1,15 @@
-package beam.analysis.plots;
+package beam.analysis.summary;
 
 import beam.agentsim.events.PathTraversalEvent;
-import com.google.common.base.CaseFormat;
+import beam.analysis.IterationSummaryAnalysis;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
-import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class NumberOfVehiclesStats implements BeamStats, IterationSummaryStats{
+public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis {
     private Map<String, Integer> numberOfVehiclesByType = new HashMap<>();
     private HashSet<String> uniqueVehicleIds = new HashSet<>();
 
@@ -28,18 +26,13 @@ public class NumberOfVehiclesStats implements BeamStats, IterationSummaryStats{
     }
 
     @Override
-    public void createGraph(IterationEndsEvent event) {
-
-    }
-
-    @Override
     public void resetStats() {
         numberOfVehiclesByType.clear();
         uniqueVehicleIds.clear();
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
         return numberOfVehiclesByType.entrySet().stream().collect(Collectors.toMap(
                 e -> "numberOfVehicles_" + e.getKey(),
                 e -> e.getValue().doubleValue()

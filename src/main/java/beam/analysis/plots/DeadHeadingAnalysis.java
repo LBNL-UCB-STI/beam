@@ -7,6 +7,7 @@ import beam.analysis.plots.passengerpertrip.CarPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -20,7 +21,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingStats implements BeamStats {
+public class DeadHeadingAnalysis implements GraphAnalysis {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;
@@ -618,11 +619,11 @@ public class DeadHeadingStats implements BeamStats {
     // Utility Methods
     private String getFileName(String graphName, String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            return "passengerPerTrip_" + fileNameBase + "." + extension;
+            return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, fileNameBase) + "." + extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
             return fileNameBase + "TripDistance." + extension;
         } else {
-            return "passengerPerTrip_" + graphName + "." + extension;
+            return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, fileNameBase) + "." + extension;
         }
     }
 

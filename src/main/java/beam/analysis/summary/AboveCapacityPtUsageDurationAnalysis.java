@@ -1,19 +1,19 @@
-package beam.analysis.stats;
+package beam.analysis.summary;
 
 import beam.agentsim.events.PathTraversalEvent;
-import beam.analysis.plots.BeamStats;
-import beam.analysis.plots.IterationSummaryStats;
+import beam.analysis.IterationSummaryAnalysis;
+import beam.analysis.plots.GraphAnalysis;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSummaryStats {
+public class AboveCapacityPtUsageDurationAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
 
-    private double aboveCapacityPtUsageDurationInSec = 0;
+    private double aboveCapacityPtUsageDuration = 0.0;
 
-    public AboveCapacityPtUsageDurationInSec() {
+    public AboveCapacityPtUsageDurationAnalysis() {
 
     }
 
@@ -27,7 +27,7 @@ public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSu
             Double arrivalTime = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME));
 
             if (numberOfPassengers > seatingCapacity) {
-                aboveCapacityPtUsageDurationInSec += arrivalTime - departureTime;
+                aboveCapacityPtUsageDuration += arrivalTime - departureTime;
             }
         }
     }
@@ -39,13 +39,13 @@ public class AboveCapacityPtUsageDurationInSec implements BeamStats, IterationSu
 
     @Override
     public void resetStats() {
-        aboveCapacityPtUsageDurationInSec = 0;
+        aboveCapacityPtUsageDuration = 0.0;
     }
 
     @Override
-    public Map<String, Double> getIterationSummaryStats() {
+    public Map<String, Double> getSummaryStats() {
         Map<String, Double> result = new HashMap<>();
-        result.put("atCapacityPtUsageDurationInSec", aboveCapacityPtUsageDurationInSec);
+        result.put("agentHoursOnCrowdedTransit", aboveCapacityPtUsageDuration /3600.0);
         return result;
     }
 }

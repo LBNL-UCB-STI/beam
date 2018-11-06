@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import beam.integration.IntegrationSpecCommon
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import org.matsim.core.api.experimental.events.EventsManager
@@ -36,7 +37,11 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
       module(baseConfig, scenario, networkCoordinator)
     )
 
+
     beamServices = injector.getInstance(classOf[BeamServices])
+    val popAdjustment = DefaultPopulationAdjustment(beamServices)
+    popAdjustment.update(scenario)
+
     eventManager = injector.getInstance(classOf[EventsManager])
   }
 

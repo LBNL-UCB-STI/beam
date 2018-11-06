@@ -23,8 +23,6 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model.RoutingModel.BeamTime
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
@@ -122,7 +120,7 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-  private val metricsPrinter = context.actorOf(MetricsPrinter.props())
+
 
   private var traveTimeOpt: Option[TravelTime] = None
 
@@ -135,7 +133,6 @@ class BeamRouter(
         val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
-        metricsPrinter ! Subscribe("histogram", "**")
         localNodes.map { localWorker =>
           localWorker ! TransitInited(transits)
           Success(s"local worker '$localWorker' inited")
@@ -145,15 +142,6 @@ class BeamRouter(
     case msg: UpdateTravelTime =>
       traveTimeOpt = Some(msg.travelTime)
       if (!services.beamConfig.beam.cluster.enabled) {
-        metricsPrinter ! Print(
-          Seq(
-            "cache-router-time",
-            "noncache-router-time",
-            "noncache-transit-router-time",
-            "noncache-nontransit-router-time"
-          ),
-          Nil
-        )
         remoteNodes.foreach(address => {
           val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
           remoteWorker.forward(msg)
@@ -408,7 +396,8 @@ object BeamRouter {
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false
+    mustParkAtEnd: Boolean = false,
+    timeValueOfMoney: Double = 360.0 // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()

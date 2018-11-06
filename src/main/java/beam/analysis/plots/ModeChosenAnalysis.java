@@ -23,12 +23,12 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenStats implements BeamStats, MetricsSupport {
+public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "mode_choice";
+    private static final String fileName = "modeChoice";
 
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
@@ -72,7 +72,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         }
     }
 
-    public ModeChosenStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
@@ -106,7 +106,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         }
         writeToRootCSV();
 
-        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
+        fileName = outputDirectoryHierarchy.getOutputFilename("referenceModeChoice.png");
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null) {
@@ -357,7 +357,7 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     //csv for reference mode choice
     public void writeToRootCSVForReference() {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("reference_modeChoice.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("referenceModeChoice.csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 

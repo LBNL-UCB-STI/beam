@@ -4,7 +4,7 @@ import java.{lang, util}
 import beam.agentsim.agents.ridehail.graph.FuelUsageStatsGraphSpec.{FuelUsageStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator
-import beam.analysis.plots.FuelUsageStats
+import beam.analysis.plots.FuelUsageAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
 import com.google.inject.Provides
@@ -23,12 +23,12 @@ import scala.concurrent.Promise
 
 object FuelUsageStatsGraphSpec {
 
-  class FuelUsageStatsGraph(compute: FuelUsageStats.FuelUsageStatsComputation with EventAnalyzer)
+  class FuelUsageStatsGraph(compute: FuelUsageAnalysis.FuelUsageStatsComputation with EventAnalyzer)
       extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val fuelUsageStats =
-      new FuelUsageStats(compute)
+      new FuelUsageAnalysis(compute)
 
     override def reset(iteration: Int): Unit = {
       fuelUsageStats.resetStats()
@@ -94,7 +94,7 @@ class FuelUsageStatsGraphSpec extends WordSpecLike with Matchers with Integratio
   "Fuel Usage Collected Data" must {
 
     "contains valid fuel usage stats" in {
-      val fuelUsageComputation = new FuelUsageStats.FuelUsageStatsComputation with EventAnalyzer {
+      val fuelUsageComputation = new FuelUsageAnalysis.FuelUsageStatsComputation with EventAnalyzer {
 
         private val promise = Promise[java.util.Map[Integer, java.util.Map[String, lang.Double]]]()
 
