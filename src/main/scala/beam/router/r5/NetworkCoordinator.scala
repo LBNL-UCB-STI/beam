@@ -14,6 +14,7 @@ import scala.collection.JavaConverters._
 
 class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
+
   var transportNetwork: TransportNetwork = _
   var network: Network = _
 
@@ -49,16 +50,19 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         .write(beamConfig.matsim.modules.network.inputNetworkFile)
       logger.info(s"MATSim network written")
     }
-    transportNetwork.transitLayer.tripPatterns.asScala.foreach{tp =>
-      if(tp.hasFrequencies){
-        val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap{ts =>
+  }
+
+  def convertFrequenciesToTrips() = {
+    transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
+      if (tp.hasFrequencies) {
+        val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
           val tripStartTimes = ts.startTimes(0).until(ts.endTimes(0)).by(ts.headwaySeconds(0)).toVector
-          tripStartTimes.zipWithIndex.map{case (startTime,ind) =>
+          tripStartTimes.zipWithIndex.map { case (startTime, ind) =>
             val tsNew = ts.clone().asInstanceOf[TripSchedule]
             val newTripId = s"${tsNew.tripId}-$ind"
             val newArrivals = new Array[Int](ts.arrivals.size)
             val newDepartures = new Array[Int](ts.arrivals.size)
-            for(i <- 0.until(tsNew.arrivals.length)){
+            for (i <- 0.until(tsNew.arrivals.length)) {
               newArrivals(i) = tsNew.arrivals(i) + startTime
               newDepartures(i) = tsNew.departures(i) + startTime
             }
