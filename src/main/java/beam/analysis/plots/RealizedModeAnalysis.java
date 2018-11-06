@@ -31,7 +31,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "realized_mode";
+    private static final String fileName = "realizedMode";
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private HashSet<String> personIdList = new HashSet<>();
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
