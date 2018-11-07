@@ -31,6 +31,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
     scenario.setNetwork(networkCoordinator.network)
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(

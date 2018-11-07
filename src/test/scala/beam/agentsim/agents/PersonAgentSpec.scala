@@ -714,6 +714,7 @@ class PersonAgentSpec
 
   override def beforeAll: Unit = {
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {

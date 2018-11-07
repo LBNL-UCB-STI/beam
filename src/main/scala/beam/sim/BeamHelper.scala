@@ -366,6 +366,7 @@ trait BeamHelper extends LazyLogging {
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
     val beamWarmStart = BeamWarmStart(beamConfig, maxHour)

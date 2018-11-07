@@ -57,6 +57,7 @@ class TollRoutingSpec
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())

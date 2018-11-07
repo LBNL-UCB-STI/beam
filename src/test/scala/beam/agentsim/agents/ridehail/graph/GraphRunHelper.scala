@@ -25,6 +25,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   private val networkCoordinator = new NetworkCoordinator(beamConfig)
   networkCoordinator.loadNetwork()
+  networkCoordinator.convertFrequenciesToTrips()
 
   private val scenario =
     ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]

@@ -90,6 +90,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
       val network = networkCoordinator.network
       val transportNetwork = networkCoordinator.transportNetwork
