@@ -18,13 +18,8 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
   var transportNetwork: TransportNetwork = _
   var network: Network = _
+  var scenario: Option[Scenario] = None
 
-  def loadNetwork(scenario:Scenario):Unit={
-
-    loadNetwork()
-
-    transportNetwork = scenario.applyToTransportNetwork(transportNetwork)
-  }
 
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
@@ -58,6 +53,14 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         .write(beamConfig.matsim.modules.network.inputNetworkFile)
       logger.info(s"MATSim network written")
     }
+
+  }
+
+  def applyScenario():Unit ={
+    scenario match {
+      case Some(sc) => transportNetwork = sc.applyToTransportNetwork(transportNetwork)
+      case None =>
+    }
   }
 
   def convertFrequenciesToTrips() = {
@@ -81,7 +84,7 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
             tsNew.headwaySeconds = null
             tsNew.startTimes = null
             tsNew.endTimes = null
-//            tsNew.serviceCode = 2
+            //            tsNew.serviceCode = 2
             tsNew
           }
         }
