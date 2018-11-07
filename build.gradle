@@ -98,10 +98,12 @@ allprojects {
 
 dependencies {
 
+
+    //beam-utilities
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '-SNAPSHOT'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
-
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
@@ -136,6 +138,7 @@ dependencies {
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+
     compile (group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44'){
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -242,6 +245,22 @@ dependencies {
 
 scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+}
+
+
+
+configurations.all {
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
+            final requestedDependency = dependencyResolveDetails.requested
+            if (requestedDependency.name != 'beam-utilities') {
+                force 'javax.media:jai_core:1.1.3'
+            }
+        }
+    }
+    exclude group: 'javax.media', module: 'jai_codec'
+    exclude group: 'javax.media', module: 'jai_imageio'
+
 }
 
 //compileScala.dependsOn(scalafmtAll)
