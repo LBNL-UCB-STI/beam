@@ -4,7 +4,6 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import beam.sim.config.BeamConfig
-import com.conveyal.r5.analyst.scenario.Scenario
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Network, NetworkWriter}
@@ -18,8 +17,6 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
   var transportNetwork: TransportNetwork = _
   var network: Network = _
-  var scenario: Option[Scenario] = None
-
 
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
@@ -53,14 +50,6 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         .write(beamConfig.matsim.modules.network.inputNetworkFile)
       logger.info(s"MATSim network written")
     }
-
-  }
-
-  def applyScenario():Unit ={
-    scenario match {
-      case Some(sc) => transportNetwork = sc.applyToTransportNetwork(transportNetwork)
-      case None =>
-    }
   }
 
   def convertFrequenciesToTrips() = {
@@ -84,7 +73,6 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
             tsNew.headwaySeconds = null
             tsNew.startTimes = null
             tsNew.endTimes = null
-            //            tsNew.serviceCode = 2
             tsNew
           }
         }
