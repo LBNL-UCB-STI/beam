@@ -87,6 +87,7 @@ class WarmStartRoutingSpec
     )
     var networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
@@ -119,6 +120,7 @@ class WarmStartRoutingSpec
     matsimConfig.controler.setOutputDirectory(path)
     networkCoordinator = new NetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val injector = org.matsim.core.controler.Injector.createInjector(
       matsimConfig,

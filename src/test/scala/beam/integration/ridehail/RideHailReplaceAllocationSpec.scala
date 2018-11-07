@@ -28,6 +28,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
 
     val networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)

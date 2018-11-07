@@ -353,6 +353,7 @@ class RideHailAgentSpec
       }
     })
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {
