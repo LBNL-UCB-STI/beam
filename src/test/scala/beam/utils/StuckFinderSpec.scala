@@ -1,15 +1,21 @@
 package beam.utils
 
-import akka.actor.Actor
+import akka.actor.ActorSystem
+import akka.testkit.{TestActors, TestKit}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm.ActorTypeToMaxNumberOfMessages
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class StuckFinderSpec extends WordSpec with Matchers {
+class StuckFinderSpec extends TestKit(ActorSystem("StuckFinderSpec"))
+  with WordSpecLike with Matchers with BeforeAndAfterAll {
+
+  override def afterAll: Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
 
   val threshold = Thresholds$Elm(ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
     100, classOf[InitializeTrigger].getCanonicalName)
@@ -17,12 +23,15 @@ class StuckFinderSpec extends WordSpec with Matchers {
   val stuckAgentDetectionCfg =
     StuckAgentDetection(
       enabled = true,
+      checkMaxNumberOfMessagesEnabled = true,
       defaultTimeoutMs = 100,
       checkIntervalMs = 100,
       overallSimulationTimeoutMs = 60000,
       thresholds = List(threshold)
     )
-  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), Actor.noSender, 1)
+
+  val devNull = system.actorOf(TestActors.blackholeProps)
+  val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
 
   "A StuckFinder" should {
     "return true" when {

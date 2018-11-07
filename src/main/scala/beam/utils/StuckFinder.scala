@@ -21,14 +21,17 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
     mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
-
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
   } else {
     verifyTypesExist()
   }
 
-  private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = getPerActorTypeThreshold(cfg.thresholds)
+  private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = if (!cfg.checkMaxNumberOfMessagesEnabled){
+    Map.empty
+  } else {
+    getPerActorTypeThreshold(cfg.thresholds)
+  }
 
   private val exceedMaxNumberOfMessages: ArrayBuffer[ScheduledTrigger] = new ArrayBuffer[ScheduledTrigger]()
 
@@ -61,7 +64,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   def add(time: Long, st: ScheduledTrigger, isNew: Boolean): Unit = {
     if (cfg.enabled) {
       updateTickIfNeeded(st.triggerWithId.trigger.tick)
-      if (isNew)
+      if (isNew && cfg.checkMaxNumberOfMessagesEnabled)
         checkIfExiceedMaxNumOfMsgPerActorType(st)
       class2Helper
         .get(toKey(st))
@@ -113,8 +116,10 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         detectStuckAgents0(helper, result)
       }
     }
-    result.appendAll(exceedMaxNumberOfMessages.map { x => ValueWithTime(x, -1) })
-    exceedMaxNumberOfMessages.clear()
+    if (cfg.checkMaxNumberOfMessagesEnabled) {
+      result.appendAll(exceedMaxNumberOfMessages.map { x => ValueWithTime(x, -1)})
+      exceedMaxNumberOfMessages.clear()
+    }
     result
   }
 
