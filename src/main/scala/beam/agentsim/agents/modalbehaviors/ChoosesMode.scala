@@ -115,7 +115,8 @@ trait ChoosesMode {
           Modes.filterForTransit(transitModes),
           vehicles,
           streetVehiclesIntermodalUse,
-          mustParkAtEnd = true
+          mustParkAtEnd = true,
+          timeValueOfMoney = 3600.0 / attributes.valueOfTime
         )
       }
 
