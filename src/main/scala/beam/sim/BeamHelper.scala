@@ -330,14 +330,27 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
-    val (matsimConfig, outputDir, beamServices, networkCoordinator) = setupBeamWithConfig(config)
+    val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      module(config, scenario, networkCoordinator)
+    )
+
     networkCoordinator.convertFrequenciesToTrips()
 
+    scenario.setNetwork(networkCoordinator.network)
+
+    val beamServices = injector.getInstance(classOf[BeamServices])
+
     run(beamServices)
-    (matsimConfig, outputDir)
+
+    (scenario.getConfig, outputDir)
   }
 
-  def setupBeamWithConfig(config: TypesafeConfig): (Config, String, BeamServices, NetworkCoordinator) = {
+
+
+  def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -373,7 +386,7 @@ trait BeamHelper extends LazyLogging {
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
+
 
     // TODO ASIF
     // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
@@ -388,16 +401,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      module(config, scenario, networkCoordinator)
-    )
-
-    val beamServices = injector.getInstance(classOf[BeamServices])
-
-    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
-
-    (matsimConfig, outputDirectory, beamServices, networkCoordinator)
+    (scenario, outputDirectory, networkCoordinator)
   }
 
   def run(beamServices: BeamServices){
