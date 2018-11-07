@@ -65,7 +65,7 @@ class BufferedRideHailRequests(
   def tryClosingBufferedRideHailRequestWaive(): Unit = {
 
     if (isBufferedRideHailRequestProcessingOver) {
-      closingBufferedRideHailRequestWaive()
+      closingBufferedRideHailRequestWave()
     }
 
   }
@@ -75,7 +75,7 @@ class BufferedRideHailRequests(
     numberOfOverwriteRequestsOpen == 0 && setOfReplacementVehicles.isEmpty
   }
 
-  def closingBufferedRideHailRequestWaive(): Unit = {
+  def closingBufferedRideHailRequestWave(): Unit = {
 
     if (nextBufferedTriggerMessages.size > 1) {
       DebugLib.emptyFunctionForSettingBreakPoint()
