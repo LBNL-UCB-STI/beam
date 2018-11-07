@@ -73,12 +73,14 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
             tsNew.headwaySeconds = null
             tsNew.startTimes = null
             tsNew.endTimes = null
+//            tsNew.serviceCode = 2
             tsNew
           }
         }
         tp.tripSchedules.clear()
         toAdd.foreach(tp.tripSchedules.add(_))
         tp.hasFrequencies = false
+        tp.hasSchedules = true
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
