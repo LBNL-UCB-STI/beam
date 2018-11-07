@@ -180,7 +180,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(services.beamRouter, scenario)
+      BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(router,  scenario)
 
       router ! RoutingRequest(
         origin,
@@ -209,7 +209,7 @@ class WarmStartRoutingSpec
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter, scenario)
+      ).warmStartTravelTime(router,  scenario)
 
       router ! RoutingRequest(
         origin,
@@ -230,7 +230,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 110)
 
-      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(services.beamRouter, scenario)
+      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router,  scenario)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -256,7 +256,7 @@ class WarmStartRoutingSpec
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter, scenario)
+      ).warmStartTravelTime(router,  scenario)
 
       router ! RoutingRequest(
         origin,
@@ -276,7 +276,7 @@ class WarmStartRoutingSpec
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
 
-      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(services.beamRouter, scenario)
+      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router,  scenario)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -326,7 +326,7 @@ class WarmStartRoutingSpec
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter, scenario)
+      ).warmStartTravelTime(router,  scenario)
 
       router ! RoutingRequest(
         origin,
