@@ -108,6 +108,7 @@ class RouterPerformanceSpec
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]

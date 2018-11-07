@@ -79,6 +79,7 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
         tp.tripSchedules.clear()
         toAdd.foreach(tp.tripSchedules.add(_))
         tp.hasFrequencies = false
+        tp.hasSchedules = true
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
