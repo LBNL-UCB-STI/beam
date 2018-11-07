@@ -4,6 +4,7 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import beam.sim.config.BeamConfig
+import com.conveyal.r5.analyst.scenario.Scenario
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.{Network, NetworkWriter}
@@ -17,6 +18,13 @@ class NetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging {
 
   var transportNetwork: TransportNetwork = _
   var network: Network = _
+
+  def loadNetwork(scenario:Scenario):Unit={
+
+    loadNetwork()
+
+    transportNetwork = scenario.applyToTransportNetwork(transportNetwork)
+  }
 
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
