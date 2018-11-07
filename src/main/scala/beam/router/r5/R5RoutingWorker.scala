@@ -90,6 +90,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
       val network = networkCoordinator.network
       val transportNetwork = networkCoordinator.transportNetwork
@@ -344,6 +345,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   def getPlanFromR5(request: R5Request): ProfileResponse = {
+    countOccurrence("r5-plans-count")
     val maxStreetTime = 2 * 60
     // If we already have observed travel times, probably from the pre
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
