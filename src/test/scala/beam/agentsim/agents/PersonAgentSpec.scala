@@ -525,10 +525,8 @@ class PersonAgentSpec
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person)
-      population.getPersonAttributes.putAttribute(person.getId.toString, "valueOfTime", 15.0)
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity =
-        PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
+      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -553,12 +551,6 @@ class PersonAgentSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
-
-      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
       bus.becomeDriver(
         Await.result(
@@ -593,7 +585,7 @@ class PersonAgentSpec
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
-      val request6 = expectMsgType[RoutingRequest]
+      expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(

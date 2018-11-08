@@ -6,13 +6,14 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
+import beam.agentsim.agents.PersonTestUtil._
+import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -44,7 +45,6 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-import PersonTestUtil._
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
@@ -88,6 +88,7 @@ class OtherPersonAgentSpec
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map()))
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
@@ -385,15 +386,15 @@ class OtherPersonAgentSpec
         TRANSIT
       )
       expectMsgType[PersonEntersVehicleEvent]
+
+      val costEvent = expectMsgType[PersonCostEvent]
+      assert(costEvent.getTime == 28800) // is this how it should be?
+
+      val anotherCostEvent = expectMsgType[PersonCostEvent]
+      assert(anotherCostEvent.getTime == 28800) // is this how it should be?
+
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
-
-      val reservationRequestLateTram = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(
-        reservationRequestLateTram.requestId,
-        Left(VehicleGoneError),
-        TRANSIT
-      )
 
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
@@ -449,6 +450,8 @@ class OtherPersonAgentSpec
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[PersonCostEvent]
+      expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
