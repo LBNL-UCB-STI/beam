@@ -42,12 +42,12 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
      */
     @Override
     public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
         String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Modes", "Mode of transportation chosen"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Bin_*", "Energy consumed while travelling by the chosen mode during the bin duration"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Modes", "Mode of travel chosen by the passenger"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"));
         return list;
     }
 

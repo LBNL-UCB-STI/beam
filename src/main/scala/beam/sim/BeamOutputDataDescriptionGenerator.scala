@@ -4,6 +4,7 @@ import java.io.{BufferedWriter, FileWriter, IOException}
 
 import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
 import beam.analysis.plots._
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.utils.OutputDataDescriptor
@@ -61,7 +62,9 @@ class BeamOutputDataDescriptionGenerator @Inject()
       this.scenario.getNetwork,
       event.getServices.getControlerIO,
       this.beamServices.beamConfig.beam.outputs.writeEventsInterval
-    )
+    ),
+    new PhyssimCalcLinkSpeedStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
+    new PhyssimCalcLinkSpeedDistributionStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig)
   )
 
   /**

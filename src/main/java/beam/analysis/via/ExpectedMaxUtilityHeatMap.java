@@ -101,7 +101,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataD
      */
     @Override
     public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
+        String outputFilePath = controlerIO.getIterationFilename(0, fileBaseName + ".csv");
         String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
