@@ -201,8 +201,6 @@ class WarmStartRoutingSpec
     }
 
     "show a decrease in travel time after three iterations if warm start times are doubled" in {
-
-
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time"))),
         maxHour
