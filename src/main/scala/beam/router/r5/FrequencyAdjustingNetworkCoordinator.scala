@@ -16,7 +16,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.io.Source
 
-case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinatorI {
+case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends NetworkCoordinator {
 
   override var transportNetwork: TransportNetwork = _
   override var network: Network = _

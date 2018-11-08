@@ -10,7 +10,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.r5.{FrequencyAdjustingNetworkCoordinator, NetworkCoordinator, NetworkCoordinatorI}
+import beam.router.r5.{FrequencyAdjustingNetworkCoordinator, DefaultNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -160,7 +160,7 @@ trait BeamHelper extends LazyLogging {
   def module(
     typesafeConfig: TypesafeConfig,
     scenario: Scenario,
-    networkCoordinator: NetworkCoordinatorI
+    networkCoordinator: NetworkCoordinator
   ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
@@ -350,7 +350,7 @@ trait BeamHelper extends LazyLogging {
 
 
 
-  def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinatorI) = {
+  def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -376,10 +376,10 @@ trait BeamHelper extends LazyLogging {
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
-    val networkCoordinator: NetworkCoordinatorI = if(Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))){
+    val networkCoordinator: NetworkCoordinator = if(Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))){
       FrequencyAdjustingNetworkCoordinator(beamConfig)
     }else {
-       NetworkCoordinator(beamConfig)
+       DefaultNetworkCoordinator(beamConfig)
     }
     networkCoordinator.init()
 

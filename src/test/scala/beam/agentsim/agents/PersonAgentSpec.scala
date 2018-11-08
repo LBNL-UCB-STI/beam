@@ -23,7 +23,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -132,7 +132,7 @@ class PersonAgentSpec
 
   private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
 
-  private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()

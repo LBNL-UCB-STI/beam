@@ -1,6 +1,6 @@
 package beam.integration
 
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
@@ -29,7 +29,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
     scenario.setNetwork(networkCoordinator.network)
