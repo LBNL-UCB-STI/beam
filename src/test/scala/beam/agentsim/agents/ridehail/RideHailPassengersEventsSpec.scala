@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
@@ -27,7 +27,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.convertFrequenciesToTrips()
 

@@ -88,7 +88,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       matsimConfig.controler.setOutputDirectory(outputDirectory)
       matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
