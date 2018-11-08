@@ -1,6 +1,9 @@
 package beam.analysis.via;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
@@ -11,15 +14,18 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
-public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
+public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataDescriptor {
 
     private final String SEPERATOR = ",";
     private final Network network;
     private final OutputDirectoryHierarchy controlerIO;
     private final int writeEventsInterval;
     private CSVWriter csvWriter;
+    private final String fileBaseName= "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
 
@@ -82,9 +88,27 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
         writeDataInThisIteration = writeEventsInterval > 0 && iteration % writeEventsInterval == 0;
 
         if (writeDataInThisIteration) {
-            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, "expectedMaxUtilityHeatMap.csv"));
+            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, fileBaseName + ".csv"));
             this.bufferedWriter = this.csvWriter.getBufferedWriter();
             printColumnHeaders();
         }
+    }
+
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "time", "Time of the event occurrence"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "x", "X co-ordinate of the network link location"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "y", "Y co-ordinate of the network link location"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "expectedMaximumUtility", "Expected maximum utility of the network link for the event"));
+        return list;
     }
 }

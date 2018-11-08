@@ -2,9 +2,15 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
+import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.plots._
+import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.utils.OutputDataDescriptor
+import com.conveyal.r5.transit.TransportNetwork
+import com.google.inject.Inject
+import org.matsim.api.core.v01.Scenario
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
 
 import scala.collection.JavaConverters._
@@ -12,18 +18,23 @@ import scala.collection.JavaConverters._
 /**
   * Generate data descriptions table for all output file generating classes.
   */
-object BeamOutputDataDescriptionGenerator {
+class BeamOutputDataDescriptionGenerator @Inject()
+(private val actorSystem: ActorSystem,
+ private val transportNetwork: TransportNetwork,
+ private val beamServices: BeamServices,
+ private val eventsManager: EventsManager,
+ private val scenario: Scenario) {
+
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"
 
   /**
     * Generates the data descriptors and writes them to the output file.
     * @param event a controller event
-    * @param beamServices beam service class
     */
-  def generateDescriptors(event : ControlerEvent,beamServices: BeamServices): Unit = {
+  def generateDescriptors(event : ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors: Seq[OutputDataDescription] = getClassesGeneratingOutputs(beamServices) flatMap { classRef =>
+    val descriptors: Seq[OutputDataDescription] = getClassesGeneratingOutputs(event) flatMap { classRef =>
       classRef.getOutputDataDescriptions.asScala.toList
     }
     //generate csv from the data objects
@@ -37,15 +48,20 @@ object BeamOutputDataDescriptionGenerator {
 
   /**
     * creates and collects instances of all output file generating classes
-    * @param beamServices beam service class
     * @return collected class instances
     */
-  private def getClassesGeneratingOutputs(beamServices: BeamServices): List[OutputDataDescriptor] = List(
-    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, beamServices.beamConfig),
+  private def getClassesGeneratingOutputs(event : ControlerEvent): List[OutputDataDescriptor] = List(
+    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
     new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation),
-    new RideHailRevenueAnalysis(new RideHailSurgePricingManager(beamServices)),
+    new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
     new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation)
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation),
+    new ExpectedMaxUtilityHeatMap(
+      this.eventsManager,
+      this.scenario.getNetwork,
+      event.getServices.getControlerIO,
+      this.beamServices.beamConfig.beam.outputs.writeEventsInterval
+    )
   )
 
   /**
