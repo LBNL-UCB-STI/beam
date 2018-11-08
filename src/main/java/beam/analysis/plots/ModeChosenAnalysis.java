@@ -55,19 +55,19 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
         String referenceModeChoiceRelativePath = referenceModeChoiceOutputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "iterations", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "car", "Car chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "drive_transit", "Drive to transit chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "ride_hail", "Ride Hail chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk", "Walk chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk_transit", "Walk to transit chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "iterations", "Bike chosen as mode of transportation"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "iterations", "Bike chosen as travel mode"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "bike", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "car", "Car chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "drive_transit", "Drive to transit chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail", "Ride Hail chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail_transit", "Ride Hail to transit chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk", "Walk chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk_transit", "Walk to transit chosen as mode of transportation"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail_transit", "Ride Hail to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
         return list;
     }
 

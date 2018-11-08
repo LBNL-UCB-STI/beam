@@ -44,8 +44,8 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "mode", "Mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "hour", "Hour of the day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Mode", "Travel mode chosen"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour,*", "Average time taken to travel by the chosen mode during the corresponding hour of the day"));
         return list;
     }
 

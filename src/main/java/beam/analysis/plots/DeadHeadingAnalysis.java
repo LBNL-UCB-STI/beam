@@ -818,14 +818,14 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent on waiting for hailing a ride"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", ""));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", ""));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", ""));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", ""));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", ""));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", "The average value of surged price levels of ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", "The maximum value of surged price levels of ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", "Count of the number of passenger reservations made for the ride hail"));
         return list;
     }
 }

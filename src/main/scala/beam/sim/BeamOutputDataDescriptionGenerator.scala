@@ -3,7 +3,7 @@ package beam.sim
 import java.io.{BufferedWriter, FileWriter, IOException}
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
-import beam.analysis.plots.{ModeChosenAnalysis, PersonTravelTimeAnalysis, RealizedModeAnalysis, RideHailRevenueAnalysis}
+import beam.analysis.plots._
 import beam.utils.OutputDataDescriptor
 import org.matsim.core.controler.events.ControlerEvent
 
@@ -44,7 +44,8 @@ object BeamOutputDataDescriptionGenerator {
     new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, beamServices.beamConfig),
     new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation),
     new RideHailRevenueAnalysis(new RideHailSurgePricingManager(beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation)
+    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation),
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation)
   )
 
   /**

@@ -56,12 +56,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         String relativePath = outputFilePath.replace(outputDirPath, "");
         List<OutputDataDescription> list = new ArrayList<>();
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "car", "Car chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "drive_transit", "Drive to transit chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "other", "Other modes of transportation chosen"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "ride_hail", "Ride Hail chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk", "Walk chosen as mode of transportation"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk_transit", "Walk to transit chosen as mode of transportation"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "other", "Other modes of travel chosen"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk_transit", "Walk to transit chosen as travel mode"));
         return list;
     }
 
