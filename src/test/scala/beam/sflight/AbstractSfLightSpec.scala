@@ -69,6 +69,7 @@ class AbstractSfLightSpec
     when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
     val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)

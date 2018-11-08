@@ -29,6 +29,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
       val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
 
       val scenario =
         ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]

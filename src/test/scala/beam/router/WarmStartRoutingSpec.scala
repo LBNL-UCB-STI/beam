@@ -87,6 +87,7 @@ class WarmStartRoutingSpec
     )
     var networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
@@ -108,7 +109,6 @@ class WarmStartRoutingSpec
       router ! Identify(0)
       expectMsgType[ActorIdentity]
     }
-    when(services.beamRouter).thenReturn(router)
 
     val path = beamConfig.beam.outputs.baseOutputDirectory + beamConfig.beam.agentsim.simulationName + FileUtils
       .getOptionalOutputPathSuffix(true)
@@ -120,6 +120,7 @@ class WarmStartRoutingSpec
     matsimConfig.controler.setOutputDirectory(path)
     networkCoordinator = new NetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val injector = org.matsim.core.controler.Injector.createInjector(
       matsimConfig,
@@ -176,7 +177,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(router)
 
       router ! RoutingRequest(
         origin,
@@ -205,7 +206,7 @@ class WarmStartRoutingSpec
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(router)
 
       router ! RoutingRequest(
         origin,
@@ -226,7 +227,7 @@ class WarmStartRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 110)
 
-      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -252,7 +253,7 @@ class WarmStartRoutingSpec
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(router)
 
       router ! RoutingRequest(
         origin,
@@ -272,7 +273,7 @@ class WarmStartRoutingSpec
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
 
-      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(services.beamRouter)
+      BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router)
       router1 ! RoutingRequest(
         origin,
         destination,
@@ -317,12 +318,12 @@ class WarmStartRoutingSpec
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       val links = carOption.beamLegs().head.travelPath.linkIds
-      val travelTime1 = carOption.beamLegs().head.travelPath.linkTravelTime.reduce((x,y) => x+y)
+      val travelTime1 = carOption.beamLegs().head.travelPath.linkTravelTime.sum
 
       BeamWarmStart(BeamConfig(
         config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time"))),
         maxHour
-      ).warmStartTravelTime(services.beamRouter)
+      ).warmStartTravelTime(router)
 
       router ! RoutingRequest(
         origin,
@@ -343,7 +344,7 @@ class WarmStartRoutingSpec
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
       val newLinks = carOption2.beamLegs().head.travelPath.linkIds
-      val travelTime2 = carOption2.beamLegs().head.travelPath.linkTravelTime.reduce((x,y) => x+y)
+      val travelTime2 = carOption2.beamLegs().head.travelPath.linkTravelTime.sum
       assert(travelTime2 <= travelTime1)
       assert(!links.equals(newLinks))
     }

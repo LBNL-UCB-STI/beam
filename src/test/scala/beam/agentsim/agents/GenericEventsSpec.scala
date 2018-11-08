@@ -27,6 +27,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
