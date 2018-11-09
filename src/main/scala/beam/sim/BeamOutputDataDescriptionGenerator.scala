@@ -65,7 +65,9 @@ class BeamOutputDataDescriptionGenerator @Inject()
     ),
     new PhyssimCalcLinkSpeedStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
     new PhyssimCalcLinkSpeedDistributionStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
-    new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig)
+    new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig),
+    new GraphSurgePricing(new RideHailSurgePricingManager(beamServices)),
+    new RideHailingWaitingSingleAnalysis(beamServices.beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation)
   )
 
   /**
