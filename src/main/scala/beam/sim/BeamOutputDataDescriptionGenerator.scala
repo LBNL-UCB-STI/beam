@@ -64,7 +64,8 @@ class BeamOutputDataDescriptionGenerator @Inject()
       this.beamServices.beamConfig.beam.outputs.writeEventsInterval
     ),
     new PhyssimCalcLinkSpeedStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
-    new PhyssimCalcLinkSpeedDistributionStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig)
+    new PhyssimCalcLinkSpeedDistributionStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
+    new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig)
   )
 
   /**
