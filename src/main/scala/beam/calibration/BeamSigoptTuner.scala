@@ -49,7 +49,7 @@ object BeamSigoptTuner {
   def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
-    val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
+    val factors = JavaConverters.asScalaIterator(experimentDef.factors.iterator()).seq
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
     val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build

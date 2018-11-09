@@ -14,7 +14,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -86,7 +86,7 @@ class WarmStartRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    var networkCoordinator = new NetworkCoordinator(beamConfig)
+    var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -120,7 +120,7 @@ class WarmStartRoutingSpec
     val matsimConfig = configBuilder.buildMatSamConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.controler.setOutputDirectory(path)
-    networkCoordinator = new NetworkCoordinator(BeamConfig(iterationConfig))
+    networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
