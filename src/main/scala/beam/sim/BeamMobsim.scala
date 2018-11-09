@@ -2,7 +2,8 @@ package beam.sim
 
 import java.awt.Color
 import java.lang.Double
-import java.util.Random
+import java.util
+import java.util.{ArrayList, List, Random}
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
@@ -21,6 +22,7 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.InitTransit
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -56,7 +58,7 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager
 ) extends Mobsim
     with LazyLogging
-    with MetricsSupport {
+    with MetricsSupport with OutputDataDescriptor {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _
@@ -70,6 +72,8 @@ class BeamMobsim @Inject()(
 
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
+
+  final val fileBaseName = "rideHailInitialLocation"
   /*
     var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
     new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
@@ -342,11 +346,11 @@ class BeamMobsim @Inject()(
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailInitialLocation.csv")
+              .getIterationFilename(beamServices.iterationNumber, fileBaseName+".csv")
           )
           rideHailinitialLocationSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "rideHailinitialLocation.png")
+              .getIterationFilename(beamServices.iterationNumber, fileBaseName+".png")
           )
         }
         log.info("Initialized {} people", beamServices.personRefs.size)
@@ -454,5 +458,21 @@ class BeamMobsim @Inject()(
     endSegment("agentsim-events", "agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
+    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, fileBaseName + ".csv")
+    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath = outputFilePath.replace(outputDirPath, "")
+    val list = new util.ArrayList[OutputDataDescription]
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "rideHailAgentID", "Unique id of the given ride hail agent"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "xCoord", "X co-ordinate of the starting location of the ride hail"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "yCoord", "Y co-ordinate of the starting location of the ride hail"))
+    list
   }
 }

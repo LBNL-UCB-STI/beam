@@ -1,12 +1,12 @@
 package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
-
 import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
 import beam.analysis.plots._
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.router.r5.NetworkCoordinator
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -67,7 +67,15 @@ class BeamOutputDataDescriptionGenerator @Inject()
     new PhyssimCalcLinkSpeedDistributionStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
     new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig),
     new GraphSurgePricing(new RideHailSurgePricingManager(beamServices)),
-    new RideHailingWaitingSingleAnalysis(beamServices.beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation)
+    new RideHailingWaitingSingleAnalysis(beamServices.beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation),
+    new BeamMobsim(
+      beamServices,
+      new NetworkCoordinator(beamServices.beamConfig).transportNetwork,
+      scenario,
+      eventsManager,
+      actorSystem,
+      new RideHailSurgePricingManager(beamServices)
+    )
   )
 
   /**
@@ -94,4 +102,38 @@ class BeamOutputDataDescriptionGenerator @Inject()
     }
   }
 
+}
+
+object ScoreStats extends OutputDataDescriptor {
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
+    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("scorestats.txt")
+    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath = outputFilePath.replace(outputDirPath, "")
+    val list = new java.util.ArrayList[OutputDataDescription]
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Modes", "Mode of travel chosen by the passenger"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"))
+    list
+  }
+}
+
+object StopWatch extends OutputDataDescriptor {
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
+    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("stopwatch.txt")
+    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath = outputFilePath.replace(outputDirPath, "")
+    val list = new java.util.ArrayList[OutputDataDescription]
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Modes", "Mode of travel chosen by the passenger"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"))
+    list
+  }
 }
