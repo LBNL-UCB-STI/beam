@@ -140,6 +140,8 @@ case class VehicleAllocation(
   routingResponses: Option[List[RoutingResponse]]
 ) extends VehicleAllocationResponse
 
+case class DummyVehicleAllocation(rideHailAgentLocation: RideHailAgentLocation) extends VehicleAllocationResponse
+
 case object NoVehicleAllocated extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(

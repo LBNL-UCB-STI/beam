@@ -8,10 +8,6 @@ class Pooling(val rideHailManager: RideHailManager)
 
   override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse = {
 
-    if (rideHailManager.getPendingDummyRequests.size < 5) {
-      rideHailManager.assignDummyRidehail(vehicleAllocationRequest.request)
-    }
-
     rideHailManager
       .getClosestIdleVehiclesWithinRadius(
         vehicleAllocationRequest.request.pickUpLocation,

@@ -365,6 +365,13 @@ class PersonAgent(
       )
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
+    case Event(RideHailResponse(_,None,None,triggersToSchedule), data: BasePersonData) =>
+      // when both travel proposal and error are None, this means ride hail manager is taking time to
+      // assign and we should complete our current trigger and wait to be re-triggered by the manager
+      val (_, triggerId) = releaseTickAndTriggerId()
+      log.debug("scheduling triggers after being put on hold from reservation response: {}", triggersToSchedule)
+      scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+      stay using data
     case Event(
     RideHailResponse(_, _, Some(error), _),
     data@BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
@@ -701,9 +708,14 @@ class PersonAgent(
                                    triggersToSchedule: Vector[ScheduleTrigger],
                                    data: BasePersonData
                                  ): FSM.State[BeamAgentState, PersonData] = {
-    val (_, triggerId) = releaseTickAndTriggerId()
-    log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
-    scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+    if(_currentTriggerId.isDefined){
+      val (_,triggerId) = releaseTickAndTriggerId()
+      log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+      scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+    }else{
+      // if _currentTriggerId is empty, this means we have received the reservation response from a batch
+      // vehicle allocation process. It's ok, the trigger is with the ride hail manager.
+    }
     goto(Waiting) using data
 
   }
