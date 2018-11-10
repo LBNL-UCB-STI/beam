@@ -9,6 +9,7 @@ import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Queue
 import scala.io.Source
+import scala.language.reflectiveCalls
 
 class ReadEventsBeam extends ReadEvents {
 
