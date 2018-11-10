@@ -17,7 +17,7 @@ object ObjectiveFunctionClassBuilder extends ReflectionUtils {
   override def packageName: String = "beam.calibration"
 }
 
-case class ExperimentRunner(implicit experimentData: SigoptExperimentData) extends BeamHelper {
+case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) extends BeamHelper {
 
   import beam.utils.ProfilingUtils.timed
 
