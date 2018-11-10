@@ -7,14 +7,12 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.ModeSubsidy
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.router.Modes.BeamMode
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -66,6 +64,7 @@ trait BeamServices extends ActorInject {
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
@@ -89,8 +88,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
     BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
 
+
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+    maybeScaleTransit(BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes))
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
@@ -110,6 +110,16 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     clearAll()
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
+  }
+
+  def maybeScaleTransit(vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    Option(beamConfig.beam.agentsim.tuning.transitCapacity) match {
+      case Some(scalingFactor) => vehicleTypes.map { case (id, bvt) => id -> (if(bvt.standingRoomCapacity > 0)
+        bvt.copy(seatingCapacity =
+          Math.ceil(bvt.seatingCapacity * scalingFactor), standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)) else
+        bvt) }
+      case None => vehicleTypes
+    }
   }
 }
 
