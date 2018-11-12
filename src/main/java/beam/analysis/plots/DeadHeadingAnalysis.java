@@ -820,9 +820,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", ""));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", ""));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", ""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", "Kilometers travelled by the vehicle with a passenger"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", "Kilometers travelled by the vehicle to reposition to fleet"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", "Kilometers travelled by an empty vehicle towards the passenger"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", "The average value of surged price levels of ride hail"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", "The maximum value of surged price levels of ride hail"));
         list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", "Count of the number of passenger reservations made for the ride hail"));
