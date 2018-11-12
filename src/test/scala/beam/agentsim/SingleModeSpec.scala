@@ -4,7 +4,8 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
+import beam.agentsim.agents.PersonTestUtil
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
@@ -91,6 +92,7 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
+    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map()))
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -100,6 +102,7 @@ class SingleModeSpec
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
+    scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
     router = system.actorOf(
       BeamRouter.props(
         services,

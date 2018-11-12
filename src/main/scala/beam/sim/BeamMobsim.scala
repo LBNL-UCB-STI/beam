@@ -356,7 +356,7 @@ class BeamMobsim @Inject()(
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0) {
-          val maxHour = TimeUnit.SECONDS.toHours(beamServices.travelTimeCalculatorConfigGroup.getMaxTime).toInt
+          val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
           val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
           warmStart.warmStartTravelTime(beamServices.beamRouter)
         }

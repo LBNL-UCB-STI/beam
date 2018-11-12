@@ -20,16 +20,9 @@ class RepositioningLowWaitingTimes(
 ) extends RideHailResourceAllocationManager(rideHailManager) {
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val tncIterationStats: Option[TNCIterationStats] = {
-    val rideHailIterationHistoryActor =
-      rideHailManager.context.actorSelection("/user/rideHailIterationHistoryActor")
-    val future =
-      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
-    Await
-      .result(future, rideHailManager.timeout.duration)
-      .asInstanceOf[Option[TNCIterationStats]]
-  }
-  tncIterationStats.foreach(_.logMap())
+  var tncIterationStats: Option[TNCIterationStats] = None
+  //  context.actorSelection("/user/rideHailIterationHistoryActor") ! GetCurrentIterationRideHailStats
+//  tncIterationStats.foreach(_.logMap())
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse

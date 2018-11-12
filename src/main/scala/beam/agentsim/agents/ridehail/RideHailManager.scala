@@ -5,6 +5,7 @@ import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -16,11 +17,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -47,8 +44,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Await, Future}
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -206,15 +203,9 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
-  val tncIterationStats: Option[TNCIterationStats] = {
-    val rideHailIterationHistoryActor =
-      context.actorSelection("/user/rideHailIterationHistoryActor")
-    val future =
-      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
-    Await
-      .result(future, Timeout(60, TimeUnit.SECONDS).duration)
-      .asInstanceOf[Option[TNCIterationStats]]
-  }
+  var tncIterationStats: Option[TNCIterationStats] = None
+//  context.actorSelection("/user/rideHailIterationHistoryActor") ! GetCurrentIterationRideHailStats
+
   private val rideHailAllocationManagerTimeoutInSeconds =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
@@ -287,7 +278,7 @@ class RideHailManager(
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 
-  override def receive: Receive = {
+  override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
@@ -565,43 +556,43 @@ class RideHailManager(
       rideHailResourceAllocationManager.updateVehicleAllocations(tick, triggerId, this)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
-      val produceDebugImages = true
-      if (produceDebugImages) {
-        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
-          val spatialPlot = new SpatialPlot(1100, 1100, 50)
-
-          for (veh <- resources.values) {
-            spatialPlot.addPoint(
-              PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
-            )
-          }
-
-          tncIterationStats.foreach(tncIterationStats => {
-
-            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
-
-            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-              spatialPlot.addPoint(
-                PointToPlot(
-                  tazEntry._1,
-                  Color.RED,
-                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
-                )
-              )
-            }
-          })
-
-          val iteration = "it." + beamServices.iterationNumber
-          spatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(
-                beamServices.iterationNumber,
-                tick.toInt / 3600 + "locationOfAgentsInitally.png"
-              )
-              .replace(iteration, iteration + "/rideHailDebugging")
-          )
-        }
-      }
+//      val produceDebugImages = true
+//      if (produceDebugImages) {
+//        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
+//          val spatialPlot = new SpatialPlot(1100, 1100, 50)
+//
+//          for (veh <- resources.values) {
+//            spatialPlot.addPoint(
+//              PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
+//            )
+//          }
+//
+//          tncIterationStats.foreach(tncIterationStats => {
+//
+//            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
+//
+//            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+//              spatialPlot.addPoint(
+//                PointToPlot(
+//                  tazEntry._1,
+//                  Color.RED,
+//                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+//                )
+//              )
+//            }
+//          })
+//
+//          val iteration = "it." + beamServices.iterationNumber
+//          spatialPlot.writeImage(
+//            beamServices.matsimServices.getControlerIO
+//              .getIterationFilename(
+//                beamServices.iterationNumber,
+//                tick.toInt / 3600 + "locationOfAgentsInitally.png"
+//              )
+//              .replace(iteration, iteration + "/rideHailDebugging")
+//          )
+//        }
+//      }
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 
@@ -783,6 +774,9 @@ class RideHailManager(
 
     case ReleaseAgentTrigger(vehicleId) =>
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
+
+    case Some(stats: TNCIterationStats) =>
+      tncIterationStats = Some(stats)
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
