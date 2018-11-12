@@ -24,7 +24,7 @@ import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router.{Modes, TransitInitializer}
+import beam.router.{Modes, TimeAndCost, TransitInitializer, TravelTimeAndCost}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -68,6 +68,7 @@ case class WorkerParameters(
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   transitVehicles: Vehicles,
+  travelTimeAndCost: TravelTimeAndCost,
   transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
 )
 
@@ -139,6 +140,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
       val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
+      // TODO FIX ME
+      val travelTimeAndCost = new TravelTimeAndCost {
+        override def overrideTravelTimeAndCostFor(origin: Location, destination: Location,
+                                                  departureTime: Int, mode: BeamMode): TimeAndCost = TimeAndCost(None, None)
+      }
       WorkerParameters(
         beamServices,
         transportNetwork,
@@ -147,7 +153,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         fareCalculator,
         tollCalculator,
         scenario.getTransitVehicles,
-        transits
+        travelTimeAndCost,
+        transits,
       )
     })
   }
@@ -160,6 +167,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     fareCalculator,
     tollCalculator,
     transitVehicles,
+    travelTimeAndCost,
     transitMap
   ) = workerParams
 
@@ -1256,16 +1264,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
-  def props(
-             beamServices: BeamServices,
-             transportNetwork: TransportNetwork,
-             network: Network,
-             scenario: Scenario,
-    fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    transitVehicles: Vehicles
-  ) =
-    Props(
+  def props(beamServices: BeamServices,
+            transportNetwork: TransportNetwork,
+            network: Network,
+            scenario: Scenario,
+            fareCalculator: FareCalculator,
+            tollCalculator: TollCalculator,
+            transitVehicles: Vehicles,
+            travelTimeAndCost: TravelTimeAndCost)=Props(
       new R5RoutingWorker(
         WorkerParameters(
           beamServices,
@@ -1275,6 +1281,7 @@ object R5RoutingWorker {
           fareCalculator,
           tollCalculator,
           transitVehicles,
+          travelTimeAndCost,
           Map.empty
         )
       )

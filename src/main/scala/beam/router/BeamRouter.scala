@@ -22,8 +22,6 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.Subscribe
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -107,6 +105,12 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  // TODO FIX ME
+  val travelTimeAndCost = new TravelTimeAndCost {
+    override def overrideTravelTimeAndCostFor(origin: Location, destination: Location,
+                                              departureTime: Int, mode: BeamMode): TimeAndCost = TimeAndCost(None, None)
+  }
+
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
@@ -116,7 +120,8 @@ class BeamRouter(
         scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles
+        transitVehicles,
+        travelTimeAndCost
       ),
       "router-worker"
     )
