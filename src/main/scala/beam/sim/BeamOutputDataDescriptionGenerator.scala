@@ -77,7 +77,8 @@ class BeamOutputDataDescriptionGenerator @Inject()
       new RideHailSurgePricingManager(beamServices)
     ),
     StopWatch,
-    ScoreStats
+    ScoreStats,
+    SummaryStats
   )
 
   /**
@@ -206,6 +207,29 @@ object SummaryStats extends OutputDataDescriptor {
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicleMilesTraveled_Car", "Miles covered by the vehicle(car) to travel from source to destination"))
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicleMilesTraveled_SUBWAY-DEFAULT", "Miles covered by the vehicle(subway) to travel from source to destination"))
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicleMilesTraveled_total", "Miles covered by the vehicles(all modes) to travel from source to destination"))
+    list
+  }
+}
+
+object CountsCompare extends OutputDataDescriptor {
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
+    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,"countsCompare.txt")
+    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath = outputFilePath.replace(outputDirPath, "")
+    val list = new java.util.ArrayList[OutputDataDescription]
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Link Id", "Iteration number"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Count", "Time taken by the agent to travel in a crowded transit"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Station Id", "Amount of diesel consumed in megajoule"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Hour", "Amount of food consumed in megajoule"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "MATSIM volumes", "Amount of electricity consumed in megajoule"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Relative Error", "Amount of gasoline consumed in megajoule"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Normalized Relative Error", "Time at which the beforeMobsim event listeners started"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "GEH", ""))
     list
   }
 }
