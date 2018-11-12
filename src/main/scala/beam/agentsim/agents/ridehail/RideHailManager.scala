@@ -1,6 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import java.awt.Color
 import java.util
 import java.util.concurrent.TimeUnit
 
@@ -14,7 +13,6 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
@@ -32,7 +30,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.model.RoutingModel.DiscreteTime
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
+import beam.utils.DebugLib
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
@@ -77,7 +75,8 @@ object RideHailManager {
     router: ActorRef,
     parkingManager: ActorRef,
     boundingBox: Envelope,
-    surgePricingManager: RideHailSurgePricingManager
+    surgePricingManager: RideHailSurgePricingManager,
+    tncIterationStats: Option[TNCIterationStats]
   ): Props = {
     Props(
       new RideHailManager(
@@ -86,7 +85,8 @@ object RideHailManager {
         router,
         parkingManager,
         boundingBox,
-        surgePricingManager
+        surgePricingManager,
+        tncIterationStats
       )
     )
   }
@@ -174,7 +174,8 @@ class RideHailManager(
   val router: ActorRef,
   val parkingManager: ActorRef,
   val boundingBox: Envelope,
-  val surgePricingManager: RideHailSurgePricingManager
+  val surgePricingManager: RideHailSurgePricingManager,
+  val tncIterationStats: Option[TNCIterationStats]
 ) extends VehicleManager
     with ActorLogging
     with HasServices {
@@ -202,9 +203,6 @@ class RideHailManager(
   val allocationManager: String =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
-
-  var tncIterationStats: Option[TNCIterationStats] = None
-//  context.actorSelection("/user/rideHailIterationHistoryActor") ! GetCurrentIterationRideHailStats
 
   private val rideHailAllocationManagerTimeoutInSeconds =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
@@ -774,9 +772,6 @@ class RideHailManager(
 
     case ReleaseAgentTrigger(vehicleId) =>
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
-
-    case Some(stats: TNCIterationStats) =>
-      tncIterationStats = Some(stats)
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")

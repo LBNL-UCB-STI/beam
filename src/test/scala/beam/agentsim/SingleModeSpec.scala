@@ -6,7 +6,7 @@ import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
@@ -158,7 +158,8 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(services)
+        new RideHailSurgePricingManager(services),
+        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
       )
       mobsim.run()
       events.foreach {
@@ -195,7 +196,8 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(services)
+        new RideHailSurgePricingManager(services),
+        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
       )
       mobsim.run()
       events.foreach {
@@ -250,7 +252,8 @@ class SingleModeSpec
         scenario,
         eventsManager,
         system,
-        new RideHailSurgePricingManager(services)
+        new RideHailSurgePricingManager(services),
+        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
       )
       mobsim.run()
       events.collect {

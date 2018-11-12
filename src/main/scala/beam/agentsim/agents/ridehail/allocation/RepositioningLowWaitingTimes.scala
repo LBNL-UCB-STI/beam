@@ -3,26 +3,18 @@ package beam.agentsim.agents.ridehail.allocation
 import java.awt.Color
 import java.util.concurrent.TimeUnit
 
-import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
+import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.{RideHailManager, TNCIterationStats}
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
-import scala.concurrent.Await
-
 class RepositioningLowWaitingTimes(
   val rideHailManager: RideHailManager
 ) extends RideHailResourceAllocationManager(rideHailManager) {
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  var tncIterationStats: Option[TNCIterationStats] = None
-  //  context.actorSelection("/user/rideHailIterationHistoryActor") ! GetCurrentIterationRideHailStats
-//  tncIterationStats.foreach(_.logMap())
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
@@ -32,7 +24,7 @@ class RepositioningLowWaitingTimes(
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
-    tncIterationStats match {
+    rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
         val idleVehicles = rideHailManager.getIdleVehicles
         val fleetSize = rideHailManager.resources.size
