@@ -66,8 +66,6 @@ class BeamMobsim @Inject()(
 
   val rideHailHouseholds: mutable.Set[Id[Household]] = mutable.Set()
 
-  val MaxHour: Int = 24
-
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   /*
@@ -358,7 +356,7 @@ class BeamMobsim @Inject()(
         if (beamServices.iterationNumber == 0) {
           val maxHour = TimeUnit.SECONDS.toHours(beamServices.travelTimeCalculatorConfigGroup.getMaxTime).toInt
           val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
-          warmStart.warmStartTravelTime(beamServices.beamRouter)
+          warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
         }
 
         log.info("Transit schedule has been initialized")

@@ -555,7 +555,7 @@ class RideHailManager(
         }
       }
 
-    case UpdateTravelTime(travelTime) =>
+    case UpdateTravelTimeLocal(travelTime) =>
       rideHailNetworkApi.setTravelTime(travelTime)
 
     case DebugRideHailManagerDuringExecution =>
