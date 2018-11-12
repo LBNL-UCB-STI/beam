@@ -400,6 +400,8 @@ Use ``mutable`` buffer instead of ``immutable var``:
    val mutableList = scala.collection.mutable.MutableList(1,2)
    mutableList += 3
    mutableList.toList //returns scala.collection.immutable.List
+                      //or return mutableList but explicitly set the method return type to 
+                      //a common, assumed immutable one from scala.collection (more dangerous)
 
 Don’t create temporary collections, use `view`_:
 ************************************************
