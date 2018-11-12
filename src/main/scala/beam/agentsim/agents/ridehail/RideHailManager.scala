@@ -831,10 +831,6 @@ class RideHailManager(
       case VehicleAllocation(agentLocation, Some(routingResponses)) =>
         log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
         self ! RoutingResponses(request, Some(agentLocation), routingResponses)
-      case DummyVehicleAllocation(agentLocation)) =>
-        // For dummy allocation we want to send back a
-        log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
-        self ! RoutingResponses(request, Some(agentLocation), routingResponses)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
         log.debug("{} -- RoutingRequired", request.requestId)
         requestRoutes(request, None, routesRequired)

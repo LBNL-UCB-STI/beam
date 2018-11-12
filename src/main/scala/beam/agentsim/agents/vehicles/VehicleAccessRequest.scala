@@ -51,10 +51,6 @@ case class ReserveConfirmInfo(
 
 case object AccessErrorCodes {
 
-  case object RideHailReservationDelayed extends ReservationError {
-    override def errorCode: ReservationErrorCode = RideHailReservationDelayed
-  }
-
   case object RideHailVehicleTakenError extends ReservationError {
     override def errorCode: ReservationErrorCode = RideHailVehicleTaken
   }

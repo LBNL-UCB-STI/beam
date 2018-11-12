@@ -14,6 +14,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
@@ -48,7 +50,7 @@ trait ChoosesMode {
 
   onTransition {
     case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
-          ProcessingNextLegOrStartActivity) -> ChoosingMode =>
+          ProcessingNextLegOrStartActivity | WaitingToChooseMode) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
         case Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
@@ -59,6 +61,12 @@ trait ChoosesMode {
           // Otherwise, send empty list to self
           self ! MobilityStatusResponse(Vector())
       }
+  }
+
+  when(WaitingToChooseMode){
+    case Event(TriggerWithId(ModeChoiceTrigger(tick), triggerId), data: ChoosesModeData) =>
+      holdTickAndTriggerId(tick,triggerId)
+      goto(ChoosingMode) using data
   }
 
   when(ChoosingMode)(stateFunction = transform {
@@ -398,6 +406,8 @@ trait ChoosesMode {
   }
 
   case object FinishingModeChoice extends BeamAgentState
+  case object WaitingToChooseMode extends BeamAgentState
+  case class ModeChoiceTrigger(val tick: Int) extends Trigger
 
   def createRideHail2TransitItin(
                                   rideHail2TransitAccessResult: RideHailResponse,
