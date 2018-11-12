@@ -1,10 +1,9 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
-import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.time.Instant
 
 buildscript {
     repositories {
@@ -50,8 +49,8 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.16"
-def circeBinaryVersion="0.7.1"
+def akkaBinaryVersion = "2.5.17"
+def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
 def tscfgVersion = "0.9.4"
@@ -74,8 +73,8 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
-        maven { url 'http://download.osgeo.org/webdav/geotools/'}
-        maven { url "http://maven.geotoolkit.org/" }
+        maven { url 'http://download.osgeo.org/webdav/geotools/' }
+       // maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
         maven { url "http://repo.maven.apache.org/maven2" }
@@ -98,10 +97,11 @@ allprojects {
 
 dependencies {
 
+    //beam-utilities
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '-SNAPSHOT'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
-
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
@@ -132,15 +132,15 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
-
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
-    compile (group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44'){
+
+    compile(group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44') {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -149,7 +149,7 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -159,7 +159,6 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
-
 
     /////////////////////////////////
     // Scala dependencies
@@ -185,7 +184,7 @@ dependencies {
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
-    compile ('com.github.carueda:tscfg:v'+ tscfgVersion){ // config
+    compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
     // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
@@ -200,7 +199,10 @@ dependencies {
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
-    compile group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2'
+    compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
+        exclude group: 'com.esotericsoftware', module: 'kryo'
+    }
+    compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
 
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
@@ -212,7 +214,6 @@ dependencies {
     compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
     compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
     compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
-
 
     /////////////
     // Akka Dependencies
@@ -242,6 +243,21 @@ dependencies {
 
 scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+}
+
+
+configurations.all {
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
+            final requestedDependency = dependencyResolveDetails.requested
+            if (requestedDependency.name != 'beam-utilities') {
+                force 'javax.media:jai_core:1.1.3'
+            }
+        }
+    }
+    exclude group: 'javax.media', module: 'jai_codec'
+    exclude group: 'javax.media', module: 'jai_imageio'
+
 }
 
 //compileScala.dependsOn(scalafmtAll)
@@ -274,7 +290,6 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task to run tests periodically on continue integration server.
 // ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
@@ -282,10 +297,10 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+            (project.hasProperty('config') ? '-Dconfig=' + project.findProperty('config') :
+                    (project.hasProperty('iterations') ? '-Diterations=' + project.findProperty('iterations') : '')) <<
             (project.hasProperty('config') && project.hasProperty('iterations') ?
-                    '-Diterations='+project.findProperty('iterations') : '')
+                    '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
 
@@ -331,23 +346,23 @@ def getCurrentGitBranch() {
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
         switch (project.findProperty('deployMode')) {
             case 'config':
-                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
                     throw new GradleException('beamConfigs is required to deploy config run.')
                 }
                 break
             case 'experiment':
-                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
                     throw new GradleException('beamExperiments is required to deploy experement.')
                 }
                 break
             case 'execute':
-                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
                     throw new GradleException('executeClass and executeArgs are required to deploy execute.')
                 }
                 break
@@ -362,8 +377,10 @@ task deploy(type: AWSLambdaInvokeTask) {
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
-  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${
+        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
+    }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
@@ -388,7 +405,7 @@ task deploy(type: AWSLambdaInvokeTask) {
 
 task startEC2(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
+        if (!project.hasProperty('instanceIds')) {
             throw new GradleException('Please specify instance ids using argument `instanceIds`.')
         }
     }
@@ -411,7 +428,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
 
 task stopEC2(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
+        if (!project.hasProperty('instanceIds')) {
             throw new GradleException('Please specify instance ids using argument `instanceIds`.')
         }
     }
@@ -436,10 +453,10 @@ task stopEC2(type: AWSLambdaInvokeTask) {
 //////////////////////////////////////////////////////////////////////
 task generateConfig {
     doLast {
-        def tscfgJarFile = project.file('build/tscfg-'+tscfgVersion+'.jar')
+        def tscfgJarFile = project.file('build/tscfg-' + tscfgVersion + '.jar')
         if (!tscfgJarFile.exists() || !tscfgJarFile.isFile()) {
             download {
-                src 'https://github.com/carueda/tscfg/releases/download/v'+tscfgVersion+'/tscfg-'+tscfgVersion+'.jar'
+                src 'https://github.com/carueda/tscfg/releases/download/v' + tscfgVersion + '/tscfg-' + tscfgVersion + '.jar'
                 dest buildDir
             }
         }
@@ -504,12 +521,20 @@ def getCurrentTimestamp = {
 def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
-//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-//applicationDefaultJvmArgs = ["-Xmx140g"] + logGC
+def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+
+def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
+           "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+
+// On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
+// https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
+def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
+                  "-XX:StartFlightRecording=delay=2s,duration=60m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
+                  "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=500M"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
 
 println(applicationDefaultJvmArgs)
 
@@ -535,11 +560,11 @@ run {
 //  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-task execute(type:JavaExec) {
+task execute(type: JavaExec) {
     jvmArgs = applicationDefaultJvmArgs
-    if(project.hasProperty("mainClass")){
+    if (project.hasProperty("mainClass")) {
         main = mainClass
-    }else{
+    } else {
         main = mainClassName
     }
     classpath = sourceSets.main.runtimeClasspath

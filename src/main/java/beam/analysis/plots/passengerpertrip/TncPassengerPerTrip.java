@@ -146,7 +146,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getFileName(String extension) {
-        return "passengerPerTrip_rideHail." + extension;
+        return "passengerPerTripRideHail." + extension;
     }
 
     @Override

@@ -29,10 +29,12 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
       become(subscribed)
     case _ =>
       logger.debug("Printer not subscribed.")
-
   }
 
   def subscribed: Receive = {
+    case Subscribe(category, selection) if Metrics.isMetricsEnable =>
+      Kamon.metrics.subscribe(category, selection, self)
+
     case tickSnapshot: TickMetricSnapshot =>
       if (metricStore == null) {
         metricStore = tickSnapshot.metrics
@@ -52,7 +54,7 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
 
     case Print(ins, exs) =>
       if (metricStore != null) {
-        val counters = metricStore.filterKeys(_.category == "counter")
+        val counters = metricStore.filterKeys(c => c.category == "counter" && ins.contains(c.name))
         val histograms =
           metricStore.filterKeys(h => h.category == "histogram" && ins.contains(h.name))
 
@@ -62,11 +64,11 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
           histograms.foreach { case (e, s) => text += toHistogramString(e, s) }
           counters.foreach { case (e, s)   => text += toCounterString(e, s) }
         } else {
-          ins.foreach { i =>
-            histograms.filterKeys(_.name == i).foreach {
-              case (e, s) =>
-                text += toHistogramString(e, s)
-            }
+          histograms.filterKeys(in => ins.contains(in.name)).foreach {
+            case (e, s) => text += toHistogramString(e, s)
+          }
+          counters.filterKeys(in => ins.contains(in.name)).foreach {
+            case (e, s) => text += toCounterString(e, s)
           }
         }
         if (text != null && !text.isEmpty) {

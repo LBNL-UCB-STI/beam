@@ -13,6 +13,7 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
+import com.google.common.base.CaseFormat;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -97,7 +98,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createCSV(Tuple<List<String>, double[][]> data, int iteration) {
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond();
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "average_travel_times.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "averageTravelTimes.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
             int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
@@ -223,7 +224,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        String fileName = "averageTravelTimes_" + mode + ".png";
+        String fileName = "averageTravelTimes" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, mode) + ".png";
         String graphTitle = "Average Travel Time [" + mode + "]";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);

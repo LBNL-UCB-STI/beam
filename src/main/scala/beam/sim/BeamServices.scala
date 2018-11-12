@@ -6,12 +6,15 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
+import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -56,12 +59,14 @@ trait BeamServices extends ActorInject {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
-
+  val modeSubsidies: ModeSubsidy
   var iterationNumber: Int = -1
+
   def startNewIteration()
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
@@ -83,17 +88,20 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-    BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+
 
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+    maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes))
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+    readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
   var matsimServices: MatsimServices = _
 
-  val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+  val modeSubsidies = ModeSubsidy(loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
 
   def clearAll(): Unit = {
     personRefs.clear
@@ -104,6 +112,18 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     clearAll()
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
+  }
+
+  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
+  // say, a yacht or personal bus, but I think this will be fine for now.
+  def maybeScaleTransit(vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    beamConfig.beam.agentsim.tuning.transitCapacity match {
+      case Some(scalingFactor) => vehicleTypes.map { case (id, bvt) => id -> (if(bvt.standingRoomCapacity > 0)
+        bvt.copy(seatingCapacity =
+          Math.ceil(bvt.seatingCapacity * scalingFactor), standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)) else
+        bvt) }
+      case None => vehicleTypes
+    }
   }
 }
 
@@ -124,20 +144,20 @@ object BeamServices {
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
-        BeamServices.defaultTazTreeMap
+        defaultTazTreeMap
       case e: Exception =>
         logger.error(
           "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
           e
         )
-        BeamServices.defaultTazTreeMap
+        defaultTazTreeMap
     }
   }
 
   def readVehiclesFile(
-    filePath: String,
-    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+                        filePath: String,
+                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
@@ -167,18 +187,18 @@ object BeamServices {
 
   private def getFuelTypeId(fuelType: String): FuelTypeId = {
     fuelType match {
-      case "gasoline"    => BeamVehicleType.Gasoline
-      case "diesel"      => BeamVehicleType.Diesel
+      case "gasoline" => BeamVehicleType.Gasoline
+      case "diesel" => BeamVehicleType.Diesel
       case "electricity" => BeamVehicleType.Electricity
-      case "biodiesel"   => BeamVehicleType.Biodiesel
-      case _             => throw new RuntimeException("Invalid fuel type id")
+      case "biodiesel" => BeamVehicleType.Biodiesel
+      case _ => throw new RuntimeException("Invalid fuel type id")
     }
   }
 
   def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypeMap: TrieMap[Id[FuelType], FuelType]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+                               filePath: String,
+                               fuelTypeMap: TrieMap[Id[FuelType], FuelType]
+                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
@@ -227,10 +247,10 @@ object BeamServices {
 
   private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
     vehicleCategory match {
-      case "car"      => BeamVehicleType.Car
-      case "bike"     => BeamVehicleType.Bike
+      case "car" => BeamVehicleType.Car
+      case "bike" => BeamVehicleType.Bike
       case "ridehail" => BeamVehicleType.RideHail
-      case _          => throw new RuntimeException("Invalid vehicleCategory")
+      case _ => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 
