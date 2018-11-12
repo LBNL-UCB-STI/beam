@@ -394,6 +394,12 @@ Use ``mutable`` buffer instead of ``immutable var``:
    val buffer = scala.collection.mutable.ArrayBuffer.empty[Int]
    buffer += 1
    buffer += 2
+   
+**Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
+
+   val mutableList = scala.collection.mutable.MutableList(1,2)
+   mutableList += 3
+   mutableList.toList //returns scala.collection.immutable.List
 
 Don’t create temporary collections, use `view`_:
 ************************************************
