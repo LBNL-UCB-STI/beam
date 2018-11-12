@@ -200,7 +200,7 @@ class SingleModeSpec
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver")
       }
     }
 
