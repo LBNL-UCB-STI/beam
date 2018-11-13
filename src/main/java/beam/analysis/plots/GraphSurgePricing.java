@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.agentsim.agents.ridehail.SurgePriceBin;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -31,7 +33,7 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.IntStream.range;
 
 
-public class GraphSurgePricing implements ControlerListener, IterationEndsListener {
+public class GraphSurgePricing implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
 
     // The keys of the outer map represents binNumber
     // The inner map consists of category index to number of occurrence for each category
@@ -540,5 +542,31 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
+    }
+
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String surgePricingOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,"rideHailSurgePriceLevel.csv");
+        String revenueOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,"rideHailRevenue.csv");
+        String surgePricingAndRevenueOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,"tazRideHailSurgePriceLevel.csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String surgePricingRelativePath = surgePricingOutputFilePath.replace(outputDirPath, "");
+        String revenueRelativePath = revenueOutputFilePath.replace(outputDirPath, "");
+        String surgePricingAndRevenueRelativePath = surgePricingAndRevenueOutputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingRelativePath, "PriceLevel", "Travel fare charged by the ride hail in the given hour"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingRelativePath, "Hour", "Hour of the day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), revenueRelativePath, "Revenue", "Revenue earned by ride hail in the given hour"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), revenueRelativePath, "Hour", "Hour of the day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingAndRevenueRelativePath, "TazId", "TAZ id"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingAndRevenueRelativePath, "DataType", "Type of data , can be \"priceLevel\" or \"revenue\""));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingAndRevenueRelativePath, "Value", "Value of the given data type , can indicate either price Level or revenue earned by the ride hail in the given hour"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), surgePricingAndRevenueRelativePath, "Hour", "Hour of the day"));
+        return list;
     }
 }

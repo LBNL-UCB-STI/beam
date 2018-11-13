@@ -16,7 +16,6 @@ import scala.xml.{Elem, NodeBuffer}
   */
 
 object BeamGraphComparator {
-
   /**
     * Generates the html page for graph comparison
     * @param files Map that maps file name to the absolute file path across all iterations.
