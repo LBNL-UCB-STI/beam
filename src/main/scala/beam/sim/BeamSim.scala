@@ -148,7 +148,10 @@ class BeamSim @Inject()(
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
-      createGraphsFromEvents.createGraphs(event)
+
+      if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+        createGraphsFromEvents.createGraphs(event)
+      }
       val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
       if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(

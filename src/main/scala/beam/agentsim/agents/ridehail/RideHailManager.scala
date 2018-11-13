@@ -592,14 +592,16 @@ class RideHailManager(
           })
 
           val iteration = "it." + beamServices.iterationNumber
-          spatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(
-                beamServices.iterationNumber,
-                tick.toInt / 3600 + "locationOfAgentsInitally.png"
-              )
-              .replace(iteration, iteration + "/rideHailDebugging")
-          )
+          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+            spatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(
+                  beamServices.iterationNumber,
+                  tick.toInt / 3600 + "locationOfAgentsInitally.png"
+                )
+                .replace(iteration, iteration + "/rideHailDebugging")
+            )
+          }
         }
       }
 

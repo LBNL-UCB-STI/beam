@@ -69,7 +69,10 @@ public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
                 this.writeCSV(processedData,outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName+".csv"));
             }
             //generate the requiredGraph
-            generateAverageLinkSpeedGraph(dataSet,iteration);
+            if(beamConfig.beam().outputs().writeGraphs()){
+                generateAverageLinkSpeedGraph(dataSet,iteration);
+            }
+
         }
     }
 

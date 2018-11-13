@@ -242,10 +242,12 @@ class BeamMobsim @Inject()(
                 .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
             })
 
-          activityLocationsSpatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
-          )
+          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+            activityLocationsSpatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
+            )
+          }
         }
 
         val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
@@ -346,10 +348,13 @@ class BeamMobsim @Inject()(
             beamServices.matsimServices.getControlerIO
               .getIterationFilename(beamServices.iterationNumber, fileBaseName+".csv")
           )
-          rideHailinitialLocationSpatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, fileBaseName+".png")
-          )
+
+          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+            rideHailinitialLocationSpatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")
+            )
+          }
         }
         log.info("Initialized {} people", beamServices.personRefs.size)
         log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())

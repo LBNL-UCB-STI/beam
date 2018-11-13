@@ -99,27 +99,28 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void createGraphs() {
 
         processSurgePriceBinsMap(surgePricingManager);
+        if (surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()) {
+            if (!min.equals(max)) {
 
-        if (!min.equals(max)) {
+                calculateCateogorySize();
+                List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
+                double[][] dataset = getDataset(true);
+                writePriceSurgeCsv(dataset, categoriesKeys, true);
+                drawGraph(dataset, categoriesKeys, true);
 
-            calculateCateogorySize();
-            List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
-            double[][] dataset = getDataset(true);
-            writePriceSurgeCsv(dataset, categoriesKeys, true);
-            drawGraph(dataset, categoriesKeys, true);
+                drawHistogram(dataset, categoriesKeys, true);
+            } else {
 
-            drawHistogram(dataset, categoriesKeys, true);
-        } else {
+                List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
+                double[][] dataset = getDataset(false);
+                writePriceSurgeCsv(dataset, categoriesKeys, false);
+                drawGraph(dataset, categoriesKeys, false);
 
-            List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
-            double[][] dataset = getDataset(false);
-            writePriceSurgeCsv(dataset, categoriesKeys, false);
-            drawGraph(dataset, categoriesKeys, false);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
 
-            drawHistogram(dataset, categoriesKeys, true);
+            drawRevenueGraph(revenueDataSet);
         }
-
-        drawRevenueGraph(revenueDataSet);
 
         writeTazCsv(tazDataset);
 

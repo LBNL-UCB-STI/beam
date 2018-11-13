@@ -78,8 +78,10 @@ public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescript
                 this.writeCSV(processedSpeedDistributionAsPercentageData,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsPercentageFileName+".csv"),"linkEfficiencyInPercentage");
             }
             //generate the required charts - frequency over speed (as m/s)
-            generateSpeedDistributionBarChart(dataSetForSpeed,iteration);
-            generateSpeedDistributionAsPercentageChart(dataSetForSpeedAsPercentage,iteration);
+            if(beamConfig.beam().outputs().writeGraphs()) {
+                generateSpeedDistributionBarChart(dataSetForSpeed, iteration);
+                generateSpeedDistributionAsPercentageChart(dataSetForSpeedAsPercentage, iteration);
+            }
         }
     }
 
