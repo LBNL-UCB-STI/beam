@@ -1,4 +1,4 @@
-package beam.agentsim
+package beam.integration
 
 import java.time.ZonedDateTime
 
@@ -59,6 +59,7 @@ class SingleModeSpec
   var services: BeamServices = _
   var networkCoordinator: NetworkCoordinator = _
   var beamConfig: BeamConfig = _
+  var tollCalculator: TollCalculator = _
 
   override def beforeAll: Unit = {
     val config = testConfig("test/input/sf-light/sf-light.conf")
@@ -98,8 +99,7 @@ class SingleModeSpec
     networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
+    tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
@@ -155,7 +155,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
-        new TollCalculator(services.beamConfig),
+        tollCalculator,
         scenario,
         eventsManager,
         system,
@@ -194,7 +194,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
-        new TollCalculator(services.beamConfig),
+        tollCalculator,
         scenario,
         eventsManager,
         system,
@@ -208,8 +208,7 @@ class SingleModeSpec
       }
     }
 
-    //FIXME: This currently out-of-memories on Jenkins. :-(
-    "let everybody take drive_transit when their plan says so" ignore {
+    "let everybody take drive_transit when their plan says so" in {
       // Here, we only set the mode for the first leg of each tour -- prescribing a mode for the tour,
       // but not for individual legs except the first one.
       // We want to make sure that our car is returned home.
@@ -252,7 +251,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
-        new TollCalculator(services.beamConfig),
+        tollCalculator,
         scenario,
         eventsManager,
         system,
@@ -288,6 +287,40 @@ class SingleModeSpec
       //      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
+    "let everybody drive when their plan says so" in {
+      scenario.getPopulation.getPersons
+        .values()
+        .forEach { person => {
+          person.getSelectedPlan.getPlanElements.asScala.collect {
+            case leg: Leg =>
+              leg.setMode("car")
+          }
+        }
+        }
+      val eventsManager = EventsUtils.createEventsManager()
+      //          eventsManager.addHandler(
+      //            new BasicEventHandler {
+      //              override def handleEvent(event: Event): Unit = {
+      //                event match {
+      //                  case event: PathTraversalEvent if event.getAttributes.get("amount_paid").toDouble != 0.0 =>
+      //                    println(event)
+      //                  case _ =>
+      //                }
+      //              }
+      //            }
+      //          )
+      val mobsim = new BeamMobsim(
+        services,
+        networkCoordinator.transportNetwork,
+        tollCalculator,
+        scenario,
+        eventsManager,
+        system,
+        new RideHailSurgePricingManager(services),
+        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
+      )
+      mobsim.run()
+    }
   }
 
 }
