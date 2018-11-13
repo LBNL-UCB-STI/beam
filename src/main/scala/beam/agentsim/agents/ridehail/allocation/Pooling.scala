@@ -25,35 +25,5 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 
   override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
 
-    for (request <- rideHailManager.getCompletedDummyRequests.values) {
-      rideHailManager
-        .getClosestIdleRideHailAgent(
-          request.pickUpLocation,
-          rideHailManager.radiusInMeters
-        ) match {
-
-        case Some(rhl) =>
-          val updatedRequest = request.copy(
-            departAt = DiscreteTime(tick.toInt)
-          )
-
-          rideHailManager.createRoutingRequestsToCustomerAndDestination(
-            updatedRequest,
-            rhl
-          )
-
-          logger.debug(
-            " new vehicle assigned:{}, tick: {}, person: {}",
-            rhl.vehicleId,
-            tick,
-            request.customer.personId
-          )
-
-          rideHailManager.removeDummyRequest(request)
-
-          bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
-        case None =>
-      }
-    }
   }
 }

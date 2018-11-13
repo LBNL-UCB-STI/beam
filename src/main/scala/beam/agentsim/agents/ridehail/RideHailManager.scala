@@ -219,8 +219,6 @@ class RideHailManager(
       .result(future, Timeout(60, TimeUnit.SECONDS).duration)
       .asInstanceOf[Option[TNCIterationStats]]
   }
-  private val rideHailAllocationManagerTimeoutInSeconds =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
@@ -230,7 +228,7 @@ class RideHailManager(
     new RideHailModifyPassengerScheduleManager(
       log,
       self,
-      rideHailAllocationManagerTimeoutInSeconds,
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds,
       scheduler,
       beamServices.beamConfig
     )
@@ -245,10 +243,6 @@ class RideHailManager(
   private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
-  private val pendingDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
-    mutable.Map[Int, RideHailRequest]()
-  private val completedDummyRideHailRequests: mutable.Map[Int, RideHailRequest] =
-    mutable.Map[Int, RideHailRequest]()
 
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
@@ -614,7 +608,7 @@ class RideHailManager(
         }
       }
 
-      modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
+      modifyPassengerScheduleManager.startWaveOfRepositioningRequests(tick, triggerId)
 
       //      log.debug("getIdleVehicles().size:{}", getIdleVehicles.size)
       //      getIdleVehicles.foreach(x => log.debug("getIdleVehicles(): {}", x._1.toString))
@@ -993,28 +987,6 @@ class RideHailManager(
 
   }
 
-  def assignDummyRidehail(request: RideHailRequest): Unit = {
-    pendingDummyRideHailRequests.put(request.requestId, request)
-    DebugLib.emptyFunctionForSettingBreakPoint()
-  }
-
-  def getPendingDummyRequests: mutable.Map[Int, RideHailRequest] = {
-    pendingDummyRideHailRequests
-  }
-
-  def completedDummyRequest(request: RideHailRequest): Unit = {
-    pendingDummyRideHailRequests.remove(request.requestId)
-    completedDummyRideHailRequests.put(request.requestId, request)
-  }
-
-  def getCompletedDummyRequests: mutable.Map[Int, RideHailRequest] = {
-    completedDummyRideHailRequests
-  }
-
-  def removeDummyRequest(request: RideHailRequest): Unit = {
-    completedDummyRideHailRequests.remove(request.requestId)
-  }
-
   def createRoutingRequestsToCustomerAndDestination(
     request: RideHailRequest,
     rideHailLocation: RideHailAgentLocation
@@ -1338,7 +1310,7 @@ class RideHailManager(
             response.travelProposal.get.rideHailAgentLocation.vehicleId
           )
 
-          bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+          bufferedRideHailRequests.tryClosingBufferedRideHailRequestWave()
         } else {
 
           response.request.customer.personRef.get ! response.copy(
@@ -1359,22 +1331,13 @@ class RideHailManager(
     //    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
-        if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
+        // If we are pooling then we are
+        if (request.asPooled || inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
             lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
               .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
           findDriverAndSendRoutingRequests(request)
         } else {
-          if (pendingDummyRideHailRequests.contains(request.requestId)) {
-
-            log.debug("stranding customer: {}", request.customer.personId)
-
-            request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
-
-            completedDummyRequest(request)
-          } else {
-            handleReservation(request, travelProposal)
-          }
-
+          handleReservation(request, travelProposal)
         }
       case None =>
         findDriverAndSendRoutingRequests(request)

@@ -57,7 +57,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
     bufferedRideHailRequests.addTriggerMessages(nextMessage)
 
-    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWave()
 
   }
 

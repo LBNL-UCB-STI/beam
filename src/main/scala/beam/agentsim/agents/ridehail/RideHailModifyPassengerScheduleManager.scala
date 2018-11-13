@@ -287,9 +287,9 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def startWaiveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
+  def startWaveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
     //    log.debug(
-    //      "RepositioningTimeout(" + tick + ") - START repositioning waive - triggerId(" + triggerId + ")"
+    //      "RepositioningTimeout(" + tick + ") - START repositioning wave - triggerId(" + triggerId + ")"
     //    )
     ////    printState()
     assert(

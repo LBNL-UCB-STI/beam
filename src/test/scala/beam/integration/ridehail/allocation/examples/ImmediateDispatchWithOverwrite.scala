@@ -56,7 +56,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       )
       .headOption match {
       case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None)
+        VehicleAllocation(agentLocation, None, None)
       case None =>
         NoVehicleAllocated
     }
@@ -100,7 +100,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       logger.debug(
         "reassignment failed"
       )
-      bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
+      bufferedRideHailRequests.tryClosingBufferedRideHailRequestWave()
 
       bufferedRideHailRequest = Set()
       overwriteAttemptStarted = false

@@ -62,7 +62,7 @@ class BufferedRideHailRequests(
     nextBufferedTriggerMessages = nextBufferedTriggerMessages ++ messages
   }
 
-  def tryClosingBufferedRideHailRequestWaive(): Unit = {
+  def tryClosingBufferedRideHailRequestWave(): Unit = {
 
     if (isBufferedRideHailRequestProcessingOver) {
       closingBufferedRideHailRequestWave()
