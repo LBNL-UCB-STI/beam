@@ -22,10 +22,11 @@ trait PopulationAdjustment extends LazyLogging {
   def updateAttributes(population: MPopulation): MPopulation = {
     val personAttributes: ObjectAttributes = population.getPersonAttributes
 
-    JavaConverters.mapAsScalaMap(population.getPersons)
+    JavaConverters
+      .mapAsScalaMap(population.getPersons)
       .values
-      .map {
-        person => {
+      .map { person =>
+        {
 
           val valueOfTime: Double =
             personAttributes.getAttribute(person.getId.toString, "valueOfTime") match {
@@ -35,29 +36,37 @@ trait PopulationAdjustment extends LazyLogging {
                 specifiedVot.asInstanceOf[Double]
             }
 
-          val availableModes: Seq[BeamMode] = Option(personAttributes.getAttribute(person.getId.toString, "available-modes")
+          val availableModes: Seq[BeamMode] = Option(
+            personAttributes.getAttribute(person.getId.toString, "available-modes")
           ).fold(BeamMode.availableModes)(
             attr => availableModeParser(attr.toString)
           )
-          val income = Try{personAttributes.getAttribute(person.getId.toString, "income")} match {
-            case scala.util.Success(value) => Option(value.asInstanceOf[Double])
+          val income = Try { personAttributes.getAttribute(person.getId.toString, "income") } match {
+            case scala.util.Success(value)     => Option(value.asInstanceOf[Double])
             case scala.util.Failure(exception) => Some(0.0)
           }
           val modalityStyle =
             Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
               .map(_.asInstanceOf[String])
 
-          val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) { household =>
-
-            val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-              agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
-            HouseholdAttributes(household, houseHoldVehicles)
+          val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
+            household =>
+              val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
+                agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
+              HouseholdAttributes(household, houseHoldVehicles)
           }
-            val attributes =
-              AttributesOfIndividual(householdAttributes, modalityStyle, Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"), availableModes, valueOfTime, Option(PersonUtils.getAge(person)), income)
+          val attributes =
+            AttributesOfIndividual(
+              householdAttributes,
+              modalityStyle,
+              Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
+              availableModes,
+              valueOfTime,
+              Option(PersonUtils.getAge(person)),
+              income
+            )
 
-            person.getCustomAttributes.put("beam-attributes", attributes)
-
+          person.getCustomAttributes.put("beam-attributes", attributes)
 
         }
       }
@@ -102,7 +111,11 @@ trait PopulationAdjustment extends LazyLogging {
   protected def updatePopulation(scenario: Scenario): MPopulation
 
   protected def addMode(population: MPopulation, personId: String, mode: String): Unit = {
-    val modes = population.getPersonAttributes.getAttribute(personId, "beam-attributes").asInstanceOf[AttributesOfIndividual].availableModes.toString
+    val modes = population.getPersonAttributes
+      .getAttribute(personId, "beam-attributes")
+      .asInstanceOf[AttributesOfIndividual]
+      .availableModes
+      .toString
     if (!existsMode(population, personId, mode)) {
       population.getPersonAttributes
         .putAttribute(
@@ -120,7 +133,11 @@ trait PopulationAdjustment extends LazyLogging {
 
   protected def removeMode(population: MPopulation, personId: String, modeToRemove: String*): Unit = {
 
-    val modes = population.getPersonAttributes.getAttribute(personId, "beam-attributes").asInstanceOf[AttributesOfIndividual].availableModes.toString
+    val modes = population.getPersonAttributes
+      .getAttribute(personId, "beam-attributes")
+      .asInstanceOf[AttributesOfIndividual]
+      .availableModes
+      .toString
     modeToRemove.foreach(
       mode =>
         population.getPersonAttributes
@@ -128,14 +145,18 @@ trait PopulationAdjustment extends LazyLogging {
             personId,
             AVAILABLE_MODES,
             modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
-          )
+        )
     )
   }
 
   // remove mode from all attributes
   protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { person =>
-      val modes = population.getPersonAttributes.getAttribute(person.toString, "beam-attributes").asInstanceOf[AttributesOfIndividual].availableModes.toString
+      val modes = population.getPersonAttributes
+        .getAttribute(person.toString, "beam-attributes")
+        .asInstanceOf[AttributesOfIndividual]
+        .availableModes
+        .toString
       modeToRemove.foreach(
         mode =>
           population.getPersonAttributes
@@ -143,7 +164,7 @@ trait PopulationAdjustment extends LazyLogging {
               person.toString,
               AVAILABLE_MODES,
               modes.split(",").filterNot(_.equalsIgnoreCase(mode)).mkString(",")
-            )
+          )
       )
     }
   }

@@ -12,7 +12,9 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
-class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int) extends TravelTime with LazyLogging {
+class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int)
+    extends TravelTime
+    with LazyLogging {
   val linkTravelTimeMap: scala.collection.Map[Id[Link], Array[Double]] = loadLinkStats()
 
   def loadLinkStats(): scala.collection.Map[Id[Link], Array[Double]] = {
@@ -43,8 +45,7 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
           }
         }
       }
-    }
-    finally {
+    } finally {
       bufferedReader.close()
       gzipStream.close()
     }

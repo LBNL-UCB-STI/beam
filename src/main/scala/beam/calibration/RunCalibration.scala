@@ -22,7 +22,6 @@ import org.apache.commons.lang.SystemUtils
   */
 object RunCalibration extends ExperimentApp with LazyLogging {
 
-
   // requirement:
   /*
     --runType local|remote
@@ -57,7 +56,6 @@ object RunCalibration extends ExperimentApp with LazyLogging {
         throw new APIConnectionError("No client token is present in the program arguments")
       }
   }
-
 
   // Aux Methods //
   override def parseArgs(args: Array[String]): Map[String, String] = {
@@ -132,6 +130,5 @@ object RunCalibration extends ExperimentApp with LazyLogging {
   } else {
     logger.error("{} unknown", RUN_TYPE)
   }
-
 
 }

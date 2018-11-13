@@ -43,7 +43,6 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       val beamServices: BeamServices =
         injector.getInstance(classOf[BeamServices])
 
-
       val eventManager: EventsManager =
         injector.getInstance(classOf[EventsManager])
       eventManager.addHandler(eventHandler)

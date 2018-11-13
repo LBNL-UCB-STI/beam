@@ -1,7 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.RideHailingWaitingSingleStatsSpec.{RideHailingWaitingSingleGraph, StatsValidationHandler}
+import beam.agentsim.agents.ridehail.graph.RideHailingWaitingSingleStatsSpec.{
+  RideHailingWaitingSingleGraph,
+  StatsValidationHandler
+}
 import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.RideHailingWaitingSingleAnalysis
 import beam.integration.IntegrationSpecCommon

@@ -57,7 +57,12 @@ class TimeDependentRoutingSpec
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(
+      DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -66,8 +71,18 @@ class TimeDependentRoutingSpec
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, scenario,
-      new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
+    router = system.actorOf(
+      BeamRouter.props(
+        services,
+        networkCoordinator.transportNetwork,
+        networkCoordinator.network,
+        scenario,
+        new EventsManagerImpl(),
+        scenario.getTransitVehicles,
+        fareCalculator,
+        tollCalculator
+      )
+    )
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)
@@ -81,7 +96,19 @@ class TimeDependentRoutingSpec
     val time = RoutingModel.DiscreteTime(3000)
 
     "give updated travel times for a given route" in {
-      val leg = BeamLeg(3000, BeamMode.CAR, 0, BeamPath(Vector(143, 60, 58, 62, 80, 74, 68, 154), Vector(), None, SpaceTime(166321.9, 1568.87, 3000), SpaceTime(167138.4, 1117, 3000), 0.0))
+      val leg = BeamLeg(
+        3000,
+        BeamMode.CAR,
+        0,
+        BeamPath(
+          Vector(143, 60, 58, 62, 80, 74, 68, 154),
+          Vector(),
+          None,
+          SpaceTime(166321.9, 1568.87, 3000),
+          SpaceTime(167138.4, 1117, 3000),
+          0.0
+        )
+      )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
@@ -90,21 +117,60 @@ class TimeDependentRoutingSpec
     }
 
     "take given link traversal times into account" in {
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("car"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        )
+      )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("car"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        )
+      )
       val response2 = expectMsgType[RoutingResponse]
       assert(response2.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("car"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        )
+      )
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == CAR))
       val carOption3 = response3.itineraries.find(_.tripClassifier == CAR).get
@@ -115,11 +181,25 @@ class TimeDependentRoutingSpec
       // Start with travel times as calculated by a pristine TravelTimeCalculator.
       // (Should be MATSim free flow travel times)
       val eventsForTravelTimeCalculator = EventsUtils.createEventsManager()
-      val travelTimeCalculator = new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
+      val travelTimeCalculator =
+        new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
       router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(vehicleId, new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            vehicleId,
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        )
+      )
       var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
 
       // Now feed the TravelTimeCalculator events resulting from me traversing the proposed route,
@@ -140,7 +220,20 @@ class TimeDependentRoutingSpec
 
         // Now send the router the travel times resulting from that, and try again.
         router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
-        router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+        router ! RoutingRequest(
+          origin,
+          destination,
+          time,
+          Vector(),
+          Vector(
+            StreetVehicle(
+              Id.createVehicleId("car"),
+              new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+              Modes.BeamMode.CAR,
+              asDriver = true
+            )
+          )
+        )
         carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).getOrElse(carOption)
       }
 
@@ -149,7 +242,12 @@ class TimeDependentRoutingSpec
 
     "give updated travel times for a given route after travel times were updated" in {
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
-      val leg = BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0))
+      val leg = BeamLeg(
+        28800,
+        BeamMode.WALK,
+        0,
+        BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
+      )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
