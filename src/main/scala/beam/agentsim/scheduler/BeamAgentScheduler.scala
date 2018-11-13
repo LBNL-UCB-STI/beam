@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAllocationManagerTimeout
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -246,7 +246,7 @@ class BeamAgentScheduler(
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
           st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
-            .isInstanceOf[RideHailAllocationManagerTimeout]
+            .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
         canClean.foreach { stuckInfo =>

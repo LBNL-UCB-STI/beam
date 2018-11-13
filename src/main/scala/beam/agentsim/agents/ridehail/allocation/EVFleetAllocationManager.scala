@@ -19,7 +19,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   val requestToExcludedDrivers: mutable.Map[Int, Set[Id[Vehicle]]] = mutable.Map()
   val repositioningLowWaitingTimes = new RepositioningLowWaitingTimes(rideHailManager)
 
-  override def proposeVehicleAllocation(
+  override def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): VehicleAllocationResponse = {
     val reqId = vehicleAllocationRequest.request.requestId

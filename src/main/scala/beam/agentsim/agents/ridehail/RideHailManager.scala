@@ -152,9 +152,9 @@ object RideHailManager {
     rnd2Response: RoutingResponse
   )
 
-  case class BufferedRideHailRequestsTimeout(tick: Int) extends Trigger
+  case class BufferedRideHailRequestsTrigger(tick: Int) extends Trigger
 
-  case class RideHailAllocationManagerTimeout(tick: Int) extends Trigger
+  case class RideHailRepositioningTrigger(tick: Int) extends Trigger
 
   case object RideUnavailableAck
 
@@ -206,9 +206,8 @@ class RideHailManager(
   val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
 
-  val allocationManager: String =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
+  val bufferRequests = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
 
   val tncIterationStats: Option[TNCIterationStats] = {
     val rideHailIterationHistoryActor =
@@ -228,7 +227,6 @@ class RideHailManager(
     new RideHailModifyPassengerScheduleManager(
       log,
       self,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds,
       scheduler,
       beamServices.beamConfig
     )
@@ -563,10 +561,10 @@ class RideHailManager(
     case DebugRideHailManagerDuringExecution =>
       modifyPassengerScheduleManager.printState()
 
-    case TriggerWithId(BufferedRideHailRequestsTimeout(tick), triggerId) =>
-      rideHailResourceAllocationManager.updateVehicleAllocations(tick, triggerId, this)
+    case TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
+      rideHailResourceAllocationManager.batchAllocateVehiclesToCustomers(tick, triggerId, this)
 
-    case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
+    case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
       val produceDebugImages = true
       if (produceDebugImages) {
         if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
@@ -822,7 +820,7 @@ class RideHailManager(
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
 
     val vehicleAllocationResponse =
-      rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest)
+      rideHailResourceAllocationManager.allocateVehicleToCustomer(vehicleAllocationRequest)
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
@@ -1295,25 +1293,9 @@ class RideHailManager(
           response.travelProposal.get.rideHailAgentLocation.vehicleId
         )
 
-        val bufferedRideHailRequests = rideHailResourceAllocationManager.bufferedRideHailRequests
-
-        if (bufferedRideHailRequests.isReplacementVehicle(
-              response.travelProposal.get.rideHailAgentLocation.vehicleId
-            )) {
-
-          bufferedRideHailRequests.addTriggerMessages(triggersToSchedule.toVector)
-
-          bufferedRideHailRequests.replacementVehicleReservationCompleted(
-            response.travelProposal.get.rideHailAgentLocation.vehicleId
-          )
-
-          bufferedRideHailRequests.tryClosingBufferedRideHailRequestWave()
-        } else {
-
-          response.request.customer.personRef.get ! response.copy(
-            triggersToSchedule = triggersToSchedule.toVector
-          )
-        }
+        response.request.customer.personRef.get ! response.copy(
+          triggersToSchedule = triggersToSchedule.toVector
+        )
         rideHailResourceAllocationManager.reservationCompletionNotice(
           response.request.customer.personId,
           response.travelProposal.get.rideHailAgentLocation.vehicleId
@@ -1328,12 +1310,16 @@ class RideHailManager(
     //    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
-        if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
+        if(bufferRequests){
+          rideHailResourceAllocationManager.bufferedRideHailRequests.add(request)
+        }else{
+          if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
             lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
-              .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-          findDriverAndSendRoutingRequests(request)
-        } else {
-          handleReservation(request, travelProposal)
+            .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
+            findDriverAndSendRoutingRequests(request)
+          } else {
+            handleReservation(request, travelProposal)
+          }
         }
       case None =>
         findDriverAndSendRoutingRequests(request)

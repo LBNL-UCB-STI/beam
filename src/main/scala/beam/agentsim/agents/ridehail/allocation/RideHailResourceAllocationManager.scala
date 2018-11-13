@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
+  BufferedRideHailRequestsTrigger,
   PoolingInfo,
   RideHailAgentLocation
 }
@@ -20,7 +20,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     rideHailManager.scheduler
   )
 
-  def proposeVehicleAllocation(
+  def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): VehicleAllocationResponse = {
     // closest request
@@ -36,36 +36,25 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     }
   }
 
-  // TODO: is third argument really needed
-  def updateVehicleAllocations(
+  def batchAllocateVehiclesToCustomers(
     tick: Int,
     triggerId: Long,
     rideHailManager: RideHailManager
   ): Unit = {
-    bufferedRideHailRequests.newTimeout(tick, triggerId)
 
-    updateVehicleAllocations(tick, triggerId)
+    batchAllocateVehiclesToCustomers(tick, triggerId)
 
-    // TODO: refactor to BufferedRideHailRequests?
-    val timerTrigger = BufferedRideHailRequestsTimeout(
-      tick + 1 // TODO: replace with new config variable
+    val timerTrigger = BufferedRideHailRequestsTrigger(
+      tick + rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
     )
-    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
-    Vector(timerMessage)
-
-    val nextMessage = Vector(timerMessage)
-
-    bufferedRideHailRequests.addTriggerMessages(nextMessage)
-
-    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWave()
-
+    rideHailManager.scheduler ! ScheduleTrigger(timerTrigger, rideHailManager.self)
   }
 
   /*
     This method is called periodically
    */
-  def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
-    logger.trace("default implementation updateVehicleAllocations executed")
+  def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): Unit = {
+    logger.trace("default implementation proposeBatchedVehicleAllocations executed")
   }
 
   /*
@@ -149,7 +138,7 @@ case object NoVehicleAllocated extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(
   request: RideHailRequest,
-  routingResponses: List[RoutingResponse]
+  routingResponses: List[RoutingResponse] = List()
 )
 
 //requestType: RideHailRequestType,

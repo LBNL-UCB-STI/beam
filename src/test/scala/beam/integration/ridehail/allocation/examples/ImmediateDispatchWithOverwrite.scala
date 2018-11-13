@@ -22,7 +22,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
   var reservationCompleted = false
   var overwriteAttemptStarted = false
 
-  override def proposeVehicleAllocation(
+  override def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): VehicleAllocationResponse = {
 
@@ -111,7 +111,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
   // TODO: define 3 state names to allow for proper transitioning
 
-  override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
+  override def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): Unit = {
     // try to cancel first ride of day
 
     if (!overwriteAttemptStarted && reservationCompleted) {

@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, ModifyPassengerSchedule, Resume}
-import beam.agentsim.agents.ridehail.RideHailManager.{RideHailAgentLocation, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.ridehail.RideHailManager.{RideHailAgentLocation, RideHailRepositioningTrigger}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -18,11 +18,10 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class RideHailModifyPassengerScheduleManager(
-  val log: LoggingAdapter,
-  val rideHailManager: ActorRef,
-  val rideHailAllocationManagerTimeoutInSeconds: Double,
-  val scheduler: ActorRef,
-  val beamConfig: BeamConfig
+                                              val log: LoggingAdapter,
+                                              val rideHailManager: ActorRef,
+                                              val scheduler: ActorRef,
+                                              val beamConfig: BeamConfig
 ) {
 
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
@@ -242,13 +241,13 @@ class RideHailModifyPassengerScheduleManager(
     //    )
 
     val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
-      .filter(x => x.trigger.isInstanceOf[RideHailAllocationManagerTimeout])
+      .filter(x => x.trigger.isInstanceOf[RideHailRepositioningTrigger])
       .head
       .trigger
 
     val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.filter(
       x =>
-        x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
+        x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
     )
 
     if (badTriggers.nonEmpty) {
@@ -297,11 +296,10 @@ class RideHailModifyPassengerScheduleManager(
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getWithVehicleIds(x).nonEmpty)
     )
     assert(numberOfOutStandingmodifyPassengerScheduleAckForRepositioning <= 0)
-    val timerTrigger = RideHailAllocationManagerTimeout(
-      (tick + rideHailAllocationManagerTimeoutInSeconds).toInt
+    val timerTrigger = RideHailRepositioningTrigger(
+      tick.toInt + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
     )
-    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
-    nextCompleteNoticeRideHailAllocationTimeout = Some(CompletionNotice(triggerId, Vector(timerMessage)))
+    nextCompleteNoticeRideHailAllocationTimeout = Some(CompletionNotice(triggerId, Vector(ScheduleTrigger(timerTrigger, rideHailManager))))
   }
 
   def repositionVehicle(

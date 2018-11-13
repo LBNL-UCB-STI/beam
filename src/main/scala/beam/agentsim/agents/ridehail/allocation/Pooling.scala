@@ -6,7 +6,7 @@ import beam.router.model.RoutingModel.DiscreteTime
 
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def proposeVehicleAllocation(
+  override def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): VehicleAllocationResponse = {
 
@@ -23,7 +23,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     } // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
-  override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
+  override def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): Unit = {
 
   }
 }

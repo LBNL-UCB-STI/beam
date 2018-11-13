@@ -13,9 +13,9 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
+  BufferedRideHailRequestsTrigger,
   NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
+  RideHailRepositioningTrigger
 }
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -431,12 +431,8 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          val timerTrigger = RideHailAllocationManagerTimeout(0)
-          val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
-          scheduler ! timerMessage
-
-          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0), rideHailManager)
-          log.info(s"rideHailManagerTimerScheduled")
+          scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
+          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
         }
 
         private def cleanupRideHailingAgents(): Unit = {
