@@ -38,7 +38,6 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
       module(baseConfig, scenario, networkCoordinator)
     )
 
-
     beamServices = injector.getInstance(classOf[BeamServices])
     val popAdjustment = DefaultPopulationAdjustment(beamServices)
     popAdjustment.update(scenario)

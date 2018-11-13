@@ -37,16 +37,16 @@ import scala.language.postfixOps
 // TODO: probably test needs to be updated due to update in rideHailManager
 @Ignore
 class SingleModeSpec
-  extends TestKit(
-    ActorSystem(
-      "single-mode-test",
-      ConfigFactory.parseString(
-        """
+    extends TestKit(
+      ActorSystem(
+        "single-mode-test",
+        ConfigFactory.parseString(
+          """
   akka.test.timefactor=10
   """
+        )
       )
     )
-  )
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -131,12 +131,13 @@ class SingleModeSpec
     "let everybody walk when their plan says so" in {
       scenario.getPopulation.getPersons
         .values()
-        .forEach { person => {
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
-              leg.setMode("walk")
+        .forEach { person =>
+          {
+            person.getSelectedPlan.getPlanElements.asScala.collect {
+              case leg: Leg =>
+                leg.setMode("walk")
+            }
           }
-        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -209,26 +210,27 @@ class SingleModeSpec
       // We want to make sure that our car is returned home.
       scenario.getPopulation.getPersons
         .values()
-        .forEach { person => {
-          val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-            case activity: Activity if activity.getType == "Home" =>
-              Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-            case activity: Activity =>
-              Seq(activity)
-            case leg: Leg =>
-              Nil
-          }.flatten
-          if (newPlanElements.last.isInstanceOf[Leg]) {
-            newPlanElements.remove(newPlanElements.size - 1)
+        .forEach { person =>
+          {
+            val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+              case activity: Activity if activity.getType == "Home" =>
+                Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+              case activity: Activity =>
+                Seq(activity)
+              case leg: Leg =>
+                Nil
+            }.flatten
+            if (newPlanElements.last.isInstanceOf[Leg]) {
+              newPlanElements.remove(newPlanElements.size - 1)
+            }
+            person.getSelectedPlan.getPlanElements.clear()
+            newPlanElements.foreach {
+              case activity: Activity =>
+                person.getSelectedPlan.addActivity(activity)
+              case leg: Leg =>
+                person.getSelectedPlan.addLeg(leg)
+            }
           }
-          person.getSelectedPlan.getPlanElements.clear()
-          newPlanElements.foreach {
-            case activity: Activity =>
-              person.getSelectedPlan.addActivity(activity)
-            case leg: Leg =>
-              person.getSelectedPlan.addLeg(leg)
-          }
-        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -236,7 +238,7 @@ class SingleModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case event@(_: PersonDepartureEvent | _: ActivityEndEvent) =>
+              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
                 events += event
               case _ =>
             }

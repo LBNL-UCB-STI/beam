@@ -104,7 +104,8 @@ object RideHailManager {
     estimatedPrice: Double,
     estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
-    responseRideHail2Dest: RoutingResponse
+    responseRideHail2Dest: RoutingResponse,
+    poolingInfo: Option[PoolingInfo] = None
   ) {
     override def toString: String =
       s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
@@ -113,8 +114,11 @@ object RideHailManager {
   case class RoutingResponses(
     request: RideHailRequest,
     rideHailLocation: Option[RideHailAgentLocation],
-    routingResponses: List[RoutingResponse]
+    routingResponses: List[RoutingResponse],
+    poolingInfo: Option[PoolingInfo] = None
   )
+
+  case class PoolingInfo(timeFactor: Double, costFactor: Double)
 
   case class RegisterRideAvailable(
     rideHailAgent: ActorRef,
@@ -423,14 +427,15 @@ class RideHailManager(
 
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
-    case RoutingResponses(request, None, responses) =>
+    case RoutingResponses(request, None, responses, _) =>
       //      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
     case RoutingResponses(
         request,
         Some(rideHailLocation),
-        responses
+        responses,
+        poolingInfoOpt
         ) =>
       //      println(s"got routingResponse: ${request.requestId} with RHA ${rideHailLocation.vehicleId}")
       val itins = responses.map { response =>
@@ -477,14 +482,19 @@ class RideHailManager(
               customerTripPlan.copy(
                 legs = customerTripPlan.legs.zipWithIndex.map(
                   legWithInd =>
-                    legWithInd._1.copy(beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer), asDriver = legWithInd._1.beamLeg.mode == WALK, cost =
-                                            if (legWithInd._1.beamLeg == customerTripPlan
-                                                  .legs(1)
-                                                  .beamLeg) {
-                                              cost
-                                            } else {
-                                              0.0
-                                            }, unbecomeDriverOnCompletion = legWithInd._2 == 2)
+                    legWithInd._1.copy(
+                      beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
+                      asDriver = legWithInd._1.beamLeg.mode == WALK,
+                      cost =
+                        if (legWithInd._1.beamLeg == customerTripPlan
+                              .legs(1)
+                              .beamLeg) {
+                          cost
+                        } else {
+                          0.0
+                        },
+                      unbecomeDriverOnCompletion = legWithInd._2 == 2
+                  )
                 )
               )
             ),
@@ -497,7 +507,8 @@ class RideHailManager(
             cost,
             Some(FiniteDuration(customerTripPlan.totalTravelTimeInSecs, TimeUnit.SECONDS)),
             tripDriver2Cust,
-            tripCust2Dest
+            tripCust2Dest,
+            poolingInfoOpt
           )
 
           travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -808,11 +819,13 @@ class RideHailManager(
     responses: List[RoutingResponse] = List()
   ): Unit = {
     if (log.isDebugEnabled) {
-      log.debug("Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
+      log.debug(
+        "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
         request.departAt,
         availableRideHailVehicles.size,
         inServiceRideHailVehicles.size,
-        outOfServiceRideHailVehicles.size)
+        outOfServiceRideHailVehicles.size
+      )
     }
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
@@ -821,19 +834,20 @@ class RideHailManager(
       rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest)
 
     vehicleAllocationResponse match {
-      case VehicleAllocation(agentLocation, None) =>
+      case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
         log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
         requestRoutes(
           request,
           Some(agentLocation),
-          createRoutingRequestsToCustomerAndDestination(request, agentLocation)
+          createRoutingRequestsToCustomerAndDestination(request, agentLocation),
+          poolingInfoOpt
         )
-      case VehicleAllocation(agentLocation, Some(routingResponses)) =>
+      case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
         log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
-        self ! RoutingResponses(request, Some(agentLocation), routingResponses)
+        self ! RoutingResponses(request, Some(agentLocation), routingResponses, poolingInfoOpt)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
         log.debug("{} -- RoutingRequired", request.requestId)
-        requestRoutes(request, None, routesRequired)
+        requestRoutes(request, None, routesRequired, None)
       case NoVehicleAllocated =>
         log.debug("{} -- NoVehicleAllocated", request.requestId)
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
@@ -866,19 +880,25 @@ class RideHailManager(
     val diff1 = end - start
 
     start = System.currentTimeMillis()
-    val times2RideHailAgents = nearbyAvailableRideHailAgents.map { rideHailAgentLocation =>
-      val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-      // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-      // already moving or dropping off a customer, etc.)
-      val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
-      val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
-      RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
-    }.toVector.sortBy(_.timeToCustomer)
+    val times2RideHailAgents = nearbyAvailableRideHailAgents
+      .map { rideHailAgentLocation =>
+        val distance =
+          CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
+        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
+        // already moving or dropping off a customer, etc.)
+        val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
+        val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
+        RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
+      }
+      .toVector
+      .sortBy(_.timeToCustomer)
     end = System.currentTimeMillis()
     val diff2 = end - start
 
     if (diff1 + diff2 > 100)
-      log.debug(s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms")
+      log.debug(
+        s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
+      )
 
     times2RideHailAgents
   }
@@ -1072,7 +1092,8 @@ class RideHailManager(
   def requestRoutes(
     rideHailRequest: RideHailRequest,
     rideHailAgentLocation: Option[RideHailAgentLocation],
-    routingRequests: List[RoutingRequest]
+    routingRequests: List[RoutingRequest],
+    poolingInfo: Option[PoolingInfo]
   ): Unit = {
     val preservedOrder = routingRequests.map(_.requestId)
     Future
@@ -1084,7 +1105,7 @@ class RideHailManager(
           response.requestId.get -> response
         }.toMap
         val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
-        self ! RoutingResponses(rideHailRequest, rideHailAgentLocation, orderedResponses)
+        self ! RoutingResponses(rideHailRequest, rideHailAgentLocation, orderedResponses, poolingInfo)
       }
   }
 

@@ -1,7 +1,17 @@
 package beam.router.model
 
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -37,7 +47,11 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
       if (leg.beamLeg.mode.isTransit) {
         theMode = TRANSIT
       } else if (theMode == WALK && leg.isRideHail) {
-        theMode = RIDE_HAIL
+        if (leg.isPooledTrip) {
+          theMode = RIDE_HAIL_POOLED
+        } else {
+          theMode = RIDE_HAIL
+        }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
         theMode = CAR
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {

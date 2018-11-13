@@ -46,24 +46,23 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
   * Created by sfeygin on 2/7/17.
   */
 class OtherPersonAgentSpec
-  extends TestKit(
-    ActorSystem(
-      "OtherPersonAgentSpec",
-      ConfigFactory.parseString(
-        """
+    extends TestKit(
+      ActorSystem(
+        "OtherPersonAgentSpec",
+        ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
   """).withFallback(testConfig("test/input/beamville/beam.conf"))
+      )
     )
-  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -95,7 +94,10 @@ class OtherPersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] =
+    override def apply(
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
+      attributesOfIndividual: AttributesOfIndividual
+    ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
@@ -103,11 +105,11 @@ class OtherPersonAgentSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(
-                            mode: BeamMode,
-                            cost: Double,
-                            time: Double,
-                            numTransfers: Int
-                          ): Double = 0.0
+      mode: BeamMode,
+      cost: Double,
+      time: Double,
+      numTransfers: Int
+    ): Double = 0.0
   }
 
   // Mock a transit driver (who has to be a child of a mock router)

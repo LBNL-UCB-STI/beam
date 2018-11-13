@@ -5,7 +5,16 @@ import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogi
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
@@ -20,20 +29,24 @@ import scala.util.Random
   * BEAM
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
-  extends ModeChoiceCalculator with LazyLogging {
+    extends ModeChoiceCalculator
+    with LazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
+  override def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual)
 
       val bestInGroup =
-        modeCostTimeTransfers groupBy (_.mode) map {
-          case (_, group) => group minBy timeAndCost
-        }
+      modeCostTimeTransfers groupBy (_.mode) map {
+        case (_, group) => group minBy timeAndCost
+      }
 
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
@@ -69,7 +82,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     mct.scaledTime + mct.cost
   }
 
-  def altsToModeCostTimeTransfers(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): IndexedSeq[ModeCostTimeTransfer] = {
+  def altsToModeCostTimeTransfers(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): IndexedSeq[ModeCostTimeTransfer] = {
     val walkTripStartTime = alternatives
       .find(_.tripClassifier == WALK)
       .map(_.legs.head.beamLeg.startTime)
@@ -84,8 +100,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val totalCost: Double = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-            gasolineCostDefaults(altAndIdx._2)
-        case RIDE_HAIL =>
+          gasolineCostDefaults(altAndIdx._2)
+        case RIDE_HAIL | RIDE_HAIL_POOLED =>
           (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
         case RIDE_HAIL_TRANSIT =>
           (altAndIdx._1.legs.view
@@ -103,11 +119,21 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           altAndIdx._1.costEstimate
       }
-      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributesOfIndividual.age, attributesOfIndividual.income.map(x => x.toInt))
+      val subsidy = beamServices.modeSubsidies.getSubsidy(
+        mode,
+        attributesOfIndividual.age,
+        attributesOfIndividual.income.map(x => x.toInt)
+      )
       val subsidisedCost =
         Math.max(0, totalCost.toDouble - subsidy)
 
-      if (totalCost < subsidy) logger.warn("Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}", mode, totalCost, subsidy)
+      if (totalCost < subsidy)
+        logger.warn(
+          "Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}",
+          mode,
+          totalCost,
+          subsidy
+        )
 
       val numTransfers = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
@@ -124,7 +150,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       val waitTime = mode match {
-        case RIDE_HAIL =>
+        case RIDE_HAIL | RIDE_HAIL_POOLED =>
           altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
             altAndIdx._1.legs.head.beamLeg.startTime
           )
@@ -158,7 +184,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val variables =
       Map(
         "transfer" -> numTransfers.toDouble,
-        "cost" -> (cost + scaleTimeByVot(time, Option(mode)))
+        "cost"     -> (cost + scaleTimeByVot(time, Option(mode)))
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
@@ -177,6 +203,12 @@ object ModeChoiceMultinomialLogit {
         "intercept",
         "intercept",
         mnlConfig.params.ride_hail_intercept
+      ),
+      new MnlData(
+        "ride_hail_pooled",
+        "intercept",
+        "intercept",
+        mnlConfig.params.ride_hail_pooled_intercept
       ),
       new MnlData("bike", "intercept", "intercept", mnlConfig.params.bike_intercept),
       new MnlData(
@@ -205,11 +237,11 @@ object ModeChoiceMultinomialLogit {
   }
 
   case class ModeCostTimeTransfer(
-                                   mode: BeamMode,
-                                   cost: Double,
-                                   scaledTime: Double,
-                                   numTransfers: Int,
-                                   index: Int = -1
-                                 )
+    mode: BeamMode,
+    cost: Double,
+    scaledTime: Double,
+    numTransfers: Int,
+    index: Int = -1
+  )
 
 }

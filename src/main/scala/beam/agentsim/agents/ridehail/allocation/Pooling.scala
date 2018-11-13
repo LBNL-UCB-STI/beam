@@ -1,12 +1,14 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.router.model.RoutingModel.DiscreteTime
 
-class Pooling(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
+class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse = {
+  override def proposeVehicleAllocation(
+    vehicleAllocationRequest: VehicleAllocationRequest
+  ): VehicleAllocationResponse = {
 
     rideHailManager
       .getClosestIdleVehiclesWithinRadius(
@@ -15,7 +17,7 @@ class Pooling(val rideHailManager: RideHailManager)
       )
       .headOption match {
       case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None)
+        VehicleAllocation(agentLocation, None, Some(PoolingInfo(1.2, 0.6)))
       case None =>
         NoVehicleAllocated
     } // for inquiry the default option is sent to allow selection - some other could be sent here as well
@@ -23,36 +25,35 @@ class Pooling(val rideHailManager: RideHailManager)
 
   override def updateVehicleAllocations(tick: Int, triggerId: Long): Unit = {
 
-      for (request <- rideHailManager.getCompletedDummyRequests.values) {
-        rideHailManager
-          .getClosestIdleRideHailAgent(
-            request.pickUpLocation,
-            rideHailManager.radiusInMeters
-          ) match {
+    for (request <- rideHailManager.getCompletedDummyRequests.values) {
+      rideHailManager
+        .getClosestIdleRideHailAgent(
+          request.pickUpLocation,
+          rideHailManager.radiusInMeters
+        ) match {
 
-          case Some(rhl) =>
-            val updatedRequest = request.copy(
-              departAt = DiscreteTime(tick.toInt)
-            )
+        case Some(rhl) =>
+          val updatedRequest = request.copy(
+            departAt = DiscreteTime(tick.toInt)
+          )
 
-            rideHailManager.createRoutingRequestsToCustomerAndDestination(
-              updatedRequest,
-              rhl
-            )
+          rideHailManager.createRoutingRequestsToCustomerAndDestination(
+            updatedRequest,
+            rhl
+          )
 
-            logger.debug(
-              " new vehicle assigned:{}, tick: {}, person: {}",
-              rhl.vehicleId,
-              tick,
-              request.customer.personId
-            )
+          logger.debug(
+            " new vehicle assigned:{}, tick: {}, person: {}",
+            rhl.vehicleId,
+            tick,
+            request.customer.personId
+          )
 
-            rideHailManager.removeDummyRequest(request)
+          rideHailManager.removeDummyRequest(request)
 
-            bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
-          case None =>
-        }
+          bufferedRideHailRequests.registerVehicleAsReplacementVehicle(rhl.vehicleId)
+        case None =>
       }
     }
+  }
 }
-

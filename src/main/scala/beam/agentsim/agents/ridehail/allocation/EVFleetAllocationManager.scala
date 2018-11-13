@@ -70,7 +70,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
 
         if (rideHailManager
               .getVehicleState(agentLocation.vehicleId)
-              .remainingRangeInM < routedDisanceInM){
+              .remainingRangeInM < routedDisanceInM) {
           requestToExcludedDrivers.put(
             reqId,
             requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId
@@ -96,7 +96,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
             if (routeReqToDriverMap.contains(response.requestId.get))
               routeReqToDriverMap.remove(response.requestId.get)
           }
-          VehicleAllocation(agentLocation, routingResponses)
+          VehicleAllocation(agentLocation, routingResponses, None)
         }
       case Some(agentLocation) =>
         // If we have an agent and no routes, ask for the routes

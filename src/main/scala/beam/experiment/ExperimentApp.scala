@@ -20,7 +20,7 @@ class ExperimentApp extends App {
       .collect {
         case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
           (EXPERIMENTS_TAG, filePath)
-        case arg@_ =>
+        case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap
@@ -71,8 +71,6 @@ object ExperimentApp {
     experimentPath
   }
 
-
-
   def loadExperimentDefs(file: File): ExperimentDef = {
     import org.yaml.snakeyaml.{TypeDescription, Yaml}
     val constructor = new Constructor(classOf[ExperimentDef])
@@ -93,8 +91,5 @@ object ExperimentApp {
     val experiment = yaml.loadAs(new FileInputStream(file), classOf[ExperimentDef])
     experiment
   }
-
-
-
 
 }

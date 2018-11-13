@@ -25,8 +25,10 @@ import scala.concurrent.Promise
 
 object ModeChosenStatsGraphSpec {
 
-  class ModeChosenStatsGraph(compute: ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer, beamConfig: BeamConfig)
-      extends BasicEventHandler
+  class ModeChosenStatsGraph(
+    compute: ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer,
+    beamConfig: BeamConfig
+  ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val modeChosenStats =

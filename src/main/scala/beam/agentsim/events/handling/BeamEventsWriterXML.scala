@@ -17,10 +17,12 @@ import scala.collection.JavaConverters._
   * @param beamServices beam services
   * @param eventTypeToLog type of event to log
   */
-class BeamEventsWriterXML(var outFileName: String,
-                           beamEventLogger: BeamEventsLogger,
-                           beamServices: BeamServices,
-                           eventTypeToLog: Class[_]) extends BeamEventsWriterBase(outFileName,beamEventLogger,beamServices,eventTypeToLog) {
+class BeamEventsWriterXML(
+  var outFileName: String,
+  beamEventLogger: BeamEventsLogger,
+  beamServices: BeamServices,
+  eventTypeToLog: Class[_]
+) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
 
   writeHeaders()
 
@@ -41,8 +43,7 @@ class BeamEventsWriterXML(var outFileName: String,
       //write the event tag to the xml file
       val eventElem = s"\t<event ${keyValues.mkString(" ")}/>\n"
       this.out.append(eventElem)
-    }
-    catch {
+    } catch {
       case e: Exception =>
         throw e
     }
@@ -58,8 +59,7 @@ class BeamEventsWriterXML(var outFileName: String,
     try {
       this.out.write(header)
       this.out.write("\n")
-    }
-    catch {
+    } catch {
       case e: IOException =>
         throw new UncheckedIOException(e)
     }
@@ -85,7 +85,7 @@ class BeamEventsWriterXML(var outFileName: String,
     */
   private def encodeAttributeValue(attributeValue: String): String = {
     // Replace special characters(if any) with encoded strings
-    attributeValue.find(List('<','>','\"','&').contains(_)) match {
+    attributeValue.find(List('<', '>', '\"', '&').contains(_)) match {
       case Some(_) =>
         attributeValue
           .replaceAll("<", "&lt;")

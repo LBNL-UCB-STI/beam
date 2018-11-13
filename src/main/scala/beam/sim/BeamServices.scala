@@ -71,7 +71,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup =
+    injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -141,9 +142,9 @@ object BeamServices {
   }
 
   def readVehiclesFile(
-                        filePath: String,
-                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+    filePath: String,
+    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
@@ -173,18 +174,18 @@ object BeamServices {
 
   private def getFuelTypeId(fuelType: String): FuelTypeId = {
     fuelType match {
-      case "gasoline" => BeamVehicleType.Gasoline
-      case "diesel" => BeamVehicleType.Diesel
+      case "gasoline"    => BeamVehicleType.Gasoline
+      case "diesel"      => BeamVehicleType.Diesel
       case "electricity" => BeamVehicleType.Electricity
-      case "biodiesel" => BeamVehicleType.Biodiesel
-      case _ => throw new RuntimeException("Invalid fuel type id")
+      case "biodiesel"   => BeamVehicleType.Biodiesel
+      case _             => throw new RuntimeException("Invalid fuel type id")
     }
   }
 
   def readBeamVehicleTypeFile(
-                               filePath: String,
-                               fuelTypeMap: TrieMap[Id[FuelType], FuelType]
-                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    filePath: String,
+    fuelTypeMap: TrieMap[Id[FuelType], FuelType]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
@@ -233,10 +234,10 @@ object BeamServices {
 
   private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
     vehicleCategory match {
-      case "car" => BeamVehicleType.Car
-      case "bike" => BeamVehicleType.Bike
+      case "car"      => BeamVehicleType.Car
+      case "bike"     => BeamVehicleType.Bike
       case "ridehail" => BeamVehicleType.RideHail
-      case _ => throw new RuntimeException("Invalid vehicleCategory")
+      case _          => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 

@@ -28,6 +28,16 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
   }
 
+  def scaleLegDuration(scaleBy: Double): BeamLeg = {
+    val newTravelPath = this.travelPath.scaleTravelTimes(scaleBy)
+    this
+      .copy(
+        duration = newTravelPath.duration,
+        travelPath = newTravelPath
+      )
+
+  }
+
   override def toString: String =
     s"BeamLeg($mode @ $startTime,dur:$duration,path: ${travelPath.toShortString})"
 }

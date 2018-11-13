@@ -11,12 +11,11 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.util.Try
 
 case class SigoptExperimentData(
-                                 experimentDef: ExperimentDef,
-                                 benchmarkFileLoc: String,
-                                 experimentId: String,
-                                 development: Boolean = false
-                               ) extends LazyLogging {
-
+  experimentDef: ExperimentDef,
+  benchmarkFileLoc: String,
+  experimentId: String,
+  development: Boolean = false
+) extends LazyLogging {
 
   val baseConfig: Config =
     ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)

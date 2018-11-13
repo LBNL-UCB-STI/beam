@@ -1,7 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  PoolingInfo,
+  RideHailAgentLocation
+}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -26,7 +30,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.radiusInMeters
       ) match {
       case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None)
+        VehicleAllocation(agentLocation, None, None)
       case None =>
         NoVehicleAllocated
     }
@@ -137,7 +141,8 @@ case class RoutingRequiredToAllocateVehicle(
 
 case class VehicleAllocation(
   rideHailAgentLocation: RideHailAgentLocation,
-  routingResponses: Option[List[RoutingResponse]]
+  routingResponses: Option[List[RoutingResponse]],
+  poolingInfo: Option[PoolingInfo]
 ) extends VehicleAllocationResponse
 
 case object NoVehicleAllocated extends VehicleAllocationResponse

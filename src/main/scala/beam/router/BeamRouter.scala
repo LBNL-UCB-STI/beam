@@ -120,8 +120,6 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-
-
   private var traveTimeOpt: Option[TravelTime] = None
 
   override def receive: PartialFunction[Any, Unit] = {

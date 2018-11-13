@@ -54,15 +54,30 @@ class TollRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(
+      DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      )
+    )
     networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
+    val tollCalculator = new TollCalculator(beamConfig, "test/input/beamville/r5")
+    router = system.actorOf(
+      BeamRouter.props(
+        services,
+        networkCoordinator.transportNetwork,
+        networkCoordinator.network,
+        new EventsManagerImpl(),
+        scenario.getTransitVehicles,
+        fareCalculator,
+        tollCalculator
+      )
+    )
   }
 
   "A time-dependent router with toll calculator" must {
@@ -72,7 +87,23 @@ class TollRoutingSpec
 
     "report a toll on a route where the fastest route has tolls" in {
       val timeValueOfMoney = 0.0 // I don't mind tolls
-      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)), Access, false, timeValueOfMoney)
+      val request = RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("car"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        ),
+        Access,
+        false,
+        timeValueOfMoney
+      )
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
@@ -85,10 +116,22 @@ class TollRoutingSpec
       val earlierCarOption = earlierResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(earlierCarOption.costEstimate == 2.0, "the link toll starts at 3000; when we go earlier, we don't pay it")
 
-      val configWithTollTurnedUp = BeamConfig(system.settings.config
-        .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
-      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp,"test/input/beamville/r5")
-      val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
+      val configWithTollTurnedUp = BeamConfig(
+        system.settings.config
+          .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0))
+      )
+      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp, "test/input/beamville/r5")
+      val moreExpensiveRouter = system.actorOf(
+        BeamRouter.props(
+          services,
+          networkCoordinator.transportNetwork,
+          networkCoordinator.network,
+          new EventsManagerImpl(),
+          scenario.getTransitVehicles,
+          fareCalculator,
+          moreExpensiveTollCalculator
+        )
+      )
       moreExpensiveRouter ! request
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
@@ -98,7 +141,23 @@ class TollRoutingSpec
       // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
       // (which takes 288 seconds)
       val higherTimeValueOfMoney = 145.0
-      val tollSensitiveRequest = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)), Access, false, higherTimeValueOfMoney)
+      val tollSensitiveRequest = RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("car"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          )
+        ),
+        Access,
+        false,
+        higherTimeValueOfMoney
+      )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
@@ -107,7 +166,20 @@ class TollRoutingSpec
     }
 
     "not report a toll when walking" in {
-      val request = RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)))
+      val request = RoutingRequest(
+        origin,
+        destination,
+        time,
+        Vector(),
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body"),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            Modes.BeamMode.WALK,
+            asDriver = true
+          )
+        )
+      )
       router ! request
       val response = expectMsgType[RoutingResponse]
       val walkOption = response.itineraries.find(_.tripClassifier == WALK).get
