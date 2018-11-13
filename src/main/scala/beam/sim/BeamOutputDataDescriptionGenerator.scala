@@ -233,3 +233,59 @@ object CountsCompare extends OutputDataDescriptor {
     list
   }
 }
+
+object Events extends OutputDataDescriptor {
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
+    val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,"events.csv")
+    val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath = outputFilePath.replace(outputDirPath, "")
+    val list = new java.util.ArrayList[OutputDataDescription]
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "person", "Person(Agent) Id"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicle", "vehicle id"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "time", "Start time of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "type", "Type of the event"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "fuel", "Type of fuel used in the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "duration", "Duration of the travel"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "cost", "Cost of travel"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "location.x", "X co-ordinate of the location"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "location.y", "Y co-ordinate of the location"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "parking_type", "Parking type chosen by the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "pricing_model", "Pricing model"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "charging_type", "Charging type of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "parking_taz", "Parking TAZ"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "distance", "Distance between source and destination"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "location", "Location of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "mode", "Mode of travel"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "currentTourMode", "Current tour mode"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "expectedMaximumUtility", "Expected maximum utility of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "availableAlternatives", "Available alternatives for travel for the passenger"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "personalVehicleAvailable", "Whether the passenger possesses a personal vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "tourIndex", "Tour index"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "facility", "Facility availed by the passenger"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "departTime", "Time of departure of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "originX", "X ordinate of the passenger origin point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "originY", "Y ordinate of the passenger origin point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "destinationX", "X ordinate of the passenger destination point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "destinationY", "Y ordinate of the passenger destination point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "fuelType", "Fuel type of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "num_passengers", "Num of passengers travelling in the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "links", "Number of links in the network"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "departure_time", "Departure time of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "arrival_time", "Arrival time of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicle_type", "Type of vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "capacity", "Total capacity of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "start.x", "X ordinate of the start point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "start.y", "Y ordinate of the start point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "end.x", "X ordinate of the vehicle end point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "end.y", "Y ordinate of the vehicle end point"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "end_leg_fuel_level", "Fuel level at the end of the travel"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "seating_capacity", "Seating capacity of the vehicle"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "costType", "Type of cost of travel incurred on the passenger"))
+    list
+  }
+}
