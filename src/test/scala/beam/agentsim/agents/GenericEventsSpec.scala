@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import beam.integration.IntegrationSpecCommon
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.sim.{BeamHelper, BeamServices}
@@ -15,7 +15,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _
-  protected var networkCoordinator: NetworkCoordinator = _
+  protected var networkCoordinator: DefaultNetworkCoordinator = _
 
   override def beforeAll(): Unit = {
 
@@ -25,8 +25,9 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]

@@ -23,16 +23,15 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.AttributesOfIndividual
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.plan.sampling.PlansSampler
+import beam.utils.plan.sampling.{AvailableModeUtils, PlansSampler}
 import com.typesafe.config.ConfigFactory
-import org.junit.Ignore
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
@@ -52,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -133,7 +132,7 @@ class PersonAgentSpec
 
   private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
 
-  private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
@@ -161,11 +160,14 @@ class PersonAgentSpec
           )
         )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      putDefaultBeamAttributes(person)
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
+      person.addPlan(plan)
       val personAgentRef = TestFSMRef(
         new PersonAgent(
           scheduler,
@@ -714,10 +716,28 @@ class PersonAgentSpec
 
   override def beforeAll: Unit = {
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {
     shutdown()
+  }
+
+  private def putDefaultBeamAttributes(person: Person) = {
+    person.getCustomAttributes.put(
+      "beam-attributes",
+      AttributesOfIndividual(
+        HouseholdAttributes.EMPTY,
+        None,
+        false,
+        AvailableModeUtils.availableModeParser(
+          "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
+        ),
+        15.0,
+        None,
+        None
+      )
+    )
   }
 
 }

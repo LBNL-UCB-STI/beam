@@ -1,7 +1,7 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.sim.population.DefaultPopulationAdjustment
@@ -25,8 +25,9 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)

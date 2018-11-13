@@ -12,7 +12,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -41,7 +41,7 @@ class TollRoutingSpec
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
 
   val services: BeamServices = mock[BeamServices]
   var scenario: Scenario = _
@@ -55,13 +55,15 @@ class TollRoutingSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
+    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network,
+      scenario, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
   }
 
   "A time-dependent router with toll calculator" must {
@@ -87,7 +89,8 @@ class TollRoutingSpec
       val configWithTollTurnedUp = BeamConfig(system.settings.config
         .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
       val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp,"test/input/beamville/r5")
-      val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
+      val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network,
+        scenario, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
       moreExpensiveRouter ! request
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get

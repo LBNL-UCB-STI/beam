@@ -22,7 +22,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -46,7 +46,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -131,7 +131,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
@@ -477,6 +477,7 @@ class OtherPersonAgentSpec
       }
     })
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {

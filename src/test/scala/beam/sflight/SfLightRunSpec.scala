@@ -3,7 +3,7 @@ package beam.sflight
 import java.nio.file.Paths
 
 import beam.agentsim.events.ModeChoiceEvent
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
@@ -51,8 +51,9 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
