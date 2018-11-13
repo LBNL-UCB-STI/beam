@@ -39,7 +39,7 @@ public class PhyssimCalcLinkSpeedStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputFileName = "physsim_linkAverageSpeedPercentage";
+    private String outputFileName = "physsimLinkAverageSpeedPercentage";
 
     //Public constructor for the PhyssimCalcLinkSpeedStats class
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {

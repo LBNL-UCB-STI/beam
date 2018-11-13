@@ -1,7 +1,8 @@
 package beam.integration
 
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -28,8 +29,9 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
     scenario.setNetwork(networkCoordinator.network)
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -41,8 +43,14 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
         }
       }
     )
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
+    val popAdjustment = DefaultPopulationAdjustment
+
+    val beamServices = injector.getInstance(classOf[BeamServices])
+    val controller = beamServices.controler
+    popAdjustment(beamServices).update(scenario)
+
+    controller.run()
+
     verify(iterationCounter, times(3)).notifyIterationEnds(any())
   }
 

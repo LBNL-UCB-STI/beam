@@ -10,12 +10,12 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.{FrequencyAdjustingNetworkCoordinator, DefaultNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.PopulationAdjustment
+import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -27,7 +27,6 @@ import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.contrib.decongestion.handler.DelayAnalysis
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -331,12 +330,27 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
-    val (matsimConfig, outputDir, beamServices) = setupBeamWithConfig(config)
+    val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      module(config, scenario, networkCoordinator)
+    )
+
+    networkCoordinator.convertFrequenciesToTrips()
+
+    scenario.setNetwork(networkCoordinator.network)
+
+    val beamServices = injector.getInstance(classOf[BeamServices])
+    samplePopulation(scenario,beamServices.beamConfig,scenario.getConfig,beamServices)
     run(beamServices)
-    (matsimConfig, outputDir)
+
+    (scenario.getConfig, outputDir)
   }
 
-  def setupBeamWithConfig(config: TypesafeConfig): (Config, String, BeamServices) = {
+
+
+  def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -362,16 +376,19 @@ trait BeamHelper extends LazyLogging {
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    val networkCoordinator: NetworkCoordinator = if(Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))){
+      FrequencyAdjustingNetworkCoordinator(beamConfig)
+    }else {
+       DefaultNetworkCoordinator(beamConfig)
+    }
+    networkCoordinator.init()
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
     val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
+
 
     // TODO ASIF
     // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
@@ -386,16 +403,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      module(config, scenario, networkCoordinator)
-    )
-
-    val beamServices = injector.getInstance(classOf[BeamServices])
-
-    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
-
-    (matsimConfig, outputDirectory, beamServices)
+    (scenario, outputDirectory, networkCoordinator)
   }
 
   def run(beamServices: BeamServices){
@@ -445,16 +453,24 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
+
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+    }else {
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
     }
-
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
-    populationAdjustment.update(scenario)
-
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
   }
 }
 
