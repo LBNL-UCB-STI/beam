@@ -92,6 +92,15 @@ class EventsFileSpec
     assert(getEventsFilePath(matsimConfig, "csv").exists())
   }
 
+  it should "contain at least one paid toll" in {
+    val tollEvents = for {
+      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      if event.getEventType == "PathTraversal"
+      if event.getAttributes.get("amount_paid").toDouble != 0.0
+    } yield event
+    tollEvents should not be empty
+  }
+
   it should "also produce experienced plans which make sense" in {
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new PopulationReader(scenario).readFile(

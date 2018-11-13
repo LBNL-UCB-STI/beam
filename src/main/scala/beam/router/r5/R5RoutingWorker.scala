@@ -135,7 +135,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-      val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
+      val tollCalculator = new TollCalculator(beamConfig)
       WorkerParameters(
         beamServices,
         transportNetwork,

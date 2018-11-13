@@ -23,6 +23,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -287,6 +288,7 @@ class OtherPersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
+          new TollCalculator(beamSvc.beamConfig),
           self,
           self,
           parkingManager,

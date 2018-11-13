@@ -348,6 +348,7 @@ class BeamRouter(
             scheduler,
             services,
             transportNetwork,
+            tollCalculator,
             eventsManager,
             parkingManager,
             transitDriverId,

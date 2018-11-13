@@ -22,6 +22,7 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
+import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils._
@@ -50,6 +51,7 @@ import scala.concurrent.duration._
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val scenario: Scenario,
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
@@ -190,6 +192,7 @@ class BeamMobsim @Inject()(
             beamServices,
             scheduler,
             transportNetwork,
+            tollCalculator,
             beamServices.beamRouter,
             rideHailManager,
             parkingManager,
@@ -321,6 +324,7 @@ class BeamMobsim @Inject()(
               beamServices,
               scheduler,
               transportNetwork,
+              tollCalculator,
               eventsManager,
               parkingManager,
               rideHailAgentPersonId,

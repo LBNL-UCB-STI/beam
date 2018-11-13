@@ -25,6 +25,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -82,6 +83,7 @@ class PersonAgentSpec
   private val personRefs = TrieMap[Id[Person], ActorRef]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  private val tollCalculator = new TollCalculator(beamConfig)
 
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
@@ -181,7 +183,8 @@ class PersonAgentSpec
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
           Id.create("dummyBody", classOf[Vehicle]),
-          parkingManager
+          parkingManager,
+          tollCalculator
         )
       )
 
@@ -231,6 +234,7 @@ class PersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
+          tollCalculator,
           self,
           self,
           parkingManager,
@@ -372,6 +376,7 @@ class PersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
+          tollCalculator,
           self,
           self,
           parkingManager,
@@ -570,6 +575,7 @@ class PersonAgentSpec
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = networkCoordinator.transportNetwork,
+          tollCalculator,
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,

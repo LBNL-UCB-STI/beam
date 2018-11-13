@@ -43,6 +43,7 @@ import scala.concurrent.{Await, Future}
 class BeamSim @Inject()(
                          private val actorSystem: ActorSystem,
                          private val transportNetwork: TransportNetwork,
+                         private val tollCalculator: TollCalculator,
                          private val beamServices: BeamServices,
                          private val eventsManager: EventsManager,
                          private val scenario: Scenario,
@@ -97,7 +98,6 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("histogram", "**")
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,

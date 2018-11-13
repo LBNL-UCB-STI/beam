@@ -155,6 +155,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
+        new TollCalculator(services.beamConfig),
         scenario,
         eventsManager,
         system,
@@ -193,6 +194,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
+        new TollCalculator(services.beamConfig),
         scenario,
         eventsManager,
         system,
@@ -250,6 +252,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
+        new TollCalculator(services.beamConfig),
         scenario,
         eventsManager,
         system,

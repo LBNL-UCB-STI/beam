@@ -72,7 +72,7 @@ class AbstractSfLightSpec
     networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(

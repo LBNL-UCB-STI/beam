@@ -17,18 +17,15 @@ import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.BeamLeg
+import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -67,6 +64,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
+  protected val tollCalculator: TollCalculator
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
@@ -170,7 +168,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   beamServices
                     .vehicles(currentVehicleUnderControl)
                     .fuelLevelInJoules
-                    .getOrElse(-1.0)
+                    .getOrElse(-1.0),
+                  toll(currentLeg)
                 )
               )
             case None =>
@@ -346,7 +345,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                   beamServices
                     .vehicles(currentVehicleUnderControl)
                     .fuelLevelInJoules
-                    .getOrElse(-1.0)
+                    .getOrElse(-1.0),
+                  tollCalculator.calcTollByLinkIds(currentLeg.travelPath)
                 )
               )
 
@@ -646,4 +646,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       }
     }
   }
+
+  def toll(leg: BeamLeg) = {
+    if (leg.mode == BeamMode.CAR)
+      tollCalculator.calcTollByLinkIds(leg.travelPath)
+    else
+      0.0
+  }
+
 }

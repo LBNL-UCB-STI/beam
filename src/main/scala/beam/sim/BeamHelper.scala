@@ -10,6 +10,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -223,6 +224,7 @@ trait BeamHelper extends LazyLogging {
           )
 
           bind(classOf[RideHailIterationHistory])
+          bind(classOf[TollCalculator])
 
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()

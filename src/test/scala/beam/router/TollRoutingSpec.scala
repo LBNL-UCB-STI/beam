@@ -61,7 +61,7 @@ class TollRoutingSpec
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = new TollCalculator(beamConfig,"test/input/beamville/r5")
+    val tollCalculator = new TollCalculator(beamConfig)
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
   }
 
@@ -87,7 +87,7 @@ class TollRoutingSpec
 
       val configWithTollTurnedUp = BeamConfig(system.settings.config
         .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0)))
-      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp,"test/input/beamville/r5")
+      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp)
       val moreExpensiveRouter = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, moreExpensiveTollCalculator))
       moreExpensiveRouter ! request
       val moreExpensiveResponse = expectMsgType[RoutingResponse]

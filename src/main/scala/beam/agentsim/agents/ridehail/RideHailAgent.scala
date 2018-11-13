@@ -7,18 +7,9 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  EndLegTrigger,
-  EndRefuelTrigger,
-  StartLegTrigger,
-  StartRefuelTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -26,6 +17,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -40,6 +32,7 @@ object RideHailAgent {
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
@@ -55,7 +48,8 @@ object RideHailAgent {
         eventsManager,
         parkingManager,
         services,
-        transportNetwork
+        transportNetwork,
+        tollCalculator
       )
     )
 
@@ -127,7 +121,8 @@ class RideHailAgent(
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
-  val transportNetwork: TransportNetwork
+  val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator
 ) extends BeamAgent[RideHailAgentData]
     with DrivesVehicle[RideHailAgentData]
     with Stash {

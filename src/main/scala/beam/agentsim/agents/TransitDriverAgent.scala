@@ -7,15 +7,12 @@ import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, Ve
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -32,6 +29,7 @@ object TransitDriverAgent {
     scheduler: ActorRef,
     services: BeamServices,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
@@ -43,6 +41,7 @@ object TransitDriverAgent {
         scheduler,
         services,
         transportNetwork,
+        tollCalculator,
         eventsManager,
         parkingManager,
         transitDriverId,
@@ -85,6 +84,7 @@ class TransitDriverAgent(
   val scheduler: ActorRef,
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
