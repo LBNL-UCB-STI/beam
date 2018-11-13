@@ -13,7 +13,8 @@ case class RideHailRequest(
   customer: VehiclePersonId,
   pickUpLocation: Location,
   departAt: BeamTime,
-  destination: Location
+  destination: Location,
+  asPooled: Boolean = false
 ) {
 
   /**

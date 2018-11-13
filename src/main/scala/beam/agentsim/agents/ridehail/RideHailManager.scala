@@ -419,7 +419,7 @@ class RideHailManager(
         "Illegal use of CheckOutResource, RideHailManager is responsible for checking out vehicles in fleet."
       )
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _,_) =>
       findDriverAndSendRoutingRequests(inquiry)
 
     case R5Network(network) =>
@@ -536,7 +536,7 @@ class RideHailManager(
         )
       }
 
-    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _) =>
+    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _,_) =>
       handleReservationRequest(reserveRide)
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(

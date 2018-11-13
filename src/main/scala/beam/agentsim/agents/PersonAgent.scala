@@ -571,6 +571,7 @@ class PersonAgent(
           )
         )
       }
+    // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
@@ -585,6 +586,7 @@ class PersonAgent(
         currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
         isWithinTripReplanning = true
       )
+    // TRANSIT
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
@@ -597,6 +599,7 @@ class PersonAgent(
       )
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
+    // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _))
         if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
@@ -609,7 +612,8 @@ class PersonAgent(
         VehiclePersonId(bodyId, id, Some(self)),
         beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt,
-        beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc)
+        beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
+        nextLeg.isPooledTrip
       )
 
       eventsManager.processEvent(

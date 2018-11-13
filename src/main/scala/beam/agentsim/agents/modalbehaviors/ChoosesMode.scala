@@ -632,7 +632,11 @@ trait ChoosesMode {
         val theModes =
           data.routingResponse.get.itineraries.map(_.tripClassifier).distinct
         if (data.rideHailResult.isDefined && data.rideHailResult.get.error.isEmpty) {
-          theModes :+ RIDE_HAIL
+          if(data.rideHailResult.get.travelProposal.get.poolingInfo.isDefined){
+            theModes :+ RIDE_HAIL :+ RIDE_HAIL_POOLED
+          }else{
+            theModes :+ RIDE_HAIL
+          }
         } else {
           theModes
         }
