@@ -58,7 +58,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-            .equals("ModeChoiceLCCM")) {
+                .equals("ModeChoiceLCCM")) {
             // Compute and log all-day score w.r.t. all modality styles
             // One of them has many suspicious-looking 0.0 values. Probably something which
             // should be minus infinity or exception instead.
@@ -70,7 +70,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
+                modeChoiceCalculatorForStyle =>
+                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
               )
               .toArray
               .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
@@ -83,10 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
             val logsum = Option(
               math.log(
-                person
-                  .getPlans
-                  .asScala
-                  .view
+                person.getPlans.asScala.view
                   .map(
                     plan =>
                       plan.getAttributes
@@ -106,16 +104,16 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
                 AlternativeAttributes(
                   attributes.modalityStyle.get,
                   Map(
-                    "income" -> attributes.householdAttributes.householdIncome,
+                    "income"        -> attributes.householdAttributes.householdIncome,
                     "householdSize" -> attributes.householdAttributes.householdSize.toDouble,
                     "male" -> (if (attributes.isMale) {
-                      1.0
-                    } else {
-                      0.0
-                    }),
-                    "numCars" -> attributes.householdAttributes.numCars.toDouble,
+                                 1.0
+                               } else {
+                                 0.0
+                               }),
+                    "numCars"  -> attributes.householdAttributes.numCars.toDouble,
                     "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-                    "surplus" -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+                    "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
                   )
                 )
               )

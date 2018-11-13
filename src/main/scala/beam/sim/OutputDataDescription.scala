@@ -7,7 +7,4 @@ package beam.sim
   * @param field field to be described
   * @param description description of the field
   */
-case class OutputDataDescription(className : String,
-                                 outputFile:String,
-                                 field:String,
-                                 description:String)
+case class OutputDataDescription(className: String, outputFile: String, field: String, description: String)

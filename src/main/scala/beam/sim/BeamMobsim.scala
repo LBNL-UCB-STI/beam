@@ -13,7 +13,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  NotifyIterationEnds,
+  RideHailAllocationManagerTimeout
+}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
@@ -58,7 +62,8 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager
 ) extends Mobsim
     with LazyLogging
-    with MetricsSupport with OutputDataDescriptor {
+    with MetricsSupport
+    with OutputDataDescriptor {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _
@@ -344,11 +349,11 @@ class BeamMobsim @Inject()(
         if (beamServices.matsimServices != null) {
           rideHailinitialLocationSpatialPlot.writeCSV(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, fileBaseName+".csv")
+              .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".csv")
           )
           rideHailinitialLocationSpatialPlot.writeImage(
             beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, fileBaseName+".png")
+              .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")
           )
         }
         log.info("Initialized {} people", beamServices.personRefs.size)
@@ -468,9 +473,30 @@ class BeamMobsim @Inject()(
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new util.ArrayList[OutputDataDescription]
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "rideHailAgentID", "Unique id of the given ride hail agent"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "xCoord", "X co-ordinate of the starting location of the ride hail"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "yCoord", "Y co-ordinate of the starting location of the ride hail"))
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "rideHailAgentID",
+        "Unique id of the given ride hail agent"
+      )
+    )
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "xCoord",
+        "X co-ordinate of the starting location of the ride hail"
+      )
+    )
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "yCoord",
+        "Y co-ordinate of the starting location of the ride hail"
+      )
+    )
     list
   }
 }
