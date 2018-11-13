@@ -100,13 +100,13 @@ object RideHailManager {
 
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
-    timeToCustomer: Long,
-    estimatedPrice: Double,
-    estimatedTravelTime: Option[Duration],
     responseRideHail2Pickup: RoutingResponse,
     responseRideHail2Dest: RoutingResponse,
     poolingInfo: Option[PoolingInfo] = None
   ) {
+    lazy val timeToCustomer = responseRideHail2Pickup.itineraries.map(_.totalTravelTimeInSecs).sum
+    lazy val estimatedPrice = responseRideHail2Dest.itineraries.headOption.map(_.costEstimate).getOrElse(0.0)
+    lazy val estimatedTravelTime = responseRideHail2Dest.itineraries.headOption.map(_.totalTravelTimeInSecs).getOrElse(0.0)
     override def toString: String =
       s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
   }
@@ -497,9 +497,6 @@ class RideHailManager(
 
           val travelProposal = TravelProposal(
             rideHailLocation,
-            timeToCustomer,
-            cost,
-            Some(FiniteDuration(customerTripPlan.totalTravelTimeInSecs, TimeUnit.SECONDS)),
             tripDriver2Cust,
             tripCust2Dest,
             poolingInfoOpt
