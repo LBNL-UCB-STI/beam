@@ -260,7 +260,28 @@ configurations.all {
 
 }
 
-//compileScala.dependsOn(scalafmtAll)
+import java.util.concurrent.*
+task backgroundScalaFmt{
+    doLast {
+        ExecutorService es = Executors.newSingleThreadExecutor()
+        es.submit({
+            boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+            ProcessBuilder builder
+            if (isWindows) {
+                builder = new ProcessBuilder("cmd /c gradlew scalafmtAll".split(' '))
+            } else {
+                builder = new ProcessBuilder("sh -c ./gradlew scalafmtAll".split(' '))
+            }
+            builder.redirectErrorStream(true)
+            builder.directory(new File(System.getProperty("user.dir")))
+            println("Starting scalaFmtAll in background")
+            def process = builder.start()
+            new BufferedReader(new InputStreamReader(process.getInputStream())).lines().forEach { name -> System.out.println(name) }
+            process.waitFor()
+        } as Callable)
+    }
+}
+compileScala.dependsOn(backgroundScalaFmt)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
