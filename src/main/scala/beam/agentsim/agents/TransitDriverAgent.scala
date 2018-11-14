@@ -140,7 +140,7 @@ class TransitDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_), _) =>
+    case Event(PassengerScheduleEmptyMessage(_,_), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stop
