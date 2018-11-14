@@ -223,8 +223,8 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
-          bind(classOf[RideHailIterationHistory])
-          bind(classOf[TollCalculator])
+          bind(classOf[RideHailIterationHistory]).asEagerSingleton()
+          bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()

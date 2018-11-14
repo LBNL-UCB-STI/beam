@@ -7,11 +7,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable.ArrayBuffer
 
-class RideHailIterationHistory @Inject()(
-  eventsManager: EventsManager,
-  beamServices: BeamServices,
-  transportNetwork: TransportNetwork
-) {
+class RideHailIterationHistory @Inject()() {
 
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!

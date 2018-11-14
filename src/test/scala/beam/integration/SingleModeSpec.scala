@@ -159,7 +159,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.foreach {
@@ -198,7 +198,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.foreach {
@@ -255,7 +255,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.collect {
@@ -316,7 +316,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(eventsManager, services, networkCoordinator.transportNetwork)
+        new RideHailIterationHistory()
       )
       mobsim.run()
     }
