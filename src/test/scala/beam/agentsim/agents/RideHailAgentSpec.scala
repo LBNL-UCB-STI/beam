@@ -64,7 +64,7 @@ class RideHailAgentSpec
   private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)

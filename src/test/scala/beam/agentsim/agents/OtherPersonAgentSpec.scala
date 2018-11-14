@@ -85,7 +85,7 @@ class OtherPersonAgentSpec
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)

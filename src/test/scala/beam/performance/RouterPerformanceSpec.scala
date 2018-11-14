@@ -95,7 +95,7 @@ class RouterPerformanceSpec
     config = testConfig(confPath)
     val beamConfig = BeamConfig(config)
 
-    val services: BeamServices = mock[BeamServices]
+    val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
     val geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)

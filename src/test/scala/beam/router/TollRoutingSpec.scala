@@ -24,7 +24,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -43,7 +43,7 @@ class TollRoutingSpec
   var router: ActorRef = _
   var networkCoordinator: NetworkCoordinator = _
 
-  val services: BeamServices = mock[BeamServices]
+  val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
   var fareCalculator: FareCalculator = _
 

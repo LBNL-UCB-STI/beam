@@ -88,7 +88,7 @@ class PersonAgentSpec
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)

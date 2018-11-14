@@ -31,7 +31,7 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -74,7 +74,7 @@ class WarmStartRoutingSpec
     val beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
-    services = mock[BeamServices]
+    services = mock[BeamServices](withSettings().stubOnly())
     var scenario: Scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))

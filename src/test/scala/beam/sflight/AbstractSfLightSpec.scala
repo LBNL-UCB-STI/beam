@@ -5,7 +5,6 @@ import java.time.ZonedDateTime
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
@@ -22,7 +21,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -52,7 +51,7 @@ class AbstractSfLightSpec
   lazy val config = testConfig(confPath)
   lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
-  lazy val services: BeamServices = mock[BeamServices]
+  lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
 
   override def beforeAll: Unit = {
 
