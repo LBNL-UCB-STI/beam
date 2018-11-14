@@ -1,6 +1,9 @@
 package beam.analysis.physsim;
 
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
@@ -20,9 +23,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -30,7 +32,7 @@ import java.util.stream.Stream;
  * @author Bhavya Latha Bandaru.
  * This class computes the distribution of free flow speed (in both m/s and %) over the network.
  */
-public class PhyssimCalcLinkSpeedDistributionStats {
+public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescriptor {
 
     private static int noOfBins = 24;
     private BeamConfig beamConfig;
@@ -72,8 +74,8 @@ public class PhyssimCalcLinkSpeedDistributionStats {
             //If not running in test mode , write output to a csv file
             if (isNotTestMode()) {
                 //write data outputs to CSV
-                this.writeCSV(speedDataMatrix,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsSpeedUnitFileName+".csv"),"Free Speed Distribution(m/s)");
-                this.writeCSV(processedSpeedDistributionAsPercentageData,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsPercentageFileName+".csv"),"Free Speed Distribution(%)");
+                this.writeCSV(speedDataMatrix,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsSpeedUnitFileName+".csv"),"freeSpeedInMetersPerSecond");
+                this.writeCSV(processedSpeedDistributionAsPercentageData,outputDirectoryHierarchy.getIterationFilename(iteration, outputAsPercentageFileName+".csv"),"linkEfficiencyInPercentage");
             }
             //generate the required charts - frequency over speed (as m/s)
             generateSpeedDistributionBarChart(dataSetForSpeed,iteration);
@@ -107,13 +109,13 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     private void writeCSV(double[][] dataMatrix,String outputFilePath,String heading) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath));
-            String completeHeading = heading + ",x-coordinate,y-coordinate\n";
+            String completeHeading = heading + ",numberOfLinks\n";
             bw.write(completeHeading);
             double[] data = dataMatrix[0];
             IntStream.range(0,data.length)
                     .forEach( i -> {
                         try {
-                            bw.write( i + "," + i + "," + data[i] + "\n");
+                            bw.write(i + "," + data[i] + "\n");
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -133,7 +135,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     private void writeCSV(Map<Double, Integer> dataMap,String outputFilePath,String heading) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath));
-            String completeHeading = heading + ",x-coordinate,y-coordinate\n";
+            String completeHeading = heading + ",linkEfficiencyRounded,numberOfLinks\n";
             bw.write(completeHeading);
             dataMap.forEach((k,v) -> {
                 try {
@@ -172,15 +174,6 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         return freeFlowSpeedFrequencies;
     }
 
-    public Stream<Double> getDistinctFreeSpeeds(int binsCount,Network network) {
-        return Stream.iterate(0, x -> x)
-                .limit(binsCount)
-                .flatMap(bin -> network.getLinks().values()
-                        .stream()
-                        .map(link -> link.getFreespeed(bin * 3600)))
-                .distinct();
-    }
-
     /**
      * Generates input data used to generate frequencies of link efficiencies
      * @return input generated data as map ( speed in m/s -> frequency )
@@ -188,8 +181,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
     private Map<Double, Integer> generateInputDataForLinkEfficiencies(TravelTimeCalculator travelTimeCalculator) {
         int binSize = 3600;
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-        Map<Integer, Integer> frequencyOfEfficiencies = new HashMap<>();
-        Map<Double, Integer> frequencyOfEfficiencies1 = new HashMap<>();
+        Map<Double, Integer> frequencyOfEfficiencies = new HashMap<>();
         //for each bin
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
@@ -200,13 +192,11 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                 double averageSpeed = linkLength / averageTime;
                 //calculate the average speed of the link
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
-                Integer frequencyCount = frequencyOfEfficiencies.getOrDefault((int) Math.round(averageSpeedToFreeSpeedRatio*100),0);
-                Integer frequencyCount1 = frequencyOfEfficiencies1.getOrDefault(averageSpeedToFreeSpeedRatio*100,0);
-                frequencyOfEfficiencies.put((int) Math.round(averageSpeedToFreeSpeedRatio*100),frequencyCount+1);
-                frequencyOfEfficiencies1.put(averageSpeedToFreeSpeedRatio*100,frequencyCount1+1);
+                Integer frequencyCount1 = frequencyOfEfficiencies.getOrDefault(averageSpeedToFreeSpeedRatio*100,0);
+                frequencyOfEfficiencies.put(averageSpeedToFreeSpeedRatio*100,frequencyCount1+1);
             }
         }
-        return frequencyOfEfficiencies1;
+        return frequencyOfEfficiencies;
     }
 
     /**
@@ -286,4 +276,23 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputAsSpeedUnitFileName + ".csv");
+        String freeSpeedDistAsPercetnageOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputAsSpeedUnitFileName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "");
+        String freeSpeedDistAsPercetnageRelativePath = freeSpeedDistAsPercetnageOutputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "freeSpeedInMetersPerSecond", "The possible full speed at which a vehicle can drive through the given link (in m/s)"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "numberOfLinks", "Total number of links in the network that allow vehicles to travel with speeds up to the given free speed"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistAsPercetnageRelativePath, "linkEfficiencyInPercentage", "Average speed efficiency recorded by the the given network link in a day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistAsPercetnageRelativePath, "numberOfLinks", "Total number of links having the corresponding link efficiency"));
+        return list;
+    }
 }

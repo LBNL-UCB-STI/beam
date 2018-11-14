@@ -9,30 +9,28 @@ import scala.collection.JavaConverters._
 
 sealed trait PopulationAttributes
 
-
-  case class AttributesOfIndividual(householdAttributes: HouseholdAttributes,
-                                     modalityStyle: Option[String],
-                                     isMale: Boolean,
-                                     availableModes: Seq[BeamMode],
-                                     valueOfTime: Double,
-                                     age: Option[Int],
-                                     income: Option[Double]
-                                   ) extends PopulationAttributes
-  {
-    lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
-  }
-
-
+case class AttributesOfIndividual(
+  householdAttributes: HouseholdAttributes,
+  modalityStyle: Option[String],
+  isMale: Boolean,
+  availableModes: Seq[BeamMode],
+  valueOfTime: Double,
+  age: Option[Int],
+  income: Option[Double]
+) extends PopulationAttributes {
+  lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+}
 
 case class HouseholdAttributes(
-                                householdIncome: Double,
-                                householdSize: Int,
-                                numCars: Int,
-                                numBikes: Int
-                              ) extends PopulationAttributes
+  householdIncome: Double,
+  householdSize: Int,
+  numCars: Int,
+  numBikes: Int
+) extends PopulationAttributes
+
 object HouseholdAttributes {
 
-  val EMPTY = HouseholdAttributes(0.0,0,0,0)
+  val EMPTY = HouseholdAttributes(0.0, 0, 0, 0)
 
   def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(

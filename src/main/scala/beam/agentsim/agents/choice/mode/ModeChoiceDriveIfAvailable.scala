@@ -15,7 +15,10 @@ import org.matsim.api.core.v01.population.Person
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
+  def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
     }

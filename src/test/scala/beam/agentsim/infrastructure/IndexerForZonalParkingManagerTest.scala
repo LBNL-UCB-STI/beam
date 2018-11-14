@@ -4,8 +4,11 @@ import beam.sim.BeamServices
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.collection.JavaConverters._
+
 class IndexerForZonalParkingManagerTest extends WordSpec with Matchers {
-  val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
+
+  val tazTreeMap: TAZTreeMap =
+    BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
   val tazes = tazTreeMap.tazQuadTree.values().asScala.toVector
   val map = getMap(tazTreeMap)
 
@@ -46,12 +49,13 @@ class IndexerForZonalParkingManagerTest extends WordSpec with Matchers {
       // Index for filter has two dimensions:
       //    tazId: Id[TAZ]                  , |tazId| = number of unique taz ids
       //    reservedFor: ReservedParkingType, |ReservedParkingType| = 2
-      idxForFilter.keys.groupBy(_.tazId).size should be (numOfTazIds)
-      idxForFilter.keys.groupBy(_.reservedFor).size should be (numOfReservedParkingType)
+      idxForFilter.keys.groupBy(_.tazId).size should be(numOfTazIds)
+      idxForFilter.keys.groupBy(_.reservedFor).size should be(numOfReservedParkingType)
 
-      map.foreach { case (attr, _) =>
-        val key = IndexForFilter(tazId = attr.tazId, reservedFor = attr.reservedFor)
-        idxForFilter.contains(key) should be (true)
+      map.foreach {
+        case (attr, _) =>
+          val key = IndexForFilter(tazId = attr.tazId, reservedFor = attr.reservedFor)
+          idxForFilter.contains(key) should be(true)
       }
     }
 
@@ -64,15 +68,20 @@ class IndexerForZonalParkingManagerTest extends WordSpec with Matchers {
       //    pricingModel: PricingModel          , |PricingModel| = 2
       //    reservedFor: ReservedParkingType    , |ReservedParkingType| = 2
 
-      idxForFind.keys.groupBy(_.tazId).size should be (numOfTazIds)
-      idxForFind.keys.groupBy(_.parkingType).size should be (numOfParkingTypes)
-      idxForFind.keys.groupBy(_.pricingModel).size should be (numOfPricingModels)
-      idxForFind.keys.groupBy(_.reservedFor).size should be (numOfReservedParkingType)
+      idxForFind.keys.groupBy(_.tazId).size should be(numOfTazIds)
+      idxForFind.keys.groupBy(_.parkingType).size should be(numOfParkingTypes)
+      idxForFind.keys.groupBy(_.pricingModel).size should be(numOfPricingModels)
+      idxForFind.keys.groupBy(_.reservedFor).size should be(numOfReservedParkingType)
 
-      map.foreach { case (attr, _) =>
-        val key = IndexForFind(tazId = attr.tazId, parkingType = attr.parkingType, pricingModel = attr.pricingModel,
-          reservedFor = attr.reservedFor)
-        idxForFind.contains(key) should be (true)
+      map.foreach {
+        case (attr, _) =>
+          val key = IndexForFind(
+            tazId = attr.tazId,
+            parkingType = attr.parkingType,
+            pricingModel = attr.pricingModel,
+            reservedFor = attr.reservedFor
+          )
+          idxForFind.contains(key) should be(true)
       }
     }
   }

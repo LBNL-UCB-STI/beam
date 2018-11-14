@@ -12,17 +12,17 @@ import org.matsim.core.network.io.MatsimNetworkReader
 
 import scala.collection.JavaConverters._
 
-trait NetworkCoordinator extends LazyLogging{
+trait NetworkCoordinator extends LazyLogging {
 
-  val beamConfig:BeamConfig
+  val beamConfig: BeamConfig
 
   var transportNetwork: TransportNetwork
 
   var network: Network
 
-  protected def preprocessing():Unit
+  protected def preprocessing(): Unit
 
-  def init():Unit = {
+  def init(): Unit = {
     preprocessing()
     loadNetwork()
     postProcessing()
@@ -69,23 +69,24 @@ trait NetworkCoordinator extends LazyLogging{
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
           val tripStartTimes = ts.startTimes(0).until(ts.endTimes(0)).by(ts.headwaySeconds(0)).toVector
-          tripStartTimes.zipWithIndex.map { case (startTime, ind) =>
-            val tsNew = ts.clone()
-            val newTripId = s"${tsNew.tripId}-$ind"
-            val newArrivals = new Array[Int](ts.arrivals.length)
-            val newDepartures = new Array[Int](ts.arrivals.length)
-            for (i <- tsNew.arrivals.indices) {
-              newArrivals(i) = tsNew.arrivals(i) + startTime
-              newDepartures(i) = tsNew.departures(i) + startTime
-            }
-            tsNew.arrivals = newArrivals
-            tsNew.departures = newDepartures
-            tsNew.tripId = newTripId
-            tsNew.frequencyEntryIds = null
-            tsNew.headwaySeconds = null
-            tsNew.startTimes = null
-            tsNew.endTimes = null
-            tsNew
+          tripStartTimes.zipWithIndex.map {
+            case (startTime, ind) =>
+              val tsNew = ts.clone()
+              val newTripId = s"${tsNew.tripId}-$ind"
+              val newArrivals = new Array[Int](ts.arrivals.length)
+              val newDepartures = new Array[Int](ts.arrivals.length)
+              for (i <- tsNew.arrivals.indices) {
+                newArrivals(i) = tsNew.arrivals(i) + startTime
+                newDepartures(i) = tsNew.departures(i) + startTime
+              }
+              tsNew.arrivals = newArrivals
+              tsNew.departures = newDepartures
+              tsNew.tripId = newTripId
+              tsNew.frequencyEntryIds = null
+              tsNew.headwaySeconds = null
+              tsNew.startTimes = null
+              tsNew.endTimes = null
+              tsNew
           }
         }
         tp.tripSchedules.clear()
