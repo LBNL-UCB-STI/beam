@@ -6,7 +6,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.PersonAgentSpec.ZERO
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
@@ -284,7 +283,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(1.0, 1.0, 28900),
                   distanceInM = 1000D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = true)
+              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = true)
             )
           )
         ),
@@ -403,7 +402,7 @@ class PersonAgentSpec
                 beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
-                cost = ZERO,
+                cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
               EmbodiedBeamLeg(
@@ -411,7 +410,7 @@ class PersonAgentSpec
                 beamVehicleId = dummyAgentVehicleId,
                 asDriver = true,
                 passengerSchedule = None,
-                cost = ZERO,
+                cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
             )
@@ -497,7 +496,7 @@ class PersonAgentSpec
           SpaceTime(new Coord(167138.4, 1117), 29400),
           1.0
         )
-      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = false)
+      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = 2.75, unbecomeDriverOnCompletion = false)
       val busLeg2 = EmbodiedBeamLeg(beamLeg = BeamLeg(
         startTime = 29400,
         mode = BeamMode.BUS,
@@ -510,7 +509,7 @@ class PersonAgentSpec
           SpaceTime(new Coord(180000.4, 1200), 30000),
           1.0
         )
-      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = false)
+      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
       val tramLeg = EmbodiedBeamLeg(beamLeg = BeamLeg(
         startTime = 30000,
         mode = BeamMode.TRAM,
@@ -523,7 +522,7 @@ class PersonAgentSpec
           endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
           distanceInM = 1.0
         )
-      ), beamVehicleId = tramId, asDriver = false, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = false)
+      ), beamVehicleId = tramId, asDriver = false, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -607,7 +606,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
                   distanceInM = 1D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = false),
+              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false),
               busLeg,
               busLeg2,
               tramLeg,
@@ -623,7 +622,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
                   distanceInM = 1D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = ZERO, unbecomeDriverOnCompletion = false)
+              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
             )
           )
         ),
@@ -713,8 +712,4 @@ class PersonAgentSpec
     shutdown()
   }
 
-}
-
-object PersonAgentSpec {
-  val ZERO: Double = 0
 }
