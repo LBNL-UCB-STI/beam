@@ -10,15 +10,21 @@ import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm.ActorTypeToMaxNumberOfMessages
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class StuckFinderSpec extends TestKit(ActorSystem("StuckFinderSpec"))
-  with WordSpecLike with Matchers with BeforeAndAfterAll {
+class StuckFinderSpec
+    extends TestKit(ActorSystem("StuckFinderSpec"))
+    with WordSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
-  val threshold = Thresholds$Elm(ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
-    100, classOf[InitializeTrigger].getCanonicalName)
+  val threshold = Thresholds$Elm(
+    ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
+    100,
+    classOf[InitializeTrigger].getCanonicalName
+  )
 
   val stuckAgentDetectionCfg =
     StuckAgentDetection(

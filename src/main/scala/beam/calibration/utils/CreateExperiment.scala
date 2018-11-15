@@ -20,5 +20,4 @@ object CreateExperiment extends ExperimentApp {
     SigoptExperimentData(experimentDef, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
   }
 
-
 }
