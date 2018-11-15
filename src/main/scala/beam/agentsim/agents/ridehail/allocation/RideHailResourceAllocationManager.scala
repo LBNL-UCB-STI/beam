@@ -1,13 +1,9 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  PoolingInfo,
-  RideHailAgentLocation
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -44,10 +40,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
     batchAllocateVehiclesToCustomers(tick, triggerId)
 
-    val timerTrigger = BufferedRideHailRequestsTrigger(
+    val timerTrigger = ScheduleTrigger(BufferedRideHailRequestsTrigger(
       tick + rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
-    )
-    rideHailManager.scheduler ! ScheduleTrigger(timerTrigger, rideHailManager.self)
+    ),rideHailManager.self)
+    rideHailManager.scheduler ! CompletionNotice(triggerId,Vector(timerTrigger))
   }
 
   /*

@@ -1312,6 +1312,7 @@ class RideHailManager(
       case Some(travelProposal) =>
         if(bufferRequests){
           rideHailResourceAllocationManager.bufferedRideHailRequests.add(request)
+          request.customer.personRef.get ! RideHailResponse(request,None,None)
         }else{
           if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
             lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles

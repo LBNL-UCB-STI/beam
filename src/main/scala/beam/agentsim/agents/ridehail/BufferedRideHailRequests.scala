@@ -12,4 +12,5 @@ class BufferedRideHailRequests(
   def add(req: RideHailRequest): Unit = {
     batchedAllocationRequests.add(req)
   }
+  def get = batchedAllocationRequests
 }

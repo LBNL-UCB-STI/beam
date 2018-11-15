@@ -24,6 +24,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   }
 
   override def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): Unit = {
+    logger.info(s"buffer size: ${bufferedRideHailRequests.get.size}")
+    if(bufferedRideHailRequests.get.size > 1){
+      val i = 0
+
+    }
 
   }
 }
