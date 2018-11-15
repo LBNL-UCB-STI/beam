@@ -17,8 +17,15 @@ case class ParkingStall(
 }
 
 object ParkingStall {
-  val emptyId = Id.create("NA",classOf[ParkingStall])
-  val emptyParkingStall = ParkingStall(emptyId,StallAttributes(TAZTreeMap.emptyTAZId,Public,FlatFee,NoCharger,Any),new Coord(0.0,0.0),0.0,None)
+  val emptyId = Id.create("NA", classOf[ParkingStall])
+
+  val emptyParkingStall = ParkingStall(
+    emptyId,
+    StallAttributes(TAZTreeMap.emptyTAZId, Public, FlatFee, NoCharger, Any),
+    new Coord(0.0, 0.0),
+    0.0,
+    None
+  )
 
   case class StallAttributes(
     tazId: Id[TAZ],

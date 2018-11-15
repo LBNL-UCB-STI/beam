@@ -105,7 +105,6 @@ class ParkingSpec
 
   val countForModeChoiceAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
-
       val mMode = Option(e.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
     }

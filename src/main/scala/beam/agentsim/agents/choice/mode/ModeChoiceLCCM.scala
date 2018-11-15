@@ -41,7 +41,10 @@ class ModeChoiceLCCM(
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
+  override def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
@@ -66,19 +69,19 @@ class ModeChoiceLCCM(
       }
 
       val attribIndivData: AlternativeAttributes = {
-            val theParams: Map[String, Double] = Map(
-              "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
-              "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
-              "male" -> (if (attributesOfIndividual.isMale) {
-                           1.0
-                         } else {
-                           0.0
-                         }),
-              "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
-              "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
-            )
-            AlternativeAttributes("dummy", theParams)
-        }
+        val theParams: Map[String, Double] = Map(
+          "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
+          "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
+          "male" -> (if (attributesOfIndividual.isMale) {
+                       1.0
+                     } else {
+                       0.0
+                     }),
+          "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
+          "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
+        )
+        AlternativeAttributes("dummy", theParams)
+      }
 
       val classMembershipInputData =
         lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>

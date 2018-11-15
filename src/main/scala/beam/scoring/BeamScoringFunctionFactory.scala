@@ -70,7 +70,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
               }
               .toMap
               .mapValues(
-                modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
+                modeChoiceCalculatorForStyle =>
+                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
               )
               .toArray
               .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
@@ -83,10 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
             val logsum = Option(
               math.log(
-                person
-                  .getPlans
-                  .asScala
-                  .view
+                person.getPlans.asScala.view
                   .map(
                     plan =>
                       plan.getAttributes

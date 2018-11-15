@@ -15,7 +15,11 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
@@ -207,7 +211,7 @@ class PersonAgent(
       stay()
     case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
       stay()
-    case Event(ParkingInquiryResponse(_,_), _) =>
+    case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
@@ -247,9 +251,9 @@ class PersonAgent(
 
   def nextActivity(data: BasePersonData): Option[Activity] = {
     val ind = data.currentActivityIndex + 1
-    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length){
+    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) {
       None
-    }else{
+    } else {
       Some(_experiencedBeamPlan.activities(ind))
     }
   }
@@ -299,7 +303,7 @@ class PersonAgent(
               )
             )
           )
-        }
+      }
   }
 
   when(WaitingForDeparture) {
@@ -413,7 +417,7 @@ class PersonAgent(
           )
         )
 
-        if(subsidy  > 0) {
+        if (subsidy > 0) {
           eventsManager.processEvent(
             new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
           )

@@ -57,7 +57,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
   beamServices: BeamServices,
@@ -128,7 +128,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
 
-        override  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
+        override val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = ???
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
@@ -285,7 +285,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         if (legPair.size == 1) { Vector(embodiedPair.head) } else { embodiedPair }
       } else {
         Vector(
-          EmbodiedBeamLeg(leg.copy(duration = duration.toInt), vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = true)
+          EmbodiedBeamLeg(
+            leg.copy(duration = duration.toInt),
+            vehicleId,
+            asDriver = true,
+            None,
+            0,
+            unbecomeDriverOnCompletion = true
+          )
         )
       }
 
@@ -565,8 +572,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val transitModes: IndexedSeq[TransitModes] =
             routingRequest.transitModes.map(_.r5Mode.get.right.get)
           val latencyTag = (if (transitModes.isEmpty)
-            "mainVehicleToDestinationRoute"
-          else "mainTransitRoute") + "-router-time"
+                              "mainVehicleToDestinationRoute"
+                            else "mainTransitRoute") + "-router-time"
           val profileResponse: ProfileResponse =
             latency(latencyTag, Metrics.RegularLevel) {
               cache.get(
@@ -576,15 +583,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
           val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
             /*
-         * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
-         * itinerary has a PointToPointConnection object that help relating access,
-         * egress and transit for the particular itinerary. That contains indexes of
-         * access and egress and actual object could be located from lists under option object,
-         * as there are separate collections for each.
-         *
-         * And after locating through these indexes, constructing BeamLeg for each and
-         * finally add these legs back to BeamTrip.
-         */
+             * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
+             * itinerary has a PointToPointConnection object that help relating access,
+             * egress and transit for the particular itinerary. That contains indexes of
+             * access and egress and actual object could be located from lists under option object,
+             * as there are separate collections for each.
+             *
+             * And after locating through these indexes, constructing BeamLeg for each and
+             * finally add these legs back to BeamTrip.
+             */
             option.itinerary.asScala.view
               .filter { itin =>
                 val startTime = beamServices.dates.toBaseMidnightSeconds(
@@ -608,7 +615,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   // If there's a gap between access leg start time and walk leg, we need to move that ahead
                   // this covers the various contingencies for doing this.
                   val delayStartTime =
-                  Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
+                    Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
                   legsWithFares += ((walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toInt), 0.0))
                 })
 
@@ -653,7 +660,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   /*
              Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
              assuming that: For each transit in option there is a TransitJourneyID in connection
-               */
+                   */
                   val segments = option.transit.asScala zip itinerary.connection.transit.asScala
                   val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
                     val fareSegments = getFareSegments(segments.toVector)
@@ -698,7 +705,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                             ),
                             0.0
                           )
-                          )
+                        )
                         arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
                       }
                   }
@@ -717,7 +724,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                         ),
                         0.0
                       )
-                      )
+                    )
                     if (isRouteForPerson && egress.mode != LegMode.WALK)
                       legsWithFares += ((dummyWalk(arrivalTime + egress.duration), 0.0))
                   }
@@ -743,12 +750,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
                 val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
-                  EmbodiedBeamLeg(beamLeg, beamLeg.travelPath.transitStops.get.vehicleId, asDriver = false, None, cost, unbecomeDriverOnCompletion = false)
+                  EmbodiedBeamLeg(
+                    beamLeg,
+                    beamLeg.travelPath.transitStops.get.vehicleId,
+                    asDriver = false,
+                    None,
+                    cost,
+                    unbecomeDriverOnCompletion = false
+                  )
                 } else {
                   val unbecomeDriverAtComplete = Modes
                     .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR && (indexOfFirstCarLegInParkingTrip < 0 || index != indexOfFirstCarLegInParkingTrip)) ||
-                    (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
-                    (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
+                  (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
+                  (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
                     val body =
                       routingRequest.streetVehicles.find(_.mode == WALK).get
@@ -762,7 +776,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           })
         }
         case Failure(e) if e == DestinationUnreachableException => Nil
-        case Failure(e) => throw e
+        case Failure(e)                                         => throw e
       }
     }
 
@@ -1284,7 +1298,14 @@ object R5RoutingWorker {
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
-        EmbodiedBeamLeg(createBushwackingBeamLeg(atTime, origin, dest, beamServices), bodyId, asDriver = true, None, 0, unbecomeDriverOnCompletion = false)
+        EmbodiedBeamLeg(
+          createBushwackingBeamLeg(atTime, origin, dest, beamServices),
+          bodyId,
+          asDriver = true,
+          None,
+          0,
+          unbecomeDriverOnCompletion = false
+        )
       )
     )
   }

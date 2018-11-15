@@ -1,7 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
+  PersonTravelTimeStatsGraph,
+  StatsValidationHandler
+}
 import beam.analysis.plots.PersonTravelTimeStats
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils

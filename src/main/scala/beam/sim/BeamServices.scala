@@ -67,7 +67,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
+  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup =
+    injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

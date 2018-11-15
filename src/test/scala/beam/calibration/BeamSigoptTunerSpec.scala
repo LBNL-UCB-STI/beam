@@ -26,7 +26,6 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
   val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-calibration/experiment.yml"
   val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-calibration/benchmark.csv"
 
-
   "BeamSigoptTuner" ignore {
     "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
 
@@ -38,19 +37,20 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
     }
 
     "create an experiment in the SigOpt API" taggedAs Periodic in {
-      wrapWithTestExperiment { experimentData => {
-        val expParams = experimentData.experiment.getParameters
-        // First is the rideHailParams
-        val rideHailParams = expParams.iterator.next
-        rideHailParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
-        rideHailParams.getBounds.getMax equals 0.1
-        rideHailParams.getBounds.getMin equals 0.001
-        // Second is transitCapacityParams
-        val transitCapacityParams = expParams.iterator.next
-        transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
-        transitCapacityParams.getBounds.getMax equals 0.1
-        transitCapacityParams.getBounds.getMin equals 0.001
-      }
+      wrapWithTestExperiment { experimentData =>
+        {
+          val expParams = experimentData.experiment.getParameters
+          // First is the rideHailParams
+          val rideHailParams = expParams.iterator.next
+          rideHailParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          rideHailParams.getBounds.getMax equals 0.1
+          rideHailParams.getBounds.getMin equals 0.001
+          // Second is transitCapacityParams
+          val transitCapacityParams = expParams.iterator.next
+          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          transitCapacityParams.getBounds.getMax equals 0.1
+          transitCapacityParams.getBounds.getMin equals 0.001
+        }
       }
     }
 

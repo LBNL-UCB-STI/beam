@@ -189,7 +189,8 @@ class TransitInitializer(
       Source
         .fromFile(services.beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
         .getLines()
-        .toList.tail
+        .toList
+        .tail
     ).getOrElse(List())
       .map(_.trim.split(","))
       .filter(_.length > 2)
