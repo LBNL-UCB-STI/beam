@@ -6,7 +6,7 @@ import beam.agentsim.agents.ridehail.graph.RideHailingWaitingSingleStatsSpec.{
   StatsValidationHandler
 }
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.RideHailingWaitingSingleStats
+import beam.analysis.plots.RideHailingWaitingSingleAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamServices
 import beam.utils.MathUtils
@@ -27,12 +27,12 @@ object RideHailingWaitingSingleStatsSpec {
 
   class RideHailingWaitingSingleGraph(
     beamServices: BeamServices,
-    waitingComp: RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation with EventAnalyzer
+    waitingComp: RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation with EventAnalyzer
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val railHailingSingleStat =
-      new RideHailingWaitingSingleStats(beamServices.beamConfig, waitingComp)
+      new RideHailingWaitingSingleAnalysis(beamServices.beamConfig, waitingComp)
 
     override def reset(iteration: Int): Unit = {
       railHailingSingleStat.resetStats()
@@ -100,7 +100,7 @@ class RideHailingWaitingSingleStatsSpec extends WordSpecLike with Matchers with 
 
     "contains valid rideHailing single stats" in {
       val rideHailingComputation =
-        new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation with EventAnalyzer {
+        new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation with EventAnalyzer {
 
           private val promise = Promise[util.Map[Integer, lang.Double]]()
 

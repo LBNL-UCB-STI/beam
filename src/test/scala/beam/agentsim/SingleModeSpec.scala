@@ -5,15 +5,15 @@ import java.time.ZonedDateTime
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
@@ -28,6 +28,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -57,7 +58,7 @@ class SingleModeSpec
   var geo: GeoUtils = _
   var scenario: Scenario = _
   var services: BeamServices = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
   var beamConfig: BeamConfig = _
 
   override def beforeAll: Unit = {
@@ -92,12 +93,13 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(
@@ -105,6 +107,7 @@ class SingleModeSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,

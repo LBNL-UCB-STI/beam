@@ -1,13 +1,15 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
+import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
@@ -93,7 +95,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getFileName(String extension) {
-        return "passengerPerTrip_" + graphName + "." + extension;
+        return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, graphName) + "." + extension;
     }
 
     @Override

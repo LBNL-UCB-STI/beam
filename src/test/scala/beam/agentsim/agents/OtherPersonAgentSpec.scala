@@ -6,7 +6,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -23,10 +22,11 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -96,14 +96,14 @@ class OtherPersonAgentSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
+
     override val beamServices: BeamServices = beamSvc
-    override def utilityOf(
-      alternative: EmbodiedBeamTrip,
-      attributesOfIndividual: HouseholdActor.AttributesOfIndividual
-    ): Double = 0.0
+
+    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+
     override def utilityOf(
       mode: BeamMode,
       cost: Double,
@@ -119,6 +119,7 @@ class OtherPersonAgentSpec
     Props(new Actor() {
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
       context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
+
       override def receive: Receive = {
         case _ =>
       }
@@ -132,7 +133,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A PersonAgent FSM") {
     // TODO: probably test needs to be updated due to update in rideHailManager
@@ -142,7 +143,7 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-//        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
+        //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
@@ -478,6 +479,7 @@ class OtherPersonAgentSpec
       }
     })
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {

@@ -2,16 +2,11 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,9 +17,9 @@ import static org.junit.Assert.assertEquals;
 public class FuelUsageGraphTest {
     private static class FuelUsageHandler implements BasicEventHandler {
 
-        private final FuelUsageStats fuelUsageStats;
+        private final FuelUsageAnalysis fuelUsageStats;
 
-        FuelUsageHandler(FuelUsageStats fuelUsageStats) {
+        FuelUsageHandler(FuelUsageAnalysis fuelUsageStats) {
             this.fuelUsageStats = fuelUsageStats;
         }
 
@@ -38,7 +33,7 @@ public class FuelUsageGraphTest {
 
     private Map<Integer, Map<String, Double>> stats;
 
-    private FuelUsageStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation() {
+    private FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();
@@ -54,7 +49,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        long expectedResult = 17013494075L;
+        long expectedResult = 16566982237L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -78,7 +73,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventWalkFuel() {
-        long expectedResult = 7;
+        long expectedResult = 8;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);

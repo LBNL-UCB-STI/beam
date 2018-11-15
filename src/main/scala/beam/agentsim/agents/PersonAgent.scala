@@ -7,7 +7,7 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -31,6 +31,8 @@ import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -194,7 +196,10 @@ class PersonAgent(
     with ChoosesParking
     with Stash {
 
-  lazy val modeSubsidy = new ModeSubsidy(beamServices.beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val attributes: AttributesOfIndividual =
+    matsimPlan.getPerson.getCustomAttributes
+      .get("beam-attributes")
+      .asInstanceOf[AttributesOfIndividual]
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
@@ -310,7 +315,7 @@ class PersonAgent(
 
     /**
       * Callback from [[ChoosesMode]]
-     **/
+      **/
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false)
@@ -393,36 +398,21 @@ class PersonAgent(
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
-      if (data.currentTrip.get.costEstimate > 0) {
-        val attributes =
-          beamServices.matsimServices.getScenario.getPopulation.getPersons
-            .get(id)
-            .getCustomAttributes
-            .get("beam-attributes")
-            .asInstanceOf[AttributesOfIndividual]
-
-        val age = Some(attributes.person.getCustomAttributes.get("age").asInstanceOf[Int])
-        val income = Some(attributes.householdAttributes.householdIncome.toInt)
-        val mode = data.currentTrip.get.tripClassifier
-
-        val subsidy = modeSubsidy.getSubsidy(mode, age, income)
-
-        eventsManager.processEvent(
-          new PersonCostEvent(
-            tick,
-            id,
-            mode.value,
-            PersonCostEvent.COST_TYPE_COST_INCLUDING_SUBSIDY,
-            data.currentTrip.get.costEstimate
-          )
+      val mode = data.currentTrip.get.tripClassifier
+      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
+      eventsManager.processEvent(
+        new PersonCostEvent(
+          tick,
+          id,
+          mode.value,
+          PersonCostEvent.COST_TYPE_COST,
+          data.currentTrip.get.costEstimate + subsidy
         )
+      )
 
-        if (subsidy > 0) {
-          eventsManager.processEvent(
-            new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
-          )
-        }
-      }
+      eventsManager.processEvent(
+        new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+      )
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
@@ -503,7 +493,7 @@ class PersonAgent(
     * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
     * of activity
     * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
-   **/
+    **/
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
         StateTimeout,

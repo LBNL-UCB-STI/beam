@@ -2,7 +2,9 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.sim.OutputDataDescription;
 import beam.sim.metrics.MetricsSupport;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -25,13 +27,13 @@ import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 
-public class RealizedModeStats implements BeamStats, MetricsSupport {
+public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "realized_mode";
+    private static final String fileName = "realizedMode";
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private HashSet<String> personIdList = new HashSet<>();
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
@@ -43,8 +45,24 @@ public class RealizedModeStats implements BeamStats, MetricsSupport {
     private Logger log = LoggerFactory.getLogger(this.getClass());
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
+    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
         this.statComputation = statComputation;
+    }
+
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "other", "Other modes of travel chosen"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk_transit", "Walk to transit chosen as travel mode"));
+        return list;
     }
 
     public static class RealizedModesStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {

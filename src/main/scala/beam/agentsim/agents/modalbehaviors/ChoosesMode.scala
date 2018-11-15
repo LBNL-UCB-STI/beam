@@ -6,11 +6,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{
-  AttributesOfIndividual,
-  MobilityStatusResponse,
-  ReleaseVehicleReservation
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -25,9 +21,10 @@ import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel._
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -123,7 +120,8 @@ trait ChoosesMode {
           Modes.filterForTransit(transitModes),
           vehicles,
           streetVehiclesIntermodalUse,
-          mustParkAtEnd = true
+          mustParkAtEnd = true,
+          timeValueOfMoney = 3600.0 / attributes.valueOfTime
         )
         if (withParking) {
           requestParkingCost(
@@ -822,6 +820,7 @@ object ChoosesMode {
       copy(
         personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
       )
+
     override def hasParkingBehaviors: Boolean = true
   }
 

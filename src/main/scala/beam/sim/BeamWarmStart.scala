@@ -4,14 +4,16 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 
 import akka.actor.ActorRef
-import beam.router.BeamRouter.UpdateTravelTime
+import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.downloadFile
+import beam.utils.TravelTimeCalculatorHelper
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.router.util.TravelTime
 
@@ -31,24 +33,25 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   /**
     * initialize travel times.
     */
-  def warmStartTravelTime(beamRouter: ActorRef): Unit = {
-    if (!isWarmMode) {} else {
+  def warmStartTravelTime(beamRouter: ActorRef, scenario: Scenario): Unit = {
+    if (isWarmMode) {
       getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
         case Some(statsPath) =>
           if (Files.exists(Paths.get(statsPath))) {
-            beamRouter ! UpdateTravelTime(getTravelTime(statsPath))
+            val travelTime = getTravelTime(statsPath)
+            beamRouter ! UpdateTravelTimeLocal(travelTime)
+            val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
+              scenario.getNetwork.getLinks.values(),
+              travelTime,
+              maxHour
+            )
+            beamRouter ! UpdateTravelTimeRemote(map)
             logger.info("Travel times successfully warm started from {}.", statsPath)
           } else {
-            logger.warn(
-              "Travel times failed to warm start, stats not found at path ( {} )",
-              statsPath
-            )
+            logger.warn("Travel times failed to warm start, stats not found at path ( {} )", statsPath)
           }
         case None =>
-          logger.warn(
-            "Travel times failed to warm start, stats not found at path ( {} )",
-            srcPath
-          )
+          logger.warn("Travel times failed to warm start, stats not found at path ( {} )", srcPath)
       }
     }
   }
@@ -57,7 +60,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     * initialize population.
     */
   def warmStartPopulation(matsimConfig: Config): Unit = {
-    if (!isWarmMode) {} else {
+    if (isWarmMode) {
       getWarmStartFilePath("plans.xml.gz") match {
         case Some(statsPath) =>
           if (Files.exists(Paths.get(statsPath))) {

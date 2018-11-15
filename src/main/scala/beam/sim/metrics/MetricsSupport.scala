@@ -14,7 +14,7 @@ trait MetricsSupport {
   def countOccurrence(
     name: String,
     times: Long = 1,
-    level: MetricLevel,
+    level: MetricLevel = ShortLevel,
     tags: Map[String, String] = Map.empty
   ): Unit =
     if (isRightLevel(level)) Kamon.metrics.counter(name, defaultTags ++ tags).increment(times)

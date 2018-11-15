@@ -2,8 +2,10 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
+import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -23,12 +25,14 @@ import java.util.stream.Collectors;
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenStats implements BeamStats, MetricsSupport {
+public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
+
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "mode_choice";
+    private static final String modeChoiceFileBaseName = "modeChoice";
+    private static final String referenceModeChoiceFileBaseName = "referenceModeChoice";
 
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
@@ -41,6 +45,31 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     private final Map<String, Double> benchMarkData;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
+
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String modeChoiceOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(modeChoiceFileBaseName + ".csv");
+        String referenceModeChoiceOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(referenceModeChoiceFileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String modeChoiceRelativePath = modeChoiceOutputFilePath.replace(outputDirPath, "");
+        String referenceModeChoiceRelativePath = referenceModeChoiceOutputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "iterations", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "iterations", "Bike chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "bike", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "car", "Car chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail_transit", "Ride Hail to transit chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
+        return list;
+    }
 
     public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 
@@ -72,10 +101,14 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         }
     }
 
-    public ModeChosenStats(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
+    public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
+    }
+
+    public static String getModeChoiceFileBaseName() {
+        return modeChoiceFileBaseName;
     }
 
     @Override
@@ -95,24 +128,24 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         updateModeChoiceInIteration(event.getIteration());
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         if (modesFrequencyDataset != null)
-            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration(), modeChoiceFileBaseName);
 
-        createModeChosenCSV(hourModeFrequency, event.getIteration());
+        createModeChosenCSV(hourModeFrequency, event.getIteration(), modeChoiceFileBaseName);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("modeChoice.png");
+        String fileName = outputDirectoryHierarchy.getOutputFilename(modeChoiceFileBaseName + ".png");
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
         if (dataset != null) {
             createGraphInRootDirectory(dataset, graphTitle, fileName, "# mode choosen", cumulativeModeChosenForModeChoice);
         }
-        writeToRootCSV();
+        writeToRootCSV(modeChoiceFileBaseName);
 
-        fileName = outputDirectoryHierarchy.getOutputFilename("reference_modeChoice.png");
+        fileName = outputDirectoryHierarchy.getOutputFilename(referenceModeChoiceFileBaseName + ".png");
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
         if (referenceDataset != null) {
             createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
-        writeToRootCSVForReference();
+        writeToRootCSVForReference(referenceModeChoiceFileBaseName);
     }
 
     @Override
@@ -177,21 +210,21 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
         return statComputation.compute(new Tuple<>(hourModeFrequency, modesChosen));
     }
 
-    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
+    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber, String fileBaseName) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileBaseName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>(modesChosen);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber) {
+    private void createModeChosenCSV(Map<Integer, Map<String, Integer>> hourModeChosen, int iterationNumber,String fileBaseName) {
 
         final String separator = ",";
 
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv"));
+        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
 
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeChosen.keySet());
@@ -315,9 +348,9 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
     // csv for root modeChoice.png
-    void writeToRootCSV() {
+    void writeToRootCSV(String fileBaseName) {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
@@ -355,9 +388,9 @@ public class ModeChosenStats implements BeamStats, MetricsSupport {
     }
 
     //csv for reference mode choice
-    public void writeToRootCSVForReference() {
+    public void writeToRootCSVForReference(String fileBaseName) {
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("reference_modeChoice.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
 
         try (final BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 

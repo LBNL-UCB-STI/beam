@@ -1,12 +1,10 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
+import beam.sim.population.AttributesOfIndividual
 
 /**
   * BEAM
@@ -18,7 +16,7 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual
   ): Option[EmbodiedBeamTrip] = {
     val containsTransitAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier.isTransit => idx
@@ -32,10 +30,7 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
     }
   }
 
-  override def utilityOf(
-    alternative: EmbodiedBeamTrip,
-    attributesOfIndividual: HouseholdActor.AttributesOfIndividual
-  ): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
   override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
 }
