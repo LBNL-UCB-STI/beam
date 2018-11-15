@@ -53,10 +53,10 @@ class BeamOutputDataDescriptionGenerator @Inject()
     */
   private def getClassesGeneratingOutputs(event : ControlerEvent): List[OutputDataDescriptor] = List(
     new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
-    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation),
+    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, this.beamServices.beamConfig.beam.outputs.writeGraphs),
     new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation),
+    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation,this.beamServices.beamConfig.beam.outputs.writeGraphs),
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation,this.beamServices.beamConfig.beam.outputs.writeGraphs),
     new ExpectedMaxUtilityHeatMap(
       this.eventsManager,
       this.scenario.getNetwork,

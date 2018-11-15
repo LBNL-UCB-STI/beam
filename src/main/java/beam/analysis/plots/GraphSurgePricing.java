@@ -99,26 +99,29 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private void createGraphs() {
 
         processSurgePriceBinsMap(surgePricingManager);
-        if (surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()) {
-            if (!min.equals(max)) {
 
-                calculateCateogorySize();
-                List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
-                double[][] dataset = getDataset(true);
-                writePriceSurgeCsv(dataset, categoriesKeys, true);
+        if (!min.equals(max)) {
+
+            calculateCateogorySize();
+            List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
+            double[][] dataset = getDataset(true);
+            writePriceSurgeCsv(dataset, categoriesKeys, true);
+            if (surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()) {
                 drawGraph(dataset, categoriesKeys, true);
-
                 drawHistogram(dataset, categoriesKeys, true);
-            } else {
+            }
+        } else {
 
-                List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
-                double[][] dataset = getDataset(false);
-                writePriceSurgeCsv(dataset, categoriesKeys, false);
+            List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
+            double[][] dataset = getDataset(false);
+            writePriceSurgeCsv(dataset, categoriesKeys, false);
+            if (surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()) {
                 drawGraph(dataset, categoriesKeys, false);
-
                 drawHistogram(dataset, categoriesKeys, true);
             }
 
+        }
+        if (surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()) {
             drawRevenueGraph(revenueDataSet);
         }
 

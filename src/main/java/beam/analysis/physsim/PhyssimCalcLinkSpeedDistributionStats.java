@@ -80,7 +80,7 @@ public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescript
             //generate the required charts - frequency over speed (as m/s)
             if(beamConfig.beam().outputs().writeGraphs()) {
                 generateSpeedDistributionBarChart(dataSetForSpeed, iteration);
-                generateSpeedDistributionAsPercentageChart(dataSetForSpeedAsPercentage, iteration);
+                generateSpeedDistributionAsPercentageChart(dataSetForSpeedAsPercentage,iteration);
             }
         }
     }

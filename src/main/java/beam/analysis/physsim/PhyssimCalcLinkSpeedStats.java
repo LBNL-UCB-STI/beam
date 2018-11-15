@@ -72,7 +72,6 @@ public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
             if(beamConfig.beam().outputs().writeGraphs()){
                 generateAverageLinkSpeedGraph(dataSet,iteration);
             }
-
         }
     }
 

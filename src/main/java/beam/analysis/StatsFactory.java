@@ -78,13 +78,13 @@ public class StatsFactory {
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
-                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation());
+                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),beamConfig.beam().outputs().writeGraphs());
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation());
+                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),beamConfig.beam().outputs().writeGraphs());
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation());
+                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), beamConfig.beam().outputs().writeGraphs());
             case DeadHeading:
-                return new DeadHeadingAnalysis();
+                return new DeadHeadingAnalysis(beamConfig.beam().outputs().writeGraphs());
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis();
             case VehicleMilesTraveled:
