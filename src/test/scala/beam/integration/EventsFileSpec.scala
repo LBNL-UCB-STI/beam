@@ -2,6 +2,7 @@ package beam.integration
 
 import java.io.File
 
+import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
@@ -100,6 +101,14 @@ class EventsFileSpec
     } yield event
     tollEvents.foreach(println)
     tollEvents should not be empty
+  }
+
+  it should "yield positive toll revenue according to TollRevenueAnalysis" in {
+    val analysis = new TollRevenueAnalysis
+    fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      .foreach(analysis.processStats)
+    val tollRevenue = analysis.getSummaryStats.get("tollRevenue")
+    tollRevenue should not equal 0.0
   }
 
   it should "also produce experienced plans which make sense" in {
