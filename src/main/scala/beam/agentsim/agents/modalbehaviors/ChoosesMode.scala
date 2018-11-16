@@ -504,8 +504,11 @@ trait ChoosesMode {
                 itin.copy(
                   legs = itin.legs.map(
                     origLeg =>
-                      origLeg.copy(cost = origLeg.cost * poolingInfo.costFactor, isPooledTrip = origLeg.isRideHail,
-                        beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor))
+                      origLeg.copy(
+                        cost = origLeg.cost * poolingInfo.costFactor,
+                        isPooledTrip = origLeg.isRideHail,
+                        beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
+                    )
                   )
                 )
               } ++ travelProposal.responseRideHail2Dest.itineraries
@@ -632,9 +635,9 @@ trait ChoosesMode {
         val theModes =
           data.routingResponse.get.itineraries.map(_.tripClassifier).distinct
         if (data.rideHailResult.isDefined && data.rideHailResult.get.error.isEmpty) {
-          if(data.rideHailResult.get.travelProposal.get.poolingInfo.isDefined){
+          if (data.rideHailResult.get.travelProposal.get.poolingInfo.isDefined) {
             theModes :+ RIDE_HAIL :+ RIDE_HAIL_POOLED
-          }else{
+          } else {
             theModes :+ RIDE_HAIL
           }
         } else {

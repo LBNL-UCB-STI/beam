@@ -431,8 +431,10 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          if(beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
-          if(beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
+          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)
+            scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
+          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
+            scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
         }
 
         private def cleanupRideHailingAgents(): Unit = {

@@ -18,10 +18,10 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class RideHailModifyPassengerScheduleManager(
-                                              val log: LoggingAdapter,
-                                              val rideHailManager: ActorRef,
-                                              val scheduler: ActorRef,
-                                              val beamConfig: BeamConfig
+  val log: LoggingAdapter,
+  val rideHailManager: ActorRef,
+  val scheduler: ActorRef,
+  val beamConfig: BeamConfig
 ) {
 
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
@@ -299,7 +299,9 @@ class RideHailModifyPassengerScheduleManager(
     val timerTrigger = RideHailRepositioningTrigger(
       tick.toInt + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
     )
-    nextCompleteNoticeRideHailAllocationTimeout = Some(CompletionNotice(triggerId, Vector(ScheduleTrigger(timerTrigger, rideHailManager))))
+    nextCompleteNoticeRideHailAllocationTimeout = Some(
+      CompletionNotice(triggerId, Vector(ScheduleTrigger(timerTrigger, rideHailManager)))
+    )
   }
 
   def repositionVehicle(

@@ -106,7 +106,8 @@ object RideHailManager {
   ) {
     lazy val timeToCustomer = responseRideHail2Pickup.itineraries.map(_.totalTravelTimeInSecs).sum
     lazy val estimatedPrice = responseRideHail2Dest.itineraries.headOption.map(_.costEstimate).getOrElse(0.0)
-    lazy val estimatedTravelTime = responseRideHail2Dest.itineraries.headOption.map(_.totalTravelTimeInSecs).getOrElse(0.0)
+    lazy val estimatedTravelTime =
+      responseRideHail2Dest.itineraries.headOption.map(_.totalTravelTimeInSecs).getOrElse(0.0)
     override def toString: String =
       s"RHA: ${rideHailAgentLocation.vehicleId}, waitTime: $timeToCustomer, price: $estimatedPrice, travelTime: $estimatedTravelTime"
   }
@@ -411,7 +412,7 @@ class RideHailManager(
         "Illegal use of CheckOutResource, RideHailManager is responsible for checking out vehicles in fleet."
       )
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _,_) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _) =>
       findDriverAndSendRoutingRequests(inquiry)
 
     case R5Network(network) =>
@@ -525,7 +526,7 @@ class RideHailManager(
         )
       }
 
-    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _,_) =>
+    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _) =>
       handleReservationRequest(reserveRide)
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
@@ -1310,13 +1311,13 @@ class RideHailManager(
     //    log.debug(s"handleReservationRequest: $request")
     Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
       case Some(travelProposal) =>
-        if(bufferRequests){
+        if (bufferRequests) {
           rideHailResourceAllocationManager.bufferedRideHailRequests.add(request)
-          request.customer.personRef.get ! RideHailResponse(request,None,None)
-        }else{
+          request.customer.personRef.get ! RideHailResponse(request, None, None)
+        } else {
           if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
-            lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
-            .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
+              lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
+                .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
             findDriverAndSendRoutingRequests(request)
           } else {
             handleReservation(request, travelProposal)
