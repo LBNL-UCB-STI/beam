@@ -861,8 +861,7 @@ object BeamConfig {
             "addTimestampToOutputDirectory"
           ),
           baseOutputDirectory =
-            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
-            else "/Users/critter/Documents/beam/beam-output/",
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
           events = BeamConfig.Beam.Outputs.Events(
             if (c.hasPathOrNull("events")) c.getConfig("events")
             else com.typesafe.config.ConfigFactory.parseString("events{}")
@@ -971,9 +970,7 @@ object BeamConfig {
             operatorsFile =
               if (c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile")
               else "src/main/resources/GTFSOperators.csv",
-            outputDir =
-              if (c.hasPathOrNull("outputDir")) c.getString("outputDir")
-              else "/Users/critter/Documents/beam/beam-output//gtfs"
+            outputDir = if (c.hasPathOrNull("outputDir")) c.getString("outputDir") else "output/gtfs"
           )
         }
       }
@@ -1060,7 +1057,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-          path = if (c.hasPathOrNull("path")) c.getString("path") else "/Users/critter/Documents/beam/beam-output/"
+          path = if (c.hasPathOrNull("path")) c.getString("path") else "output"
         )
       }
     }
@@ -1236,8 +1233,7 @@ object BeamConfig {
             lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
             mobsim = if (c.hasPathOrNull("mobsim")) c.getString("mobsim") else "metasim",
             outputDirectory =
-              if (c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory")
-              else "/Users/critter/Documents/beam/beam-output//pt-tutorial",
+              if (c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "output/pt-tutorial",
             overwriteFiles =
               if (c.hasPathOrNull("overwriteFiles")) c.getString("overwriteFiles") else "overwriteExistingFiles"
           )

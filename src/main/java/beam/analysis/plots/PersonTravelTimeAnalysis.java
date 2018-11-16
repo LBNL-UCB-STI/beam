@@ -1,6 +1,8 @@
 package beam.analysis.plots;
 
 import beam.analysis.IterationSummaryAnalysis;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -21,11 +23,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
+    private final String fileBaseName = "averageTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
@@ -33,6 +36,17 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
         this.statComputation = statComputation;
+    }
+
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Mode", "Travel mode chosen"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour,*", "Average time taken to travel by the chosen mode during the given hour of the day"));
+        return list;
     }
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
@@ -98,7 +112,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createCSV(Tuple<List<String>, double[][]> data, int iteration) {
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond();
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, "averageTravelTimes.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
             int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
@@ -224,7 +238,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     }
 
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
-        String fileName = "averageTravelTimes" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, mode) + ".png";
+        String fileName = fileBaseName + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, mode) + ".png";
         String graphTitle = "Average Travel Time [" + mode + "]";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, false);

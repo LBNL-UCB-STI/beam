@@ -46,6 +46,7 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
 ) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
@@ -207,6 +208,7 @@ class BeamSim @Inject()(
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
+    beamOutputDataDescriptionGenerator.generateDescriptors(event)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
