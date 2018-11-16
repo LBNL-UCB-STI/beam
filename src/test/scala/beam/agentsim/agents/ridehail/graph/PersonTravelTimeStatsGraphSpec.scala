@@ -30,7 +30,7 @@ object PersonTravelTimeStatsGraphSpec {
       with IterationEndsListener {
 
     private lazy val personTravelTimeStats =
-      new PersonTravelTimeAnalysis(computation)
+      new PersonTravelTimeAnalysis(computation, true)
 
     override def reset(iteration: Int): Unit = {
       personTravelTimeStats.resetStats()

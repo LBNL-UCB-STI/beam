@@ -29,6 +29,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
 
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"
+  private final val writeGraphs = beamServices.beamConfig.beam.outputs.writeGraphs
 
   /**
     * Generates the data descriptors and writes them to the output file.
@@ -54,10 +55,10 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     */
   private def getClassesGeneratingOutputs(event: ControlerEvent): List[OutputDataDescriptor] = List(
     new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
-    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation),
+    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, writeGraphs),
     new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation),
+    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation,writeGraphs),
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation,writeGraphs),
     new ExpectedMaxUtilityHeatMap(
       this.eventsManager,
       this.scenario.getNetwork,

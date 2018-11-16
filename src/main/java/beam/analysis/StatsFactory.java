@@ -68,6 +68,7 @@ public class StatsFactory {
     }
 
     private BeamAnalysis createStats(StatsType statsType) {
+        boolean writeGraphs = beamConfig.beam().outputs().writeGraphs();
         switch (statsType) {
             case RideHailWaiting:
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
@@ -78,13 +79,13 @@ public class StatsFactory {
             case PersonVehicleTransition:
                 return new PersonVehicleTransitionAnalysis(beamConfig);
             case FuelUsage:
-                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation());
+                return new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation(),writeGraphs);
             case PersonTravelTime:
-                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation());
+                return new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation(),writeGraphs);
             case RealizedMode:
-                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation());
+                return new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation(), writeGraphs);
             case DeadHeading:
-                return new DeadHeadingAnalysis();
+                return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis();
             case VehicleMilesTraveled:

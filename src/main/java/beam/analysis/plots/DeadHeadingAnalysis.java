@@ -43,7 +43,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
+    private boolean writeGraph;
     private static List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+
+    public DeadHeadingAnalysis(boolean writeGraph){
+        this.writeGraph = writeGraph;
+    }
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -79,7 +84,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         //createDeadHeadingPassengerPerTripGraph(event, graphType);
 
         for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
-            graph.process(event);
+            if(writeGraph){
+                graph.process(event);
+            }
         }
     }
 
@@ -252,11 +259,11 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
         CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
-        createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
-
+        if(writeGraph){
+            createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+        }
 
         writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
-
 
         // Updating the model for the RideHailStats.csv
         updateRideHailStatsModel(event);

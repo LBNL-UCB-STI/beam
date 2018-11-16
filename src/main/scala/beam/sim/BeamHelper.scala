@@ -362,6 +362,10 @@ trait BeamHelper extends LazyLogging {
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    if(!beamConfig.beam.outputs.writeGraphs) {
+      matsimConfig.counts.setOutputFormat("txt")
+      matsimConfig.controler.setCreateGraphs(false)
+    }
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)

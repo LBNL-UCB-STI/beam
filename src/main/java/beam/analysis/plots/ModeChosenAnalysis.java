@@ -43,6 +43,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
     private final Set<String> cumulativeModeChosenForReference = new TreeSet<>();
     private final Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private final Map<String, Double> benchMarkData;
+    private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
@@ -105,6 +106,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
         final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
+        writeGraph = beamConfig.beam().outputs().writeGraphs();
     }
 
     public static String getModeChoiceFileBaseName() {
@@ -127,14 +129,14 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
 
         updateModeChoiceInIteration(event.getIteration());
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null)
+        if (modesFrequencyDataset != null && writeGraph) {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration(), modeChoiceFileBaseName);
-
+        }
         createModeChosenCSV(hourModeFrequency, event.getIteration(), modeChoiceFileBaseName);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename(modeChoiceFileBaseName + ".png");
         CategoryDataset dataset = buildModeChoiceDatasetForGraph();
-        if (dataset != null) {
+        if (dataset != null && writeGraph) {
             createGraphInRootDirectory(dataset, graphTitle, fileName, "# mode choosen", cumulativeModeChosenForModeChoice);
         }
         writeToRootCSV(modeChoiceFileBaseName);
@@ -142,7 +144,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
         fileName = outputDirectoryHierarchy.getOutputFilename(referenceModeChoiceFileBaseName + ".png");
         cumulativeModeChosenForReference.addAll(benchMarkData.keySet());
         CategoryDataset referenceDataset = buildModeChoiceReferenceDatasetForGraph();
-        if (referenceDataset != null) {
+        if (referenceDataset != null && writeGraph) {
             createGraphInRootDirectory(referenceDataset, graphTitleBenchmark, fileName, "# mode choosen(Percent)", cumulativeModeChosenForReference);
         }
         writeToRootCSVForReference(referenceModeChoiceFileBaseName);

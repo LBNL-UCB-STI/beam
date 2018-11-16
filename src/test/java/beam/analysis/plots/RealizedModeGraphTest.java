@@ -41,7 +41,8 @@ public class RealizedModeGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    });
+
+    },true);
 
     @Before
     public void setUpCRC() {
