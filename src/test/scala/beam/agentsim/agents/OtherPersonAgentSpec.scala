@@ -24,7 +24,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -121,7 +121,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {

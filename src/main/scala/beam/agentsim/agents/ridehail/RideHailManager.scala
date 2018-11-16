@@ -553,7 +553,7 @@ class RideHailManager(
         }
       }
 
-    case UpdateTravelTime(travelTime) =>
+    case UpdateTravelTimeLocal(travelTime) =>
       rideHailNetworkApi.setTravelTime(travelTime)
 
     case DebugRideHailManagerDuringExecution =>
@@ -563,43 +563,45 @@ class RideHailManager(
       rideHailResourceAllocationManager.updateVehicleAllocations(tick, triggerId, this)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
-//      val produceDebugImages = true
-//      if (produceDebugImages) {
-//        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
-//          val spatialPlot = new SpatialPlot(1100, 1100, 50)
-//
-//          for (veh <- resources.values) {
-//            spatialPlot.addPoint(
-//              PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
-//            )
-//          }
-//
-//          tncIterationStats.foreach(tncIterationStats => {
-//
-//            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
-//
-//            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-//              spatialPlot.addPoint(
-//                PointToPlot(
-//                  tazEntry._1,
-//                  Color.RED,
-//                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
-//                )
-//              )
-//            }
-//          })
-//
-//          val iteration = "it." + beamServices.iterationNumber
-//          spatialPlot.writeImage(
-//            beamServices.matsimServices.getControlerIO
-//              .getIterationFilename(
-//                beamServices.iterationNumber,
-//                tick.toInt / 3600 + "locationOfAgentsInitally.png"
-//              )
-//              .replace(iteration, iteration + "/rideHailDebugging")
-//          )
-//        }
-//      }
+      val produceDebugImages = false
+      if (produceDebugImages) {
+        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
+          val spatialPlot = new SpatialPlot(1100, 1100, 50)
+
+          for (veh <- resources.values) {
+            spatialPlot.addPoint(
+              PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
+            )
+          }
+
+          tncIterationStats.foreach(tncIterationStats => {
+
+            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
+
+            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
+              spatialPlot.addPoint(
+                PointToPlot(
+                  tazEntry._1,
+                  Color.RED,
+                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+                )
+              )
+            }
+          })
+
+          val iteration = "it." + beamServices.iterationNumber
+          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+            spatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(
+                  beamServices.iterationNumber,
+                  tick.toInt / 3600 + "locationOfAgentsInitally.png"
+                )
+                .replace(iteration, iteration + "/rideHailDebugging")
+            )
+          }
+        }
+      }
 
       modifyPassengerScheduleManager.startWaiveOfRepositioningRequests(tick, triggerId)
 

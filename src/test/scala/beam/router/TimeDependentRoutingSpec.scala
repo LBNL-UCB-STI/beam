@@ -14,7 +14,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -47,7 +47,7 @@ class TimeDependentRoutingSpec
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
@@ -61,9 +61,10 @@ class TimeDependentRoutingSpec
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+
       )
     )
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -76,7 +77,7 @@ class TimeDependentRoutingSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
-        new EventsManagerImpl(),
+       scenario, new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -135,7 +136,7 @@ class TimeDependentRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(
         origin,
         destination,
@@ -155,7 +156,7 @@ class TimeDependentRoutingSpec
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
         origin,
         destination,
@@ -183,7 +184,7 @@ class TimeDependentRoutingSpec
       val travelTimeCalculator =
         new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
-      router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)
+      router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
       router ! RoutingRequest(
         origin,
@@ -218,7 +219,7 @@ class TimeDependentRoutingSpec
           .foreach(eventsForTravelTimeCalculator.processEvent)
 
         // Now send the router the travel times resulting from that, and try again.
-        router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)
+        router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
         router ! RoutingRequest(
           origin,
           destination,
@@ -240,7 +241,7 @@ class TimeDependentRoutingSpec
     }
 
     "give updated travel times for a given route after travel times were updated" in {
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       val leg = BeamLeg(
         28800,
         BeamMode.WALK,

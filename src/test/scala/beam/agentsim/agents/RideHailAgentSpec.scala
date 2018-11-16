@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -76,7 +76,7 @@ class RideHailAgentSpec
 
   case class TestTrigger(tick: Int) extends Trigger
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A RideHailAgent") {
 

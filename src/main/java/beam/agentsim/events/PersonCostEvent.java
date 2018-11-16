@@ -17,7 +17,7 @@ public class PersonCostEvent extends Event implements HasPersonId {
     public static final String ATTRIBUTE_COST_TYPE = "costType";
     public static final String ATTRIBUTE_COST = "cost";
 
-    public static final String COST_TYPE_COST_INCLUDING_SUBSIDY = "CostIncludingSubsidy";
+    public static final String COST_TYPE_COST = "Cost";
     public static final String COST_TYPE_SUBSIDY = "Subsidy";
 
     private final Id<Person> personId;

@@ -523,7 +523,10 @@ trait ChoosesMode {
       }).filter(itin => availableModes.contains(itin.tripClassifier))
 
       val attributesOfIndividual =
-        matsimPlan.getPerson.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+        matsimPlan.getPerson
+        .getCustomAttributes
+        .get("beam-attributes")
+        .asInstanceOf[AttributesOfIndividual]
 
       modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, attributesOfIndividual) match {
         case Some(chosenTrip) =>

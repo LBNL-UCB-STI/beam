@@ -25,7 +25,7 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -135,7 +135,7 @@ class PersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
@@ -283,9 +283,9 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(1.0, 1.0, 28900),
-                    distanceInM = 1000D
-                  )
-                ),
+                    distanceInM = 1000D)
+                  ),
+
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 passengerSchedule = None,
@@ -501,7 +501,7 @@ class PersonAgentSpec
             SpaceTime(new Coord(167138.4, 1117), 29400),
             1.0
           )
-        ),
+          ),
         beamVehicleId = busId,
         asDriver = false,
         passengerSchedule = None,
@@ -521,7 +521,7 @@ class PersonAgentSpec
             SpaceTime(new Coord(180000.4, 1200), 30000),
             1.0
           )
-        ),
+          ),
         beamVehicleId = busId,
         asDriver = false,
         passengerSchedule = None,
@@ -539,9 +539,9 @@ class PersonAgentSpec
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
             startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
             endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
-            distanceInM = 1.0
-          )
-        ),
+            distanceInM = 1.0)
+          ),
+
         beamVehicleId = tramId,
         asDriver = false,
         passengerSchedule = None,
@@ -630,9 +630,9 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
                     endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
-                    distanceInM = 1D
-                  )
-                ),
+                    distanceInM = 1D)
+                  ),
+
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 passengerSchedule = None,
@@ -653,9 +653,9 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
                     endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                    distanceInM = 1D
-                  )
-                ),
+                    distanceInM = 1D)
+                  ),
+
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
                 passengerSchedule = None,

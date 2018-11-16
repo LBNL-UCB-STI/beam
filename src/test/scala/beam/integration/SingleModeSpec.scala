@@ -11,7 +11,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
@@ -56,7 +56,7 @@ class SingleModeSpec
   var geo: GeoUtils = _
   var scenario: Scenario = _
   var services: BeamServices = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
   var beamConfig: BeamConfig = _
   var tollCalculator: TollCalculator = _
 
@@ -93,7 +93,7 @@ class SingleModeSpec
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
     when(services.modeSubsidies).thenReturn(ModeSubsidy(Map()))
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -107,6 +107,7 @@ class SingleModeSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,

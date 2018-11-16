@@ -12,7 +12,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -41,7 +41,7 @@ class TollRoutingSpec
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
 
   val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
@@ -58,9 +58,10 @@ class TollRoutingSpec
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+
       )
     )
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -72,7 +73,7 @@ class TollRoutingSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
-        new EventsManagerImpl(),
+       scenario, new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -126,7 +127,7 @@ class TollRoutingSpec
           services,
           networkCoordinator.transportNetwork,
           networkCoordinator.network,
-          new EventsManagerImpl(),
+         scenario, new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator

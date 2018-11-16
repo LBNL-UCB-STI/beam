@@ -1,8 +1,10 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
@@ -17,13 +19,15 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * @author abid
  */
-public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
+public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDataDescriptor {
 
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
@@ -35,6 +39,22 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
     private final StatsComputation<Map<Integer, Double>, double[][]> statComputation;
+    private final boolean writeGraph;
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "WaitingTime(sec)", "Time spent by a passenger on waiting for a ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour*", "Hour of the day"));
+        return list;
+    }
 
     public static class RideHailingWaitingSingleComputation implements StatsComputation<Map<Integer, Double>, double[][]> {
 
@@ -63,6 +83,7 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
         double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
+        writeGraph = beamConfig.beam().outputs().writeGraphs();
     }
 
     @Override
@@ -107,7 +128,7 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
     public void createGraph(IterationEndsEvent event) throws IOException {
         double[][] data = statComputation.compute(hoursTimesMap);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
-        if (dataset != null)
+        if (dataset != null && writeGraph)
             createModesFrequencyGraph(dataset, event.getIteration());
 
         writeToCSV(event.getIteration(), hoursTimesMap);

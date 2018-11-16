@@ -47,7 +47,7 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
-) extends StartupListener
+private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
     with LazyLogging
@@ -71,29 +71,6 @@ class BeamSim @Inject()(
       beamServices
     )
 
-    import scala.collection.JavaConverters._
-    // Before we initialize router we need to scale the transit vehicle capacities
-    val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
-    scenario.getTransitVehicles.getVehicleTypes.asScala.foreach {
-      case (_, vehType) =>
-        val theCap: VehicleCapacity = vehType.getCapacity
-        if (!alreadyScaled.contains(theCap)) {
-          theCap.setSeats(
-            math
-              .round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity)
-              .toInt
-          )
-          theCap.setStandingRoom(
-            math
-              .round(
-                theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity
-              )
-              .toInt
-          )
-          alreadyScaled.add(theCap)
-        }
-    }
-
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
@@ -103,6 +80,7 @@ class BeamSim @Inject()(
         beamServices,
         transportNetwork,
         scenario.getNetwork,
+        scenario,
         eventsManager,
         scenario.getTransitVehicles,
         fareCalculator,
@@ -223,6 +201,7 @@ class BeamSim @Inject()(
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
+    beamOutputDataDescriptionGenerator.generateDescriptors(event)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
