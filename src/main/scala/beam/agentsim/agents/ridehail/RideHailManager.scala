@@ -11,16 +11,13 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -113,7 +110,7 @@ object RideHailManager {
   }
 
   case class RoutingResponses(
-    request: RideHailRequest,
+    request: Option[RideHailRequest],
     rideHailLocation: Option[RideHailAgentLocation],
     routingResponses: List[RoutingResponse],
     poolingInfo: Option[PoolingInfo] = None
@@ -185,7 +182,8 @@ class RideHailManager(
   val surgePricingManager: RideHailSurgePricingManager
 ) extends VehicleManager
     with ActorLogging
-    with HasServices {
+    with HasServices
+    with HasTickAndTrigger{
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -420,12 +418,16 @@ class RideHailManager(
 
     // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
     // for the allocation manager, so we resume the allocation process.
-    case RoutingResponses(request, None, responses, _) =>
+    case RoutingResponses(Some(request), None, responses, _) =>
       //      println(s"got routingResponse: ${request.requestId} with no RHA")
       findDriverAndSendRoutingRequests(request, responses)
 
+    // In this case, the request is None, meaning this came from a batch vehicle allocation process
+    case RoutingResponses(None, None, responses, _) =>
+      scheduleNextBufferedTrigger
+
     case RoutingResponses(
-        request,
+        Some(request),
         Some(rideHailLocation),
         responses,
         poolingInfoOpt
@@ -563,7 +565,32 @@ class RideHailManager(
       modifyPassengerScheduleManager.printState()
 
     case TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
-      rideHailResourceAllocationManager.batchAllocateVehiclesToCustomers(tick, triggerId, this)
+      holdTickAndTriggerId(tick, triggerId)
+
+      val vehicleAllocationResponses = rideHailResourceAllocationManager.batchAllocateVehiclesToCustomers(tick, triggerId, this)
+
+      vehicleAllocationResponses match {
+        case RoutingRequiredToAllocateVehicles(routesRequired) =>
+          log.debug("Batch RoutingRequired {}", routesRequired.size )
+          requestRoutes(None, None, routesRequired, None)
+        case NoRideRequested =>
+          scheduleNextBufferedTrigger
+
+//        case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
+//          log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
+//          requestRoutes(
+//            request,
+//            Some(agentLocation),
+//            createRoutingRequestsToCustomerAndDestination(request, agentLocation),
+//            poolingInfoOpt
+//          )
+//        case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
+//          log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
+//          self ! RoutingResponses(request, Some(agentLocation), routingResponses, poolingInfoOpt)
+//        case NoVehicleAllocated =>
+//          log.debug("{} -- NoVehicleAllocated", request.requestId)
+//          request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
+      }
 
     case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
       val produceDebugImages = true
@@ -803,6 +830,17 @@ class RideHailManager(
     parkingManager ! inquiry
   }
 
+  def scheduleNextBufferedTrigger = {
+    val (tick, triggerId) = releaseTickAndTriggerId()
+    val timerTrigger = ScheduleTrigger(
+      BufferedRideHailRequestsTrigger(
+        tick + beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+      ),
+      self
+    )
+    scheduler ! CompletionNotice(triggerId, Vector(timerTrigger))
+  }
+
   // Returns Boolean indicating success/failure
   def findDriverAndSendRoutingRequests(
     request: RideHailRequest,
@@ -827,17 +865,17 @@ class RideHailManager(
       case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
         log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
         requestRoutes(
-          request,
+          Some(request),
           Some(agentLocation),
           createRoutingRequestsToCustomerAndDestination(request, agentLocation),
           poolingInfoOpt
         )
       case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
         log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
-        self ! RoutingResponses(request, Some(agentLocation), routingResponses, poolingInfoOpt)
+        self ! RoutingResponses(Some(request), Some(agentLocation), routingResponses, poolingInfoOpt)
       case RoutingRequiredToAllocateVehicle(_, routesRequired) =>
         log.debug("{} -- RoutingRequired", request.requestId)
-        requestRoutes(request, None, routesRequired, None)
+        requestRoutes(Some(request), None, routesRequired, None)
       case NoVehicleAllocated =>
         log.debug("{} -- NoVehicleAllocated", request.requestId)
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
@@ -1058,7 +1096,7 @@ class RideHailManager(
   }
 
   def requestRoutes(
-    rideHailRequest: RideHailRequest,
+    rideHailRequest: Option[RideHailRequest],
     rideHailAgentLocation: Option[RideHailAgentLocation],
     routingRequests: List[RoutingRequest],
     poolingInfo: Option[PoolingInfo]

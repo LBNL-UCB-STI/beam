@@ -80,7 +80,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
             requestToExcludedDrivers.getOrElse(reqId, Set())
           ) match {
             case Some(newAgentLoc) =>
-              makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)
+              val routeRequired = makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)
+              routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)
+              routeReqToDriverMap.put(routeRequired.routesRequired.last.requestId, agentLocation.vehicleId)
+              routeRequired
             case None =>
               NoVehicleAllocated
           }
@@ -100,7 +103,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         }
       case Some(agentLocation) =>
         // If we have an agent and no routes, ask for the routes
-        makeRouteRequest(vehicleAllocationRequest.request, agentLocation)
+        val routeRequired = makeRouteRequest(vehicleAllocationRequest.request, agentLocation)
+        routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)
+        routeReqToDriverMap.put(routeRequired.routesRequired.last.requestId, agentLocation.vehicleId)
+        routeRequired
       case None =>
         NoVehicleAllocated
     }
@@ -143,22 +149,6 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       .map(_.agentLocation)
   }
 
-  def makeRouteRequest(
-    request: RideHailRequest,
-    agentLocation: RideHailAgentLocation
-  ): RoutingRequiredToAllocateVehicle = {
-    val routeRequests = rideHailManager.createRoutingRequestsToCustomerAndDestination(
-      request,
-      agentLocation
-    )
-    routeReqToDriverMap.put(routeRequests.head.requestId, agentLocation.vehicleId)
-    routeReqToDriverMap.put(routeRequests.last.requestId, agentLocation.vehicleId)
-
-    RoutingRequiredToAllocateVehicle(
-      request,
-      routeRequests
-    )
-  }
 
   /*
    * Finally, we delgate repositioning to the repositioning manager. Only need this if running in multi-iteration mode.

@@ -14,13 +14,10 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse, RideHailResponseTrigger}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -352,9 +349,21 @@ class PersonAgent(
     else Right(_experiencedBeamPlan.activities(ind))
   }
 
+  def handleFailedRideHailReservation(error: ReservationError, response: RideHailResponse, data: BasePersonData): State = {
+    logDebug(s"replanning because ${error.errorCode}")
+    eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+    goto(ChoosingMode) using ChoosesModeData(
+      data.copy(currentTourMode = None),
+      currentLocation = Some(beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint)),
+      isWithinTripReplanning = true
+    )
+  }
+
   when(WaitingForReservationConfirmation) {
+    // TRANSIT SUCCESS
     case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
+    // TRANSIT FAILURE
     case Event(
         ReservationResponse(_, Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
@@ -366,32 +375,31 @@ class PersonAgent(
         currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
         isWithinTripReplanning = true
       )
+    // RIDE HAIL DELAY
     case Event(RideHailResponse(_, None, None, triggersToSchedule), data: BasePersonData) =>
       // when both travel proposal and error are None, this means ride hail manager is taking time to
       // assign and we should complete our current trigger and wait to be re-triggered by the manager
       val (_, triggerId) = releaseTickAndTriggerId()
       log.debug("scheduling triggers after being put on hold from reservation response: {}", triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
-      goto(WaitingToChooseMode) using data
+      stay() using data
+    // RIDE HAIL DELAY FAILURE
+      // we use trigger for this to get triggerId back into hands of the person
+    case Event(TriggerWithId(RideHailResponseTrigger(tick,response @ RideHailResponse(_, _, Some(error), _)),triggerId), data: BasePersonData) =>
+      holdTickAndTriggerId(tick, triggerId)
+      handleFailedRideHailReservation(error,response,data)
+    // RIDE HAIL SUCCESS
+      // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
+    // RIDE HAIL FAILURE
     case Event(
-        RideHailResponse(_, _, Some(error), _),
-        data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)
+        response @ RideHailResponse(_, _, Some(error), _),
+        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"replanning because ${error.errorCode}")
-      eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
-      val nextState = if (_currentTriggerId.isDefined) {
-        ChoosingMode
-      } else {
-        WaitingToChooseMode
-      }
-      goto(nextState) using ChoosesModeData(
-        data.copy(currentTourMode = None),
-        currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
-        isWithinTripReplanning = true
-      )
+      handleFailedRideHailReservation(error,response,data)
   }
+
 
   when(Waiting) {
     /*

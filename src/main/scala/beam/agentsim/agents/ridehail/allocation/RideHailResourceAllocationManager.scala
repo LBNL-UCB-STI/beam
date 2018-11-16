@@ -1,11 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  PoolingInfo,
-  RideHailAgentLocation
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -14,11 +10,11 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
+
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
-  val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
-    rideHailManager.scheduler
-  )
+  val bufferedRideHailRequests = mutable.Set[RideHailRequest]()
 
   def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
@@ -40,24 +36,34 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     tick: Int,
     triggerId: Long,
     rideHailManager: RideHailManager
-  ): Unit = {
+  ): VehicleAllocationResponse = {
 
-    batchAllocateVehiclesToCustomers(tick, triggerId)
+    val response = batchAllocateVehiclesToCustomers(tick, triggerId)
 
-    val timerTrigger = ScheduleTrigger(
-      BufferedRideHailRequestsTrigger(
-        tick + rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
-      ),
-      rideHailManager.self
+    response
+  }
+
+  def makeRouteRequest(
+                        request: RideHailRequest,
+                        agentLocation: RideHailAgentLocation
+                      ): RoutingRequiredToAllocateVehicle = {
+    val routeRequests = rideHailManager.createRoutingRequestsToCustomerAndDestination(
+      request,
+      agentLocation
     )
-    rideHailManager.scheduler ! CompletionNotice(triggerId, Vector(timerTrigger))
+
+    RoutingRequiredToAllocateVehicle(
+      request,
+      routeRequests
+    )
   }
 
   /*
     This method is called periodically
    */
-  def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): Unit = {
+  def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): VehicleAllocationResponse = {
     logger.trace("default implementation proposeBatchedVehicleAllocations executed")
+    NoVehicleAllocated
   }
 
   /*
@@ -131,6 +137,10 @@ case class RoutingRequiredToAllocateVehicle(
   routesRequired: List[RoutingRequest]
 ) extends VehicleAllocationResponse
 
+case class RoutingRequiredToAllocateVehicles(
+  routesRequired: List[RoutingRequest]
+) extends VehicleAllocationResponse
+
 case class VehicleAllocation(
   rideHailAgentLocation: RideHailAgentLocation,
   routingResponses: Option[List[RoutingResponse]],
@@ -138,6 +148,7 @@ case class VehicleAllocation(
 ) extends VehicleAllocationResponse
 
 case object NoVehicleAllocated extends VehicleAllocationResponse
+case object NoRideRequested extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(
   request: RideHailRequest,

@@ -49,8 +49,8 @@ trait ChoosesMode {
   val bodyVehiclePersonId = VehiclePersonId(bodyId, id, Some(self))
 
   onTransition {
-    case (PerformingActivity | Waiting | WaitingForReservationConfirmation | ProcessingNextLegOrStartActivity |
-        WaitingToChooseMode) -> ChoosingMode =>
+    case (PerformingActivity | Waiting | WaitingForReservationConfirmation | ProcessingNextLegOrStartActivity
+        ) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
         case Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
@@ -61,12 +61,6 @@ trait ChoosesMode {
           // Otherwise, send empty list to self
           self ! MobilityStatusResponse(Vector())
       }
-  }
-
-  when(WaitingToChooseMode) {
-    case Event(TriggerWithId(ModeChoiceTrigger(tick), triggerId), data: ChoosesModeData) =>
-      holdTickAndTriggerId(tick, triggerId)
-      goto(ChoosingMode) using data
   }
 
   when(ChoosingMode)(stateFunction = transform {
@@ -420,8 +414,6 @@ trait ChoosesMode {
   }
 
   case object FinishingModeChoice extends BeamAgentState
-  case object WaitingToChooseMode extends BeamAgentState
-  case class ModeChoiceTrigger(val tick: Int) extends Trigger
 
   def createRideHail2TransitItin(
     rideHail2TransitAccessResult: RideHailResponse,
