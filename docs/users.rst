@@ -369,6 +369,8 @@ The following inputs are optional and only recommended if your MATSim scenario h
 * Matsim vehicle definition (e.g. vehicles.xml) 
 * Travel Analysis Zone shapefile for the region, (e.g. as can be downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_taz.html)
 
+Finally, this conversion can only be done with a clone of the full BEAM repository. Gradle commands will **not** work with releases: https://github.com/LBNL-UCB-STI/beam/releases
+
 Conversion Instructions
 ^^^^^^^^^^^^^^^^^^^^^^^
 Note that we use the MATSim Sioux Falls scenario as an example. The data for this scenario are already in the BEAM repository under "test/input/siouxfalls". We recommend that you follow the steps in this guide with that data to produce a working BEAM Sioux Falls scenario and then attempt to do the process with your own data.
