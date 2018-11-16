@@ -48,7 +48,6 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
         .drop(1) // table header
         .toList
       rowList
-        .view
         .map(_.split(","))
         .groupBy(t => t(0).toInt)
         .mapValues(lines => lines.map(t => Toll(t(1).toDouble, Range(t(2)))))

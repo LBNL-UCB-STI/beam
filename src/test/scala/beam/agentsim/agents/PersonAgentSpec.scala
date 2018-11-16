@@ -132,8 +132,6 @@ class PersonAgentSpec
     "ParkingManager"
   )
 
-  private val dummyAgentVehicleId = Id.createVehicleId("body-dummyAgent")
-
   private lazy val networkCoordinator = new NetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -283,7 +281,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(1.0, 1.0, 28900),
                   distanceInM = 1000D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = true)
+              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = true)
             )
           )
         ),
@@ -320,7 +318,7 @@ class PersonAgentSpec
           }
         }
       )
-      val vehicleId = Id.createVehicleId(1)
+      val vehicleId = Id.createVehicleId("car-dummyAgent")
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
@@ -340,8 +338,8 @@ class PersonAgentSpec
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("car")
       val route = RouteUtils.createLinkNetworkRouteImpl(
-        Id.createLinkId(1),
-        Array[Id[Link]](),
+        Id.createLinkId(0),
+        Array(Id.createLinkId(1)),
         Id.createLinkId(2)
       )
       route.setVehicleId(vehicleId)
@@ -398,16 +396,8 @@ class PersonAgentSpec
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
-                beamLeg = embodyRequest.leg.copy(duration = 500),
-                beamVehicleId = dummyAgentVehicleId,
-                asDriver = true,
-                passengerSchedule = None,
-                cost = 0.0,
-                unbecomeDriverOnCompletion = false
-              ),
-              EmbodiedBeamLeg(
-                beamLeg = embodyRequest.leg.copy(duration = 500),
-                beamVehicleId = dummyAgentVehicleId,
+                beamLeg = embodyRequest.leg.copy(duration = 500, travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0,500,0))),
+                beamVehicleId = vehicleId,
                 asDriver = true,
                 passengerSchedule = None,
                 cost = 0.0,
@@ -427,17 +417,18 @@ class PersonAgentSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+      expectMsgType[PersonCostEvent]
+      expectMsgType[PersonLeavesVehicleEvent]
+
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
@@ -606,7 +597,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
                   distanceInM = 1D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false),
+              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false),
               busLeg,
               busLeg2,
               tramLeg,
@@ -622,7 +613,7 @@ class PersonAgentSpec
                   endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
                   distanceInM = 1D
                 )
-              ), beamVehicleId = dummyAgentVehicleId, asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
+              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
             )
           )
         ),
