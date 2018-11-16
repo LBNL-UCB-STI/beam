@@ -61,7 +61,6 @@ class TimeDependentRoutingSpec
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-
       )
     )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
@@ -77,7 +76,8 @@ class TimeDependentRoutingSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
-       scenario, new EventsManagerImpl(),
+        scenario,
+        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

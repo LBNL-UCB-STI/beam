@@ -57,8 +57,8 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
     new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, writeGraphs),
     new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation,writeGraphs),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation,writeGraphs),
+    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation, writeGraphs),
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation, writeGraphs),
     new ExpectedMaxUtilityHeatMap(
       this.eventsManager,
       this.scenario.getNetwork,

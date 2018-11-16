@@ -47,7 +47,8 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
-private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,) extends StartupListener
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
     with LazyLogging

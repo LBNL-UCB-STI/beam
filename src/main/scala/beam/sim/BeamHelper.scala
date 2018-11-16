@@ -366,7 +366,7 @@ trait BeamHelper extends LazyLogging {
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
-    if(!beamConfig.beam.outputs.writeGraphs) {
+    if (!beamConfig.beam.outputs.writeGraphs) {
       matsimConfig.counts.setOutputFormat("txt")
       matsimConfig.controler.setCreateGraphs(false)
     }

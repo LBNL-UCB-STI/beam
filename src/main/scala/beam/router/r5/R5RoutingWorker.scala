@@ -64,7 +64,8 @@ case class WorkerParameters(
   beamServices: BeamServices,
   transportNetwork: TransportNetwork,
   network: Network,
-  scenario: Scenario,fareCalculator: FareCalculator,
+  scenario: Scenario,
+  fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   transitVehicles: Vehicles,
   transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
@@ -154,7 +155,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     beamServices,
     transportNetwork,
     network,
-    scenario,fareCalculator,
+    scenario,
+    fareCalculator,
     tollCalculator,
     transitVehicles,
     transitMap
@@ -1307,7 +1309,8 @@ object R5RoutingWorker {
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     network: Network,
-    scenario: Scenario,fareCalculator: FareCalculator,
+    scenario: Scenario,
+    fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles
   ) =

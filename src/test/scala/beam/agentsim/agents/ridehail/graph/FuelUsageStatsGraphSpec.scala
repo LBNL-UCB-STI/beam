@@ -28,7 +28,7 @@ object FuelUsageStatsGraphSpec {
       with IterationEndsListener {
 
     private lazy val fuelUsageStats =
-      new FuelUsageAnalysis(compute , true)
+      new FuelUsageAnalysis(compute, true)
 
     override def reset(iteration: Int): Unit = {
       fuelUsageStats.resetStats()

@@ -810,7 +810,7 @@ object BeamConfig {
       events: BeamConfig.Beam.Outputs.Events,
       stats: BeamConfig.Beam.Outputs.Stats,
       writeEventsInterval: scala.Int,
-      writeGraphs                   : scala.Boolean,
+      writeGraphs: scala.Boolean,
       writePlansInterval: scala.Int
     )
 
@@ -864,7 +864,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("stats{}")
           ),
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writeGraphs                   = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
+          writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
         )
       }

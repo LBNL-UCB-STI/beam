@@ -257,7 +257,7 @@ class BeamMobsim @Inject()(
                 .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
             })
 
-          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
             activityLocationsSpatialPlot.writeImage(
               beamServices.matsimServices.getControlerIO
                 .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
@@ -365,7 +365,7 @@ class BeamMobsim @Inject()(
               .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".csv")
           )
 
-          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
             rideHailinitialLocationSpatialPlot.writeImage(
               beamServices.matsimServices.getControlerIO
                 .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")

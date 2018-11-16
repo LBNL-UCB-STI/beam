@@ -590,7 +590,7 @@ class RideHailManager(
           })
 
           val iteration = "it." + beamServices.iterationNumber
-          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
             spatialPlot.writeImage(
               beamServices.matsimServices.getControlerIO
                 .getIterationFilename(

@@ -58,7 +58,6 @@ class TollRoutingSpec
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-
       )
     )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
@@ -73,7 +72,8 @@ class TollRoutingSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
-       scenario, new EventsManagerImpl(),
+        scenario,
+        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -127,7 +127,8 @@ class TollRoutingSpec
           services,
           networkCoordinator.transportNetwork,
           networkCoordinator.network,
-         scenario, new EventsManagerImpl(),
+          scenario,
+          new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator
