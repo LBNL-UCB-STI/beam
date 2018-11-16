@@ -52,24 +52,24 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 class PersonAgentSpec
-  extends TestKit(
-    ActorSystem(
-      name = "PersonAgentSpec",
-      config = ConfigFactory
-        .parseString(
-          """
+    extends TestKit(
+      ActorSystem(
+        name = "PersonAgentSpec",
+        config = ConfigFactory
+          .parseString(
+            """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         """
-        )
-        .withFallback(testConfig("test/input/beamville/beam.conf"))
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf"))
+      )
     )
-  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -99,7 +99,10 @@ class PersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] =
+    override def apply(
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
+      attributesOfIndividual: AttributesOfIndividual
+    ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
@@ -269,19 +272,26 @@ class PersonAgentSpec
         itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
-              EmbodiedBeamLeg(beamLeg = BeamLeg(
-                startTime = 28800,
-                mode = BeamMode.WALK,
-                duration = 100,
-                travelPath = BeamPath(
-                  linkIds = Vector(1, 2),
-                  linkTravelTime = Vector(50, 50),
-                  transitStops = None,
-                  startPoint = SpaceTime(0.0, 0.0, 28800),
-                  endPoint = SpaceTime(1.0, 1.0, 28900),
-                  distanceInM = 1000D
-                )
-              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = true)
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 100,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1, 2),
+                    linkTravelTime = Vector(50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
             )
           )
         ),
@@ -396,7 +406,10 @@ class PersonAgentSpec
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
-                beamLeg = embodyRequest.leg.copy(duration = 500, travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0,500,0))),
+                beamLeg = embodyRequest.leg.copy(
+                  duration = 500,
+                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+                ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
                 passengerSchedule = None,
@@ -475,45 +488,66 @@ class PersonAgentSpec
       vehicles.put(bus.getId, bus)
       vehicles.put(tram.getId, tram)
 
-      val busLeg = EmbodiedBeamLeg(BeamLeg(
-        startTime = 28800,
-        mode = BeamMode.BUS,
-        duration = 600,
-        travelPath = BeamPath(
-          Vector(),
-          Vector(),
-          Some(TransitStopsInfo(1, busId, 2)),
-          SpaceTime(new Coord(166321.9, 1568.87), 28800),
-          SpaceTime(new Coord(167138.4, 1117), 29400),
-          1.0
-        )
-      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = 2.75, unbecomeDriverOnCompletion = false)
-      val busLeg2 = EmbodiedBeamLeg(beamLeg = BeamLeg(
-        startTime = 29400,
-        mode = BeamMode.BUS,
-        duration = 600,
-        travelPath = BeamPath(
-          Vector(),
-          Vector(),
-          Some(TransitStopsInfo(2, busId, 3)),
-          SpaceTime(new Coord(167138.4, 1117), 29400),
-          SpaceTime(new Coord(180000.4, 1200), 30000),
-          1.0
-        )
-      ), beamVehicleId = busId, asDriver = false, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
-      val tramLeg = EmbodiedBeamLeg(beamLeg = BeamLeg(
-        startTime = 30000,
-        mode = BeamMode.TRAM,
-        duration = 600,
-        travelPath = BeamPath(
-          linkIds = Vector(),
-          linkTravelTime = Vector(),
-          transitStops = Some(TransitStopsInfo(3, tramId, 4)),
-          startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
-          endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
-          distanceInM = 1.0
-        )
-      ), beamVehicleId = tramId, asDriver = false, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
+      val busLeg = EmbodiedBeamLeg(
+        BeamLeg(
+          startTime = 28800,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(1, busId, 2)),
+            SpaceTime(new Coord(166321.9, 1568.87), 28800),
+            SpaceTime(new Coord(167138.4, 1117), 29400),
+            1.0
+          )
+        ),
+        beamVehicleId = busId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = 2.75,
+        unbecomeDriverOnCompletion = false
+      )
+      val busLeg2 = EmbodiedBeamLeg(
+        beamLeg = BeamLeg(
+          startTime = 29400,
+          mode = BeamMode.BUS,
+          duration = 600,
+          travelPath = BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(2, busId, 3)),
+            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(new Coord(180000.4, 1200), 30000),
+            1.0
+          )
+        ),
+        beamVehicleId = busId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = 0.0,
+        unbecomeDriverOnCompletion = false
+      )
+      val tramLeg = EmbodiedBeamLeg(
+        beamLeg = BeamLeg(
+          startTime = 30000,
+          mode = BeamMode.TRAM,
+          duration = 600,
+          travelPath = BeamPath(
+            linkIds = Vector(),
+            linkTravelTime = Vector(),
+            transitStops = Some(TransitStopsInfo(3, tramId, 4)),
+            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
+            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            distanceInM = 1.0
+          )
+        ),
+        beamVehicleId = tramId,
+        asDriver = false,
+        passengerSchedule = None,
+        cost = 0.0,
+        unbecomeDriverOnCompletion = false
+      )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -585,35 +619,49 @@ class PersonAgentSpec
         itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
-              EmbodiedBeamLeg(beamLeg = BeamLeg(
-                startTime = 28800,
-                mode = BeamMode.WALK,
-                duration = 0,
-                travelPath = BeamPath(
-                  linkIds = Vector(),
-                  linkTravelTime = Vector(),
-                  transitStops = None,
-                  startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                  endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
-                  distanceInM = 1D
-                )
-              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false),
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 0,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    linkTravelTime = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    distanceInM = 1D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = false
+              ),
               busLeg,
               busLeg2,
               tramLeg,
-              EmbodiedBeamLeg(beamLeg = BeamLeg(
-                startTime = 30600,
-                mode = BeamMode.WALK,
-                duration = 0,
-                travelPath = BeamPath(
-                  linkIds = Vector(),
-                  linkTravelTime = Vector(),
-                  transitStops = None,
-                  startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                  endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                  distanceInM = 1D
-                )
-              ), beamVehicleId = Id.createVehicleId("body-dummyAgent"), asDriver = true, passengerSchedule = None, cost = 0.0, unbecomeDriverOnCompletion = false)
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 30600,
+                  mode = BeamMode.WALK,
+                  duration = 0,
+                  travelPath = BeamPath(
+                    linkIds = Vector(),
+                    linkTravelTime = Vector(),
+                    transitStops = None,
+                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    distanceInM = 1D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                passengerSchedule = None,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = false
+              )
             )
           )
         ),

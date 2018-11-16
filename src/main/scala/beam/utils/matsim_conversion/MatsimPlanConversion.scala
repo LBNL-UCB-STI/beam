@@ -22,7 +22,10 @@ object MatsimPlanConversion {
     //Generate vehicles data
     VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
-      VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, VehiclesDataConversion.beamVehicleTypes)
+      VehiclesDataConversion.generateVehicleTypesDefaults(
+        conversionConfig.scenarioDirectory,
+        VehiclesDataConversion.beamVehicleTypes
+      )
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
     } else {
       val vehiclesFile = conversionConfig.vehiclesInput.get
@@ -60,11 +63,7 @@ object MatsimPlanConversion {
     XML.save(populationAttrsOutput, populationAttrs, UTF8, xmlDecl = true, populationAttrDoctype)
   }
 
-  def safeGzip(filename: String,
-               node: Node,
-               enc: String,
-               xmlDecl: Boolean = false,
-               doctype: DocType = null) = {
+  def safeGzip(filename: String, node: Node, enc: String, xmlDecl: Boolean = false, doctype: DocType = null) = {
 
     val output = new FileOutputStream(filename);
     try {

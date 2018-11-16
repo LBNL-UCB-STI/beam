@@ -7,9 +7,18 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  EndLegTrigger,
+  EndRefuelTrigger,
+  StartLegTrigger,
+  StartRefuelTrigger
+}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -294,7 +303,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_,_), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
@@ -307,7 +316,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmptyInterrupted) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_,_), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data
         .withPassengerSchedule(PassengerSchedule())

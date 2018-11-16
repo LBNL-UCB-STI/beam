@@ -22,7 +22,7 @@ import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -75,23 +75,24 @@ object PlansBuilder {
     ScenarioUtils.loadScenario(sc)
     outDir = args(4)
 
-    val srcCSR = if(args.length > 5) args(5) else "epsg:4326"
-    val tgtCSR = if(args.length > 6) args(6) else "epsg:26910"
+    val srcCSR = if (args.length > 5) args(5) else "epsg:4326"
+    val tgtCSR = if (args.length > 6) args(6) else "epsg:26910"
     utmConverter = UTMConverter(srcCSR, tgtCSR)
     pop ++= scala.collection.JavaConverters
       .mapAsScalaMap(sc.getPopulation.getPersons)
       .values
       .toVector
 
-    val households = new SynthHouseholdParser(utmConverter){
+    val households = new SynthHouseholdParser(utmConverter) {
       override def parseFile(synthFileName: String): Vector[SynthHousehold] = {
         val resHHMap = scala.collection.mutable.Map[String, SynthHousehold]()
 
         val nodes = sc.getNetwork.getNodes.values().toArray(new Array[Node](0))
 
         for (indId <- 0 to sampleNumber) {
-          val node = nodes(rand.nextInt(nodes.length-1)).getCoord
-          val row = Array(indId.toString, //indId
+          val node = nodes(rand.nextInt(nodes.length - 1)).getCoord
+          val row = Array(
+            indId.toString, //indId
             rand.nextInt(sampleNumber).toString, //hhId
             rand.nextInt(4).toString, //hhNum
             rand.nextInt(3).toString, //carNum
@@ -102,14 +103,15 @@ object PlansBuilder {
             0.toString, //hhTract
             node.getX.toString, //coord.x
             node.getY.toString, //coord.y
-            (rand.nextDouble() * 23).toString) //time
+            (rand.nextDouble() * 23).toString
+          ) //time
 
-            val hhIdStr = row(1)
-            resHHMap.get(hhIdStr) match {
-              case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
-              case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
-            }
+          val hhIdStr = row(1)
+          resHHMap.get(hhIdStr) match {
+            case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
+            case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
           }
+        }
 
         resHHMap.values.toVector
       }
@@ -179,7 +181,7 @@ object PlansBuilder {
       var ranks: immutable.Seq[Int] = 0 to sh.individuals.length
       ranks = Random.shuffle(ranks)
 
-      for(idx <- 0 until numPersons)  {
+      for (idx <- 0 until numPersons) {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
         val newPerson = newPop.getFactory.createPerson(newPersonId)
@@ -193,7 +195,7 @@ object PlansBuilder {
         newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(pop(idx % pop.size).getPlans.get(0), newPlan)
         val homeActs = newPlan.getPlanElements.asScala
-          .collect{ case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
         homePlan match {
           case None =>
@@ -225,7 +227,6 @@ object PlansBuilder {
     counter.printCounter()
     counter.reset()
 
-
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
@@ -236,7 +237,6 @@ object PlansBuilder {
       .writeFile(s"$outDir/populationAttributes.xml.gz")
     out.close()
   }
-
 
   /**
     * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of

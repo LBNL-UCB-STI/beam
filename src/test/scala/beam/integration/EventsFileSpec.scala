@@ -16,12 +16,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import scala.collection.JavaConverters._
 import scala.io.Source
 
-class EventsFileSpec
-    extends FlatSpec
-    with BeforeAndAfterAll
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon {
+class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
@@ -36,13 +31,13 @@ class EventsFileSpec
 
   it should "contain the same bus trips entries" in {
     tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
-      tripsFromGtfs(new File("test/input/beamville/r5/bus/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/bus/trips.txt"))
   }
 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
-      tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt")) ++
-        tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt")) ++
+    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
   }
 
   private def tripsFromEvents(vehicleType: String) = {
@@ -62,14 +57,14 @@ class EventsFileSpec
 
   it should "contain same pathTraversal defined at stop times file for bus input file" in {
     stopToStopLegsFromEventsByTrip("BUS-DEFAULT") should contain theSameElementsAs
-      stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus/stop_times.txt")
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus/stop_times.txt")
   }
 
   // FIXME: Adapt to frequency unrolling. :-(
   it should "contain same pathTraversal defined at stop times file for train input file" ignore {
     stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT") should contain theSameElementsAs
-      stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train/stop_times.txt") ++
-        stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train-freq/stop_times.txt")
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train/stop_times.txt") ++
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train-freq/stop_times.txt")
   }
 
   private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
@@ -78,7 +73,8 @@ class EventsFileSpec
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get("vehicle_type") == vehicleType
     } yield event
-    val eventsByTrip = pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
+    val eventsByTrip =
+      pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
     eventsByTrip.map { case (k, v) => (k, v.size) }
   }
 

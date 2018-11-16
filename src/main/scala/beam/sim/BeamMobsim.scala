@@ -12,8 +12,17 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, NotifyIterationEnds, RideHailAllocationManagerTimeout}
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTimeout,
+  NotifyIterationEnds,
+  RideHailAllocationManagerTimeout
+}
+import beam.agentsim.agents.ridehail.{
+  RideHailAgent,
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}

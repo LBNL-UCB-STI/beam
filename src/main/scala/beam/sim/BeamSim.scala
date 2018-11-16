@@ -41,17 +41,17 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val tollCalculator: TollCalculator,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val tollCalculator: TollCalculator,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -273,33 +273,46 @@ class BeamSim @Inject()(
     val filesToBeRenamed: Array[File] = event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        val outputIterationFileNameRegex = List(s"legHistogram(.*)","experienced(.*)")
+        val outputIterationFileNameRegex = List(s"legHistogram(.*)", "experienced(.*)")
         // filter files that match output file name regex and are to be renamed
-        FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))
+        FileUtils
+          .getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))
           .listFiles()
-          .filter(f => outputIterationFileNameRegex.exists(f.getName
-            .replace(event.getServices.getIterationNumber.toInt + ".","").matches(_)))
+          .filter(
+            f =>
+              outputIterationFileNameRegex.exists(
+                f.getName
+                  .replace(event.getServices.getIterationNumber.toInt + ".", "")
+                  .matches(_)
+            )
+          )
       case _ if event.isInstanceOf[ShutdownEvent] =>
         val shutdownEvent = event.asInstanceOf[ShutdownEvent]
         val outputFileNameRegex = List("output(.*)")
         // filter files that match output file name regex and are to be renamed
-        FileUtils.getFile(new File(shutdownEvent.getServices.getControlerIO.getOutputPath))
+        FileUtils
+          .getFile(new File(shutdownEvent.getServices.getControlerIO.getOutputPath))
           .listFiles()
           .filter(f => outputFileNameRegex.exists(f.getName.matches(_)))
     }
     filesToBeRenamed
       .foreach { file =>
         //rename each file to follow the camel case
-        val newFile = FileUtils.getFile(file.getAbsolutePath.replace(file.getName,WordUtils
-          .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))))
+        val newFile = FileUtils.getFile(
+          file.getAbsolutePath.replace(
+            file.getName,
+            WordUtils
+              .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))
+          )
+        )
         logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getAbsoluteFile)
         try {
-          if(file != newFile && !newFile.exists()) {
+          if (file != newFile && !newFile.exists()) {
             file.renameTo(newFile)
           }
         } catch {
-          case e : Exception =>
-            logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}",e)
+          case e: Exception =>
+            logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}", e)
         }
       }
   }

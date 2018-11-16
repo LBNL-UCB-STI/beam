@@ -116,12 +116,12 @@ class TNCIterationsStatsCollector(
     updateStatsForIdlingVehicles()
 
     rideHailIterationHistoryActor updateRideHailStats
-      TNCIterationStats(
-        rideHailStats.mapValues(_.toList),
-        beamServices.tazTreeMap,
-        timeBinSizeInSec,
-        numberOfTimeBins
-      )
+    TNCIterationStats(
+      rideHailStats.mapValues(_.toList),
+      beamServices.tazTreeMap,
+      timeBinSizeInSec,
+      numberOfTimeBins
+    )
 
     clearStats()
   }

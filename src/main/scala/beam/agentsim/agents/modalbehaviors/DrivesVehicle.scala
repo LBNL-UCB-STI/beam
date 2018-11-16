@@ -25,7 +25,12 @@ import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -280,8 +285,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
-      val currentVehicleUnderControl = data.currentVehicle
-        .headOption
+      val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
 
       if (data.passengerSchedule.schedule(currentLeg).riders.nonEmpty) {

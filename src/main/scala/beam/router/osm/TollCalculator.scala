@@ -18,23 +18,25 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
 
   type TimeDependentToll = Seq[Toll]
 
-  private val tollsByLinkId: Map[Int, TimeDependentToll] = readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(Vector())
+  private val tollsByLinkId: Map[Int, TimeDependentToll] =
+    readTollPrices(config.beam.agentsim.toll.file).withDefaultValue(Vector())
   private val tollsByWayId: Map[Long, TimeDependentToll] = readFromCacheFileOrOSM().withDefaultValue(Vector())
 
   logger.info("Ways keys size: {}", tollsByWayId.keys.size)
 
-  def calcTollByOsmIds(osmIds: Seq[Long]): Double = osmIds.view.map(tollsByWayId).map(toll => applyTimeDependentTollAtTime(toll, 0)).sum
+  def calcTollByOsmIds(osmIds: Seq[Long]): Double =
+    osmIds.view.map(tollsByWayId).map(toll => applyTimeDependentTollAtTime(toll, 0)).sum
 
   def calcTollByLinkIds(path: BeamPath): Double = {
     val linkEnterTimes = path.linkTravelTime.scanLeft(path.startPoint.time)(_ + _)
-    path
-      .linkIds
+    path.linkIds
       .zip(linkEnterTimes)
       .map(calcTollByLinkId _ tupled)
       .sum
   }
 
-  def calcTollByLinkId(linkId: Int, time: Int): Double = applyTimeDependentTollAtTime(tollsByLinkId(linkId), time) * config.beam.agentsim.tuning.tollPrice
+  def calcTollByLinkId(linkId: Int, time: Int): Double =
+    applyTimeDependentTollAtTime(tollsByLinkId(linkId), time) * config.beam.agentsim.tuning.tollPrice
 
   private def applyTimeDependentTollAtTime(tolls: TimeDependentToll, time: Int) = {
     tolls.view.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
@@ -88,7 +90,8 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
     def readTolls(osm: OSM): Map[Long, Seq[Toll]] = {
       osm.ways.asScala.view.flatMap {
         case (id, way) if way.tags != null =>
-          val tolls = way.tags.asScala.find(_.key == "charge")
+          val tolls = way.tags.asScala
+            .find(_.key == "charge")
             .map(chargeTag => parseTolls(chargeTag.value))
             .getOrElse(Nil)
           if (tolls.nonEmpty) Some(Long2long(id) -> tolls) else None
@@ -96,7 +99,13 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       }.toMap
     }
 
-    Paths.get(config.beam.routing.r5.directory).toFile.listFiles(_.getName.endsWith(".pbf")).headOption.map(loadOSM).getOrElse(Map())
+    Paths
+      .get(config.beam.routing.r5.directory)
+      .toFile
+      .listFiles(_.getName.endsWith(".pbf"))
+      .headOption
+      .map(loadOSM)
+      .getOrElse(Map())
   }
 
   private def parseTolls(charge: String): Seq[Toll] = {
@@ -105,8 +114,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       .flatMap(c => {
         c.split(" ")
           .headOption
-          .flatMap(token =>
-            Some(Toll(token.toDouble, Range("[:]"))))
+          .flatMap(token => Some(Toll(token.toDouble, Range("[:]"))))
       })
   }
 
@@ -115,4 +123,3 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
 object TollCalculator {
   case class Toll(amount: Double, timeRange: Range) extends Serializable
 }
-

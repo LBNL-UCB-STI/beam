@@ -39,18 +39,18 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class WarmStartRoutingSpec
-  extends TestKit(
-    ActorSystem(
-      "WarmStartRoutingSpec",
-      testConfig("test/input/beamville/beam.conf")
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-        .withValue(
-          "beam.warmStart.path",
-          ConfigValueFactory
-            .fromAnyRef("test/input/beamville/test-data/")
-        )
+    extends TestKit(
+      ActorSystem(
+        "WarmStartRoutingSpec",
+        testConfig("test/input/beamville/beam.conf")
+          .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+          .withValue(
+            "beam.warmStart.path",
+            ConfigValueFactory
+              .fromAnyRef("test/input/beamville/test-data/")
+          )
+      )
     )
-  )
     with BeamHelper
     with WordSpecLike
     with Matchers
@@ -78,7 +78,7 @@ class WarmStartRoutingSpec
     var scenario: Scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.personHouseholds).thenReturn(Map[Id[Person],Household]())
+    when(services.personHouseholds).thenReturn(Map[Id[Person], Household]())
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -150,12 +150,10 @@ class WarmStartRoutingSpec
     }
   }
 
-
   "A warmStart router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
     val time = RoutingModel.DiscreteTime(3000)
-
 
     "take given link traversal times into account" in {
       router ! RoutingRequest(
@@ -202,9 +200,13 @@ class WarmStartRoutingSpec
 
     "show a decrease in travel time after three iterations if warm start times are doubled" in {
 
-
-      BeamWarmStart(BeamConfig(
-        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time"))),
+      BeamWarmStart(
+        BeamConfig(
+          config.withValue(
+            "beam.warmStart.path",
+            ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/double-time")
+          )
+        ),
         maxHour
       ).warmStartTravelTime(router)
 
@@ -250,8 +252,11 @@ class WarmStartRoutingSpec
 
     "show an increase in travel time after three iterations if warm start times are cut in half" in {
 
-      BeamWarmStart(BeamConfig(
-        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time"))),
+      BeamWarmStart(
+        BeamConfig(
+          config
+            .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/half-time"))
+        ),
         maxHour
       ).warmStartTravelTime(router)
 
@@ -320,8 +325,13 @@ class WarmStartRoutingSpec
       val links = carOption.beamLegs().head.travelPath.linkIds
       val travelTime1 = carOption.beamLegs().head.travelPath.linkTravelTime.sum
 
-      BeamWarmStart(BeamConfig(
-        config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time"))),
+      BeamWarmStart(
+        BeamConfig(
+          config.withValue(
+            "beam.warmStart.path",
+            ConfigValueFactory.fromAnyRef("test/input/beamville/test-data/reduce10x-time")
+          )
+        ),
         maxHour
       ).warmStartTravelTime(router)
 

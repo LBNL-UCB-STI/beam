@@ -57,8 +57,8 @@ object DeleteSuggestion extends LazyLogging {
           logger.info(s"Experiment with id $experimentId has no suggestion")
         }
         data.filter(_.getState == "open").foreach { d =>
-            logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
-            _experiment.suggestions().delete(d.getId).call()
+          logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
+          _experiment.suggestions().delete(d.getId).call()
         }
       case None =>
         logger.info(s"Experiment with id $experimentId not found")

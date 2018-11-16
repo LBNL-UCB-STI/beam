@@ -34,4 +34,3 @@ class RideHailIterationHistory @Inject()() {
     }
   }
 }
-

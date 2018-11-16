@@ -25,7 +25,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
 class Population(
@@ -113,10 +113,13 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters.collectionAsScalaIterable(household.getVehicleIds).map{ vid=>
-            val bvid = BeamVehicle.createId(vid)
-            bvid->beamServices.privateVehicles(bvid)
-          }.toMap
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+            .collectionAsScalaIterable(household.getVehicleIds)
+            .map { vid =>
+              val bvid = BeamVehicle.createId(vid)
+              bvid -> beamServices.privateVehicles(bvid)
+            }
+            .toMap
           householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(

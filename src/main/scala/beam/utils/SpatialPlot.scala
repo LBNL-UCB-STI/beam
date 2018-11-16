@@ -14,12 +14,10 @@ case class RideHailAgentInitCoord(agentId: Id[RideHailAgent], coord: Coord)
 
 case class Bounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
-
 // frame is good for text lables as they can be outside of the area otherwise
 class SpatialPlot(width: Int, height: Int, frame: Int) extends Plot(width, height, frame) {
 
   val rideHailAgentInitCoordBuffer: ListBuffer[RideHailAgentInitCoord] = ListBuffer()
-
 
   def addAgentWithCoord(rideHailAgentInitCoord: RideHailAgentInitCoord): Unit = {
     rideHailAgentInitCoordBuffer += rideHailAgentInitCoord
@@ -35,6 +33,5 @@ class SpatialPlot(width: Int, height: Int, frame: Int) extends Plot(width, heigh
     })
     out.close()
   }
-
 
 }

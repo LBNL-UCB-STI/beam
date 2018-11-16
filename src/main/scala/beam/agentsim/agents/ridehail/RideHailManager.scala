@@ -15,7 +15,11 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -466,14 +470,19 @@ class RideHailManager(
               customerTripPlan.copy(
                 legs = customerTripPlan.legs.zipWithIndex.map(
                   legWithInd =>
-                    legWithInd._1.copy(beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer), asDriver = legWithInd._1.beamLeg.mode == WALK, cost =
-                                            if (legWithInd._1.beamLeg == customerTripPlan
-                                                  .legs(1)
-                                                  .beamLeg) {
-                                              cost
-                                            } else {
-                                              0.0
-                                            }, unbecomeDriverOnCompletion = legWithInd._2 == 2)
+                    legWithInd._1.copy(
+                      beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
+                      asDriver = legWithInd._1.beamLeg.mode == WALK,
+                      cost =
+                        if (legWithInd._1.beamLeg == customerTripPlan
+                              .legs(1)
+                              .beamLeg) {
+                          cost
+                        } else {
+                          0.0
+                        },
+                      unbecomeDriverOnCompletion = legWithInd._2 == 2
+                  )
                 )
               )
             ),
@@ -797,11 +806,13 @@ class RideHailManager(
     responses: List[RoutingResponse] = List()
   ): Unit = {
     if (log.isDebugEnabled) {
-      log.debug("Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
+      log.debug(
+        "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
         request.departAt,
         availableRideHailVehicles.size,
         inServiceRideHailVehicles.size,
-        outOfServiceRideHailVehicles.size)
+        outOfServiceRideHailVehicles.size
+      )
     }
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
@@ -855,19 +866,25 @@ class RideHailManager(
     val diff1 = end - start
 
     start = System.currentTimeMillis()
-    val times2RideHailAgents = nearbyAvailableRideHailAgents.map { rideHailAgentLocation =>
-      val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-      // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-      // already moving or dropping off a customer, etc.)
-      val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
-      val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
-      RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
-    }.toVector.sortBy(_.timeToCustomer)
+    val times2RideHailAgents = nearbyAvailableRideHailAgents
+      .map { rideHailAgentLocation =>
+        val distance =
+          CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
+        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
+        // already moving or dropping off a customer, etc.)
+        val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
+        val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
+        RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
+      }
+      .toVector
+      .sortBy(_.timeToCustomer)
     end = System.currentTimeMillis()
     val diff2 = end - start
 
     if (diff1 + diff2 > 100)
-      log.debug(s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms")
+      log.debug(
+        s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
+      )
 
     times2RideHailAgents
   }

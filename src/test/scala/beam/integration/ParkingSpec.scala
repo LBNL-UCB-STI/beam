@@ -12,12 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.mutable.ArrayBuffer
 
-class ParkingSpec
-    extends WordSpecLike
-    with BeforeAndAfterAll
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon {
+class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head

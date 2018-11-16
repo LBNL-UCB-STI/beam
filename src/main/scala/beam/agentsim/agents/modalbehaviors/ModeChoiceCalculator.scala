@@ -33,10 +33,10 @@ trait ModeChoiceCalculator extends HasServices {
   // Note: We use BigDecimal here as we're dealing with monetary values requiring exact precision.
   // Could be refactored if this is a performance issue, but prefer not to.
   lazy val valuesOfTime: mutable.Map[VotType, Double] =
-  mutable.Map[VotType, Double](
-    DefaultVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
-    GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-  )
+    mutable.Map[VotType, Double](
+      DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+    )
 
   def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
     time / 3600 * getVot(beamMode)
@@ -71,21 +71,24 @@ trait ModeChoiceCalculator extends HasServices {
   // NOTE: Could have implemented as a Map[BeamMode->VotType], but prefer exhaustive
   // matching enforced by sealed traits.
   private def matchMode2Vot(beamMode: Option[BeamMode]): VotType = beamMode match {
-    case Some(CAR) => DriveVot
-    case Some(WALK) => WalkVot
-    case Some(BIKE) => BikeVot
-    case Some(WALK_TRANSIT) => WalkToTransitVot
-    case Some(DRIVE_TRANSIT) => DriveToTransitVot
-    case Some(RIDE_HAIL) => RideHailVot
-    case a@Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
-    case Some(RIDE_HAIL_TRANSIT) => RideHailVot
-    case Some(_) => GeneralizedVot
-    case None => DefaultVot
+    case Some(CAR)                                        => DriveVot
+    case Some(WALK)                                       => WalkVot
+    case Some(BIKE)                                       => BikeVot
+    case Some(WALK_TRANSIT)                               => WalkToTransitVot
+    case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
+    case Some(RIDE_HAIL)                                  => RideHailVot
+    case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
+    case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
+    case Some(_)                                          => GeneralizedVot
+    case None                                             => DefaultVot
   }
 
   ///~
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip]
+  def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip]
 
   def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
 
@@ -110,7 +113,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_,Some(modalityStyle), _, _, _,_,_) =>
+            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)
