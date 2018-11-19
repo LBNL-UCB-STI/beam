@@ -34,6 +34,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
+import org.matsim.core.api.internal.HasPersonId
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
@@ -122,12 +123,31 @@ class PersonAndTransitDriverSpec
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
 
-      val events = new TestProbe(system)
+      val busEvents = new TestProbe(system)
+      val tramEvents = new TestProbe(system)
+      val personEvents = new TestProbe(system)
+      val otherEvents = new TestProbe(system)
+
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            events.ref ! event
+            event match {
+              case personEvent: HasPersonId if personEvent.getPersonId.toString == "my_bus" =>
+                busEvents.ref ! event
+              case personEvent: HasPersonId if personEvent.getPersonId.toString == "my_tram" =>
+                tramEvents.ref ! event
+              case personEvent: HasPersonId if personEvent.getPersonId.toString == "dummyAgent" =>
+                personEvents.ref ! event
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_bus" =>
+                busEvents.ref ! event
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_tram" =>
+                tramEvents.ref ! event
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "body-dummyAgent" =>
+                personEvents.ref ! event
+              case _ =>
+                otherEvents.ref ! event
+            }
           }
         }
       )
@@ -307,10 +327,6 @@ class PersonAndTransitDriverSpec
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
-      events.expectMsgType[PersonDepartureEvent]
-      events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[PersonDepartureEvent]
-      events.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
@@ -366,46 +382,44 @@ class PersonAndTransitDriverSpec
         staticRequestId = java.util.UUID.randomUUID()
       )
 
-      events.expectMsgType[ModeChoiceEvent]
-      events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      personEvents.expectMsgType[ModeChoiceEvent]
+      personEvents.expectMsgType[ActivityEndEvent]
+      personEvents.expectMsgType[PersonDepartureEvent]
+      personEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEvents.expectMsgType[VehicleEntersTrafficEvent]
+      personEvents.expectMsgType[VehicleLeavesTrafficEvent]
+      personEvents.expectMsgType[PathTraversalEvent]
+      personEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEvents.expectMsgType[PersonCostEvent]
+      personEvents.expectMsgType[PersonCostEvent]
+      personEvents.expectMsgType[PersonLeavesVehicleEvent]
+      personEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEvents.expectMsgType[PersonCostEvent]
+      personEvents.expectMsgType[PersonCostEvent]
+      personEvents.expectMsgType[PersonLeavesVehicleEvent]
+      personEvents.expectMsgType[VehicleEntersTrafficEvent]
+      personEvents.expectMsgType[VehicleLeavesTrafficEvent]
+      personEvents.expectMsgType[PathTraversalEvent]
+      personEvents.expectMsgType[TeleportationArrivalEvent]
+      personEvents.expectMsgType[PersonArrivalEvent]
+      personEvents.expectMsgType[ActivityStartEvent]
 
-      events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[VehicleEntersTrafficEvent]
-      events.expectMsgType[VehicleLeavesTrafficEvent]
-      events.expectMsgType[PathTraversalEvent]
+      busEvents.expectMsgType[PersonDepartureEvent]
+      busEvents.expectMsgType[PersonEntersVehicleEvent]
+      busEvents.expectMsgType[VehicleEntersTrafficEvent]
+      busEvents.expectMsgType[VehicleLeavesTrafficEvent]
+      busEvents.expectMsgType[PathTraversalEvent]
+      busEvents.expectMsgType[VehicleEntersTrafficEvent]
+      busEvents.expectMsgType[VehicleLeavesTrafficEvent]
+      busEvents.expectMsgType[PathTraversalEvent]
 
-      events.expectMsgType[VehicleEntersTrafficEvent]
-      events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[VehicleLeavesTrafficEvent]
-      events.expectMsgType[PathTraversalEvent]
-      events.expectMsgType[VehicleEntersTrafficEvent]
+      tramEvents.expectMsgType[PersonDepartureEvent]
+      tramEvents.expectMsgType[PersonEntersVehicleEvent]
+      tramEvents.expectMsgType[VehicleEntersTrafficEvent]
+      tramEvents.expectMsgType[VehicleLeavesTrafficEvent]
+      tramEvents.expectMsgType[PathTraversalEvent]
 
-      val tramEntersTraffic = events.expectMsgType[VehicleEntersTrafficEvent]
-      assert(tramEntersTraffic.getVehicleId.toString == "my_tram")
-
-      events.expectMsgType[VehicleLeavesTrafficEvent]
-      events.expectMsgType[PathTraversalEvent]
-
-      events.expectMsgType[PersonLeavesVehicleEvent]
-
-      events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[VehicleLeavesTrafficEvent]
-      events.expectMsgType[PathTraversalEvent]
-
-      events.expectMsgType[PersonLeavesVehicleEvent]
-
-      events.expectMsgType[VehicleEntersTrafficEvent]
-      events.expectMsgType[VehicleLeavesTrafficEvent]
-      events.expectMsgType[PathTraversalEvent]
-
-      events.expectMsgType[TeleportationArrivalEvent]
-      events.expectMsgType[PersonArrivalEvent]
-      events.expectMsgType[ActivityStartEvent]
+      otherEvents.expectNoMessage()
 
       expectMsgType[CompletionNotice]
     }
