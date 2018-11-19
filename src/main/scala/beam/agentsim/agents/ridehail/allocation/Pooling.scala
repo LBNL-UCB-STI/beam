@@ -1,8 +1,10 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.router.model.RoutingModel.DiscreteTime
+
+import scala.collection.mutable
 
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
@@ -23,7 +25,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     } // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
-  override def batchAllocateVehiclesToCustomers(tick: Int, triggerId: Long): VehicleAllocationResponse = {
+  override def batchAllocateVehiclesToCustomers(tick: Int, bufferedRideHailRequests: mutable.Set[RideHailRequest]): VehicleAllocationResponse = {
     logger.info(s"buffer size: ${bufferedRideHailRequests.size}")
     if (bufferedRideHailRequests.size > 0) {
       val allocResponses = bufferedRideHailRequests.flatMap{ request =>
@@ -34,7 +36,10 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           )
           .headOption match {
           case Some(agentLocation) =>
-            val routeRequired = makeRouteRequest(request, agentLocation)
+            val routeRequired = RoutingRequiredToAllocateVehicles(rideHailManager.createRoutingRequestsToCustomerAndDestination(
+              request,
+              agentLocation
+            ))
             Some(routeRequired)
           case None =>
             None

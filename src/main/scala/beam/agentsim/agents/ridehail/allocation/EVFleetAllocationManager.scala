@@ -80,7 +80,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
             requestToExcludedDrivers.getOrElse(reqId, Set())
           ) match {
             case Some(newAgentLoc) =>
-              val routeRequired = makeRouteRequest(vehicleAllocationRequest.request, newAgentLoc)
+              val routeRequired = RoutingRequiredToAllocateVehicles(rideHailManager.createRoutingRequestsToCustomerAndDestination(
+                  vehicleAllocationRequest.request,
+                  newAgentLoc
+                ))
               routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)
               routeReqToDriverMap.put(routeRequired.routesRequired.last.requestId, agentLocation.vehicleId)
               routeRequired
@@ -103,7 +106,10 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
         }
       case Some(agentLocation) =>
         // If we have an agent and no routes, ask for the routes
-        val routeRequired = makeRouteRequest(vehicleAllocationRequest.request, agentLocation)
+        val routeRequired = RoutingRequiredToAllocateVehicles(rideHailManager.createRoutingRequestsToCustomerAndDestination(
+          vehicleAllocationRequest.request,
+          agentLocation
+        ))
         routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)
         routeReqToDriverMap.put(routeRequired.routesRequired.last.requestId, agentLocation.vehicleId)
         routeRequired
