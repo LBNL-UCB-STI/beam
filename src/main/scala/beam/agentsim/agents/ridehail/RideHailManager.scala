@@ -5,6 +5,7 @@ import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -13,14 +14,9 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -47,8 +43,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Await, Future}
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -80,7 +76,8 @@ object RideHailManager {
     router: ActorRef,
     parkingManager: ActorRef,
     boundingBox: Envelope,
-    surgePricingManager: RideHailSurgePricingManager
+    surgePricingManager: RideHailSurgePricingManager,
+    tncIterationStats: Option[TNCIterationStats]
   ): Props = {
     Props(
       new RideHailManager(
@@ -89,7 +86,8 @@ object RideHailManager {
         router,
         parkingManager,
         boundingBox,
-        surgePricingManager
+        surgePricingManager,
+        tncIterationStats
       )
     )
   }
@@ -177,7 +175,8 @@ class RideHailManager(
   val router: ActorRef,
   val parkingManager: ActorRef,
   val boundingBox: Envelope,
-  val surgePricingManager: RideHailSurgePricingManager
+  val surgePricingManager: RideHailSurgePricingManager,
+  val tncIterationStats: Option[TNCIterationStats]
 ) extends VehicleManager
     with ActorLogging
     with HasServices {
@@ -206,15 +205,6 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
-  val tncIterationStats: Option[TNCIterationStats] = {
-    val rideHailIterationHistoryActor =
-      context.actorSelection("/user/rideHailIterationHistoryActor")
-    val future =
-      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
-    Await
-      .result(future, Timeout(60, TimeUnit.SECONDS).duration)
-      .asInstanceOf[Option[TNCIterationStats]]
-  }
   private val rideHailAllocationManagerTimeoutInSeconds =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.timeoutInSeconds
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
@@ -287,7 +277,7 @@ class RideHailManager(
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 
-  override def receive: Receive = {
+  override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
@@ -570,7 +560,7 @@ class RideHailManager(
       rideHailResourceAllocationManager.updateVehicleAllocations(tick, triggerId, this)
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) =>
-      val produceDebugImages = true
+      val produceDebugImages = false
       if (produceDebugImages) {
         if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
           val spatialPlot = new SpatialPlot(1100, 1100, 50)
@@ -597,7 +587,7 @@ class RideHailManager(
           })
 
           val iteration = "it." + beamServices.iterationNumber
-          if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
             spatialPlot.writeImage(
               beamServices.matsimServices.getControlerIO
                 .getIterationFilename(

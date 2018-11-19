@@ -8,7 +8,7 @@ import beam.sim.config.BeamConfig
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -55,7 +55,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
   }
 
   private def init = {
-    val services = mock[BeamServices]
+    val services = mock[BeamServices](withSettings().stubOnly())
     val beamConfig = BeamConfig(
       baseConfig
         .withValue(

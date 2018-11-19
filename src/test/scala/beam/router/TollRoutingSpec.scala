@@ -24,7 +24,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -43,7 +43,7 @@ class TollRoutingSpec
   var router: ActorRef = _
   var networkCoordinator: DefaultNetworkCoordinator = _
 
-  val services: BeamServices = mock[BeamServices]
+  val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
   var fareCalculator: FareCalculator = _
 
@@ -66,7 +66,7 @@ class TollRoutingSpec
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = new TollCalculator(beamConfig, "test/input/beamville/r5")
+    val tollCalculator = new TollCalculator(beamConfig)
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -121,7 +121,7 @@ class TollRoutingSpec
         system.settings.config
           .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(2.0))
       )
-      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp, "test/input/beamville/r5")
+      val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp)
       val moreExpensiveRouter = system.actorOf(
         BeamRouter.props(
           services,

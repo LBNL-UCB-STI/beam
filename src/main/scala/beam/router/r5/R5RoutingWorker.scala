@@ -131,16 +131,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
-
-        override val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup =
-          matsimConfig.travelTimeCalculator()
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-      val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
+      val tollCalculator = new TollCalculator(beamConfig)
       WorkerParameters(
         beamServices,
         transportNetwork,

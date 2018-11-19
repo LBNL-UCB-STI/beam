@@ -29,7 +29,7 @@ object RealizedModeStatsGraphSpec {
       with IterationEndsListener {
 
     private lazy val realizedModeStats =
-      new RealizedModeAnalysis(computation , true)
+      new RealizedModeAnalysis(computation, true)
 
     override def reset(iteration: Int): Unit = {
       realizedModeStats.resetStats()

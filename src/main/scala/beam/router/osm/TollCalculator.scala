@@ -9,11 +9,12 @@ import beam.sim.config.BeamConfig
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.LazyLogging
 import beam.agentsim.agents.choice.mode.Range
+import javax.inject.Inject
 
 import scala.collection.JavaConverters._
 import scala.io.Source
 
-class TollCalculator(val config: BeamConfig, val directory: String) extends LazyLogging {
+class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
 
   type TimeDependentToll = Seq[Toll]
 
@@ -48,7 +49,7 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
         .getLines()
         .drop(1) // table header
         .toList
-      rowList.view
+      rowList
         .map(_.split(","))
         .groupBy(t => t(0).toInt)
         .mapValues(lines => lines.map(t => Toll(t(1).toDouble, Range(t(2)))))
@@ -58,7 +59,7 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
   }
 
   def readFromCacheFileOrOSM(): Map[Long, Seq[Toll]] = {
-    val dataDirectory: Path = Paths.get(directory)
+    val dataDirectory: Path = Paths.get(config.beam.routing.r5.directory)
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
     if (cacheFile.exists()) {
       new ObjectInputStream(new FileInputStream(cacheFile))
@@ -98,7 +99,13 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
       }.toMap
     }
 
-    Paths.get(directory).toFile.listFiles(_.getName.endsWith(".pbf")).headOption.map(loadOSM).getOrElse(Map())
+    Paths
+      .get(config.beam.routing.r5.directory)
+      .toFile
+      .listFiles(_.getName.endsWith(".pbf"))
+      .headOption
+      .map(loadOSM)
+      .getOrElse(Map())
   }
 
   private def parseTolls(charge: String): Seq[Toll] = {

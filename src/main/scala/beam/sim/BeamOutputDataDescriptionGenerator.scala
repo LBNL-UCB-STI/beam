@@ -3,10 +3,11 @@ package beam.sim
 import java.io.{BufferedWriter, FileWriter, IOException}
 
 import akka.actor.ActorSystem
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
 import beam.analysis.plots._
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.router.osm.TollCalculator
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -57,8 +58,8 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
     new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, writeGraphs),
     new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation,writeGraphs),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation,writeGraphs),
+    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation, writeGraphs),
+    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation, writeGraphs),
     new ExpectedMaxUtilityHeatMap(
       this.eventsManager,
       this.scenario.getNetwork,
@@ -80,10 +81,12 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     new BeamMobsim(
       beamServices,
       transportNetwork,
+      new TollCalculator(beamServices.beamConfig),
       scenario,
       eventsManager,
       actorSystem,
-      new RideHailSurgePricingManager(beamServices)
+      new RideHailSurgePricingManager(beamServices),
+      new RideHailIterationHistory
     ),
     StopWatchOutputs,
     ScoreStatsOutputs,

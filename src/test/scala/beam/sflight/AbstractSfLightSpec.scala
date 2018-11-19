@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
@@ -21,7 +21,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -51,7 +51,7 @@ class AbstractSfLightSpec
   lazy val config = testConfig(confPath)
   lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
-  lazy val services: BeamServices = mock[BeamServices]
+  lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
 
   override def beforeAll: Unit = {
 
@@ -65,12 +65,13 @@ class AbstractSfLightSpec
       )
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
+    when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
     val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = new TollCalculator(beamConfig, beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(

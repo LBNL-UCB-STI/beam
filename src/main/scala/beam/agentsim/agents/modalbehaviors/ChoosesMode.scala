@@ -67,7 +67,7 @@ trait ChoosesMode {
         SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
       )
       val availableModes: Seq[BeamMode] = availableModesForPerson(
-        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
+        matsimPlan.getPerson
       )
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
@@ -495,7 +495,7 @@ trait ChoosesMode {
       //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
 
       val availableModes: Seq[BeamMode] = availableModesForPerson(
-        beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id)
+        matsimPlan.getPerson
       )
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
@@ -522,11 +522,10 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModes.contains(itin.tripClassifier))
 
-      val attributesOfIndividual = beamServices.matsimServices.getScenario.getPopulation.getPersons
-        .get(id)
-        .getCustomAttributes
-        .get("beam-attributes")
-        .asInstanceOf[AttributesOfIndividual]
+      val attributesOfIndividual =
+        matsimPlan.getPerson.getCustomAttributes
+          .get("beam-attributes")
+          .asInstanceOf[AttributesOfIndividual]
 
       modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, attributesOfIndividual) match {
         case Some(chosenTrip) =>
