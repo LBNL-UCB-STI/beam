@@ -67,7 +67,7 @@ class BeamMobsim @Inject()(
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
-  val rideHailIterationHistoryActor: RideHailIterationHistory
+  val rideHailIterationHistory: RideHailIterationHistory
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport
@@ -167,7 +167,7 @@ class BeamMobsim @Inject()(
             parkingManager,
             envelopeInUTM,
             rideHailSurgePricingManager,
-            rideHailIterationHistoryActor.oszilationAdjustedTNCIterationStats()
+            rideHailIterationHistory.oscillationAdjustedTNCIterationStats
           ),
           "RideHailManager"
         )

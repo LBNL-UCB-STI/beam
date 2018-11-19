@@ -1,9 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.sim.BeamServices
-import com.conveyal.r5.transit.TransportNetwork
 import javax.inject.Inject
-import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -15,7 +12,7 @@ class RideHailIterationHistory @Inject()() {
 
   val rideHailIterationStatsHistory: ArrayBuffer[TNCIterationStats] = ArrayBuffer()
 
-  def updateRideHailStats(stats: TNCIterationStats) = {
+  def updateRideHailStats(stats: TNCIterationStats): Unit = {
     rideHailIterationStatsHistory += stats
 
     // trimm array buffer as we just need 2 elements
@@ -24,7 +21,7 @@ class RideHailIterationHistory @Inject()() {
     }
   }
 
-  def oszilationAdjustedTNCIterationStats(): Option[TNCIterationStats] = {
+  def oscillationAdjustedTNCIterationStats: Option[TNCIterationStats] = {
     if (rideHailIterationStatsHistory.size >= 2) {
       val lastElement = rideHailIterationStatsHistory.last
       val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
