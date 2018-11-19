@@ -344,7 +344,7 @@ The time zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T
 
 As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:
 
-https://github.com/LBNL-UCB-STI/beam/raw/master/test/input/beamville/r5/dummy.zip
+https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1
 
 But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. 
 
