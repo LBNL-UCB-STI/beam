@@ -856,10 +856,10 @@ class RideHailManager(
       )
     }
 
-    val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
+    val vehicleAllocationRequest = VehicleAllocationRequest(List(request), responses)
 
     val vehicleAllocationResponse =
-      rideHailResourceAllocationManager.allocateVehicleToCustomer(vehicleAllocationRequest)
+      rideHailResourceAllocationManager.allocateVehicle(vehicleAllocationRequest)
 
     vehicleAllocationResponse match {
       case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>

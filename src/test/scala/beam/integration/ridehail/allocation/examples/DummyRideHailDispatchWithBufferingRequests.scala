@@ -16,12 +16,12 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
   ): VehicleAllocationResponse = {
 
     if (rideHailManager.getPendingDummyRequests.size < 5) {
-      rideHailManager.assignDummyRidehail(vehicleAllocationRequest.request)
+      rideHailManager.assignDummyRidehail(vehicleAllocationRequest.requests)
     }
 
     rideHailManager
       .getClosestIdleVehiclesWithinRadius(
-        vehicleAllocationRequest.request.pickUpLocation,
+        vehicleAllocationRequest.requests.pickUpLocation,
         rideHailManager.radiusInMeters
       )
       .headOption match {

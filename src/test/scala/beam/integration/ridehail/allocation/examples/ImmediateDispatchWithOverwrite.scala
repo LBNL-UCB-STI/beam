@@ -30,7 +30,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       bufferedRideHailRequest += vehicleAllocationRequest
       logger.debug(
         "proposeVehicleAllocation buffered - personId: {}",
-        vehicleAllocationRequest.request.customer.personId
+        vehicleAllocationRequest.requests.customer.personId
       )
     }
 
@@ -51,7 +51,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
      */
     rideHailManager
       .getClosestIdleVehiclesWithinRadius(
-        vehicleAllocationRequest.request.pickUpLocation,
+        vehicleAllocationRequest.requests.pickUpLocation,
         rideHailManager.radiusInMeters
       )
       .headOption match {
@@ -74,12 +74,12 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
       val rhl = rideHailManager
         .getClosestIdleRideHailAgent(
-          firstRequestOfDay.request.pickUpLocation,
+          firstRequestOfDay.requests.pickUpLocation,
           rideHailManager.radiusInMeters
         )
         .get
 
-      val request = firstRequestOfDay.request.copy(
+      val request = firstRequestOfDay.requests.copy(
         departAt = DiscreteTime(bufferedRideHailRequests.getTick.toInt)
       )
 
@@ -117,12 +117,12 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     if (!overwriteAttemptStarted && reservationCompleted) {
       logger.debug(
         "trying to reassign vehicle to customer:{}, tick: {}",
-        bufferedRideHailRequest.head.request.customer,
+        bufferedRideHailRequest.head.requests.customer,
         tick
       )
       rideHailManager.attemptToCancelCurrentRideRequest(
         tick,
-        bufferedRideHailRequest.head.request.requestId
+        bufferedRideHailRequest.head.requests.requestId
       )
       logger.debug(
         "attempt finished, tick: {}",
@@ -138,7 +138,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     logger.debug("reservationCompletionNotice - personId: {}, vehicleId: {}", personId, vehicleId)
 
     if (!reservationCompleted) {
-      bufferedRideHailRequest = bufferedRideHailRequest.filter(_.request.customer.personId == personId)
+      bufferedRideHailRequest = bufferedRideHailRequest.filter(_.requests.customer.personId == personId)
 
       if (bufferedRideHailRequest.nonEmpty) {
         reservationCompleted = true

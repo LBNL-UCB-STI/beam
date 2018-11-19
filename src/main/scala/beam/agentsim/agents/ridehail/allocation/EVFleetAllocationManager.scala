@@ -22,7 +22,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
   override def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
   ): VehicleAllocationResponse = {
-    val reqId = vehicleAllocationRequest.request.requestId
+    val reqId = vehicleAllocationRequest.requests.head.requestId
 
     // Update local storage of computed routes by driver
     val routeResponsesByDriver = vehicleAllocationRequest.routingResponses
@@ -46,7 +46,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       case None =>
         // go with nearest ETA
         findNearestByETAConsideringRange(
-          vehicleAllocationRequest.request,
+          vehicleAllocationRequest.requests.head,
           requestToExcludedDrivers.getOrElse(reqId, Set())
         )
       case _ =>
@@ -76,12 +76,12 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
             requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId
           )
           findNearestByETAConsideringRange(
-            vehicleAllocationRequest.request,
+            vehicleAllocationRequest.requests.head,
             requestToExcludedDrivers.getOrElse(reqId, Set())
           ) match {
             case Some(newAgentLoc) =>
               val routeRequired = RoutingRequiredToAllocateVehicles(rideHailManager.createRoutingRequestsToCustomerAndDestination(
-                  vehicleAllocationRequest.request,
+                  vehicleAllocationRequest.requests.head,
                   newAgentLoc
                 ))
               routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)
@@ -107,7 +107,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
       case Some(agentLocation) =>
         // If we have an agent and no routes, ask for the routes
         val routeRequired = RoutingRequiredToAllocateVehicles(rideHailManager.createRoutingRequestsToCustomerAndDestination(
-          vehicleAllocationRequest.request,
+          vehicleAllocationRequest.requests.head,
           agentLocation
         ))
         routeReqToDriverMap.put(routeRequired.routesRequired.head.requestId, agentLocation.vehicleId)

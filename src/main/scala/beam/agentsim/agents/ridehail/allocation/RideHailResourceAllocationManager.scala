@@ -14,7 +14,13 @@ import scala.collection.mutable
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
-  private val bufferedRideHailRequests = mutable.Set[VehicleAllocationRequest]()
+  private val bufferedRideHailRequests = mutable.Set[RideHailRequest]()
+
+  def allocateVehicle(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse = {
+    //We only allocate one vehicle in this method
+    assert(vehicleAllocationRequest.requests.size==1)
+    allocateVehicleToCustomer(vehicleAllocationRequest)
+  }
 
   def allocateVehicleToCustomer(
     vehicleAllocationRequest: VehicleAllocationRequest
@@ -22,7 +28,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     // closest request
     rideHailManager
       .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.request.pickUpLocation,
+        vehicleAllocationRequest.requests.head.pickUpLocation,
         rideHailManager.radiusInMeters
       ) match {
       case Some(agentLocation) =>
@@ -37,13 +43,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def batchAllocateVehiclesToCustomers(tick: Int): VehicleAllocationResponse = {
-    batchAllocateVehiclesToCustomers(tick, bufferedRideHailRequests)
+    batchAllocateVehiclesToCustomers(tick, VehicleAllocationRequest(bufferedRideHailRequests.toList))
   }
 
   /*
     This method is called periodically
    */
-  def batchAllocateVehiclesToCustomers(tick: Int, bufferedRideHailRequests: mutable.Set[RideHailRequest]): VehicleAllocationResponse = {
+  def batchAllocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: VehicleAllocationRequest
+                                               ): VehicleAllocationResponse = {
     logger.trace("default implementation proposeBatchedVehicleAllocations executed")
     NoVehicleAllocated
   }
@@ -128,8 +135,8 @@ case object NoVehicleAllocated extends VehicleAllocationResponse
 case object NoRideRequested extends VehicleAllocationResponse
 
 case class VehicleAllocationRequest(
-  request: List[RideHailRequest],
-  routingResponses: List[RoutingResponse] = List()
+                                     requests: List[RideHailRequest],
+                                     routingResponses: List[RoutingResponse] = List()
 )
 
 //requestType: RideHailRequestType,

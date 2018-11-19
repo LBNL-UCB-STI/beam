@@ -14,7 +14,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 
     rideHailManager
       .getClosestIdleVehiclesWithinRadius(
-        vehicleAllocationRequest.request.pickUpLocation,
+        vehicleAllocationRequest.requests.head.pickUpLocation,
         rideHailManager.radiusInMeters
       )
       .headOption match {
@@ -25,10 +25,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     } // for inquiry the default option is sent to allow selection - some other could be sent here as well
   }
 
-  override def batchAllocateVehiclesToCustomers(tick: Int, bufferedRideHailRequests: mutable.Set[RideHailRequest]): VehicleAllocationResponse = {
-    logger.info(s"buffer size: ${bufferedRideHailRequests.size}")
-    if (bufferedRideHailRequests.size > 0) {
-      val allocResponses = bufferedRideHailRequests.flatMap{ request =>
+  override def batchAllocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: VehicleAllocationRequest
+                                               ): VehicleAllocationResponse = {
+    logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
+    if (vehicleAllocationRequest.requests.size > 0) {
+      val allocResponses = vehicleAllocationRequest.requests.flatMap{ request =>
         rideHailManager
           .getClosestIdleVehiclesWithinRadius(
             request.pickUpLocation,
@@ -45,7 +46,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
             None
         }
       }
-      RoutingRequiredToAllocateVehicles(allocResponses.flatMap(_.routesRequired).toList)
+      RoutingRequiredToAllocateVehicles(allocResponses.flatMap(_.routesRequired))
     }else{
       NoRideRequested
     }
