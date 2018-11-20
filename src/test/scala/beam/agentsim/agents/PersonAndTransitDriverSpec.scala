@@ -47,7 +47,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAndTransitDriverSpec
     extends TestKit(
@@ -240,30 +240,34 @@ class PersonAndTransitDriverSpec
         )
       )
 
-      val busDriverProps = Props(new TransitDriverAgent(
-        scheduler = scheduler,
-        beamServices = beamSvc,
-        transportNetwork = networkCoordinator.transportNetwork,
-        tollCalculator = tollCalculator,
-        eventsManager = eventsManager,
-        parkingManager = parkingManager,
-        transitDriverId = Id.create("my_bus", classOf[TransitDriverAgent]),
-        vehicle = bus,
-        Array(busLeg.beamLeg, busLeg2.beamLeg)
-      ))
-      val tramDriverProps = Props(new TransitDriverAgent(
-        scheduler = scheduler,
-        beamServices = beamSvc,
-        transportNetwork = networkCoordinator.transportNetwork,
-        tollCalculator = tollCalculator,
-        eventsManager = eventsManager,
-        parkingManager = parkingManager,
-        transitDriverId = Id.create("my_tram", classOf[TransitDriverAgent]),
-        vehicle = tram,
-        Array(tramLeg.beamLeg)
-      ))
+      val busDriverProps = Props(
+        new TransitDriverAgent(
+          scheduler = scheduler,
+          beamServices = beamSvc,
+          transportNetwork = networkCoordinator.transportNetwork,
+          tollCalculator = tollCalculator,
+          eventsManager = eventsManager,
+          parkingManager = parkingManager,
+          transitDriverId = Id.create("my_bus", classOf[TransitDriverAgent]),
+          vehicle = bus,
+          Array(busLeg.beamLeg, busLeg2.beamLeg)
+        )
+      )
+      val tramDriverProps = Props(
+        new TransitDriverAgent(
+          scheduler = scheduler,
+          beamServices = beamSvc,
+          transportNetwork = networkCoordinator.transportNetwork,
+          tollCalculator = tollCalculator,
+          eventsManager = eventsManager,
+          parkingManager = parkingManager,
+          transitDriverId = Id.create("my_tram", classOf[TransitDriverAgent]),
+          vehicle = tram,
+          Array(tramLeg.beamLeg)
+        )
+      )
 
-     val router = TestActorRef(
+      val router = TestActorRef(
         Props(
           new Actor() {
             context.actorOf(busDriverProps, "TransitDriverAgent-my_bus")

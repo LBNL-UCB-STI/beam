@@ -7,7 +7,11 @@ import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, Ve
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId

@@ -56,7 +56,6 @@ object BeamAgentScheduler {
 
   case class KillTrigger(tick: Int) extends Trigger
 
-
   /**
     *
     * @param triggerWithId identifier
@@ -285,10 +284,10 @@ class BeamAgentScheduler(
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
     if (newNow <= stopTick || !triggerQueue.isEmpty && triggerQueue
-      .peek()
-      .triggerWithId
-      .trigger
-      .tick <= stopTick) {
+          .peek()
+          .triggerWithId
+          .trigger
+          .tick <= stopTick) {
       nowInSeconds = newNow
 
       // println("doSimStep:" + newNow)
