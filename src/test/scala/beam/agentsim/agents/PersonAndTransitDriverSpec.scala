@@ -235,7 +235,7 @@ class PersonAndTransitDriverSpec
         SchedulerProps(
           beamConfig,
           stopTick = 31001,
-          maxWindow = 10,
+          maxWindow = 31001, // As a kind of stress test, let everything happen simultaneously
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -301,7 +301,7 @@ class PersonAndTransitDriverSpec
       leg.setRoute(route)
       plan.addLeg(leg)
       val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
-      workActivity.setEndTime(61200) //5:00:00 PM
+      workActivity.setEndTime(61200)
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
