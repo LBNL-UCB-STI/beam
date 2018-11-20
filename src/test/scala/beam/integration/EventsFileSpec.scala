@@ -95,7 +95,6 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get("amount_paid").toDouble != 0.0
     } yield event
-    tollEvents.foreach(println)
     tollEvents should not be empty
   }
 
