@@ -465,7 +465,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
                 benchmarkData.put(mode[i], Double.parseDouble(share[i]));
             }
         } catch (Exception ex) {
-            log.warn("Unable to load benchmark CSV via path '{}'", path, ex);
+            log.warn("Unable to load benchmark CSV via path '{}'", path);
         }
         return benchmarkData;
     }
