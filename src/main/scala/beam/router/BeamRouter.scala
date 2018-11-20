@@ -468,6 +468,9 @@ object BeamRouter {
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
   }
+  object RoutingResponse{
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
+  }
 
   def props(
     beamServices: BeamServices,

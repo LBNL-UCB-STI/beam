@@ -12,7 +12,7 @@ class DummyRideHailDispatchWithBufferingRequests(val rideHailManager: RideHailMa
   val enableDummyRidehailReplacement = true
 
   override def allocateVehicleToCustomer(
-    vehicleAllocationRequest: VehicleAllocationRequest
+    vehicleAllocationRequest: AllocationRequests
   ): VehicleAllocationResponse = {
 
     if (rideHailManager.getPendingDummyRequests.size < 5) {

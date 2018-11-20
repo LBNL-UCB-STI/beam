@@ -569,28 +569,37 @@ class RideHailManager(
 
       val vehicleAllocationResponses = rideHailResourceAllocationManager.batchAllocateVehiclesToCustomers(tick)
 
-      vehicleAllocationResponses match {
-        case RoutingRequiredToAllocateVehicles(routesRequired) =>
-          log.debug("Batch RoutingRequired {}", routesRequired.size )
-          requestRoutes(None, None, routesRequired, None)
-        case NoRideRequested =>
-          scheduleNextBufferedTrigger
+      if(vehicleAllocationResponses.allocations.find(_._2.isInstanceOf[RoutingRequiredToAllocateVehicle]).isDefined){
+        log.debug("Batch routes required")
+        requestRoutes(vehicleAllocationResponses)
+      }else{
+        val vehAllocations = vehicleAllocationResponses.allocations.filter(_._2.isInstanceOf[VehicleAllocation])
+        if(!vehAllocations.isEmpty){
 
-//        case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
-//          log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
-//          requestRoutes(
-//            request,
-//            Some(agentLocation),
-//            createRoutingRequestsToCustomerAndDestination(request, agentLocation),
-//            poolingInfoOpt
-//          )
-//        case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
-//          log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
-//          self ! RoutingResponses(request, Some(agentLocation), routingResponses, poolingInfoOpt)
-//        case NoVehicleAllocated =>
-//          log.debug("{} -- NoVehicleAllocated", request.requestId)
-//          request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
+        }else{
+          scheduleNextBufferedTrigger
+        }
+
       }
+//          case NoRideRequested =>
+//            scheduleNextBufferedTrigger
+//          case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
+//            log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
+//            requestRoutes(
+//              Some(request),
+//              Some(agentLocation),
+//              createRoutingRequestsToCustomerAndDestination(request, agentLocation),
+//              poolingInfoOpt
+//            )
+//          case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
+//            log.debug("{} -- VehicleAllocation", request.requestId)
+//            self ! RoutingResponses(Some(request), Some(agentLocation), routingResponses, poolingInfoOpt)
+//          case RoutingRequiredToAllocateVehicle(routesRequired) =>
+//            log.debug("{} -- RoutingRequired", request.requestId)
+//            requestRoutes(Some(request), None, routesRequired, None)
+//          case NoVehicleAllocated =>
+//            log.debug("{} -- NoVehicleAllocated", request.requestId)
+//            request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
 
     case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
       val produceDebugImages = true
@@ -843,8 +852,8 @@ class RideHailManager(
 
   // Returns Boolean indicating success/failure
   def findDriverAndSendRoutingRequests(
-    request: RideHailRequest,
-    responses: List[RoutingResponse] = List()
+                                        request: RideHailRequest,
+                                        routingResponses: List[RoutingResponse] = List()
   ): Unit = {
     if (log.isDebugEnabled) {
       log.debug(
@@ -856,12 +865,10 @@ class RideHailManager(
       )
     }
 
-    val vehicleAllocationRequest = VehicleAllocationRequest(List(request), responses)
-
     val vehicleAllocationResponse =
-      rideHailResourceAllocationManager.allocateVehicle(vehicleAllocationRequest)
+      rideHailResourceAllocationManager.allocateVehicle(AllocationRequests(request, routingResponses))
 
-    vehicleAllocationResponse match {
+    vehicleAllocationResponse.allocations.values.head match {
       case VehicleAllocation(agentLocation, None, poolingInfoOpt) =>
         log.debug("{} -- VehicleAllocation({}, None)", request.requestId, agentLocation.vehicleId)
         requestRoutes(
@@ -871,9 +878,9 @@ class RideHailManager(
           poolingInfoOpt
         )
       case VehicleAllocation(agentLocation, Some(routingResponses), poolingInfoOpt) =>
-        log.debug("{} -- VehicleAllocation(agentLocation, Some())", request.requestId)
+        log.debug("{} -- VehicleAllocation", request.requestId)
         self ! RoutingResponses(Some(request), Some(agentLocation), routingResponses, poolingInfoOpt)
-      case RoutingRequiredToAllocateVehicles(routesRequired) =>
+      case RoutingRequiredToAllocateVehicle(routesRequired) =>
         log.debug("{} -- RoutingRequired", request.requestId)
         requestRoutes(Some(request), None, routesRequired, None)
       case NoVehicleAllocated =>
@@ -1095,6 +1102,29 @@ class RideHailManager(
     List(rideHailAgent2Customer, rideHail2Destination)
   }
 
+  def requestRoutes(allocationResponses: AllocationResponses) ={
+    val preservedOrder = allocationResponses.allocations.map(_._1.requestId)
+    val theFutures = allocationResponses.allocations.flatMap{ alloc =>
+      alloc._2 match {
+        case RoutingRequiredToAllocateVehicle(routesRequired) =>
+          routesRequired.map{ req =>
+            akka.pattern.ask(router, req).mapTo[RoutingResponse]
+          }
+        case _ =>
+          None
+      }
+    }
+//    Future.sequence(theFutures)
+//      .foreach { responseList =>
+//        val requestIdToResponse = responseList.map { response =>
+//          response.requestId.get -> response
+//        }.toMap
+//        val orderedResponses = allocationResponses.allocations.map{ alloc =>
+//          alloc._1 -> alloc._2.asInstanceOf[]
+//        } requestIdToResponse(requestId))
+//        self ! RoutingResponses(rideHailRequest, rideHailAgentLocation, orderedResponses, poolingInfo)
+//      }
+  }
   def requestRoutes(
     rideHailRequest: Option[RideHailRequest],
     rideHailAgentLocation: Option[RideHailAgentLocation],

@@ -744,7 +744,7 @@ object ChoosesMode {
       routingResponse = if (withRouting) {
         None
       } else {
-        Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
+        RoutingResponse.dummyRoutingResponse
       },
       rideHailResult = if (withRideHail) {
         None

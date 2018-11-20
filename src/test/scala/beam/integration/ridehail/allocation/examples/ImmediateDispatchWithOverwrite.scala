@@ -18,12 +18,12 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager)
     with LazyLogging {
 
-  var bufferedRideHailRequest: Set[VehicleAllocationRequest] = Set()
+  var bufferedRideHailRequest: Set[AllocationRequests] = Set()
   var reservationCompleted = false
   var overwriteAttemptStarted = false
 
   override def allocateVehicleToCustomer(
-    vehicleAllocationRequest: VehicleAllocationRequest
+    vehicleAllocationRequest: AllocationRequests
   ): VehicleAllocationResponse = {
 
     if (!reservationCompleted) {
