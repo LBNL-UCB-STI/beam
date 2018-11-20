@@ -13,7 +13,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
   NewDriverAlreadyControllingVehicle
 }
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
@@ -144,8 +144,16 @@ class TransitDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
+    // We are done, but we don't stop ourselves immediately.
+    // Instead, we ask the scheduler to be notified after the
+    // concurrency time window has passed, and then stop.
+    // This is because other agents may still want to interact with us until then.
     case Event(PassengerScheduleEmptyMessage(_, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! CompletionNotice(triggerId)
+      stay
+    case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
       stop
   }

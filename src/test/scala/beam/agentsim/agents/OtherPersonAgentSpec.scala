@@ -306,6 +306,16 @@ class OtherPersonAgentSpec
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+
+      scheduler ! ScheduleTrigger(
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        personActor
+      )
+      scheduler ! ScheduleTrigger(
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        personActor
+      )
+
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -369,14 +379,6 @@ class OtherPersonAgentSpec
       expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
-        personActor
-      )
 
       lastSender ! ReservationResponse(
         reservationRequestBus.requestId,
