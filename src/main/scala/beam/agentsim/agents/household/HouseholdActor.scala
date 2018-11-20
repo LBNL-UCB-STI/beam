@@ -169,11 +169,6 @@ object HouseholdActor {
       vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
 
     /**
-      * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
-      */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
-
-    /**
       * Current [[Vehicle]] assignments.
       */
     private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
