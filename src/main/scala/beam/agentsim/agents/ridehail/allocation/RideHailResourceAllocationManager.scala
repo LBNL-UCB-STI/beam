@@ -14,45 +14,44 @@ import scala.collection.mutable
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
+
   private val bufferedRideHailRequests = mutable.Set[RideHailRequest]()
 
-  def allocateVehicle(vehicleAllocationRequest: AllocationRequests): AllocationResponses = {
-    //We only allocate one vehicle in this method
-    assert(vehicleAllocationRequest.requests.size==1)
-    allocateVehicleToCustomer(vehicleAllocationRequest)
-  }
-
-  def allocateVehicleToCustomer(
-    vehicleAllocationRequest: AllocationRequests
-  ): AllocationResponses = {
-    val request = vehicleAllocationRequest.requests.keys.head
-    // closest request
-    AllocationResponses(request,rideHailManager
-      .getClosestIdleRideHailAgent(
-        request.pickUpLocation,
-        rideHailManager.radiusInMeters
-      ) match {
-      case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None, None)
-      case None =>
-        NoVehicleAllocated
-    })
+  def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
+    NoVehiclesAvailable
   }
 
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests.add(request)
   }
 
-  def batchAllocateVehiclesToCustomers(tick: Int): AllocationResponses = {
-    batchAllocateVehiclesToCustomers(tick, AllocationRequests(bufferedRideHailRequests.toList))
+  def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
+    allocateVehiclesToCustomers(tick, AllocationRequests(bufferedRideHailRequests.toList))
   }
 
   /*
-    This method is called periodically
+   * This method is called in both contexts, either with a single allocation request or with a batch of requests
+   * to be processed.
    */
-  def batchAllocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponses = {
-    logger.trace("default implementation proposeBatchedVehicleAllocations executed")
-    AllocationResponses(vehicleAllocationRequest.requests.keys.map((_ -> NoVehicleAllocated)).toMap)
+  def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponse = {
+    // closest request
+    val responses = vehicleAllocationRequest.requests.map { case (request, routingResponses) =>
+      rideHailManager.getClosestIdleRideHailAgent(
+        request.pickUpLocation,
+        rideHailManager.radiusInMeters
+      ) match {
+        case Some(agentLocation) =>
+          (request -> VehicleMatchedToCustomers(agentLocation, None))
+        case None =>
+          (request -> NoVehicleAllocated)
+      }
+    }
+    logger.trace("default implementation allocateVehiclesToCustomers executed")
+    if(responses.isEmpty){
+      NoRidesRequested
+    }else{
+      VehicleAllocations(responses)
+    }
   }
 
   /*
@@ -120,28 +119,40 @@ object RideHailResourceAllocationManager {
   }
 }
 
-trait VehicleAllocationResponse
-
+/*
+ * An InquiryResponse is how we respond to customer inquiries. This looks similar to AllocationResponse
+ * except for a couple of difference:
+ * 1) InquiryResponses are always assumed to contain a plan for a single occupant
+ * ride hail trip plus PoolingInfo which gives relative time and cost estimate for a companion pooled ride quote.
+ * 2) InquiryResponses are therefore one to one, response -> inquiry... whereas AllocationResponse
+ * can be one to many... i.e. one vehicle is assigned to many customers.
+ */
+trait InquiryResponse
+case object NoVehiclesAvailable extends InquiryResponse
+case class SingleOccupantQuoteAndPoolingInfo(rideHailAgentLocation: RideHailAgentLocation,
+                                             routingResponses: Option[List[RoutingResponse]],
+                                             poolingInfo: Option[PoolingInfo]) extends InquiryResponse
+/*
+ * An AllocationResponse is what the RideHailResourceAllocationManager returns in response to an AllocationRequest
+ */
+trait AllocationResponse
+case object NoRidesRequested extends AllocationResponse
 case class RoutingRequiredToAllocateVehicle(
   routesRequired: List[RoutingRequest]
-) extends VehicleAllocationResponse
+) extends AllocationResponse
+case class VehicleAllocations(allocations: Map[RideHailRequest,VehicleAllocation]) extends AllocationResponse
 
-case class VehicleAllocation(
-  rideHailAgentLocation: RideHailAgentLocation,
-  routingResponses: Option[List[RoutingResponse]],
-  poolingInfo: Option[PoolingInfo]
-) extends VehicleAllocationResponse
+/*
+ * A VehicleAllocation is a specific directive about one ride hail vehicle
+ * (match found or no match found? if found, who are the customers?)
+ */
+trait VehicleAllocation
+case object NoVehicleAllocated extends VehicleAllocation
+case class VehicleMatchedToCustomers(
+                                      rideHailAgentLocation: RideHailAgentLocation,
+                                      routingResponses: Option[List[RoutingResponse]]
+                                    ) extends VehicleAllocation
 
-case class AllocationResponses(allocations: Map[RideHailRequest,VehicleAllocationResponse])
-
-object AllocationResponses{
-  def apply(request: RideHailRequest,
-            response: VehicleAllocationResponse): AllocationResponses = AllocationResponses(Map(request -> response))
-}
-
-case object NoVehicleAllocated extends VehicleAllocationResponse
-
-case object NoRideRequested extends VehicleAllocationResponse
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 object AllocationRequests{

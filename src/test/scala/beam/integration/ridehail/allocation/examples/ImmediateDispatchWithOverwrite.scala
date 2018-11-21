@@ -24,7 +24,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
 
   override def allocateVehicleToCustomer(
     vehicleAllocationRequest: AllocationRequests
-  ): VehicleAllocationResponse = {
+  ): AllocationResponse = {
 
     if (!reservationCompleted) {
       bufferedRideHailRequest += vehicleAllocationRequest
@@ -56,7 +56,7 @@ class ImmediateDispatchWithOverwrite(val rideHailManager: RideHailManager)
       )
       .headOption match {
       case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None, None)
+        VehicleMatchedToCustomers(agentLocation, None, None)
       case None =>
         NoVehicleAllocated
     }

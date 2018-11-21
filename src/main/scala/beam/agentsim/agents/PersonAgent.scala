@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse, RideHailResponseTrigger}
+import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
@@ -376,12 +376,11 @@ class PersonAgent(
         isWithinTripReplanning = true
       )
     // RIDE HAIL DELAY
-    case Event(RideHailResponse(_, None, None, triggersToSchedule), data: BasePersonData) =>
-      // when both travel proposal and error are None, this means ride hail manager is taking time to
-      // assign and we should complete our current trigger and wait to be re-triggered by the manager
+    case Event(DelayedRideHailResponse, data: BasePersonData) =>
+      // this means ride hail manager is taking time to assign and we should complete our
+      // current trigger and wait to be re-triggered by the manager
       val (_, triggerId) = releaseTickAndTriggerId()
-      log.debug("scheduling triggers after being put on hold from reservation response: {}", triggersToSchedule)
-      scheduler ! CompletionNotice(triggerId, triggersToSchedule)
+      scheduler ! CompletionNotice(triggerId, Vector())
       stay() using data
     // RIDE HAIL DELAY FAILURE
       // we use trigger for this to get triggerId back into hands of the person

@@ -5,6 +5,8 @@ import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.Trigger
 
+case object DelayedRideHailResponse
+
 case class RideHailResponse(
   request: RideHailRequest,
   travelProposal: Option[TravelProposal],

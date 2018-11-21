@@ -1,33 +1,12 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
-import beam.router.model.RoutingModel.DiscreteTime
+import beam.agentsim.agents.ridehail.{RideHailManager}
 
-import scala.collection.mutable
 
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def allocateVehicleToCustomer(
-    vehicleAllocationRequest: AllocationRequests
-  ): AllocationResponses = {
-    val request = vehicleAllocationRequest.requests.keys.head
-
-    AllocationResponses(request,rideHailManager
-      .getClosestIdleVehiclesWithinRadius(
-        request.pickUpLocation,
-        rideHailManager.radiusInMeters
-      )
-      .headOption match {
-      case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None, Some(PoolingInfo(1.2, 0.6)))
-      case None =>
-        NoVehicleAllocated
-    })
-  }
-
-  override def batchAllocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests
-                                               ): AllocationResponses = {
+  override def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests
+                                               ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     val allocResponses = vehicleAllocationRequest.requests.map{ case(request,routingResponses) =>
         if(routingResponses.isEmpty) {
@@ -38,11 +17,13 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               )
               .headOption match {
               case Some(agentLocation) =>
+                //TODO how to mix RoutingRequired with VehicleAllocation???
                 val routeRequired = RoutingRequiredToAllocateVehicle(rideHailManager.createRoutingRequestsToCustomerAndDestination(
                   request,
                   agentLocation
                 ))
-                (request -> routeRequired)
+//                (request -> routeRequired)
+                (request -> NoVehicleAllocated)
               case None =>
                 (request -> NoVehicleAllocated)
             }
@@ -54,12 +35,12 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
             )
             .headOption match {
             case Some(agentLocation) =>
-              (request -> VehicleAllocation(agentLocation, Some(routingResponses), None))
+              (request -> VehicleMatchedToCustomers(agentLocation, Some(routingResponses)))
             case None =>
               (request -> NoVehicleAllocated)
           }
         }
-    }.toMap
-    AllocationResponses(allocResponses)
+    }
+    VehicleAllocations(allocResponses)
   }
 }
