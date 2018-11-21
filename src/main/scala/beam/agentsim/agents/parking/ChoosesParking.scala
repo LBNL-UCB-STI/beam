@@ -49,7 +49,7 @@ trait ChoosesParking extends {
         id,
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
-        nextActivity(personData).right.get.getType,
+        nextActivity(personData).get.getType,
         attributes.valueOfTime,
         NoNeed,
         lastLeg.beamLeg.endTime,
