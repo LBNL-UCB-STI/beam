@@ -28,11 +28,13 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
+    private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
+    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation, boolean writeGraph) {
         this.statsComputation = statsComputation;
+        this.writeGraph = writeGraph;
     }
 
     /**
@@ -90,7 +92,9 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
-        createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+        if(writeGraph){
+            createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+        }
         createFuelCSV(hourModeFuelage, event.getIteration());
     }
 

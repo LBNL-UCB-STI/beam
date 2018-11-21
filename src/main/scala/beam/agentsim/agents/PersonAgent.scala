@@ -29,6 +29,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
 import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
@@ -57,6 +58,7 @@ object PersonAgent {
     services: BeamServices,
     modeChoiceCalculator: ModeChoiceCalculator,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -78,7 +80,8 @@ object PersonAgent {
         personId,
         plan,
         humanBodyVehicleId,
-        parkingManager
+        parkingManager,
+        tollCalculator
       )
     )
   }
@@ -189,7 +192,8 @@ class PersonAgent(
   override val id: Id[PersonAgent],
   val matsimPlan: Plan,
   val bodyId: Id[Vehicle],
-  val parkingManager: ActorRef
+  val parkingManager: ActorRef,
+  val tollCalculator: TollCalculator
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
@@ -430,10 +434,14 @@ class PersonAgent(
       )
   }
 
-  // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
+  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_), data: BasePersonData) =>
+    case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
+      if (toll != 0.0)
+        eventsManager.processEvent(
+          new PersonCostEvent(tick, matsimPlan.getPerson.getId, "car", "toll", toll)
+        )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)
         theVehicle.unsetDriver()

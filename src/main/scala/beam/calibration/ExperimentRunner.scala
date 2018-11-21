@@ -1,22 +1,17 @@
 package beam.calibration
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.calibration.impl.example.{
-  CountsObjectiveFunction,
-  ErrorComparisonType,
-  ModeChoiceObjectiveFunction,
-  RideHailObjectiveFunction
-}
+import beam.calibration.impl.example.{CountsObjectiveFunction, ErrorComparisonType, ModeChoiceObjectiveFunction, RideHailObjectiveFunction}
 import beam.sim.BeamHelper
 import beam.utils.reflection.ReflectionUtils
 import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.core.config.{Config => MatsimConfig}
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 object ObjectiveFunctionClassBuilder extends ReflectionUtils {
   override def packageName: String = "beam.calibration"
@@ -79,26 +74,28 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
   }
 
   def getRunValue(runConfig: MatsimConfig): Double = {
+    val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+    val benchmarkFileExists = Files.exists(benchmarkData)
+    if(!benchmarkFileExists) {
+      logger.warn("Unable to load benchmark CSV via path '{}'", experimentData.benchmarkFileLoc)
+    }
     if (objectiveFunctionClassName.equals("CountsObjectiveFunction")) {
       val outpath = Paths.get(
         GraphsStatsAgentSimEventsListener.CONTROLLER_IO
           .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
-    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_RMSPE")) {
-      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_RMSPE") && benchmarkFileExists) {
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
-    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_AbsolutError")) {
-      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+    } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_AbsolutError") && benchmarkFileExists) {
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.AbsoluteError)
     } else if (objectiveFunctionClassName.equals(
-                 "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
-               )) {
-      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
+    ) && benchmarkFileExists) {
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
@@ -106,23 +103,21 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
           ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity
         )
     } else if (objectiveFunctionClassName.equals(
-                 "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
-               )) {
-      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
+      "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
+    ) && benchmarkFileExists) {
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
           outpath.toAbsolutePath.toString,
           ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode
         )
-    } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction")) {
+    } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction") && benchmarkFileExists) {
       var outpath = Paths.get(
         GraphsStatsAgentSimEventsListener.CONTROLLER_IO
           .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       val countsObjVal = CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
 
-      val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
       outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
       val modesObjVal = new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
@@ -136,8 +131,8 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
 
       -(countsWeight * Math.abs(countsObjVal) + modeWeight * Math.abs(modesObjVal))
     } else if (objectiveFunctionClassName.equals(
-                 "RideHail_maximizeReservationCount"
-               )) {
+      "RideHail_maximizeReservationCount"
+    )) {
       val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("ridehailStats.csv"))
       RideHailObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else {
@@ -147,8 +142,8 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
   }
 
   def createConfigBasedOnSuggestion(
-    suggestion: Suggestion
-  )(implicit experimentData: SigoptExperimentData): Config = {
+                                     suggestion: Suggestion
+                                   )(implicit experimentData: SigoptExperimentData): Config = {
     val assignments = suggestion.getAssignments
 
     val experimentName: String = suggestion.getExperiment
@@ -158,16 +153,15 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     val configParams: mutable.Map[String, Object] = JavaConverters.mapAsScalaMap(
       experimentData.experimentDef.defaultParams
     ) ++
-    JavaConverters
-      .iterableAsScalaIterable(assignments.entrySet())
-      .seq
-      .map { e =>
-        e.getKey -> e.getValue
-      }
-      .toMap
+      JavaConverters
+        .iterableAsScalaIterable(assignments.entrySet())
+        .seq
+        .map { e =>
+          e.getKey -> e.getValue
+        }
+        .toMap
 
-    val experimentBaseDir
-      : Path = new File(experimentData.experimentDef.header.beamTemplateConfPath).toPath.getParent.toAbsolutePath
+    val experimentBaseDir: Path = new File(experimentData.experimentDef.header.beamTemplateConfPath).toPath.getParent.toAbsolutePath
 
     val runDirectory = experimentData.experimentDef.projectRoot.relativize(
       Paths.get(experimentBaseDir.toString, "experiments", experimentName, "suggestions")
@@ -178,10 +172,10 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     )
 
     (Map(
-      "beam.agentsim.simulationName"               -> s"$suggestionId",
-      "beam.outputs.baseOutputDirectory"           -> beamOutputDir.getParent.toString,
+      "beam.agentsim.simulationName" -> s"$suggestionId",
+      "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
-      "beam.inputDirectory"                        -> experimentData.experimentDef.getTemplateConfigParentDirAsString
+      "beam.inputDirectory" -> experimentData.experimentDef.getTemplateConfigParentDirAsString
     ) ++ configParams).foldLeft(experimentData.baseConfig) {
       case (prevConfig, (paramName, paramValue)) =>
         val configValue = ConfigValueFactory.fromAnyRef(paramValue)

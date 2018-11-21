@@ -45,15 +45,12 @@ trait ChoosesParking extends {
       val lastLeg =
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
-      //TODO source value of time from appropriate place
       parkingManager ! ParkingInquiry(
         id,
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).right.get.getType,
-        beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-          .getAttribute(id.toString, "valueOfTime")
-          .asInstanceOf[Double],
+        attributes.valueOfTime,
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble

@@ -86,8 +86,9 @@ public class PhyssimCalcLinkStats {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            createModesFrequencyGraph(dataset, iteration);
-
+            if (beamConfig.beam().outputs().writeGraphs()){
+                createModesFrequencyGraph(dataset, iteration);
+            }
         }
 
     }

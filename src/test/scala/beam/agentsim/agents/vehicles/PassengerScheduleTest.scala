@@ -9,6 +9,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import org.scalatest.mockito.MockitoSugar
+import org.mockito.Mockito._
 import org.scalatest.{FunSpecLike, Matchers, _}
 
 /**
@@ -21,7 +22,7 @@ class PassengerScheduleTest
     with Matchers
     with ImplicitSender
     with MockitoSugar {
-  val services: BeamServices = mock[BeamServices]
+  val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
 
   describe("A PassengerSchedule") {
 

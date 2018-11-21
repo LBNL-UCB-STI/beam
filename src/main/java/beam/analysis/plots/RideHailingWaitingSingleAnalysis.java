@@ -39,7 +39,7 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDa
 
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
     private final StatsComputation<Map<Integer, Double>, double[][]> statComputation;
-
+    private final boolean writeGraph;
     /**
      * Get description of fields written to the output files.
      *
@@ -83,6 +83,7 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDa
         double timeBinSizeInSec = beamConfig.beam().agentsim().agents().rideHail().iterationStats().timeBinSizeInSec();
 
         numberOfTimeBins = Math.floor(endTime / timeBinSizeInSec);
+        writeGraph = beamConfig.beam().outputs().writeGraphs();
     }
 
     @Override
@@ -127,7 +128,7 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDa
     public void createGraph(IterationEndsEvent event) throws IOException {
         double[][] data = statComputation.compute(hoursTimesMap);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("", "", data);
-        if (dataset != null)
+        if (dataset != null && writeGraph)
             createModesFrequencyGraph(dataset, event.getIteration());
 
         writeToCSV(event.getIteration(), hoursTimesMap);

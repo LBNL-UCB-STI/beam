@@ -9,7 +9,7 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, TNCIterationsStatsCollector}
 import beam.analysis.IterationStatsProvider
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -43,10 +43,11 @@ import scala.concurrent.{Await, Future}
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
   private val transportNetwork: TransportNetwork,
+  private val tollCalculator: TollCalculator,
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
-  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
 ) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
@@ -59,10 +60,8 @@ class BeamSim @Inject()(
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
-  private var rideHailIterationHistoryActor: ActorRef = _
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
-  val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
@@ -77,7 +76,6 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("histogram", "**")
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,
@@ -124,14 +122,10 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )
 
-    rideHailIterationHistoryActor = actorSystem.actorOf(
-      RideHailIterationHistoryActor.props(eventsManager, beamServices, transportNetwork),
-      rideHailIterationHistoryActorName
-    )
     tncIterationsStatsCollector = new TNCIterationsStatsCollector(
       eventsManager,
       beamServices,
-      rideHailIterationHistoryActor,
+      event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
       transportNetwork
     )
 
