@@ -6,7 +6,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, MobilityStatusResponse, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusResponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -18,9 +18,10 @@ import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel._
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
@@ -114,7 +115,8 @@ trait ChoosesMode {
           Modes.filterForTransit(transitModes),
           vehicles,
           streetVehiclesIntermodalUse,
-          mustParkAtEnd = true
+          mustParkAtEnd = true,
+          timeValueOfMoney = 3600.0 / attributes.valueOfTime
         )
       }
 
@@ -347,8 +349,22 @@ trait ChoosesMode {
       val correctedItins = theRouterResult.itineraries.map {
         trip =>
           if (trip.legs.head.beamLeg.mode == CAR) {
-            val startLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime), bodyId, asDriver = true, None, 0, unbecomeDriverOnCompletion = false)
-            val endLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime), bodyId, asDriver = true, None, 0, unbecomeDriverOnCompletion = true)
+            val startLeg = EmbodiedBeamLeg(
+              BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
+              bodyId,
+              asDriver = true,
+              None,
+              0,
+              unbecomeDriverOnCompletion = false
+            )
+            val endLeg = EmbodiedBeamLeg(
+              BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
+              bodyId,
+              asDriver = true,
+              None,
+              0,
+              unbecomeDriverOnCompletion = true
+            )
             trip.copy(legs = (startLeg +: trip.legs) :+ endLeg)
           } else {
             trip
@@ -421,8 +437,10 @@ trait ChoosesMode {
         ) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
         val accessAndTransit = tncAccessLeg.map(
           leg =>
-            leg.copy(leg.beamLeg
-                            .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue()))
+            leg.copy(
+              leg.beamLeg
+                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
+          )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
           accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.tail
@@ -504,7 +522,11 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModes.contains(itin.tripClassifier))
 
-      val attributesOfIndividual = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(id).getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+      val attributesOfIndividual = beamServices.matsimServices.getScenario.getPopulation.getPersons
+        .get(id)
+        .getCustomAttributes
+        .get("beam-attributes")
+        .asInstanceOf[AttributesOfIndividual]
 
       modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, attributesOfIndividual) match {
         case Some(chosenTrip) =>
@@ -678,6 +700,7 @@ object ChoosesMode {
       copy(
         personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
       )
+
     override def hasParkingBehaviors: Boolean = true
   }
 

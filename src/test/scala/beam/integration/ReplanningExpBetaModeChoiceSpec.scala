@@ -51,12 +51,10 @@ class ReplanningExpBetaModeChoiceSpec
     }
 
     "increase test scores over iterations" in {
-      lazy val it0Score = getAvgBestScore(0)
-      lazy val it5Score = getAvgBestScore(5)
+      lazy val it2Score = getAvgAvgScore(2)
       lazy val it10Score = getAvgBestScore(10)
 
-      it0Score should be < it5Score
-      it5Score should be < it10Score
+      it2Score should be < it10Score
     }
   }
 
@@ -69,6 +67,13 @@ class ReplanningExpBetaModeChoiceSpec
     scenario.getPopulation.getPersons.values().asScala.map(_.getPlans.size()).sum
   }
 
+  private def getAvgAvgScore(iterationNum: Int) = {
+    val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scorestats.txt")
+    val itScores = bufferedSource.getLines.toList.find(_.startsWith(s"$iterationNum\t"))
+    bufferedSource.close
+
+    itScores.flatMap(_.split("\t").map(_.trim).lift(3).map(_.toDouble))
+  }
   private def getAvgBestScore(iterationNum: Int) = {
     val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scorestats.txt")
     val itScores = bufferedSource.getLines.toList.find(_.startsWith(s"$iterationNum\t"))

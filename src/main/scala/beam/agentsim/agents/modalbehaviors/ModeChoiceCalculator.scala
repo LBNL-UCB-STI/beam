@@ -3,13 +3,11 @@ package beam.agentsim.agents.modalbehaviors
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
 import scala.util.Random
@@ -24,8 +22,6 @@ trait ModeChoiceCalculator extends HasServices {
   implicit lazy val random: Random = new Random(
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
-
-  lazy val modeSubsidy = new ModeSubsidy(beamServices.beamConfig.beam.agentsim.agents.modeSubsidy.file)
 
   /// VOT-Specific fields and methods
 
@@ -89,7 +85,10 @@ trait ModeChoiceCalculator extends HasServices {
 
   ///~
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip]
+  def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip]
 
   def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
 
@@ -114,7 +113,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _, _, _) =>
+            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)

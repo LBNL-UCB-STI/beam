@@ -14,7 +14,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -47,7 +47,7 @@ class TimeDependentRoutingSpec
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
@@ -63,19 +63,20 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any()))
-      .thenReturn(Vector[BeamFareSegment]())
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
@@ -101,7 +102,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(), // TODO FIXME?
+          Vector(),
           None,
           SpaceTime(166321.9, 1568.87, 3000),
           SpaceTime(167138.4, 1117, 3000),
@@ -135,7 +136,7 @@ class TimeDependentRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 76)
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(
         origin,
         destination,
@@ -155,7 +156,7 @@ class TimeDependentRoutingSpec
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
         origin,
         destination,
@@ -180,12 +181,10 @@ class TimeDependentRoutingSpec
       // Start with travel times as calculated by a pristine TravelTimeCalculator.
       // (Should be MATSim free flow travel times)
       val eventsForTravelTimeCalculator = EventsUtils.createEventsManager()
-      val travelTimeCalculator = new TravelTimeCalculator(
-        networkCoordinator.network,
-        ConfigUtils.createConfig().travelTimeCalculator()
-      )
+      val travelTimeCalculator =
+        new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
-      router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)
+      router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
       router ! RoutingRequest(
         origin,
@@ -201,22 +200,17 @@ class TimeDependentRoutingSpec
           )
         )
       )
-      var carOption = expectMsgType[RoutingResponse].itineraries
-        .find(_.tripClassifier == CAR)
-        .get
+      var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
 
       // Now feed the TravelTimeCalculator events resulting from me traversing the proposed route,
       // but taking me 2000s (a lot) for each link.
       // Then route again.
       // Like a one-person iterated dynamic traffic assignment.
       def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
-
       def longerTravelTimes(enterTime: Int, linkId: Int) = 2000
-
-      def experiencedTotalTravelTime =
-        (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
-
+      def experiencedTotalTravelTime = (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
       // This ^^ is the travel time which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link
+
       def gap = estimatedTotalTravelTime - experiencedTotalTravelTime
 
       for (_ <- 1 to 5) {
@@ -225,7 +219,7 @@ class TimeDependentRoutingSpec
           .foreach(eventsForTravelTimeCalculator.processEvent)
 
         // Now send the router the travel times resulting from that, and try again.
-        router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)
+        router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
         router ! RoutingRequest(
           origin,
           destination,
@@ -240,28 +234,19 @@ class TimeDependentRoutingSpec
             )
           )
         )
-        carOption = expectMsgType[RoutingResponse].itineraries
-          .find(_.tripClassifier == CAR)
-          .getOrElse(carOption)
+        carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).getOrElse(carOption)
       }
 
       assert(scala.math.abs(gap) < 75) // isn't exactly 0, probably rounding errors?
     }
 
     "give updated travel times for a given route after travel times were updated" in {
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       val leg = BeamLeg(
         28800,
         BeamMode.WALK,
         0,
-        BeamPath(
-          Vector(1, 2, 3, 4),
-          Vector(),
-          None,
-          SpaceTime(0.0, 0.0, 28800),
-          SpaceTime(1.0, 1.0, 28900),
-          1000.0
-        )
+        BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
       val response = expectMsgType[RoutingResponse]

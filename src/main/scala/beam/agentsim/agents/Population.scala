@@ -111,11 +111,14 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-            Population.getVehiclesFromHousehold(household, beamServices)
-
-          houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
-
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+            .collectionAsScalaIterable(household.getVehicleIds)
+            .map { vid =>
+              val bvid = BeamVehicle.createId(vid)
+              bvid -> beamServices.privateVehicles(bvid)
+            }
+            .toMap
+          householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
@@ -129,17 +132,17 @@ class Population(
               scenario.getPopulation,
               household.getId,
               household,
-              houseHoldVehicles,
+              householdVehicles,
               homeCoord
             ),
             household.getId.toString
           )
 
-          houseHoldVehicles.values.foreach { veh =>
+          householdVehicles.values.foreach { veh =>
             veh.manager = Some(householdActor)
           }
 
-          houseHoldVehicles.foreach {
+          householdVehicles.foreach {
             vehicle =>
               val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
                 parkingManager ! ParkingInquiry(

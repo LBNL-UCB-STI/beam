@@ -19,7 +19,7 @@ class ExperimentApp extends App {
       .collect {
         case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
           (EXPERIMENTS_TAG, filePath)
-        case arg@_ =>
+        case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap

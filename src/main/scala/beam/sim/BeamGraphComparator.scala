@@ -23,7 +23,10 @@ object BeamGraphComparator {
     * @param iterationsCount Total number of iterations.
     * @return Graph html as scala elem
     */
-  private def generateHtml(files : mutable.HashMap[(String,String), Map[String, Array[(String, File)]]],iterationsCount : Int): Elem = {
+  private def generateHtml(
+    files: mutable.HashMap[(String, String), Map[String, Array[(String, File)]]],
+    iterationsCount: Int
+  ): Elem = {
     val scriptToDisplayAllImages =
       """function displayAllGraphs(images){
            var counter = 0;
@@ -43,7 +46,8 @@ object BeamGraphComparator {
       * @param imageObjects A json object containing required details of the image file
       * @return
       */
-    def displayAllGraphs(imageObjects: Array[JsObject]) = s"displayAllGraphs(${Json.stringify(Json.toJson(imageObjects))});"
+    def displayAllGraphs(imageObjects: Array[JsObject]) =
+      s"displayAllGraphs(${Json.stringify(Json.toJson(imageObjects))});"
 
     // Main menu for graph selection
     val graphMenu: Elem = <ul class="list-group">
@@ -69,7 +73,7 @@ object BeamGraphComparator {
     </ul>
 
     // Generate holder blocks to display the selected images and their titles
-    val imageHolders: Seq[NodeBuffer] = for(i <- 0 to iterationsCount) yield {
+    val imageHolders: Seq[NodeBuffer] = for (i <- 0 to iterationsCount) yield {
       val holderId = "imageHolder" + i
       val imageName = "imageName" + i
       <h4 align="center" id={imageName}></h4>
@@ -122,58 +126,72 @@ object BeamGraphComparator {
     * @param firstIteration value of first iteration
     * @param lastIteration value of last iteration
     */
-  def generateGraphComparisonHtmlPage(event: ControlerEvent,firstIteration: Int,lastIteration: Int): Unit = {
+  def generateGraphComparisonHtmlPage(event: ControlerEvent, firstIteration: Int, lastIteration: Int): Unit = {
     val existingIterations = (firstIteration to lastIteration).filter { i =>
       FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles() != null
     }
     // Yield all the png files (graph images) across all iterations
-    val files: Seq[Array[File]] = for(i <- existingIterations) yield {
-        (FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles.filterNot(_ == null).filter(f =>
-          f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram")).flatMap(_.listFiles()) ++
-          FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
-          .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
+    val files: Seq[Array[File]] = for (i <- existingIterations) yield {
+      (FileUtils
+        .getFile(new File(event.getServices.getControlerIO.getIterationPath(i)))
+        .listFiles
+        .filterNot(_ == null)
+        .filter(f => f.isDirectory && f.getName.equalsIgnoreCase("tripHistogram"))
+        .flatMap(_.listFiles()) ++
+      FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
+        .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
     val numberOfIterations = files.size
     val fileNameRegex = "([0-9]*).(.*)(.png)".r
     // Group all yielded files based on the graph names (file name w/o iteration prefixes)
     val fileNames = files.reduce(_ ++ _) map { f =>
       (f.getName match {
-        case fileNameRegex(_,name,_) => name
-        case _ => ""
+        case fileNameRegex(_, name, _) => name
+        case _                         => ""
       }) -> f
     }
-    //Group chart files by name (2 level group)
-    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1).groupBy(f => {
-      val index = f._1.indexOf("_")
-      if(index == -1)
-        f._1
-      else
-        f._1.substring(0,index)
-    })
-    val subGroups = mutable.HashMap.empty[(String ,String), Map[String, Array[(String, File)]]]
+
+    val knownChartPrefixes = List(
+      "rideHail",
+      "passengerPerTrip",
+      "legHistogram",
+      "averageTravelTimes",
+      "energyUse",
+      "modeChoice",
+      "physsim",
+      "realizedMode",
+      "tripHistogram",
+      "freeFlowSpeedDistribution"
+    )
+    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy (
+      grouping =>
+        knownChartPrefixes
+          .collectFirst { case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
+          .getOrElse("Misc")
+    )
+    val subGroups = mutable.HashMap.empty[(String, String), Map[String, Array[(String, File)]]]
     // set priorities for the grouped chart files
     chartsGroupedByPrefix.foreach(gc => {
-      if (gc._2.size == 1){
+      if (gc._2.size == 1) {
         val key = gc._2.headOption.map(_._1).getOrElse("")
         key match {
-          case "mode_choice" => subGroups.put("P01" -> key,gc._2)
-          case "energy_use" => subGroups.put("P02" -> key,gc._2)
-          case "realized_mode" => subGroups.put("P03" -> key, gc._2)
+          case "modeChoice"   => subGroups.put("P01" -> key, gc._2)
+          case "energyUse"    => subGroups.put("P02" -> key, gc._2)
+          case "realizedMode" => subGroups.put("P03" -> key, gc._2)
+          case "misc"         => subGroups.put("P50" -> key, gc._2)
           case _ =>
-            val map = subGroups.getOrElse("P99" -> "Misc",Map.empty)
-            subGroups.put("P99" -> "Misc",gc._2 ++ map )
+            val map = subGroups.getOrElse("P04" -> key, Map.empty)
+            subGroups.put("P04" -> key, gc._2 ++ map)
         }
-      }
-      else
-        subGroups.put("P04"+gc._1.headOption.getOrElse("") -> gc._1,gc._2)
+      } else
+        subGroups.put("P04" + gc._1.headOption.getOrElse("") -> gc._1, gc._2)
     })
     //Generate graph comparison html element and write it to the html page at desired location
     val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(subGroups,numberOfIterations)
+    val htmlElem = this.generateHtml(subGroups, numberOfIterations)
     try {
       bw.write(htmlElem.mkString)
-    }
-    catch {
+    } catch {
       case e: IOException =>
         e.printStackTrace()
     } finally {

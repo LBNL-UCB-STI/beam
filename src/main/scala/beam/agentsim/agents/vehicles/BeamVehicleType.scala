@@ -14,22 +14,22 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-                            vehicleTypeId: String,
-                            seatingCapacity: Double,
-                            standingRoomCapacity: Double,
-                            lengthInMeter: Double,
-                            primaryFuelType: FuelType,
-                            primaryFuelConsumptionInJoulePerMeter: Double,
-                            primaryFuelCapacityInJoule: Double,
-                            secondaryFuelType: Option[FuelType] = None,
-                            secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
-                            secondaryFuelCapacityInJoule: Option[Double] = None,
-                            automationLevel: Option[String] = None,
-                            maxVelocity: Option[Double] = None,
-                            passengerCarUnit: Double = 1,
-                            rechargeLevel2RateLimitInWatts: Option[Double] = None,
-                            rechargeLevel3RateLimitInWatts: Option[Double] = None,
-                            vehicleCategory: Option[VehicleCategory] = None
+  vehicleTypeId: String,
+  seatingCapacity: Double,
+  standingRoomCapacity: Double,
+  lengthInMeter: Double,
+  primaryFuelType: FuelType,
+  primaryFuelConsumptionInJoulePerMeter: Double,
+  primaryFuelCapacityInJoule: Double,
+  secondaryFuelType: Option[FuelType] = None,
+  secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
+  secondaryFuelCapacityInJoule: Option[Double] = None,
+  automationLevel: Option[String] = None,
+  maxVelocity: Option[Double] = None,
+  passengerCarUnit: Double = 1,
+  rechargeLevel2RateLimitInWatts: Option[Double] = None,
+  rechargeLevel3RateLimitInWatts: Option[Double] = None,
+  vehicleCategory: Option[VehicleCategory] = None
 ) {
 
   def getCost(distance: Double): Double = {
@@ -66,7 +66,10 @@ object BeamVehicleType {
       2.21e6,
       null
     )
-  val powerTrainForHumanBody: Powertrain = new Powertrain(BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+
+  val powerTrainForHumanBody: Powertrain = new Powertrain(
+    BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
+  )
 
   //TODO
   val defaultTransitBeamVehicleType: BeamVehicleType =
@@ -103,9 +106,9 @@ object BeamVehicleType {
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
     beamVehicle.beamVehicleType.vehicleTypeId match {
       //TODO complete list
-      case vid if vid.toLowerCase.contains("bike") => BIKE
+      case vid if vid.toLowerCase.contains("bike")     => BIKE
       case vid if vid.toLowerCase.contains("ridehail") => RIDE_HAIL
-      case vid if vid.toLowerCase.contains("car") => CAR
+      case vid if vid.toLowerCase.contains("car")      => CAR
 
     }
 //

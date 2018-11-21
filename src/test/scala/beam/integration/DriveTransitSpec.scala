@@ -1,7 +1,8 @@
 package beam.integration
 
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
@@ -48,7 +49,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario =
         ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       scenario.setNetwork(networkCoordinator.network)
       var nDepartures = 0
@@ -72,7 +73,10 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
           }
         }
       )
-      val controler = injector.getInstance(classOf[BeamServices]).controler
+
+      val services = injector.getInstance(classOf[BeamServices])
+      DefaultPopulationAdjustment(services).update(scenario)
+      val controler = services.controler
       controler.run()
       assert(nDepartures == nArrivals)
     }

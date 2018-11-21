@@ -99,5 +99,6 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
         eventManager.processEvent(event)
     }
     val end = System.currentTimeMillis()
-    logger.info("Stopped dedicated handler(handleBlocking). Took {} ms to process after stop", end - start)  }
+    logger.info("Stopped dedicated handler(handleBlocking). Took {} ms to process after stop", end - start)
+  }
 }

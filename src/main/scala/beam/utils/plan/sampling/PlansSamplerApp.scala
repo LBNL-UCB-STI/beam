@@ -32,7 +32,7 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -51,7 +51,7 @@ case class SynthHousehold(
   }
 }
 
-case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double, income:Double)
+case class SynthIndividual(indId: Id[Person], sex: Int, age: Int, valueOfTime: Double, income: Double)
 
 class SynthHouseholdParser(geoConverter: GeoConverter) {
 
@@ -81,8 +81,8 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
     resHHMap.values.toVector
   }
 
-  def parseSex(raw_sex:String):Int={
-    if(raw_sex=="M") 0 else 1
+  def parseSex(raw_sex: String): Int = {
+    if (raw_sex == "M") 0 else 1
   }
 
   def parseIndividual(row: Array[String]): SynthIndividual = {
@@ -90,7 +90,7 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
       Id.createPersonId(row(indIdIdx)),
       parseSex(row(indSexIdx)),
       row(indAgeIdx).toInt,
-      if(row.length==12) {row(indValTime).toDouble} else 18.0,
+      if (row.length == 12) { row(indValTime).toDouble } else 18.0,
       row(indIncomeIdx).toDouble
     )
   }
@@ -190,7 +190,7 @@ object HasXY {
 }
 
 trait GeoConverter {
-  def transform(coord: Coord) : Coord
+  def transform(coord: Coord): Coord
 }
 
 case class WGSConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
@@ -489,7 +489,7 @@ object PlansSampler {
         newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(plan, newPlan)
         val homeActs = newPlan.getPlanElements.asScala
-          .collect{ case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
         homePlan match {
           case None =>
@@ -515,7 +515,7 @@ object PlansSampler {
         PersonUtils.setSex(newPerson, sex)
         newPopAttributes
           .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-        newPopAttributes.putAttribute(newPerson.getId.toString, "income",synthPerson.income)
+        newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
         addModeExclusions(newPerson)
       }
 
