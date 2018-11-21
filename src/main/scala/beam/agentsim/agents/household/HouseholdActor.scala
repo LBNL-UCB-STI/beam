@@ -12,6 +12,7 @@ import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.CAR
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils.isModeAvailableForPerson
@@ -39,6 +40,7 @@ object HouseholdActor {
     modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -55,6 +57,7 @@ object HouseholdActor {
         modeChoiceCalculator,
         schedulerRef,
         transportNetwork,
+        tollCalculator,
         router,
         rideHailManager,
         parkingManager,
@@ -95,6 +98,7 @@ object HouseholdActor {
     modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -126,6 +130,7 @@ object HouseholdActor {
           beamServices,
           modeChoiceCalculator,
           transportNetwork,
+          tollCalculator,
           router,
           rideHailManager,
           parkingManager,
@@ -162,11 +167,6 @@ object HouseholdActor {
       */
     val _vehicles: Vector[Id[BeamVehicle]] =
       vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
-
-    /**
-      * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
-      */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
 
     /**
       * Current [[Vehicle]] assignments.

@@ -50,13 +50,11 @@ object BeamAgentScheduler {
 
   case object SkipOverBadActors extends SchedulerMessage
 
-  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
+  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage
 
-    def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
-      CompletionNotice(triggerId, scheduleTriggers)
-    }
+  case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
 
-  }
+  case class KillTrigger(tick: Int) extends Trigger
 
   /**
     *
@@ -213,6 +211,10 @@ class BeamAgentScheduler(
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
 
+    case ScheduleKillTrigger(agent: ActorRef) =>
+      context.watch(agent)
+      scheduleTrigger(ScheduleTrigger(KillTrigger(nowInSeconds + maxWindow), agent))
+
     case Terminated(actor) =>
       awaitingResponse
         .values()
@@ -281,7 +283,11 @@ class BeamAgentScheduler(
 
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
-    if (newNow <= stopTick) {
+    if (newNow <= stopTick || !triggerQueue.isEmpty && triggerQueue
+          .peek()
+          .triggerWithId
+          .trigger
+          .tick <= stopTick) {
       nowInSeconds = newNow
 
       // println("doSimStep:" + newNow)

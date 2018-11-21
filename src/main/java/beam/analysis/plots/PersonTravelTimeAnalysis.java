@@ -33,9 +33,11 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
+    private final boolean writeGraph;
 
-    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation) {
+    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
+        this.writeGraph = writeGraph;
     }
 
     @Override
@@ -96,11 +98,13 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         Tuple<List<String>, double[][]> data = compute();
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond();
-        for (int i = 0; i < modes.size(); i++) {
-            double[][] singleDataSet = new double[1][dataSets[i].length];
-            singleDataSet[0] = dataSets[i];
-            CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
-            createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
+        if(writeGraph){
+            for (int i = 0; i < modes.size(); i++) {
+                double[][] singleDataSet = new double[1][dataSets[i].length];
+                singleDataSet[0] = dataSets[i];
+                CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
+                createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
+            }
         }
         createCSV(data, event.getIteration());
     }

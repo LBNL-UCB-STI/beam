@@ -43,10 +43,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
     private Set<String> cumulativeMode = new TreeSet<>();
 
     private Logger log = LoggerFactory.getLogger(this.getClass());
+    private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation) {
+    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
+        this.writeGraph = writeGraph;
     }
 
     @Override
@@ -115,7 +117,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
 
         updateRealizedModeChoiceInIteration(event.getIteration());
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        if (modesFrequencyDataset != null)
+        if (modesFrequencyDataset != null && writeGraph)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         writeToCSV(event);
@@ -279,7 +281,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
         CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null)
+        if (dataset != null && writeGraph)
             createRootRealizedModeChoosenGraph(dataset, fileName);
         writeToRootCSV();
     }

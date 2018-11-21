@@ -4,6 +4,7 @@ import beam.agentsim.agents.memberships.Memberships.RankedGroup.MemberWithRank
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Identifiable}
 import org.matsim.households.Household
+import scala.language.implicitConversions
 
 import scala.collection.JavaConverters
 

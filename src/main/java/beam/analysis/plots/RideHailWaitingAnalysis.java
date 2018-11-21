@@ -121,6 +121,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     private static final String fileName = "rideHailWaitingStats";
     private static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
+    private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
@@ -133,7 +134,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                    BeamConfig beamConfig){
         this.statComputation = statComputation;
-
+        this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
@@ -208,7 +209,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
         List<Double> listOfBounds = getCategories();
         Tuple<Map<Integer, Map<Double, Integer>>, double[][]> data = statComputation.compute(new Tuple<>(listOfBounds, hoursTimesMap));
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph(data.getSecond());
-        if (modesFrequencyDataset != null)
+        if (modesFrequencyDataset != null && writeGraph)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         writeToCSV(event.getIteration(), data.getFirst());

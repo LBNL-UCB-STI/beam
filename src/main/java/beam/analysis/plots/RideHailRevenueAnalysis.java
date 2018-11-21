@@ -54,8 +54,9 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
         model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-
-        createGraph(data);
+        if(surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()){
+            createGraph(data);
+        }
 
         writeRideHailRevenueCsv(data);
 
