@@ -247,6 +247,9 @@ trait BeamHelper extends LazyLogging {
       "Beam config is a required, Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
+
+    ConfConsistencyComparator(configLocation)
+
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
