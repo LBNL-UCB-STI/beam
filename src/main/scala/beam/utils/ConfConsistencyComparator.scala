@@ -4,9 +4,9 @@ import java.io.File
 import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 
-import scala.collection.convert.DecorateAsScala
+import scala.collection.JavaConverters._
 
-case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyLogging with DecorateAsScala {
+case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyLogging {
 
   def parseBeamTemplateConfFile(): Unit = {
     val baseUserConf = ConfigFactory.parseFile(new File(userConfFileLocation))
@@ -14,7 +14,8 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
     val userBeamConf = baseUserConf.withOnlyPath("beam")
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf)
-    val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf"))
+    val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
+
 
     logger.info("###List of deprecated parameters###")
     deprecatedParametersInConfig(userConf, templateConf)
@@ -24,22 +25,19 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
   }
 
   def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
-    userConf.entrySet().asScala.foldLeft() {
-      case (acc, entry) =>
-        val paramKey = entry.getKey
-        if (!(templateConf.hasPathOrNull(paramKey))) {
-          logger.info(paramKey)
-        }
+
+    userConf.entrySet.asScala.foreach{ entry =>
+      if (!(templateConf.hasPathOrNull(entry.getKey))) {
+        logger.info(entry.getKey)
+      }
     }
   }
 
   def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
 
-    templateConf.entrySet().asScala.foldLeft() {
-      case (acc, entry) =>
-        val paramKey = entry.getKey
-        if (!(userConf.hasPathOrNull(paramKey))) {
-          logger.info("Key= " + paramKey + " ,Value= " + entry.getValue.render)
+    templateConf.entrySet().asScala.foreach { entry =>
+        if (!(userConf.hasPathOrNull(entry.getKey))) {
+          logger.info("Key= " + entry.getKey + " ,Value= " + entry.getValue.render)
         }
     }
   }
