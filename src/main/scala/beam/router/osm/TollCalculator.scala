@@ -30,7 +30,7 @@ class TollCalculator(val config: BeamConfig, val directory: String) extends Lazy
     val linkEnterTimes = path.linkTravelTime.scanLeft(path.startPoint.time)(_ + _)
     path.linkIds
       .zip(linkEnterTimes)
-      .map(calcTollByLinkId _ tupled)
+      .map((calcTollByLinkId _).tupled)
       .sum
   }
 
