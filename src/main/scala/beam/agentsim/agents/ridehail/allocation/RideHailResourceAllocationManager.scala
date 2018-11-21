@@ -3,7 +3,6 @@ package beam.agentsim.agents.ridehail.allocation
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -15,18 +14,32 @@ import scala.collection.mutable
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
 
-  private val bufferedRideHailRequests = mutable.Set[RideHailRequest]()
+  private var bufferedRideHailRequests = Map[RideHailRequest,List[RoutingResponse]]()
 
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    NoVehiclesAvailable
+    rideHailManager.getClosestIdleRideHailAgent(
+      inquiry.pickUpLocation,
+      rideHailManager.radiusInMeters
+    ) match {
+      case Some(agentLocation) =>
+        SingleOccupantQuoteAndPoolingInfo(agentLocation,None,None)
+      case None =>
+        NoVehiclesAvailable
+    }
   }
 
   def addRequestToBuffer(request: RideHailRequest) = {
-    bufferedRideHailRequests.add(request)
+    bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
+  }
+  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+    bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
+  }
+  def removeRequestFromBuffer(request: RideHailRequest) = {
+    bufferedRideHailRequests = bufferedRideHailRequests - request
   }
 
   def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
-    allocateVehiclesToCustomers(tick, AllocationRequests(bufferedRideHailRequests.toList))
+    allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
   }
 
   /*
@@ -137,9 +150,6 @@ case class SingleOccupantQuoteAndPoolingInfo(rideHailAgentLocation: RideHailAgen
  */
 trait AllocationResponse
 case object NoRidesRequested extends AllocationResponse
-case class RoutingRequiredToAllocateVehicle(
-  routesRequired: List[RoutingRequest]
-) extends AllocationResponse
 case class VehicleAllocations(allocations: Map[RideHailRequest,VehicleAllocation]) extends AllocationResponse
 
 /*
@@ -148,6 +158,9 @@ case class VehicleAllocations(allocations: Map[RideHailRequest,VehicleAllocation
  */
 trait VehicleAllocation
 case object NoVehicleAllocated extends VehicleAllocation
+case class RoutingRequiredToAllocateVehicle(
+                                             routesRequired: List[RoutingRequest]
+                                           ) extends VehicleAllocation
 case class VehicleMatchedToCustomers(
                                       rideHailAgentLocation: RideHailAgentLocation,
                                       routingResponses: Option[List[RoutingResponse]]

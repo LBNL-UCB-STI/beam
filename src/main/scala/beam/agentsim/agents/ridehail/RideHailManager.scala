@@ -157,6 +157,8 @@ object RideHailManager {
 
   case object DebugRideHailManagerDuringExecution
 
+  case object ContinueBufferedRideHailRequests
+
   /* Available means vehicle can be assigned to a new customer */
   case object Available extends RideHailServiceStatus
 
@@ -277,6 +279,8 @@ class RideHailManager(
   // Tracking Inquiries and Reservation Requests
   val inquiryIdToInquiryAndResponse: mutable.Map[Int,(RideHailRequest,SingleOccupantQuoteAndPoolingInfo)] = mutable.Map()
   val routeRequestIdToRideHailRequestId: mutable.Map[Int,Int] = mutable.Map()
+  val reservationIdToRequest: mutable.Map[Int,RideHailRequest] = mutable.Map()
+  var allTriggersToScheduleForBufferedReservations: Vector[ScheduleTrigger] = Vector()
 
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
@@ -417,12 +421,13 @@ class RideHailManager(
     case R5Network(network) =>
       rideHailNetworkApi.setR5Network(network)
 
-    // In the following case, we have responses but no RHAgent defined, which means we are calculating routes
-    // for the allocation manager, so we resume the allocation process.
-//    case RoutingResponses(responses) =>
-
-    // In this case, the request is None, meaning this came from a vehicle allocation process
-//    case RoutingResponses(responses) =>
+    // In the following case, we are calculating routes for the allocation manager, so we resume the allocation process.
+    case RoutingResponses(responses) if !responses.isEmpty & reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.requestId.get)) =>
+      responses.foreach{ routeResponse =>
+        val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.requestId.get))
+        rideHailResourceAllocationManager.addRouteForRequestToBuffer(request,routeResponse)
+      }
+      self ! ContinueBufferedRideHailRequests
 
     // Routing Responses from a Ride Hail Inquiry
     case RoutingResponses(responses) if !responses.isEmpty & inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.requestId.get)) =>
@@ -553,6 +558,9 @@ class RideHailManager(
     case TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
       holdTickAndTriggerId(tick, triggerId)
       findAllocationsAndProcess(tick)
+
+    case ContinueBufferedRideHailRequests =>
+      findAllocationsAndProcess(_currentTick.getOrElse(0))
 
     case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
       val produceDebugImages = true
@@ -792,7 +800,7 @@ class RideHailManager(
     parkingManager ! inquiry
   }
 
-  def scheduleNextBufferedTrigger = {
+  def scheduleNextBufferedTrigger(triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     val timerTrigger = ScheduleTrigger(
       BufferedRideHailRequestsTrigger(
@@ -800,7 +808,7 @@ class RideHailManager(
       ),
       self
     )
-    scheduler ! CompletionNotice(triggerId, Vector(timerTrigger))
+    scheduler ! CompletionNotice(triggerId, triggersToSchedule :+ timerTrigger)
   }
 
 
@@ -1250,27 +1258,44 @@ class RideHailManager(
   }
 
   /*
-   * This is common code for both use cases, batch processing and processing a single reservation request immediately
+   * This is common code for both use cases, batch processing and processing a single reservation request immediately.
+   * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
    */
   private def findAllocationsAndProcess(tick: Int) = {
+    var allRoutesRequired: List[RoutingRequest] = List()
+
+    if(_currentTick.get >= 21000){
+      val i = 0
+    }
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
-      case RoutingRequiredToAllocateVehicle(routesRequired) =>
-        //TODO add caching here??
-        requestRoutes(routesRequired)
-      case NoRidesRequested if processBufferedRequestsOnTimeout =>
-        scheduleNextBufferedTrigger
       case VehicleAllocations(allocations) =>
         allocations.foreach{ case(request,allocation) =>
           allocation match {
+            case RoutingRequiredToAllocateVehicle(routesRequired) =>
+              reservationIdToRequest.put(request.requestId,request)
+              routesRequired.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId,request.requestId))
+              allRoutesRequired = allRoutesRequired ++ routesRequired
             case NoVehicleAllocated =>
-              request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
+              val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
+              if(processBufferedRequestsOnTimeout){
+                allTriggersToScheduleForBufferedReservations = allTriggersToScheduleForBufferedReservations :+ ScheduleTrigger(RideHailResponseTrigger(tick,theResponse),request.customer.personRef.get)
+              }else{
+                request.customer.personRef.get ! theResponse
+              }
+              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case alloc @ VehicleMatchedToCustomers(rideHailAgentLocation, routingResponses) =>
               val triggersToSchedule = createTriggersFromMatchedVehicles(alloc)
               request.customer.personRef.get ! RideHailResponse(request, None, None, triggersToSchedule)
+              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
           }
         }
-        if(processBufferedRequestsOnTimeout)scheduleNextBufferedTrigger
       case _ =>
+    }
+    if(!allRoutesRequired.isEmpty){
+      requestRoutes(allRoutesRequired)
+    }else if(processBufferedRequestsOnTimeout){
+      scheduleNextBufferedTrigger(allTriggersToScheduleForBufferedReservations)
+      allTriggersToScheduleForBufferedReservations = Vector()
     }
   }
 

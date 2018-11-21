@@ -22,8 +22,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
                   request,
                   agentLocation
                 ))
-//                (request -> routeRequired)
-                (request -> NoVehicleAllocated)
+                (request -> routeRequired)
               case None =>
                 (request -> NoVehicleAllocated)
             }
