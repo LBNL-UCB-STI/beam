@@ -1272,9 +1272,14 @@ class RideHailManager(
         allocations.foreach{ case(request,allocation) =>
           allocation match {
             case RoutingRequiredToAllocateVehicle(routesRequired) =>
+              // Client has requested routes
               reservationIdToRequest.put(request.requestId,request)
               routesRequired.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId,request.requestId))
               allRoutesRequired = allRoutesRequired ++ routesRequired
+            case alloc @ VehicleMatchedToCustomers(rideHailAgentLocation, pickDropIdWithRoutes) =>
+              val triggersToSchedule = createTriggersFromMatchedVehicles(alloc)
+              request.customer.personRef.get ! RideHailResponse(request, None, None, triggersToSchedule)
+              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case NoVehicleAllocated =>
               val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
               if(processBufferedRequestsOnTimeout){
@@ -1282,10 +1287,6 @@ class RideHailManager(
               }else{
                 request.customer.personRef.get ! theResponse
               }
-              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
-            case alloc @ VehicleMatchedToCustomers(rideHailAgentLocation, routingResponses) =>
-              val triggersToSchedule = createTriggersFromMatchedVehicles(alloc)
-              request.customer.personRef.get ! RideHailResponse(request, None, None, triggersToSchedule)
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
           }
         }
@@ -1300,9 +1301,6 @@ class RideHailManager(
   }
 
   def createTriggersFromMatchedVehicles(alloc: VehicleMatchedToCustomers): Vector[ScheduleTrigger] = {
-    if(processBufferedRequestsOnTimeout){
-      Vector()
-    }else{
       //TODO actual trigger creation here
 //      Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
 //        case Some(travelProposal) =>
@@ -1317,7 +1315,6 @@ class RideHailManager(
 //          findDriverAndSendRoutingRequests(request)
 //      }
       Vector()
-    }
   }
 
 }

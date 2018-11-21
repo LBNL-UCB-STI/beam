@@ -163,8 +163,9 @@ case class RoutingRequiredToAllocateVehicle(
                                            ) extends VehicleAllocation
 case class VehicleMatchedToCustomers(
                                       rideHailAgentLocation: RideHailAgentLocation,
-                                      routingResponses: Option[List[RoutingResponse]]
+                                      pickDropIdWithRoutes: List[PickDropIdAndLeg]
                                     ) extends VehicleAllocation
+case class PickDropIdAndLeg(personId: Id[Person], routingResponse: RoutingResponse)
 
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
