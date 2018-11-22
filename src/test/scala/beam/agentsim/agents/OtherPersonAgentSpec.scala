@@ -43,12 +43,13 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -87,7 +88,7 @@ class OtherPersonAgentSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
-    when(theServices.agencyAndRouteByVehicleIds).thenReturn(TrieMap())
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle], (String, String)]())
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), theServices))
     val geo = new GeoUtilsImpl(theServices)
