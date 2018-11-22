@@ -33,13 +33,11 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
   }
 
   def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
-    var logString = "###List of default parameters###"
-    val options =
-      ConfigRenderOptions.defaults().setOriginComments(true)
 
+    var logString = "###List of default parameters###"
     templateConf.entrySet().asScala.foreach { entry =>
       val paramValue = entry.getValue.unwrapped.toString
-      val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
+      val value = paramValue.substring(paramValue.lastIndexOf('|')+1).trim
       if (!(userConf.hasPathOrNull(entry.getKey))) {
         logString += "\n\tkey= " + entry.getKey + " ,value= " + value
       }
