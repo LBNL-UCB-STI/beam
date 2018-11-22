@@ -158,7 +158,7 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, null)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -235,7 +235,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType
+          BeamVehicleType.defaultCarBeamVehicleType, null
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -302,7 +302,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType
+          BeamVehicleType.defaultCarBeamVehicleType, null
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)

@@ -18,6 +18,7 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
 import beam.utils._
+import beam.utils.csv.readers.PlanReaderCsv
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -352,6 +353,27 @@ trait BeamHelper extends LazyLogging {
     scenario.setNetwork(networkCoordinator.network)
 
     val beamServices = injector.getInstance(classOf[BeamServices])
+
+    val beamConfig = beamServices.beamConfig
+    var useCSVFiles: Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()
+
+    if(useCSVFiles) {
+
+      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv(beamServices)
+      planReaderCsv.readGzipScenario()
+
+      scenario.setPopulation(planReaderCsv.getPopulation())
+
+      for(h: Household <- planReaderCsv.getHouseHoldsList.asScala){
+
+        scenario.getHouseholds.getHouseholds.put(h.getId, h)
+      }
+
+      if(beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty()){
+        logger.warn("The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning.")
+      }
+    }
+
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
     run(beamServices)
 
@@ -401,21 +423,6 @@ trait BeamHelper extends LazyLogging {
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-
-    // TODO ASIF
-    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
-    if (beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
-
-      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
-      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
-      scenario.setPopulation(population)
-
-      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty) {
-        logger.warn(
-          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
-        )
-      }
-    }
 
     (scenario, outputDirectory, networkCoordinator)
   }

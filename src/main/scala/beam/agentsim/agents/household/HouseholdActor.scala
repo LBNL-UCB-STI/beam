@@ -149,7 +149,7 @@ object HouseholdActor {
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType
+        BeamVehicleType.defaultHumanBodyBeamVehicleType, null
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))

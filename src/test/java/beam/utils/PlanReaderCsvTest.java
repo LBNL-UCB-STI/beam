@@ -1,5 +1,6 @@
 package beam.utils;
 
+import beam.utils.csv.readers.PlanReaderCsv;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
@@ -21,7 +22,7 @@ public class PlanReaderCsvTest {
 
     @Before
     public void init() throws IOException {
-        planReader = new PlanReaderCsv(delimiter);
+        planReader = new PlanReaderCsv(delimiter, null);
 
         populationReadFromCsv = planReader.readPlansFromCSV(path + "/plans-input.csv");
 
