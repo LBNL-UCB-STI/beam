@@ -111,7 +111,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           altAndIdx._1.costEstimate
       }
 
-      val s = beamServices.vehiclesByAgencyAndRouteIds
+      val s = beamServices.agencyAndRouteByVehicleIds
         .filter(altAndIdx._1.vehiclesInTrip.contains)
         .values.map(v =>
         beamServices.modeSubsidies.getSubsidy(

@@ -23,7 +23,6 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
@@ -51,7 +50,7 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-  val vehiclesByAgencyAndRouteIds: TrieMap[Id[Vehicle], (String, String)]
+  val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
@@ -86,7 +85,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-  val vehiclesByAgencyAndRouteIds = TrieMap()
+  val agencyAndRouteByVehicleIds = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
