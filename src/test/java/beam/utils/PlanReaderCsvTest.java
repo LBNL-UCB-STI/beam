@@ -22,7 +22,7 @@ public class PlanReaderCsvTest {
 
     @Before
     public void init() throws IOException {
-        planReader = new PlanReaderCsv(delimiter, null);
+        planReader = new PlanReaderCsv(null, null, delimiter);
 
         populationReadFromCsv = planReader.readPlansFromCSV(path + "/plans-input.csv");
 

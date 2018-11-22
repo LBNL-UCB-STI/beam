@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.scenario.MutableScenario;
 import org.matsim.households.*;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
@@ -53,6 +54,8 @@ public class PlanReaderCsv {
     int vehicleCounter = 0;
     int personCounter = 0;
 
+    MutableScenario scenario;
+
 
     public static void main(String[] args) throws IOException {
 
@@ -62,26 +65,29 @@ public class PlanReaderCsv {
     }
 
 
-    public PlanReaderCsv(BeamServices beamServices){
+    public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices){
 
-        this(null, beamServices);
+        this(scenario, beamServices, null);
+
+    }
 
 
 
+    public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices, String delimiter) {
+
+        this.delimiter = delimiter == null ? this.delimiter : delimiter;
+
+        population = scenario.getPopulation();
+
+        population.getPersons().clear();
+        population.getPersonAttributes().clear();
+
+
+        vehiclesByHouseHoldId = BeamVehicleUtils.prePopulateVehiclesByHouseHold(beamServices);
     }
 
     public Population getPopulation() {
         return population;
-    }
-
-    public PlanReaderCsv(String delimiter, BeamServices beamServices) {
-
-        this.delimiter = delimiter == null ? this.delimiter : delimiter;
-
-        population = PopulationUtils.createPopulation(ConfigUtils.createConfig());
-
-
-        vehiclesByHouseHoldId = BeamVehicleUtils.prePopulateVehiclesByHouseHold(beamServices);
     }
 
     public Population readPlansFromCSV(String plansFile) throws IOException{
@@ -402,6 +408,8 @@ public class PlanReaderCsv {
              */
 
         }
+
+
     }
 
     private void processPersons(){
@@ -451,12 +459,12 @@ public class PlanReaderCsv {
 
             person.getAttributes().putAttribute("age", Integer.parseInt(age));
 
-            population.getPersonAttributes().putAttribute(person.getId().toString(), "age", age);
+            //population.getPersonAttributes().putAttribute(person.getId().toString(), "age", age);
             population.getPersonAttributes().putAttribute(person.getId().toString(), "rank", 0);
             addCarModes(person);
 
 
-            person.getCustomAttributes().put("beam-attributes", person.getAttributes());
+            //person.getCustomAttributes().put("beam-attributes", person.getAttributes());
 
             population.addPerson(person);
 
@@ -476,8 +484,8 @@ public class PlanReaderCsv {
 
     private void addCarModes(Person person) {
 
-        person.getCustomAttributes().put("available-modes", availableModes);
-        person.getAttributes().putAttribute("available-modes", availableModes);
+        /*person.getCustomAttributes().put("available-modes", availableModes);
+        person.getAttributes().putAttribute("available-modes", availableModes);*/
         population.getPersonAttributes().putAttribute(person.getId().toString(), "available-modes", availableModes);
 
     }
