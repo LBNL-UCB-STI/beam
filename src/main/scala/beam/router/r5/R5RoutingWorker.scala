@@ -920,9 +920,16 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       legsWithFares += ((dummyWalk(updatedLeg.endTime), 0.0))
     }
 
+    // TODO is it correct way to find first non-dummy leg
+    val fistNonDummyLeg = legsWithFares.collectFirst{
+      case (leg, _) if leg.mode == BeamMode.WALK && leg.travelPath.linkIds.nonEmpty =>
+        leg
+    }
+
     val withUpdatedTimeAndCost = legsWithFares.map { case (leg, fare) =>
       val travelPath = leg.travelPath
-      val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(travelPath.startPoint.loc, travelPath.endPoint.loc, leg.startTime, leg.mode)
+      val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(travelPath.startPoint.loc,
+        travelPath.endPoint.loc, leg.startTime, leg.mode)
       val updatedTravelPath = if (timeOpt.isDefined) {
         val newTravelTime = timeOpt.get
         val newLinkTravelTimes = TravelTimeUtils.scaleTravelTime(newTravelTime, travelPath.endPoint.time,
@@ -938,7 +945,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       else {
         travelPath
       }
-      (leg.copy(travelPath = updatedTravelPath), fare)
+
+      val newCost = costOpt.map { cost =>
+        if (fistNonDummyLeg.contains(leg)) cost
+        else 0.0
+      }.getOrElse(fare)
+
+      // Update travel path and cost
+      (leg.copy(travelPath = updatedTravelPath), newCost)
     }
 
     TripWithFares(
