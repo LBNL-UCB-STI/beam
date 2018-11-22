@@ -29,11 +29,10 @@ import java.util.zip.GZIPInputStream;
 
 public class PlanReaderCsv {
 
+    private String csvScenarioFile;
     private Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
 
     public String delimiter = ",";
-    public static final String path = "test/input/beamville/test-data/beamvillesim";
-    public static final String fileName = "beamvillesim.tar.gz";
     public static final String plansOutputFileName = "plans-output.xml";
 
     private BeamServices beamServices;
@@ -45,6 +44,7 @@ public class PlanReaderCsv {
     private Map<String, Map<String, String>> persons;
     private Map<String, Map<String, String>> units;
     private Map<String, List<Map<String, String>>> plans;
+    private String defaultAvailableModes = "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram";
 
 
     List<Household> houseHoldsList = new ArrayList<>();
@@ -56,14 +56,11 @@ public class PlanReaderCsv {
 
     MutableScenario scenario;
 
-
     public static void main(String[] args) throws IOException {
 
         //PlanReaderCsv planReader = new PlanReaderCsv();
-
         //planReader.readGzipScenario();
     }
-
 
     public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices){
 
@@ -71,19 +68,21 @@ public class PlanReaderCsv {
 
     }
 
-
-
     public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices, String delimiter) {
 
+        this.scenario = scenario;
+        this.beamServices = beamServices;
         this.delimiter = delimiter == null ? this.delimiter : delimiter;
 
-        population = scenario.getPopulation();
+        this.csvScenarioFile = beamServices.beamConfig().beam().agentsim().agents().population().beamPopulationFile();
 
+        population = scenario.getPopulation();
         population.getPersons().clear();
         population.getPersonAttributes().clear();
 
-
         vehiclesByHouseHoldId = BeamVehicleUtils.prePopulateVehiclesByHouseHold(beamServices);
+
+        readGzipScenario();
     }
 
     public Population getPopulation() {
@@ -91,7 +90,6 @@ public class PlanReaderCsv {
     }
 
     public Population readPlansFromCSV(String plansFile) throws IOException{
-
 
         BufferedReader reader;
 
@@ -234,7 +232,7 @@ public class PlanReaderCsv {
 
         TarArchiveInputStream tarInput = null;
         try {
-            tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(path + "/" + fileName)));
+            tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(csvScenarioFile)));
 
             TarArchiveEntry currentEntry = tarInput.getNextTarEntry();
             BufferedReader br = null;
@@ -479,14 +477,12 @@ public class PlanReaderCsv {
     }
 
 
-    String[] modes = {"car","ride_hail","bike","bus","funicular","gondola","cable_car","ferry","tram","transit","rail","subway","tram"};
-    String availableModes = "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram";
 
     private void addCarModes(Person person) {
 
         /*person.getCustomAttributes().put("available-modes", availableModes);
         person.getAttributes().putAttribute("available-modes", availableModes);*/
-        population.getPersonAttributes().putAttribute(person.getId().toString(), "available-modes", availableModes);
+        population.getPersonAttributes().putAttribute(person.getId().toString(), "available-modes", defaultAvailableModes);
 
     }
 

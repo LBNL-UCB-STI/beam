@@ -354,18 +354,15 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
 
+    //
     val beamConfig = beamServices.beamConfig
     var useCSVFiles: Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()
-    //useCSVFiles = false
+
     if(useCSVFiles) {
 
       val planReaderCsv: PlanReaderCsv = new PlanReaderCsv(scenario, beamServices)
-      planReaderCsv.readGzipScenario()
-
-      //scenario.setPopulation(planReaderCsv.getPopulation())
 
       for(h: Household <- planReaderCsv.getHouseHoldsList.asScala){
-
         scenario.getHouseholds.getHouseholds.put(h.getId, h)
       }
 
