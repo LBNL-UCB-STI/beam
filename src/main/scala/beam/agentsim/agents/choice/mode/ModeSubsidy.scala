@@ -16,7 +16,7 @@ import scala.util.Try
 case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], beamServices: BeamServices) {
 
   def computeSubsidy(attributesOfIndividual: AttributesOfIndividual, vehiclesInTrip: Seq[Id[Vehicle]], mode: BeamMode): Double = {
-    val transitSubsidies = beamServices.agencyAndRouteByVehicleIds
+    val transitSubsidies = if(vehiclesInTrip != null) beamServices.agencyAndRouteByVehicleIds
       .filterKeys(vehiclesInTrip.contains)
       .values.map(v =>
       //subsidy for public transport(bus, train, transit) with agency id and route id
@@ -26,7 +26,8 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], beamServices
         attributesOfIndividual.income.map(x => x.toInt),
         Some(v._1), Some(v._2)
       )
-    ).filter(_.isDefined)
+    ).filter(_.isDefined).toList
+    else List()
 
     val subsidy: Double = if (transitSubsidies.nonEmpty)
       transitSubsidies.flatten.sum
