@@ -394,7 +394,7 @@ class PersonAgent(
 //      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
 
       val s = beamServices.agencyAndRouteByVehicleIds
-        .filter(data.currentTrip.get.vehiclesInTrip.contains)
+        .filterKeys(data.currentTrip.get.vehiclesInTrip.contains)
         .values.map(v =>
         beamServices.modeSubsidies.getSubsidy(
           mode,
