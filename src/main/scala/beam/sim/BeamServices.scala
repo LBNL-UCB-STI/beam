@@ -42,8 +42,6 @@ trait BeamServices extends ActorInject {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup
-
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
   val dates: DateUtils
@@ -72,8 +70,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
-
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
@@ -89,7 +85,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
     readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-
 
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
     maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes))
@@ -116,12 +111,21 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
-  def maybeScaleTransit(vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+  def maybeScaleTransit(
+    vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
-      case Some(scalingFactor) => vehicleTypes.map { case (id, bvt) => id -> (if(bvt.standingRoomCapacity > 0)
-        bvt.copy(seatingCapacity =
-          Math.ceil(bvt.seatingCapacity * scalingFactor), standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)) else
-        bvt) }
+      case Some(scalingFactor) =>
+        vehicleTypes.map {
+          case (id, bvt) =>
+            id -> (if (bvt.standingRoomCapacity > 0)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity * scalingFactor),
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)
+                     )
+                   else
+                     bvt)
+        }
       case None => vehicleTypes
     }
   }
@@ -155,9 +159,9 @@ object BeamServices {
   }
 
   def readVehiclesFile(
-                        filePath: String,
-                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+    filePath: String,
+    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
@@ -187,18 +191,18 @@ object BeamServices {
 
   private def getFuelTypeId(fuelType: String): FuelTypeId = {
     fuelType match {
-      case "gasoline" => BeamVehicleType.Gasoline
-      case "diesel" => BeamVehicleType.Diesel
+      case "gasoline"    => BeamVehicleType.Gasoline
+      case "diesel"      => BeamVehicleType.Diesel
       case "electricity" => BeamVehicleType.Electricity
-      case "biodiesel" => BeamVehicleType.Biodiesel
-      case _ => throw new RuntimeException("Invalid fuel type id")
+      case "biodiesel"   => BeamVehicleType.Biodiesel
+      case _             => throw new RuntimeException("Invalid fuel type id")
     }
   }
 
   def readBeamVehicleTypeFile(
-                               filePath: String,
-                               fuelTypeMap: TrieMap[Id[FuelType], FuelType]
-                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    filePath: String,
+    fuelTypeMap: TrieMap[Id[FuelType], FuelType]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
@@ -247,10 +251,10 @@ object BeamServices {
 
   private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
     vehicleCategory match {
-      case "car" => BeamVehicleType.Car
-      case "bike" => BeamVehicleType.Bike
+      case "car"      => BeamVehicleType.Car
+      case "bike"     => BeamVehicleType.Bike
       case "ridehail" => BeamVehicleType.RideHail
-      case _ => throw new RuntimeException("Invalid vehicleCategory")
+      case _          => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 

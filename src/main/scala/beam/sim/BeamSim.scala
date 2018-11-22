@@ -9,7 +9,7 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.{RideHailIterationHistoryActor, TNCIterationsStatsCollector}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, TNCIterationsStatsCollector}
 import beam.analysis.IterationStatsProvider
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -41,16 +41,18 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val tollCalculator: TollCalculator,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -58,10 +60,8 @@ class BeamSim @Inject()(
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
-  private var rideHailIterationHistoryActor: ActorRef = _
 
   private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
-  val rideHailIterationHistoryActorName = "rideHailIterationHistoryActor"
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
@@ -76,7 +76,6 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("histogram", "**")
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamServices.beamConfig, beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,
@@ -123,14 +122,10 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )
 
-    rideHailIterationHistoryActor = actorSystem.actorOf(
-      RideHailIterationHistoryActor.props(eventsManager, beamServices, transportNetwork),
-      rideHailIterationHistoryActorName
-    )
     tncIterationsStatsCollector = new TNCIterationsStatsCollector(
       eventsManager,
       beamServices,
-      rideHailIterationHistoryActor,
+      event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
       transportNetwork
     )
 
@@ -207,6 +202,7 @@ class BeamSim @Inject()(
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)
+    beamOutputDataDescriptionGenerator.generateDescriptors(event)
 
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
@@ -257,33 +253,46 @@ class BeamSim @Inject()(
     val filesToBeRenamed: Array[File] = event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        val outputIterationFileNameRegex = List(s"legHistogram(.*)","experienced(.*)")
+        val outputIterationFileNameRegex = List(s"legHistogram(.*)", "experienced(.*)")
         // filter files that match output file name regex and are to be renamed
-        FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))
+        FileUtils
+          .getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))
           .listFiles()
-          .filter(f => outputIterationFileNameRegex.exists(f.getName
-            .replace(event.getServices.getIterationNumber.toInt + ".","").matches(_)))
+          .filter(
+            f =>
+              outputIterationFileNameRegex.exists(
+                f.getName
+                  .replace(event.getServices.getIterationNumber.toInt + ".", "")
+                  .matches(_)
+            )
+          )
       case _ if event.isInstanceOf[ShutdownEvent] =>
         val shutdownEvent = event.asInstanceOf[ShutdownEvent]
         val outputFileNameRegex = List("output(.*)")
         // filter files that match output file name regex and are to be renamed
-        FileUtils.getFile(new File(shutdownEvent.getServices.getControlerIO.getOutputPath))
+        FileUtils
+          .getFile(new File(shutdownEvent.getServices.getControlerIO.getOutputPath))
           .listFiles()
           .filter(f => outputFileNameRegex.exists(f.getName.matches(_)))
     }
     filesToBeRenamed
       .foreach { file =>
         //rename each file to follow the camel case
-        val newFile = FileUtils.getFile(file.getAbsolutePath.replace(file.getName,WordUtils
-          .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))))
+        val newFile = FileUtils.getFile(
+          file.getAbsolutePath.replace(
+            file.getName,
+            WordUtils
+              .uncapitalize(file.getName.split("_").map(_.capitalize).mkString(""))
+          )
+        )
         logger.info(s"Renaming file - ${file.getName} to follow camel case notation : " + newFile.getAbsoluteFile)
         try {
-          if(file != newFile && !newFile.exists()) {
+          if (file != newFile && !newFile.exists()) {
             file.renameTo(newFile)
           }
         } catch {
-          case e : Exception =>
-            logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}",e)
+          case e: Exception =>
+            logger.error(s"Error while renaming file - ${file.getName} to ${newFile.getName}", e)
         }
       }
   }

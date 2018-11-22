@@ -27,7 +27,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     verifyTypesExist()
   }
 
-  private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = if (!cfg.checkMaxNumberOfMessagesEnabled){
+  private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = if (!cfg.checkMaxNumberOfMessagesEnabled) {
     Map.empty
   } else {
     getPerActorTypeThreshold(cfg.thresholds)
@@ -117,7 +117,9 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       }
     }
     if (cfg.checkMaxNumberOfMessagesEnabled) {
-      result.appendAll(exceedMaxNumberOfMessages.map { x => ValueWithTime(x, -1)})
+      result.appendAll(exceedMaxNumberOfMessages.map { x =>
+        ValueWithTime(x, -1)
+      })
       exceedMaxNumberOfMessages.clear()
     }
     result
@@ -162,19 +164,29 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     val actor = st.agent
     val triggerClazz = st.triggerWithId.trigger.getClass
     val msgCount = updateAndGetNumOfTriggerMessagesPerActor(actor, triggerClazz)
-    val maxMsgPerActorType = triggerTypeToActorThreshold.get(triggerClazz).flatMap { m => m.get(getActorType(actor)) }
-        .getOrElse {
-          logger.warn("Can't get max number of messages with trigger class '{}' for actor '{}' which has type '{}'",
-            triggerClazz, actor, getActorType(actor))
-          Int.MaxValue
-        }
+    val maxMsgPerActorType = triggerTypeToActorThreshold
+      .get(triggerClazz)
+      .flatMap { m =>
+        m.get(getActorType(actor))
+      }
+      .getOrElse {
+        logger.warn(
+          "Can't get max number of messages with trigger class '{}' for actor '{}' which has type '{}'",
+          triggerClazz,
+          actor,
+          getActorType(actor)
+        )
+        Int.MaxValue
+      }
     if (msgCount > maxMsgPerActorType) {
       exceedMaxNumberOfMessages.append(st)
-      logger.warn(s"$st is exceed max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType")
+      logger.warn(
+        s"$st is exceed max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
+      )
     }
   }
 
-  private def updateAndGetNumOfTriggerMessagesPerActor(actor:ActorRef, triggerClazz: Class[_ <: Trigger]): Int = {
+  private def updateAndGetNumOfTriggerMessagesPerActor(actor: ActorRef, triggerClazz: Class[_ <: Trigger]): Int = {
     val newCount = actorToTriggerMessages.get(actor) match {
       case Some(triggerTypeToOccur) =>
         triggerTypeToOccur.get(triggerClazz) match {
@@ -206,8 +218,8 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       val transitDriverAgentOpt = t.actorTypeToMaxNumberOfMessages.transitDriverAgent.map { n =>
         "TransitDriverAgent" -> n
       }
-      val actorTypeToMaxNumOfMessages = Seq(popilationOpt, rideHailManagerOpt,
-        rideHailAgentOpt, transitDriverAgentOpt).flatten.toMap
+      val actorTypeToMaxNumOfMessages =
+        Seq(popilationOpt, rideHailManagerOpt, rideHailAgentOpt, transitDriverAgentOpt).flatten.toMap
       val clazz = Class.forName(t.triggerType)
       (clazz, actorTypeToMaxNumOfMessages)
     }.toMap

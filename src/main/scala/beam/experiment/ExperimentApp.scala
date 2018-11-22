@@ -10,7 +10,6 @@ import org.yaml.snakeyaml.constructor.Constructor
   * Prov
   */
 class ExperimentApp extends App {
-
   val EXPERIMENTS_TAG = "experiments"
 
   def parseArgs(args: Array[String]) = {
@@ -20,7 +19,7 @@ class ExperimentApp extends App {
       .collect {
         case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
           (EXPERIMENTS_TAG, filePath)
-        case arg@_ =>
+        case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap
@@ -57,10 +56,11 @@ class ExperimentApp extends App {
     experimentDef
   }
 
+  def lastThingDoneInMain(): Unit = {}
+  lastThingDoneInMain()
 }
 
 object ExperimentApp {
-
   def getExperimentPath(experimentLoc: String): Path = {
 
     val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath
@@ -70,8 +70,6 @@ object ExperimentApp {
     }
     experimentPath
   }
-
-
 
   def loadExperimentDefs(file: File): ExperimentDef = {
     import org.yaml.snakeyaml.{TypeDescription, Yaml}
@@ -93,8 +91,4 @@ object ExperimentApp {
     val experiment = yaml.loadAs(new FileInputStream(file), classOf[ExperimentDef])
     experiment
   }
-
-
-
-
 }

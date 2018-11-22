@@ -6,13 +6,14 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
+import beam.agentsim.agents.PersonTestUtil._
+import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -22,6 +23,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -53,17 +55,16 @@ import scala.concurrent.Await
   * Created by sfeygin on 2/7/17.
   */
 class OtherPersonAgentSpec
-  extends TestKit(
-    ActorSystem(
-      "OtherPersonAgentSpec",
-      ConfigFactory.parseString(
-        """
+    extends TestKit(
+      ActorSystem(
+        "OtherPersonAgentSpec",
+        ConfigFactory.parseString("""
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
   """).withFallback(testConfig("test/input/beamville/beam.conf"))
+      )
     )
-  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -83,10 +84,11 @@ class OtherPersonAgentSpec
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map()))
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
@@ -95,7 +97,10 @@ class OtherPersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] =
+    override def apply(
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
+      attributesOfIndividual: AttributesOfIndividual
+    ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
@@ -103,27 +108,12 @@ class OtherPersonAgentSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(
-                            mode: BeamMode,
-                            cost: Double,
-                            time: Double,
-                            numTransfers: Int
-                          ): Double = 0.0
+      mode: BeamMode,
+      cost: Double,
+      time: Double,
+      numTransfers: Int
+    ): Double = 0.0
   }
-
-  // Mock a transit driver (who has to be a child of a mock router)
-  lazy val transitDriverProps = Props(new ForwardActor(self))
-
-  lazy val router: ActorRef = system.actorOf(
-    Props(new Actor() {
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-      context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-
-      override def receive: Receive = {
-        case _ =>
-      }
-    }),
-    "router"
-  )
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
@@ -134,14 +124,24 @@ class OtherPersonAgentSpec
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A PersonAgent FSM") {
-    // TODO: probably test needs to be updated due to update in rideHailManager
-    ignore("should also work when the first bus is late") {
+    it("should also work when the first bus is late") {
+      val mockDriverProps = Props(new ForwardActor(self))
+      val router: ActorRef = system.actorOf(
+        Props(new Actor() {
+          context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
+          context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
+          override def receive: Receive = {
+            case _ =>
+          }
+        }),
+        "router"
+      )
+
       val beamVehicleId = Id.createVehicleId("my_bus")
 
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        //        new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
@@ -237,13 +237,11 @@ class OtherPersonAgentSpec
       )
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population =
-        PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person =
-        PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      putDefaultBeamAttributes(person)
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity =
-        PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
+      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -254,8 +252,7 @@ class OtherPersonAgentSpec
       )
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity =
-        PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
+      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
@@ -293,6 +290,7 @@ class OtherPersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
+          new TollCalculator(beamSvc.beamConfig),
           self,
           self,
           parkingManager,
@@ -308,6 +306,16 @@ class OtherPersonAgentSpec
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+
+      scheduler ! ScheduleTrigger(
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        personActor
+      )
+      scheduler ! ScheduleTrigger(
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        personActor
+      )
+
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -371,6 +379,7 @@ class OtherPersonAgentSpec
       expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
+
       lastSender ! ReservationResponse(
         reservationRequestBus.requestId,
         Right(
@@ -382,24 +391,16 @@ class OtherPersonAgentSpec
         ),
         TRANSIT
       )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
-        personActor
-      )
       expectMsgType[PersonEntersVehicleEvent]
+
+      val costEvent = expectMsgType[PersonCostEvent]
+      assert(costEvent.getTime == 28800) // is this how it should be?
+
+      val anotherCostEvent = expectMsgType[PersonCostEvent]
+      assert(anotherCostEvent.getTime == 28800) // is this how it should be?
+
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
-
-      val reservationRequestLateTram = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(
-        reservationRequestLateTram.requestId,
-        Left(VehicleGoneError),
-        TRANSIT
-      )
 
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
@@ -455,6 +456,8 @@ class OtherPersonAgentSpec
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[PersonCostEvent]
+      expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]

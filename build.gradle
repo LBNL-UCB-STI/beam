@@ -98,7 +98,7 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '-SNAPSHOT'
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.1'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -588,4 +588,9 @@ task matsimConversion(type: JavaExec) {
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
     }
+}
+
+tasks.withType(ScalaCompile) {
+    // Enable Scala warnings output
+    scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
 }

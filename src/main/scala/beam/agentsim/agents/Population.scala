@@ -13,6 +13,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.vehicleId2BeamVehicleId
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
@@ -32,6 +33,7 @@ class Population(
   val beamServices: BeamServices,
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
@@ -111,10 +113,13 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters.collectionAsScalaIterable(household.getVehicleIds).map{ vid=>
-            val bvid = BeamVehicle.createId(vid)
-            bvid->beamServices.privateVehicles(bvid)
-          }.toMap
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+            .collectionAsScalaIterable(household.getVehicleIds)
+            .map { vid =>
+              val bvid = BeamVehicle.createId(vid)
+              bvid -> beamServices.privateVehicles(bvid)
+            }
+            .toMap
           householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(
@@ -122,6 +127,7 @@ class Population(
               beamServices.modeChoiceCalculatorFactory,
               scheduler,
               transportNetwork,
+              tollCalculator,
               router,
               rideHailManager,
               parkingManager,
@@ -208,6 +214,7 @@ object Population {
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -219,6 +226,7 @@ object Population {
         services,
         scheduler,
         transportNetwork,
+        tollCalculator,
         router,
         rideHailManager,
         parkingManager,

@@ -15,7 +15,10 @@ import org.matsim.api.core.v01.population.Person
   */
 class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
+  override def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == RIDE_HAIL => idx
     }

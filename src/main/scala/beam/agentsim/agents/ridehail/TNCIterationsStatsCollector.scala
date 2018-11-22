@@ -1,7 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
@@ -86,7 +84,7 @@ object RideHailStatsEntry {
 class TNCIterationsStatsCollector(
   eventsManager: EventsManager,
   beamServices: BeamServices,
-  rideHailIterationHistoryActor: ActorRef,
+  rideHailIterationHistoryActor: RideHailIterationHistory,
   transportNetwork: TransportNetwork
 ) extends BasicEventHandler
     with LazyLogging {
@@ -117,13 +115,12 @@ class TNCIterationsStatsCollector(
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     updateStatsForIdlingVehicles()
 
-    rideHailIterationHistoryActor ! UpdateRideHailStats(
-      TNCIterationStats(
-        rideHailStats.mapValues(_.toList),
-        beamServices.tazTreeMap,
-        timeBinSizeInSec,
-        numberOfTimeBins
-      )
+    rideHailIterationHistoryActor updateRideHailStats
+    TNCIterationStats(
+      rideHailStats.mapValues(_.toList),
+      beamServices.tazTreeMap,
+      timeBinSizeInSec,
+      numberOfTimeBins
     )
 
     clearStats()

@@ -17,12 +17,11 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]]) {
       .filter(
         s =>
           (age.fold(true)(s.age.hasOrEmpty) && income.fold(false)(s.income.hasOrEmpty)) ||
-            (age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty))
+          (age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty))
       )
       .map(_.amount)
       .sum
   }
-
 
 }
 

@@ -157,12 +157,12 @@ object DiffusionPotentialPopulationAdjustment {
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
     val persons = population.getPersons.values().asScala
-    persons.collectFirst{ case person if person.getId.equals(personId) => person }
+    persons.collectFirst { case person if person.getId.equals(personId) => person }
   }
 
   def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
     val households = scenario.getHouseholds.getHouseholds.values().asScala
-    households.collectFirst{ case household if household.getMemberIds.contains(personId) => household }
+    households.collectFirst { case household if household.getMemberIds.contains(personId) => household }
   }
 
   /*val dependentVariables = Map(

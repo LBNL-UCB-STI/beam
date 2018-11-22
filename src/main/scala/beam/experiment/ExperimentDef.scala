@@ -25,7 +25,7 @@ case class ExperimentDef(
     }
   }
 
-  def defaultParams_= (params: JavaMap[String, Object]): Unit = {
+  def defaultParams_=(params: JavaMap[String, Object]): Unit = {
     _defaultParams.clear()
     if (params != null) {
       _defaultParams.putAll(params)
@@ -42,7 +42,7 @@ case class ExperimentDef(
     }
   }
 
-  def factors_= (newFactors: JavaList[Factor]): Unit = {
+  def factors_=(newFactors: JavaList[Factor]): Unit = {
     _factors.clear()
     if (newFactors != null) {
       _factors.addAll(newFactors)
@@ -124,17 +124,17 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
     val overrideParams = experiment.defaultParams.asScala.clone() ++ runParams
     overrideParams.toMap
   }
-  
+
   lazy val levels: Map[String, String] = {
     combinations.map(tup => tup._2.title -> tup._1.name).toMap
   }
-  
+
   lazy val name: String = {
     combinations.map(lf => s"${lf._2.title}_${lf._1.name}").mkString("__")
   }
 
   def getParam(name: String) = params(name)
-  
+
   def getLevelTitle(name: String) = levels(name)
 
   override def toString: String = {

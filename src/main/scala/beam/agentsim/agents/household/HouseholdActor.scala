@@ -12,6 +12,7 @@ import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.CAR
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils.isModeAvailableForPerson
@@ -35,26 +36,28 @@ object HouseholdActor {
   }
 
   def props(
-             beamServices: BeamServices,
-             modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
-             schedulerRef: ActorRef,
-             transportNetwork: TransportNetwork,
-             router: ActorRef,
-             rideHailManager: ActorRef,
-             parkingManager: ActorRef,
-             eventsManager: EventsManager,
-             population: org.matsim.api.core.v01.population.Population,
-             householdId: Id[Household],
-             matSimHousehold: Household,
-             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
-             homeCoord: Coord
-           ): Props = {
+    beamServices: BeamServices,
+    modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
+    schedulerRef: ActorRef,
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
+    router: ActorRef,
+    rideHailManager: ActorRef,
+    parkingManager: ActorRef,
+    eventsManager: EventsManager,
+    population: org.matsim.api.core.v01.population.Population,
+    householdId: Id[Household],
+    matSimHousehold: Household,
+    houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
+    homeCoord: Coord
+  ): Props = {
     Props(
       new HouseholdActor(
         beamServices,
         modeChoiceCalculator,
         schedulerRef,
         transportNetwork,
+        tollCalculator,
         router,
         rideHailManager,
         parkingManager,
@@ -76,7 +79,6 @@ object HouseholdActor {
 
   case class InitializeRideHailAgent(b: Id[Person])
 
-
   /**
     * Implementation of intra-household interaction in BEAM using actors.
     *
@@ -92,28 +94,28 @@ object HouseholdActor {
     * @see [[ChoosesMode]]
     */
   class HouseholdActor(
-                        beamServices: BeamServices,
-                        modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
-                        schedulerRef: ActorRef,
-                        transportNetwork: TransportNetwork,
-                        router: ActorRef,
-                        rideHailManager: ActorRef,
-                        parkingManager: ActorRef,
-                        eventsManager: EventsManager,
-                        val population: org.matsim.api.core.v01.population.Population,
-                        id: Id[households.Household],
-                        val household: Household,
-                        vehicles: Map[Id[BeamVehicle], BeamVehicle],
-                        homeCoord: Coord
-                      ) extends VehicleManager
-    with ActorLogging {
+    beamServices: BeamServices,
+    modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
+    schedulerRef: ActorRef,
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
+    router: ActorRef,
+    rideHailManager: ActorRef,
+    parkingManager: ActorRef,
+    eventsManager: EventsManager,
+    val population: org.matsim.api.core.v01.population.Population,
+    id: Id[households.Household],
+    val household: Household,
+    vehicles: Map[Id[BeamVehicle], BeamVehicle],
+    homeCoord: Coord
+  ) extends VehicleManager
+      with ActorLogging {
 
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
     household.members.foreach { person =>
-
       val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
       val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
@@ -128,6 +130,7 @@ object HouseholdActor {
           beamServices,
           modeChoiceCalculator,
           transportNetwork,
+          tollCalculator,
           router,
           rideHailManager,
           parkingManager,
@@ -166,11 +169,6 @@ object HouseholdActor {
       vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
 
     /**
-      * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
-      */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
-
-    /**
       * Current [[Vehicle]] assignments.
       */
     private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
@@ -199,12 +197,12 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case NotifyVehicleResourceIdle(
-      vId,
-      whenWhere,
-      _,
-      _,
-      _
-      ) =>
+          vId,
+          whenWhere,
+          _,
+          _,
+          _
+          ) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
         log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
@@ -313,7 +311,7 @@ object HouseholdActor {
     private def lookupAvailableVehicles(): Vector[StreetVehicle] =
       Vector(
         for {
-          availableVehicle <- _availableVehicles
+          availableVehicle       <- _availableVehicles
           availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
         } yield availableStreetVehicle
       ).flatten
@@ -363,7 +361,7 @@ object HouseholdActor {
       //Initialize all vehicles to have a stationary trajectory starting at time zero
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
 
-      for {veh <- _vehicles} yield {
+      for { veh <- _vehicles } yield {
         //TODO following mode should match exhaustively
         val mode = BeamVehicleType.getMode(vehicles(veh))
 
@@ -383,6 +381,5 @@ object HouseholdActor {
         personId
       )
   }
-
 
 }

@@ -70,7 +70,7 @@ class EVFleetAllocationManager(val rideHailManager: RideHailManager)
 
         if (rideHailManager
               .getVehicleState(agentLocation.vehicleId)
-              .remainingRangeInM < routedDisanceInM){
+              .remainingRangeInM < routedDisanceInM) {
           requestToExcludedDrivers.put(
             reqId,
             requestToExcludedDrivers.getOrElse(reqId, Set()) + agentLocation.vehicleId

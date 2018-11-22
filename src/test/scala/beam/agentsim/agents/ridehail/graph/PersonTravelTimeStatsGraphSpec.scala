@@ -1,7 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
+  PersonTravelTimeStatsGraph,
+  StatsValidationHandler
+}
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
@@ -27,7 +30,7 @@ object PersonTravelTimeStatsGraphSpec {
       with IterationEndsListener {
 
     private lazy val personTravelTimeStats =
-      new PersonTravelTimeAnalysis(computation)
+      new PersonTravelTimeAnalysis(computation, true)
 
     override def reset(iteration: Int): Unit = {
       personTravelTimeStats.resetStats()

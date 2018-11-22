@@ -1,6 +1,9 @@
 package beam.analysis.physsim;
 
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -25,7 +28,7 @@ import java.util.List;
  * @author Bhavya Latha Bandaru.
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
-public class PhyssimCalcLinkSpeedStats {
+public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -66,7 +69,9 @@ public class PhyssimCalcLinkSpeedStats {
                 this.writeCSV(processedData,outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName+".csv"));
             }
             //generate the requiredGraph
-            generateAverageLinkSpeedGraph(dataSet,iteration);
+            if(beamConfig.beam().outputs().writeGraphs()){
+                generateAverageLinkSpeedGraph(dataSet,iteration);
+            }
         }
     }
 
@@ -74,7 +79,7 @@ public class PhyssimCalcLinkSpeedStats {
     private void writeCSV(Map<Integer, Double> processedData,String path) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(path));
-            String heading = "Bin,x-coordinate,y-coordinate\n";
+            String heading = "Bin,AverageLinkSpeed\n";
             bw.write(heading);
             for (int i = 0; i < processedData.size(); i++) {
                 String line = String.valueOf(i) + "," + String.valueOf(i) + "," + String.valueOf(processedData.get(i)) + "\n";
@@ -139,8 +144,8 @@ public class PhyssimCalcLinkSpeedStats {
     private void generateAverageLinkSpeedGraph(CategoryDataset dataSet, int iterationNumber) {
         // Settings legend and title for the plot
         String plotTitle = "Average Link speed over a day";
-        String x_axis = "Hour";
-        String y_axis = "Average Link Speed %";
+        String x_axis = "Bin";
+        String y_axis = "AverageLinkSpeed";
         int width = 800;
         int height = 600;
 
@@ -213,4 +218,19 @@ public class PhyssimCalcLinkSpeedStats {
         return noOfBins;
     }
 
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputFileName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "Bin", "A given time slot within a day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "AverageLinkSpeed", "The average speed at which a vehicle can travel across the network during the given time bin"));
+        return list;
+    }
 }
