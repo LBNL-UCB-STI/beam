@@ -589,3 +589,11 @@ task matsimConversion(type: JavaExec) {
         args Eval.me(confPath)
     }
 }
+
+task generateDocumentation(type: JavaExec) {
+    group 'Documentation'
+    description 'Format the data using Sphinx RST formats'
+
+    main = 'beam.docs.GenerateDocumentationTask'
+    classpath = sourceSets.main.runtimeClasspath
+}
