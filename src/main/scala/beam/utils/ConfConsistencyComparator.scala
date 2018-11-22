@@ -2,7 +2,7 @@ package beam.utils
 import java.io.File
 
 import com.typesafe.scalalogging.LazyLogging
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
 
 import scala.collection.JavaConverters._
 
@@ -16,30 +16,35 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
     val userConf = userBeamConf.withFallback(userMatsimConf)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
 
-
-    logger.info("###List of deprecated parameters###")
     deprecatedParametersInConfig(userConf, templateConf)
 
-    logger.info("###List of default parameters###")
     defaultParametersInConfig(userConf, templateConf)
   }
 
   def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
 
-    userConf.entrySet.asScala.foreach{ entry =>
+    var logString = "###List of deprecated parameters###"
+    userConf.entrySet.asScala.foreach { entry =>
       if (!(templateConf.hasPathOrNull(entry.getKey))) {
-        logger.info(entry.getKey)
+        logString += "\n\t" + entry.getKey
       }
     }
+    logger.info(logString)
   }
 
   def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
+    var logString = "###List of default parameters###"
+    val options =
+      ConfigRenderOptions.defaults().setOriginComments(true)
 
     templateConf.entrySet().asScala.foreach { entry =>
-        if (!(userConf.hasPathOrNull(entry.getKey))) {
-          logger.info("Key= " + entry.getKey + " ,Value= " + entry.getValue.render)
-        }
+      val paramValue = entry.getValue.unwrapped.toString
+      val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
+      if (!(userConf.hasPathOrNull(entry.getKey))) {
+        logString += "\n\tkey= " + entry.getKey + " ,value= " + value
+      }
     }
+    logger.info(logString)
   }
   parseBeamTemplateConfFile
 }
