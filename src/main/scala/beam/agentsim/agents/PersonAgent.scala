@@ -397,7 +397,28 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
-      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
+//      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
+
+      val s = beamServices.vehiclesByAgencyAndRouteIds
+        .filter(data.currentTrip.get.vehiclesInTrip.contains)
+        .values.map(v =>
+        beamServices.modeSubsidies.getSubsidy(
+          mode,
+          attributes.age,
+          attributes.income.map(x => x.toInt),
+          Some(v._1), Some(v._2)
+        )
+      ).filter(_.isDefined)
+      val subsidy: Double = if (s.isEmpty)
+        beamServices.modeSubsidies.getSubsidy(
+          mode,
+          attributes.age,
+          attributes.income.map(x => x.toInt),
+          None, None
+        ).getOrElse(0)
+      else s.flatten.sum
+
+
       eventsManager.processEvent(
         new PersonCostEvent(
           tick,
