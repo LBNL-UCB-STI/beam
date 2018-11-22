@@ -101,7 +101,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  val modeSubsidies = ModeSubsidy(loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
+  val modeSubsidies = ModeSubsidy(loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file), this)
 
   def clearAll(): Unit = {
     personRefs.clear

@@ -115,7 +115,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =
-          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
+          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file), this)
 
         override def startNewIteration(): Unit = throw new Exception("???")
 
@@ -279,7 +279,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         map.keySet().size()
       )
       cache.invalidateAll()
-      askForMoreWork
+      askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
@@ -573,7 +573,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
 
       maybeUseVehicleOnEgressTry match {
-        case Success(maybeUseVehicleOnEgress) => {
+        case Success(maybeUseVehicleOnEgress) =>
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
             routingRequest.origin
           } else {
@@ -836,7 +836,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               }
             EmbodiedBeamTrip(embodiedLegs)
           })
-        }
         case Failure(e) if e == DestinationUnreachableException => Nil
         case Failure(e)                                         => throw e
       }
