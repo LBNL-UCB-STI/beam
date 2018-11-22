@@ -107,5 +107,4 @@ object GenerateDocumentationTask extends App with StrictLogging {
     }
   }
 
-
 }
