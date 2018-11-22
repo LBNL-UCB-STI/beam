@@ -87,6 +87,7 @@ class OtherPersonAgentSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(TrieMap())
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), theServices))
     val geo = new GeoUtilsImpl(theServices)

@@ -88,6 +88,7 @@ class SingleModeSpec
       )
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap())
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
