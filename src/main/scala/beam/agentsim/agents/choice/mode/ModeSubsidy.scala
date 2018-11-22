@@ -46,10 +46,8 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], beamServices
     modeSubsidies
       .getOrElse(mode, List())
       .filter(s =>
-        (  //age or the income should match
-          (age.fold(true)(s.age.hasOrEmpty) && income.fold(false)(s.income.hasOrEmpty)) ||
-          (age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty))
-        ) && (
+        //age and the income should match
+        age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty) && (
           (agencyId == s.agencyId && routeId == s.routeId) || // agency  and route matches or
           (agencyId == s.agencyId && s.routeId.isEmpty) ||    // agency matches but route should empty(any) or
           (s.agencyId.isEmpty && s.routeId.isEmpty)           // both agency and route are empty (anu)
