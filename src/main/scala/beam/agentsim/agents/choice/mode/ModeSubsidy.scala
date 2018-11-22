@@ -84,18 +84,4 @@ object ModeSubsidy {
       Try(amount.toDouble).getOrElse(0D)
     )
   }
-
-  def main(args: Array[String]): Unit = {
-    test()
-  }
-
-  def test(): Unit = {
-    val ms = new ModeSubsidy(loadSubsidies("test/input/beamville/subsidies.csv"), null)
-    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(5), Some(30000), None, None).getOrElse(0) == 4)
-    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000), None, None).getOrElse(0) == 3)
-    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000), None, None).getOrElse(0) == 3)
-    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000), Some("1"), None).getOrElse(0) == 3)
-    assert(ms.getSubsidy(BeamMode.RIDE_HAIL, Some(25), Some(30000), Some("1"), Some("2")).getOrElse(0) == 6)
-  }
-
 }
