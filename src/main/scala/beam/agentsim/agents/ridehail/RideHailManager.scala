@@ -523,26 +523,24 @@ class RideHailManager(
           triggersToSchedule,
           vehicleId
         ) =>
-      if (pendingAgentsSentToPark.contains(vehicleId)) {
-        log.debug(
-          "modifyPassengerScheduleAck received, handling with outOfServiceManager: " + modifyPassengerScheduleAck
-        )
-        outOfServiceVehicleManager.releaseTrigger(vehicleId, triggersToSchedule)
-      } else {
-
-        requestIdOpt match {
-          case None =>
-            log.debug(
-              "modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager: " + modifyPassengerScheduleAck
-            )
-            modifyPassengerScheduleManager
-              .modifyPassengerScheduleAckReceivedForRepositioning(
-                triggersToSchedule
-              )
-          case Some(requestId) =>
-            log.debug("modifyPassengerScheduleAck received, completing reservation: " + modifyPassengerScheduleAck)
-            completeReservation(requestId, triggersToSchedule)
-        }
+      pendingAgentsSentToPark.get(vehicleId) match{
+        case Some(_) =>
+          log.debug("modifyPassengerScheduleAck received, handling with outOfServiceManager {}",modifyPassengerScheduleAck)
+          outOfServiceVehicleManager.releaseTrigger(vehicleId, triggersToSchedule)
+        case None =>
+          requestIdOpt match {
+            case None =>
+              // None here means this is part of repositioning
+              log.debug("modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager {}", modifyPassengerScheduleAck)
+              modifyPassengerScheduleManager
+                .modifyPassengerScheduleAckReceivedForRepositioning(
+                  triggersToSchedule
+                )
+            case Some(requestId) =>
+              // Some here means this is part of a reservation / dispatch of vehicle to a customer
+              log.debug("modifyPassengerScheduleAck received, completing reservation {}", modifyPassengerScheduleAck)
+              completeReservation(requestId, triggersToSchedule)
+          }
       }
 
     case UpdateTravelTimeLocal(travelTime) =>
@@ -577,14 +575,9 @@ class RideHailManager(
         //   printRepositionDistanceSum(repositionVehicles)
       }
 
-      for (repositionVehicle <- repositionVehicles) {
-
-        val (vehicleId, destinationLocation) = repositionVehicle
-
+      for ((vehicleId, destinationLocation) <- repositionVehicles) {
         if (getIdleVehicles.contains(vehicleId)) {
           val rideHailAgentLocation = getIdleVehicles(vehicleId)
-
-          val rideHailAgent = rideHailAgentLocation.rideHailAgent
 
           val rideHailVehicleAtOrigin = StreetVehicle(
             rideHailAgentLocation.vehicleId,
@@ -592,13 +585,10 @@ class RideHailManager(
             CAR,
             asDriver = false
           )
-
-          val departAt = DiscreteTime(tick.toInt)
-
           val routingRequest = RoutingRequest(
             origin = rideHailAgentLocation.currentLocation.loc,
             destination = destinationLocation,
-            departureTime = departAt,
+            departureTime = DiscreteTime(tick.toInt),
             transitModes = Vector(),
             streetVehicles = Vector(rideHailVehicleAtOrigin)
           )
@@ -621,9 +611,7 @@ class RideHailManager(
               val passengerSchedule = PassengerSchedule().addLegs(
                 rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
               )
-
-              self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent)
-
+              self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
             } else {
               self ! ReduceAwaitingRepositioningAckMessagesByOne
             }
@@ -662,30 +650,20 @@ class RideHailManager(
           .modifyPassengerScheduleAckReceivedForRepositioning(Vector())
       }
 
-    case InterruptedWhileIdle(interruptId, vehicleId, tick) =>
+    case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
-        outOfServiceVehicleManager.handleInterrupt(vehicleId)
+        outOfServiceVehicleManager.handleInterruptReply(vehicleId)
       } else {
-        modifyPassengerScheduleManager.handleInterrupt(
-          interruptId,
-          None,
-          vehicleId,
-          tick
-        )
+        modifyPassengerScheduleManager.handleInterruptReply(reply)
       }
 
-    case InterruptedAt(interruptId, interruptedPassengerSchedule, _, vehicleId, tick) =>
+    case reply @ InterruptedWhileDriving(interruptId,vehicleId, tick, interruptedPassengerSchedule, _) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         log.error(
           "It is not expected in the current implementation that a moving vehicle would be stopped and sent for charging"
         )
       } else {
-        modifyPassengerScheduleManager.handleInterrupt(
-          interruptId,
-          Some(interruptedPassengerSchedule),
-          vehicleId,
-          tick
-        )
+        modifyPassengerScheduleManager.handleInterruptReply(reply)
       }
 
     case DepotParkingInquiryResponse(None, requestId) =>
@@ -1165,7 +1143,6 @@ class RideHailManager(
 
     modifyPassengerScheduleManager.reserveVehicle(
       passengerSchedule,
-      passengerSchedule.schedule.head._1.startTime,
       travelProposal.rideHailAgentLocation,
       Some(request.requestId)
     )
