@@ -1,7 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  PoolingInfo,
+  RideHailAgentLocation
+}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
@@ -13,8 +17,7 @@ import scala.collection.mutable
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
-
-  private var bufferedRideHailRequests = Map[RideHailRequest,List[RoutingResponse]]()
+  private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
 
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.getClosestIdleRideHailAgent(
@@ -22,7 +25,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       rideHailManager.radiusInMeters
     ) match {
       case Some(agentLocation) =>
-        SingleOccupantQuoteAndPoolingInfo(agentLocation,None,None)
+        SingleOccupantQuoteAndPoolingInfo(agentLocation, None, None)
       case None =>
         NoVehiclesAvailable
     }
@@ -31,9 +34,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
+
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
+
   def removeRequestFromBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests - request
   }
@@ -48,21 +53,22 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponse = {
     // closest request
-    val responses = vehicleAllocationRequest.requests.map { case (request, routingResponses) =>
-      rideHailManager.getClosestIdleRideHailAgent(
-        request.pickUpLocation,
-        rideHailManager.radiusInMeters
-      ) match {
-        case Some(agentLocation) =>
-          VehicleMatchedToCustomers(request,agentLocation,List())
-        case None =>
-          NoVehicleAllocated(request)
-      }
+    val responses = vehicleAllocationRequest.requests.map {
+      case (request, routingResponses) =>
+        rideHailManager.getClosestIdleRideHailAgent(
+          request.pickUpLocation,
+          rideHailManager.radiusInMeters
+        ) match {
+          case Some(agentLocation) =>
+            VehicleMatchedToCustomers(request, agentLocation, List())
+          case None =>
+            NoVehicleAllocated(request)
+        }
     }.toList
     logger.trace("default implementation allocateVehiclesToCustomers executed")
-    if(responses.isEmpty){
+    if (responses.isEmpty) {
       NoRidesRequested
-    }else{
+    } else {
       VehicleAllocations(responses)
     }
   }
@@ -142,9 +148,11 @@ object RideHailResourceAllocationManager {
  */
 trait InquiryResponse
 case object NoVehiclesAvailable extends InquiryResponse
-case class SingleOccupantQuoteAndPoolingInfo(rideHailAgentLocation: RideHailAgentLocation,
-                                             routingResponses: Option[List[RoutingResponse]],
-                                             poolingInfo: Option[PoolingInfo]) extends InquiryResponse
+case class SingleOccupantQuoteAndPoolingInfo(
+  rideHailAgentLocation: RideHailAgentLocation,
+  routingResponses: Option[List[RoutingResponse]],
+  poolingInfo: Option[PoolingInfo]
+) extends InquiryResponse
 /*
  * An AllocationResponse is what the RideHailResourceAllocationManager returns in response to an AllocationRequest
  */
@@ -156,23 +164,25 @@ case class VehicleAllocations(allocations: List[VehicleAllocation]) extends Allo
  * A VehicleAllocation is a specific directive about one ride hail vehicle
  * (match found or no match found? if found, who are the customers?)
  */
-trait VehicleAllocation{val request: RideHailRequest}
+trait VehicleAllocation { val request: RideHailRequest }
 case class NoVehicleAllocated(request: RideHailRequest) extends VehicleAllocation
-case class RoutingRequiredToAllocateVehicle(request: RideHailRequest,
-                                             routesRequired: List[RoutingRequest]
-                                           ) extends VehicleAllocation
-case class VehicleMatchedToCustomers(request: RideHailRequest,
-                                      rideHailAgentLocation: RideHailAgentLocation,
-                                      pickDropIdWithRoutes: List[PickDropIdAndLeg]
-                                    ) extends VehicleAllocation
+case class RoutingRequiredToAllocateVehicle(request: RideHailRequest, routesRequired: List[RoutingRequest])
+    extends VehicleAllocation
+case class VehicleMatchedToCustomers(
+  request: RideHailRequest,
+  rideHailAgentLocation: RideHailAgentLocation,
+  pickDropIdWithRoutes: List[PickDropIdAndLeg]
+) extends VehicleAllocation
 case class PickDropIdAndLeg(personId: Id[Person], routingResponse: RoutingResponse)
 
-
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
-object AllocationRequests{
-  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map( (_ -> List()) ).toMap)
+
+object AllocationRequests {
+  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map((_ -> List())).toMap)
   def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map((request -> List())))
-  def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests = AllocationRequests(Map((request -> routeResponses)))
+
+  def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests =
+    AllocationRequests(Map((request -> routeResponses)))
 }
 
 //requestType: RideHailRequestType,

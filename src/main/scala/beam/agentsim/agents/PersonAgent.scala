@@ -15,7 +15,11 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
@@ -349,7 +353,11 @@ class PersonAgent(
     else Right(_experiencedBeamPlan.activities(ind))
   }
 
-  def handleFailedRideHailReservation(error: ReservationError, response: RideHailResponse, data: BasePersonData): State = {
+  def handleFailedRideHailReservation(
+    error: ReservationError,
+    response: RideHailResponse,
+    data: BasePersonData
+  ): State = {
     logDebug(s"replanning because ${error.errorCode}")
     eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
     goto(ChoosingMode) using ChoosesModeData(
@@ -383,12 +391,15 @@ class PersonAgent(
       scheduler ! CompletionNotice(triggerId, Vector())
       stay() using data
     // RIDE HAIL DELAY FAILURE
-      // we use trigger for this to get triggerId back into hands of the person
-    case Event(TriggerWithId(RideHailResponseTrigger(tick,response @ RideHailResponse(_, _, Some(error), _)),triggerId), data: BasePersonData) =>
+    // we use trigger for this to get triggerId back into hands of the person
+    case Event(
+        TriggerWithId(RideHailResponseTrigger(tick, response @ RideHailResponse(_, _, Some(error), _)), triggerId),
+        data: BasePersonData
+        ) =>
       holdTickAndTriggerId(tick, triggerId)
-      handleFailedRideHailReservation(error,response,data)
+      handleFailedRideHailReservation(error, response, data)
     // RIDE HAIL SUCCESS
-      // no trigger needed here since we're going to Waiting anyway without any other actions needed
+    // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
       handleSuccessfulReservation(triggersToSchedule, data)
     // RIDE HAIL FAILURE
@@ -396,9 +407,8 @@ class PersonAgent(
         response @ RideHailResponse(_, _, Some(error), _),
         data @ BasePersonData(_, _, _, _, _, _, _, _, _)
         ) =>
-      handleFailedRideHailReservation(error,response,data)
+      handleFailedRideHailReservation(error, response, data)
   }
-
 
   when(Waiting) {
     /*

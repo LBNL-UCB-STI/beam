@@ -468,7 +468,8 @@ object BeamRouter {
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
   }
-  object RoutingResponse{
+
+  object RoutingResponse {
     val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID().hashCode()))
   }
 

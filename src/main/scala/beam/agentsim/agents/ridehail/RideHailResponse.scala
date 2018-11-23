@@ -19,7 +19,6 @@ case class RideHailResponse(
 
 case class RideHailResponseTrigger(tick: Int, rideHailResponse: RideHailResponse) extends Trigger
 
-
 object RideHailResponse {
   val DUMMY = RideHailResponse(RideHailRequest.DUMMY, None, None)
 

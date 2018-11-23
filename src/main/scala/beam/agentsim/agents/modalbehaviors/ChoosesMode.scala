@@ -49,8 +49,8 @@ trait ChoosesMode {
   val bodyVehiclePersonId = VehiclePersonId(bodyId, id, Some(self))
 
   onTransition {
-    case (PerformingActivity | Waiting | WaitingForReservationConfirmation | ProcessingNextLegOrStartActivity
-        ) -> ChoosingMode =>
+    case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
+        ProcessingNextLegOrStartActivity) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
         case Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
