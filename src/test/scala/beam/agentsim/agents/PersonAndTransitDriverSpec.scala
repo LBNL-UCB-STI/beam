@@ -395,11 +395,15 @@ class PersonAndTransitDriverSpec
       personEvents.expectMsgType[PathTraversalEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[PersonCostEvent]
-      personEvents.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[PersonCostEvent]
-      personEvents.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[VehicleEntersTrafficEvent]
       personEvents.expectMsgType[VehicleLeavesTrafficEvent]
