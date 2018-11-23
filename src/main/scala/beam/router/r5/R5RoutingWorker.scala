@@ -287,7 +287,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
-        embodyRequestId: UUID,
+        embodyRequestId: Int,
         mustParkAtEnd: Boolean
         ) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)

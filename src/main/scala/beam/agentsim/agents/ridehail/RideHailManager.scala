@@ -422,16 +422,16 @@ class RideHailManager(
       rideHailNetworkApi.setR5Network(network)
 
     // In the following case, we are calculating routes for the allocation manager, so we resume the allocation process.
-    case RoutingResponses(responses) if !responses.isEmpty & reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.requestId.get)) =>
+    case RoutingResponses(responses) if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       responses.foreach{ routeResponse =>
-        val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.requestId.get))
+        val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request,routeResponse)
       }
       self ! ContinueBufferedRideHailRequests
 
     // Routing Responses from a Ride Hail Inquiry
-    case RoutingResponses(responses) if !responses.isEmpty & inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.requestId.get)) =>
-      val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(routeRequestIdToRideHailRequestId(responses.head.requestId.get))
+    case RoutingResponses(responses) if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
+      val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(routeRequestIdToRideHailRequestId(responses.head.staticRequestId))
 
       // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
       // for a simple single-occupant trip sequence, we know that first
@@ -454,19 +454,11 @@ class RideHailManager(
       if (itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
         val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
 
-        if (customerTripPlan.tripClassifier == WALK || customerTripPlan.legs.size < 2) {
-          request.customer.personRef.get ! RideHailResponse(
-            request,
-            None,
-            Some(CouldNotFindRouteToCustomer)
-          )
-        } else {
-
           val tripDriver2Cust = RoutingResponse(
             Vector(
               itins2Cust.head.copy(legs = itins2Cust.head.legs.map(l => l.copy(asDriver = true)))
             ),
-            java.util.UUID.randomUUID()
+            java.util.UUID.randomUUID().hashCode()
           )
           val timeToCustomer =
             tripDriver2Cust.itineraries.head.totalTravelTimeInSecs
@@ -492,7 +484,7 @@ class RideHailManager(
                 )
               )
             ),
-            java.util.UUID.randomUUID()
+            java.util.UUID.randomUUID().hashCode()
           )
           val travelProposal = TravelProposal(
             singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
@@ -503,7 +495,6 @@ class RideHailManager(
           travelProposalCache.put(request.requestId.toString, travelProposal)
 
           request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
-        }
       } else {
         log.debug(
           "Router could not find route to customer person={} for requestId={}",
@@ -517,7 +508,7 @@ class RideHailManager(
         )
       }
       inquiryIdToInquiryAndResponse.remove(request.requestId)
-      responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.requestId.get))
+      responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.staticRequestId))
 
     case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _) =>
       handleReservationRequest(reserveRide)
@@ -820,7 +811,7 @@ class RideHailManager(
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation,None,poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId,(inquiry,inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry,agentLocation)
-        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId,inquiry.requestId))
+        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId,inquiry.requestId))
         requestRoutes(routingRequests)
     }
   }
@@ -970,8 +961,8 @@ class RideHailManager(
   ): List[RoutingRequest] = {
 
     val pickupSpaceTime = SpaceTime((request.pickUpLocation, request.departAt.atTime))
-    val customerAgentBody =
-      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
+//    val customerAgentBody =
+//      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
     val rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       SpaceTime((rideHailLocation.currentLocation.loc, request.departAt.atTime)),
@@ -995,7 +986,7 @@ class RideHailManager(
       request.destination,
       request.departAt,
       Vector(),
-      Vector(customerAgentBody, rideHailVehicleAtPickup)
+      Vector(rideHailVehicleAtPickup)
     )
 
     List(rideHailAgent2Customer, rideHail2Destination)
@@ -1269,18 +1260,18 @@ class RideHailManager(
     }
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
       case VehicleAllocations(allocations) =>
-        allocations.foreach{ case(request,allocation) =>
+        allocations.foreach{ allocation =>
           allocation match {
-            case RoutingRequiredToAllocateVehicle(routesRequired) =>
+            case RoutingRequiredToAllocateVehicle(request,routesRequired) =>
               // Client has requested routes
               reservationIdToRequest.put(request.requestId,request)
-              routesRequired.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId,request.requestId))
+              routesRequired.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId,request.requestId))
               allRoutesRequired = allRoutesRequired ++ routesRequired
-            case alloc @ VehicleMatchedToCustomers(rideHailAgentLocation, pickDropIdWithRoutes) =>
+            case alloc @ VehicleMatchedToCustomers(request,rideHailAgentLocation, pickDropIdWithRoutes) =>
               val triggersToSchedule = createTriggersFromMatchedVehicles(alloc)
               request.customer.personRef.get ! RideHailResponse(request, None, None, triggersToSchedule)
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
-            case NoVehicleAllocated =>
+            case NoVehicleAllocated(request) =>
               val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
               if(processBufferedRequestsOnTimeout){
                 allTriggersToScheduleForBufferedReservations = allTriggersToScheduleForBufferedReservations :+ ScheduleTrigger(RideHailResponseTrigger(tick,theResponse),request.customer.personRef.get)

@@ -18,13 +18,13 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               .headOption match {
               case Some(agentLocation) =>
                 //TODO how to mix RoutingRequired with VehicleAllocation???
-                val routeRequired = RoutingRequiredToAllocateVehicle(rideHailManager.createRoutingRequestsToCustomerAndDestination(
+                val routeRequired = RoutingRequiredToAllocateVehicle(request, rideHailManager.createRoutingRequestsToCustomerAndDestination(
                   request,
                   agentLocation
                 ))
-                (request -> routeRequired)
+                routeRequired
               case None =>
-                (request -> NoVehicleAllocated)
+                NoVehicleAllocated(request)
             }
         }else {
           rideHailManager
@@ -34,12 +34,15 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
             )
             .headOption match {
             case Some(agentLocation) =>
-              (request -> VehicleMatchedToCustomers(agentLocation, Some(routingResponses)))
+              val pickDropIdAndLegs = List(PickDropIdAndLeg(request.customer.personId,
+                routingResponses.head),PickDropIdAndLeg(request.customer.personId,
+                routingResponses.last))
+                VehicleMatchedToCustomers(request, agentLocation, pickDropIdAndLegs)
             case None =>
-              (request -> NoVehicleAllocated)
+              NoVehicleAllocated(request)
           }
         }
-    }
+    }.toList
     VehicleAllocations(allocResponses)
   }
 }

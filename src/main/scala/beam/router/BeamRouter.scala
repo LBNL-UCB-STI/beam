@@ -63,7 +63,7 @@ class BeamRouter(
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
-  type WorkId = UUID
+  type WorkId = Int
   type TimeSent = ZonedDateTime
 
   val clearRoutedOutstandingWorkEnabled: Boolean = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
@@ -352,7 +352,7 @@ class BeamRouter(
     worker
   }
 
-  private def removeOutstandingWorkBy(workId: UUID): Unit = {
+  private def removeOutstandingWorkBy(workId: Int): Unit = {
     outstandingWorkIdToOriginalSenderMap.remove(workId)
     outstandingWorkIdToTimeSent.remove(workId)
   }
@@ -409,13 +409,13 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class ClearRoutedWorkerTracker(workIdToClear: UUID)
+  case class ClearRoutedWorkerTracker(workIdToClear: Int)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
-    id: UUID = UUID.randomUUID(),
+    id: Int = UUID.randomUUID().hashCode(),
     mustParkAtEnd: Boolean = false
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
@@ -448,7 +448,7 @@ object BeamRouter {
     timeValueOfMoney: Double = 360.0 // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   ) {
     lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
   }
 
   sealed trait IntermodalUse
@@ -463,13 +463,13 @@ object BeamRouter {
     */
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
-    staticRequestId: UUID,
+    staticRequestId: Int,
     requestId: Option[Int] = None
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
   }
   object RoutingResponse{
-    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID()))
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID().hashCode()))
   }
 
   def props(

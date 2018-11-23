@@ -54,11 +54,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.radiusInMeters
       ) match {
         case Some(agentLocation) =>
-          (request -> VehicleMatchedToCustomers(agentLocation, None))
+          VehicleMatchedToCustomers(request,agentLocation,List())
         case None =>
-          (request -> NoVehicleAllocated)
+          NoVehicleAllocated(request)
       }
-    }
+    }.toList
     logger.trace("default implementation allocateVehiclesToCustomers executed")
     if(responses.isEmpty){
       NoRidesRequested
@@ -150,18 +150,18 @@ case class SingleOccupantQuoteAndPoolingInfo(rideHailAgentLocation: RideHailAgen
  */
 trait AllocationResponse
 case object NoRidesRequested extends AllocationResponse
-case class VehicleAllocations(allocations: Map[RideHailRequest,VehicleAllocation]) extends AllocationResponse
+case class VehicleAllocations(allocations: List[VehicleAllocation]) extends AllocationResponse
 
 /*
  * A VehicleAllocation is a specific directive about one ride hail vehicle
  * (match found or no match found? if found, who are the customers?)
  */
-trait VehicleAllocation
-case object NoVehicleAllocated extends VehicleAllocation
-case class RoutingRequiredToAllocateVehicle(
+trait VehicleAllocation{val request: RideHailRequest}
+case class NoVehicleAllocated(request: RideHailRequest) extends VehicleAllocation
+case class RoutingRequiredToAllocateVehicle(request: RideHailRequest,
                                              routesRequired: List[RoutingRequest]
                                            ) extends VehicleAllocation
-case class VehicleMatchedToCustomers(
+case class VehicleMatchedToCustomers(request: RideHailRequest,
                                       rideHailAgentLocation: RideHailAgentLocation,
                                       pickDropIdWithRoutes: List[PickDropIdAndLeg]
                                     ) extends VehicleAllocation
