@@ -39,7 +39,7 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
       val paramValue = entry.getValue.unwrapped.toString
       val value = paramValue.substring(paramValue.lastIndexOf('|')+1).trim
       if (!(userConf.hasPathOrNull(entry.getKey))) {
-        logString += "\n\tkey= " + entry.getKey + " ,value= " + value
+        logString += "\n\t" + entry.getKey + " = " + value
       }
     }
     logger.info(logString)
