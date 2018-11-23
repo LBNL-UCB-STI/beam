@@ -559,9 +559,7 @@ class RideHailManager(
       findAllocationsAndProcess(_currentTick.getOrElse(0))
 
     case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
-      val produceDebugImages = false
-      if (produceDebugImages) {
-      }
+//      DebugRepositioning.produceRepositioningDebugImages(tick, this)
 
       modifyPassengerScheduleManager.startWaveOfRepositioningRequests(tick, triggerId)
 
@@ -669,7 +667,6 @@ class RideHailManager(
         outOfServiceVehicleManager.handleInterrupt(vehicleId)
       } else {
         modifyPassengerScheduleManager.handleInterrupt(
-          InterruptedWhileIdle.getClass,
           interruptId,
           None,
           vehicleId,
@@ -684,7 +681,6 @@ class RideHailManager(
         )
       } else {
         modifyPassengerScheduleManager.handleInterrupt(
-          InterruptedAt.getClass,
           interruptId,
           Some(interruptedPassengerSchedule),
           vehicleId,
