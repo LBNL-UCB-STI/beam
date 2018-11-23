@@ -1,6 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import java.awt.Color
 import java.util
 import java.util.concurrent.TimeUnit
 
@@ -454,25 +453,22 @@ class RideHailManager(
       // itin is RH2Customer and second is Pickup2Destination.
       // TODO generalize the processing below to allow for pooling
       val itins = responses.map { response =>
-        response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL))
+        response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).head
       }
-      val itins2Cust = itins.head
-      val itins2Dest = itins.last
+      if (itins.size == 2) {
+        val itin2Cust = itins.head
+        val itin2Dest = itins.last
 
-      val rideHailFarePerSecond = DefaultCostPerSecond * surgePricingManager
-        .getSurgeLevel(
-          request.pickUpLocation,
-          request.departAt.atTime.toDouble
-        )
-      val customerPlans2Costs: Map[EmbodiedBeamTrip, Double] =
-        itins2Dest.map(trip => (trip, rideHailFarePerSecond * trip.totalTravelTimeInSecs)).toMap
-
-      if (itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
-        val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
+        val rideHailFarePerSecond = DefaultCostPerSecond * surgePricingManager
+          .getSurgeLevel(
+            request.pickUpLocation,
+            request.departAt.atTime.toDouble
+          )
+        val customerCost = rideHailFarePerSecond * itin2Dest.totalTravelTimeInSecs
 
         val tripDriver2Cust = RoutingResponse(
           Vector(
-            itins2Cust.head.copy(legs = itins2Cust.head.legs.map(l => l.copy(asDriver = true)))
+            itin2Cust.copy(legs = itin2Cust.legs.map(l => l.copy(asDriver = true)))
           ),
           java.util.UUID.randomUUID().hashCode()
         )
@@ -481,21 +477,14 @@ class RideHailManager(
 
         val tripCust2Dest = RoutingResponse(
           Vector(
-            customerTripPlan.copy(
-              legs = customerTripPlan.legs.zipWithIndex.map(
-                legWithInd =>
-                  legWithInd._1.copy(
-                    beamLeg = legWithInd._1.beamLeg.updateStartTime(legWithInd._1.beamLeg.startTime + timeToCustomer),
-                    asDriver = legWithInd._1.beamLeg.mode == WALK,
-                    cost =
-                      if (legWithInd._1.beamLeg == customerTripPlan
-                            .legs(1)
-                            .beamLeg) {
-                        cost
-                      } else {
-                        0.0
-                      },
-                    unbecomeDriverOnCompletion = legWithInd._2 == 2
+            itin2Dest.copy(
+              legs = itin2Dest.legs.map(
+                leg =>
+                  leg.copy(
+                    beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + timeToCustomer),
+                    asDriver = false,
+                    cost = customerCost,
+                    unbecomeDriverOnCompletion = false
                 )
               )
             )
@@ -570,42 +559,8 @@ class RideHailManager(
       findAllocationsAndProcess(_currentTick.getOrElse(0))
 
     case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
-      val produceDebugImages = true
+      val produceDebugImages = false
       if (produceDebugImages) {
-        if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
-          val spatialPlot = new SpatialPlot(1100, 1100, 50)
-
-          for (veh <- resources.values) {
-            spatialPlot.addPoint(
-              PointToPlot(getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
-            )
-          }
-
-          tncIterationStats.foreach(tncIterationStats => {
-
-            val tazEntries = tncIterationStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
-
-            for (tazEntry <- tazEntries.filter(x => x._2.sumOfRequestedRides > 0)) {
-              spatialPlot.addPoint(
-                PointToPlot(
-                  tazEntry._1,
-                  Color.RED,
-                  10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
-                )
-              )
-            }
-          })
-
-          val iteration = "it." + beamServices.iterationNumber
-          spatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(
-                beamServices.iterationNumber,
-                tick.toInt / 3600 + "locationOfAgentsInitally.png"
-              )
-              .replace(iteration, iteration + "/rideHailDebugging")
-          )
-        }
       }
 
       modifyPassengerScheduleManager.startWaveOfRepositioningRequests(tick, triggerId)
@@ -1189,21 +1144,17 @@ class RideHailManager(
       request.pickUpLocation
     )
 
-// Modify RH agent passenger schedule and create BeamAgentScheduler message that will dispatch RH agent to do the
-// pickup
+    // Create driver's passenger schedule
     val passengerSchedule = PassengerSchedule()
       .addLegs(travelProposal.responseRideHail2Pickup.itineraries.head.toBeamTrip.legs) // Adds empty trip to customer
       .addPassenger(
         request.customer,
-        travelProposal.responseRideHail2Dest.itineraries.head.legs
-          .filter(_.isRideHail)
-          .map(_.beamLeg)
+        List(travelProposal.responseRideHail2Dest.itineraries.head.legs.head.beamLeg)
       ) // Adds customer's actual trip to destination
     putIntoService(travelProposal.rideHailAgentLocation)
     lockVehicle(travelProposal.rideHailAgentLocation.vehicleId)
 
-// Create confirmation info but stash until we receive ModifyPassengerScheduleAck
-//val tripLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs.map(_.beamLeg)
+    // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
       request.requestId.toString,
       RideHailResponse(request, Some(travelProposal))
@@ -1272,9 +1223,6 @@ class RideHailManager(
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
 
-    if (_currentTick.get >= 21000) {
-      val i = 0
-    }
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
       case VehicleAllocations(allocations) =>
         allocations.foreach { allocation =>
