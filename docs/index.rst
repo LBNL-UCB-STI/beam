@@ -20,6 +20,7 @@ Contents:
    behaviors
    events
    inputs
+   outputs
    protocols
    devops
 
