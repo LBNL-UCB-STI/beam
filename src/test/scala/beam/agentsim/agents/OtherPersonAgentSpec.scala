@@ -90,7 +90,7 @@ class OtherPersonAgentSpec
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle], (String, String)]())
     when(theServices.personRefs).thenReturn(personRefs)
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), theServices))
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), TrieMap()))
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?

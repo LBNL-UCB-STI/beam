@@ -20,6 +20,7 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest._
@@ -66,7 +67,8 @@ class AbstractSfLightSpec
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
-    val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    when(services.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle],(String, String)]())
+    val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 

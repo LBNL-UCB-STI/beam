@@ -90,7 +90,7 @@ class PersonAndTransitDriverSpec
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), theServices))
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map(), TrieMap()))
     theServices
   }
 

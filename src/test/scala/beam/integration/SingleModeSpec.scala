@@ -94,8 +94,8 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map(), services))
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map(), TrieMap()))
+    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 

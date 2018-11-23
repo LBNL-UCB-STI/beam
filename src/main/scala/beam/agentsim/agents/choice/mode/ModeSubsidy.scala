@@ -4,23 +4,23 @@ import java.io.File
 
 import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
-case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], beamServices: BeamServices) {
+case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]) {
 
   def computeSubsidy(attributesOfIndividual: AttributesOfIndividual, vehiclesInTrip: Seq[Id[Vehicle]], mode: BeamMode): Double = {
-    val transitSubsidies = if(vehiclesInTrip != null) beamServices.agencyAndRouteByVehicleIds
+    val transitSubsidies = if(vehiclesInTrip != null) agencyAndRouteByVehicleIds
       .filterKeys(vehiclesInTrip.contains)
       .values.map(v =>
       //subsidy for public transport(bus, train, transit) with agency id and route id
-      beamServices.modeSubsidies.getSubsidy(
+      getSubsidy(
         mode,
         attributesOfIndividual.age,
         attributesOfIndividual.income.map(x => x.toInt),
@@ -33,7 +33,7 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], beamServices
       transitSubsidies.flatten.sum
     else {
       // subsidy for non-public transport
-      beamServices.modeSubsidies.getSubsidy(
+      getSubsidy(
         mode,
         attributesOfIndividual.age,
         attributesOfIndividual.income.map(x => x.toInt),
