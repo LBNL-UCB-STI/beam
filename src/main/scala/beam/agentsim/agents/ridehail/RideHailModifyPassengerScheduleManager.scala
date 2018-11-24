@@ -189,7 +189,7 @@ class RideHailModifyPassengerScheduleManager(
         RideHailRepositioningTrigger(
           tick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
         )
-      case SingleReservation =>
+      case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
     scheduler ! CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager))

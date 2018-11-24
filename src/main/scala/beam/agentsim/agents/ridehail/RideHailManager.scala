@@ -205,15 +205,6 @@ class RideHailManager(
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
   val processBufferedRequestsOnTimeout = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
 
-  val tncIterationStats: Option[TNCIterationStats] = {
-    val rideHailIterationHistoryActor =
-      context.actorSelection("/user/rideHailIterationHistoryActor")
-    val future =
-      rideHailIterationHistoryActor.ask(GetCurrentIterationRideHailStats)
-    Await
-      .result(future, Timeout(60, TimeUnit.SECONDS).duration)
-      .asInstanceOf[Option[TNCIterationStats]]
-  }
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
@@ -443,13 +434,12 @@ class RideHailManager(
       // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
       // for a simple single-occupant trip sequence, we know that first
       // itin is RH2Customer and second is Pickup2Destination.
-      // TODO generalize the processing below to allow for pooling
       val itins = responses.map { response =>
-        response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).head
+        response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
       }
-      if (itins.size == 2) {
-        val itin2Cust = itins.head
-        val itin2Dest = itins.last
+      if (itins.filter(_.isDefined).size == 2) {
+        val itin2Cust = itins.head.get
+        val itin2Dest = itins.last.get
 
         val rideHailFarePerSecond = DefaultCostPerSecond * surgePricingManager
           .getSurgeLevel(
