@@ -206,6 +206,9 @@ class RideHailModifyPassengerScheduleManager(
       CompletionNotice(triggerId, Vector(ScheduleTrigger(timerTrigger, rideHailManager)))
     )
   }
+  def startWaveOfReservationRequests(tick: Double, triggerId: Long): Unit = {
+
+  }
 
   def repositionVehicle(
     passengerSchedule: PassengerSchedule,
