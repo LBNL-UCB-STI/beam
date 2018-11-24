@@ -13,48 +13,72 @@ import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
-case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]], agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]) {
+case class ModeSubsidy(
+  modeSubsidies: Map[BeamMode, List[Subsidy]],
+  agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
+) {
 
-  def computeSubsidy(attributesOfIndividual: AttributesOfIndividual, vehiclesInTrip: Seq[Id[Vehicle]], mode: BeamMode): Double = {
-    val transitSubsidies = if(vehiclesInTrip != null) agencyAndRouteByVehicleIds
-      .filterKeys(vehiclesInTrip.contains)
-      .values.map(v =>
-      //subsidy for public transport(bus, train, transit) with agency id and route id
-      getSubsidy(
-        mode,
-        attributesOfIndividual.age,
-        attributesOfIndividual.income.map(x => x.toInt),
-        Some(v._1), Some(v._2)
-      )
-    ).filter(_.isDefined).toList
-    else List()
+  def computeSubsidy(
+    attributesOfIndividual: AttributesOfIndividual,
+    vehiclesInTrip: Seq[Id[Vehicle]],
+    mode: BeamMode
+  ): Double = {
+    val transitSubsidies =
+      if (vehiclesInTrip != null)
+        agencyAndRouteByVehicleIds
+          .filterKeys(vehiclesInTrip.contains)
+          .values
+          .map(
+            v =>
+              //subsidy for public transport(bus, train, transit) with agency id and route id
+              getSubsidy(
+                mode,
+                attributesOfIndividual.age,
+                attributesOfIndividual.income.map(x => x.toInt),
+                Some(v._1),
+                Some(v._2)
+            )
+          )
+          .filter(_.isDefined)
+          .toList
+      else List()
 
-    val subsidy: Double = if (transitSubsidies.nonEmpty)
-      transitSubsidies.flatten.sum
-    else {
-      // subsidy for non-public transport
-      getSubsidy(
-        mode,
-        attributesOfIndividual.age,
-        attributesOfIndividual.income.map(x => x.toInt),
-        None, None
-      ).getOrElse(0)
-    }
+    val subsidy: Double =
+      if (transitSubsidies.nonEmpty)
+        transitSubsidies.flatten.sum
+      else {
+        // subsidy for non-public transport
+        getSubsidy(
+          mode,
+          attributesOfIndividual.age,
+          attributesOfIndividual.income.map(x => x.toInt),
+          None,
+          None
+        ).getOrElse(0)
+      }
     subsidy
   }
 
-  def getSubsidy(mode: BeamMode, age: Option[Int], income: Option[Int], agencyId: Option[String], routeId: Option[String]): Option[Double] = {
+  def getSubsidy(
+    mode: BeamMode,
+    age: Option[Int],
+    income: Option[Int],
+    agencyId: Option[String],
+    routeId: Option[String]
+  ): Option[Double] = {
     modeSubsidies
       .getOrElse(mode, List())
-      .filter(s =>
-        //age and the income should match
-        age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty) && (
-          (agencyId == s.agencyId && routeId == s.routeId) || // agency  and route matches or
-          (agencyId == s.agencyId && s.routeId.isEmpty) ||    // agency matches but route should empty(any) or
-          (s.agencyId.isEmpty && s.routeId.isEmpty)           // both agency and route are empty (anu)
+      .filter(
+        s =>
+          //age and the income should match
+          age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty) && (
+            (agencyId == s.agencyId && routeId == s.routeId) || // agency  and route matches or
+            (agencyId == s.agencyId && s.routeId.isEmpty) || // agency matches but route should empty(any) or
+            (s.agencyId.isEmpty && s.routeId.isEmpty) // both agency and route are empty (anu)
         )
       )
-    .map(_.amount).reduceOption(_ + _)
+      .map(_.amount)
+      .reduceOption(_ + _)
   }
 
 }
@@ -72,17 +96,25 @@ object ModeSubsidy {
     subsidies.toList.groupBy(_.mode)
   }
 
-  case class Subsidy(mode: BeamMode, age: Range, income: Range, agencyId: Option[String], routeId: Option[String], amount: Double)
+  case class Subsidy(
+    mode: BeamMode,
+    age: Range,
+    income: Range,
+    agencyId: Option[String],
+    routeId: Option[String],
+    amount: Double
+  )
 
   object Subsidy {
 
-    def apply(mode: String, age: String, income: String, agencyId: String, routeId: String, amount: String): Subsidy = new Subsidy(
-      BeamMode.fromString(mode),
-      Range(age),
-      Range(income),
-      if(null == agencyId || agencyId.trim.isEmpty) None else Some(agencyId),
-      if(null == routeId || routeId.trim.isEmpty) None else Some(routeId),
-      Try(amount.toDouble).getOrElse(0D)
-    )
+    def apply(mode: String, age: String, income: String, agencyId: String, routeId: String, amount: String): Subsidy =
+      new Subsidy(
+        BeamMode.fromString(mode),
+        Range(age),
+        Range(income),
+        if (null == agencyId || agencyId.trim.isEmpty) None else Some(agencyId),
+        if (null == routeId || routeId.trim.isEmpty) None else Some(routeId),
+        Try(amount.toDouble).getOrElse(0D)
+      )
   }
 }

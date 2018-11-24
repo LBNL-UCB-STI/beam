@@ -117,7 +117,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =
-          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file), agencyAndRouteByVehicleIds)
+          ModeSubsidy(
+            ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file),
+            agencyAndRouteByVehicleIds
+          )
 
         override def startNewIteration(): Unit = throw new Exception("???")
 
@@ -561,7 +564,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             }
           if (!profileResponse.options.isEmpty) {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            buildStreetBasedLegs(streetSegment,time.atTime,routingRequest.mustParkAtEnd)
+            buildStreetBasedLegs(streetSegment, time.atTime, routingRequest.mustParkAtEnd)
           } else {
             throw DestinationUnreachableException // Cannot go to destination with this vehicle, so no options from this vehicle.
           }
@@ -682,7 +685,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 
                 val access = option.access.get(itinerary.connection.access)
-                legsWithFares ++= buildStreetBasedLegs(access,tripStartTime,routingRequest.mustParkAtEnd)
+                legsWithFares ++= buildStreetBasedLegs(access, tripStartTime, routingRequest.mustParkAtEnd)
 
                 // Optionally add a Dummy walk BeamLeg to the end of that trip
                 if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -727,18 +730,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                         .toInt
                       if (transitSegment.middle != null) {
                         legsWithFares += LegWithFare(
-                            BeamLeg(
+                          BeamLeg(
+                            arrivalTime,
+                            mapLegMode(transitSegment.middle.mode),
+                            transitSegment.middle.duration,
+                            travelPath = buildStreetPath(
+                              transitSegment.middle,
                               arrivalTime,
-                              mapLegMode(transitSegment.middle.mode),
-                              transitSegment.middle.duration,
-                              travelPath = buildStreetPath(
-                                transitSegment.middle,
-                                arrivalTime,
-                                toR5StreetMode(transitSegment.middle.mode)
-                              )
-                            ),
-                            0.0
-                          )
+                              toR5StreetMode(transitSegment.middle.mode)
+                            )
+                          ),
+                          0.0
+                        )
                         arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
                       }
                   }
@@ -746,10 +749,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   // egress would only be present if there is some transit, so its under transit presence check
                   if (itinerary.connection.egress != null) {
                     val egress = option.egress.get(itinerary.connection.egress)
-                    legsWithFares ++= buildStreetBasedLegs(egress,arrivalTime,routingRequest.mustParkAtEnd)
+                    legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, routingRequest.mustParkAtEnd)
                     if (isRouteForPerson && egress.mode != LegMode.WALK)
                       legsWithFares += LegWithFare(dummyWalk(arrivalTime + egress.duration), 0.0)
-                    if(egress.mode == LegMode.CAR && routingRequest.mustParkAtEnd){
+                    if (egress.mode == LegMode.CAR && routingRequest.mustParkAtEnd) {
                       val i = 0
                     }
                   }
@@ -759,7 +762,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   val updatedLeg = legWithFare.leg.updateStartTime(departAt)
                   legsWithFares += LegWithFare(updatedLeg, legWithFare.fare)
                 }
-                if(maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson){
+                if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
                   legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
                 }
                 TripWithFares(
@@ -791,7 +794,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
                   (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
-                    if(routingRequest.streetVehicles.find(_.mode == WALK).isEmpty){
+                    if (routingRequest.streetVehicles.find(_.mode == WALK).isEmpty) {
                       val i = 0
                     }
                     val body =
@@ -861,7 +864,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       theTravelPath.duration,
       travelPath = theTravelPath
     )
-    var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR){
+    var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
       splitLegForParking(theLeg)
     } else {
       Vector(theLeg)

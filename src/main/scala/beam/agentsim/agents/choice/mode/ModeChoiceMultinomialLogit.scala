@@ -111,7 +111,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           altAndIdx._1.costEstimate
       }
 
-      val subsidy: Double = beamServices.modeSubsidies.computeSubsidy(attributesOfIndividual, altAndIdx._1.vehiclesInTrip, mode)
+      val subsidy: Double =
+        beamServices.modeSubsidies.computeSubsidy(attributesOfIndividual, altAndIdx._1.vehiclesInTrip, mode)
 
       val subsidisedCost =
         Math.max(0, totalCost.toDouble - subsidy)

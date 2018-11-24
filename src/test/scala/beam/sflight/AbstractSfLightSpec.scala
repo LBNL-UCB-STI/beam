@@ -67,7 +67,7 @@ class AbstractSfLightSpec
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
-    when(services.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle],(String, String)]())
+    when(services.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle], (String, String)]())
     val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
