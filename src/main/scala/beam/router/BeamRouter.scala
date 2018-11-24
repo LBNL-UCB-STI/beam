@@ -105,6 +105,12 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  // TODO FIX ME
+  val travelTimeAndCost = new TravelTimeAndCost {
+    override def overrideTravelTimeAndCostFor(origin: Location, destination: Location,
+                                              departureTime: Int, mode: BeamMode): TimeAndCost = TimeAndCost(None, None)
+  }
+
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
@@ -114,7 +120,8 @@ class BeamRouter(
         scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles
+        transitVehicles,
+        travelTimeAndCost
       ),
       "router-worker"
     )
