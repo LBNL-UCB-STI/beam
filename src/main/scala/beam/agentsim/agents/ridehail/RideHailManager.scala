@@ -276,7 +276,6 @@ class RideHailManager(
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[String, RideHailResponse]()
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
-  var nextCompleteNoticeRideHailAllocationTimeout: CompletionNotice = _
   private var lockedVehicles = Set[Id[Vehicle]]()
 
   // Tracking Inquiries and Reservation Requests
@@ -530,7 +529,7 @@ class RideHailManager(
         case None =>
           requestIdOpt match {
             case None =>
-              // None here means this is part of repositioning
+              // None here means this is part of repositioning, i.e. not tied to a reservation request
               log.debug("modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager {}", modifyPassengerScheduleAck)
               modifyPassengerScheduleManager
                 .modifyPassengerScheduleAckReceivedForRepositioning(
@@ -646,8 +645,8 @@ class RideHailManager(
           rideHailAgent
         )
       } else {
-        modifyPassengerScheduleManager
-          .modifyPassengerScheduleAckReceivedForRepositioning(Vector())
+        // Failed attempt to reposition a car that is no longer idle
+        modifyPassengerScheduleManager.cancelRepositionAttempt()
       }
 
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>

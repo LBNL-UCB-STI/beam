@@ -24,6 +24,7 @@ class RideHailModifyPassengerScheduleManager(
   val beamConfig: BeamConfig
 ) {
 
+
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
@@ -43,7 +44,7 @@ class RideHailModifyPassengerScheduleManager(
           "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",reply.interruptId,
           reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule, reply.vehicleId, reply.tick
         )
-        modifyPassengerScheduleAckReceivedForRepositioning(Vector())
+        cancelRepositionAttempt()
       case Some(modifyStatus) =>
         assert(reply.vehicleId == modifyStatus.vehicleId)
         assert(reply.tick == modifyStatus.tick)
@@ -68,7 +69,7 @@ class RideHailModifyPassengerScheduleManager(
               case RepositionInterruption =>
                 // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
                 // its way - wait on that and count this reposition as completed.
-                modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
+                cancelRepositionAttempt()
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
 
                 /* We are overwriting a reposition with a reservation, if the driver was interrupted while driving,
@@ -113,6 +114,11 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus.rideHailAgent ! modifyStatus.modifyPassengerSchedule
     modifyStatus.rideHailAgent ! Resume()
     modifyStatus.status = InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
+  }
+
+  // A wrapper method to make it more understandable what is happening
+  def cancelRepositionAttempt(): Unit = {
+    modifyPassengerScheduleAckReceivedForRepositioning(Vector())
   }
 
   def modifyPassengerScheduleAckReceivedForRepositioning(
@@ -164,41 +170,30 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit = {
-    //    log.debug(
-    //      "sending ACK to scheduler for next repositionTimeout ({})",
-    //      nextCompleteNoticeRideHailAllocationTimeout.get.id
-    //    )
-
-    val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
-      .filter(x => x.trigger.isInstanceOf[RideHailRepositioningTrigger])
-      .head
-      .trigger
-
-    val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.filter(
-      x =>
-        x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
-    )
-
-    if (badTriggers.nonEmpty) {
-      log.error("trying to schedule trigger: {}", badTriggers)
-      assert(false)
+    // Error checking
+    if(nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.size>0){
+      val rideHailAllocationManagerTimeout = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers
+        .filter(x => x.trigger.isInstanceOf[RideHailRepositioningTrigger])
+        .head
+        .trigger
+      val badTriggers = nextCompleteNoticeRideHailAllocationTimeout.get.newTriggers.filter(
+        x =>
+          x.trigger.tick < rideHailAllocationManagerTimeout.tick - beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+      )
+      if (badTriggers.nonEmpty) {
+        log.error("trying to schedule trigger: {}", badTriggers)
+        assert(false)
+      }
     }
 
     scheduler ! nextCompleteNoticeRideHailAllocationTimeout.get
   }
 
   def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {
-    //    log.debug(
-    //      "RideHailAllocationManagerTimeout.setNumberOfRepositioningsToProcess to: " + awaitAcks
-    //    )
     numberPendingModifyPassengerScheduleAckForRepositioning = awaitAcks
   }
 
   def startWaveOfRepositioningRequests(tick: Double, triggerId: Long): Unit = {
-    //    log.debug(
-    //      "RepositioningTimeout(" + tick + ") - START repositioning wave - triggerId(" + triggerId + ")"
-    //    )
-    ////    printState()
     assert(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)
@@ -266,7 +261,7 @@ class RideHailModifyPassengerScheduleManager(
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
     } else {
-      modifyPassengerScheduleAckReceivedForRepositioning(Vector()) // treat this as if ack received
+      cancelRepositionAttempt()
       log.debug("RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",vehicleId)
     }
   }
