@@ -25,7 +25,6 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -89,13 +88,12 @@ class SingleModeSpec
       )
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
-    when(services.agencyAndRouteByVehicleIds).thenReturn(new TrieMap[Id[Vehicle], (String, String)]())
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map(), TrieMap()))
-    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map()))
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
