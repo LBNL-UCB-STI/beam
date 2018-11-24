@@ -43,6 +43,7 @@ import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -108,7 +109,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-        override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
@@ -117,7 +117,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =
-          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file), agencyAndRouteByVehicleIds)
+          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
 
         override def startNewIteration(): Unit = throw new Exception("???")
 
@@ -281,7 +281,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         map.keySet().size()
       )
       cache.invalidateAll()
-      askForMoreWork()
+      askForMoreWork
 
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
@@ -571,7 +571,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
 
       maybeUseVehicleOnEgressTry match {
-        case Success(maybeUseVehicleOnEgress) =>
+        case Success(maybeUseVehicleOnEgress) => {
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
             routingRequest.origin
           } else {
@@ -804,6 +804,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               }
             EmbodiedBeamTrip(embodiedLegs)
           })
+        }
         case Failure(e) if e == DestinationUnreachableException => Nil
         case Failure(e)                                         => throw e
       }
