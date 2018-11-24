@@ -6,7 +6,6 @@ import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterRes
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StartLegTrigger}
@@ -15,11 +14,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
@@ -32,7 +27,6 @@ import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -404,7 +398,7 @@ class PersonAgent(
 
       val mode = data.currentTrip.get.tripClassifier
       val estimateCost = data.currentTrip.get.costEstimate
-      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
+      val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
 
       if((estimateCost+subsidy) != 0.0)
         eventsManager.processEvent(
