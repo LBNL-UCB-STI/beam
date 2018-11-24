@@ -397,21 +397,24 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
+      val estimateCost = data.currentTrip.get.costEstimate
       val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, data.currentTrip.get.vehiclesInTrip, mode)
 
-      eventsManager.processEvent(
-        new PersonCostEvent(
-          tick,
-          id,
-          mode.value,
-          PersonCostEvent.COST_TYPE_COST,
-          data.currentTrip.get.costEstimate + subsidy
+      if((estimateCost+subsidy) != 0.0)
+        eventsManager.processEvent(
+          new PersonCostEvent(
+            tick,
+            id,
+            mode.value,
+            PersonCostEvent.COST_TYPE_COST,
+            estimateCost + subsidy
+          )
         )
-      )
 
-      eventsManager.processEvent(
-        new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
-      )
+      if(subsidy != 0.0)
+        eventsManager.processEvent(
+          new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+        )
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle

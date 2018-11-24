@@ -701,7 +701,9 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
@@ -727,7 +729,9 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       events.expectMsgType[VehicleEntersTrafficEvent]
