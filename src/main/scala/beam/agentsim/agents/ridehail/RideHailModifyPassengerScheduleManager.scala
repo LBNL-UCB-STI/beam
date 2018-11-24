@@ -5,7 +5,11 @@ import akka.event.LoggingAdapter
 import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailAgentLocation, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  RideHailAgentLocation,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -23,8 +27,7 @@ class RideHailModifyPassengerScheduleManager(
   val rideHailManager: ActorRef,
   val scheduler: ActorRef,
   val beamConfig: BeamConfig
-) extends HasTickAndTrigger{
-
+) extends HasTickAndTrigger {
 
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
   private val interruptIdToModifyPassengerScheduleStatus =
@@ -42,8 +45,11 @@ class RideHailModifyPassengerScheduleManager(
     interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
       case None =>
         log.error(
-          "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",reply.interruptId,
-          reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule, reply.vehicleId, reply.tick
+          "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
+          reply.interruptId,
+          reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
+          reply.vehicleId,
+          reply.tick
         )
         cancelRepositionAttempt()
       case Some(modifyStatus) =>
@@ -56,16 +62,16 @@ class RideHailModifyPassengerScheduleManager(
             "allModifyStatusesForVehicle.isEmpty, modifyStatus: {}",
             modifyStatus
           )
-        }else{
+        } else {
           val reservationModifyStatuses = allModifyStatusesForVehicle.filter(_.interruptOrigin == SingleReservation)
 
-          if (reservationModifyStatuses.isEmpty){
+          if (reservationModifyStatuses.isEmpty) {
             // Success! Continue with reposition process
             sendModifyPassengerScheduleMessage(
               allModifyStatusesForVehicle.last,
               reply.isInstanceOf[InterruptedWhileDriving]
             )
-          }else if (reservationModifyStatuses.size == 1) {
+          } else if (reservationModifyStatuses.size == 1) {
             modifyStatus.interruptOrigin match {
               case Reposition =>
                 // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
@@ -96,8 +102,10 @@ class RideHailModifyPassengerScheduleManager(
                   log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
             }
           } else if (reservationModifyStatuses.size > 1 && log.isErrorEnabled) {
-            val str = reservationModifyStatuses.map(a => "reservation requests:" + a.toString).mkString(System.lineSeparator())
-            log.error("RideHailModifyPassengerScheduleManager - reservationModifyStatuses contains more than one rideHail reservation request for same vehicle({}) {}",
+            val str =
+              reservationModifyStatuses.map(a => "reservation requests:" + a.toString).mkString(System.lineSeparator())
+            log.error(
+              "RideHailModifyPassengerScheduleManager - reservationModifyStatuses contains more than one rideHail reservation request for same vehicle({}) {}",
               reply.vehicleId,
               str
             )
@@ -191,6 +199,7 @@ class RideHailModifyPassengerScheduleManager(
   def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger) = {
     allTriggersInWave = allTriggersInWave :+ newTrigger
   }
+
   def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]) = {
     allTriggersInWave = allTriggersInWave ++ newTriggers
   }
@@ -206,7 +215,7 @@ class RideHailModifyPassengerScheduleManager(
     )
     assert(numberPendingModifyPassengerScheduleAckForRepositioning <= 0)
     assert(allTriggersInWave.isEmpty)
-    holdTickAndTriggerId(tick,triggerId)
+    holdTickAndTriggerId(tick, triggerId)
   }
 
   def repositionVehicle(
@@ -226,10 +235,10 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def reserveVehicle(
-                      passengerSchedule: PassengerSchedule,
-                      rideHailAgent: RideHailAgentLocation,
-                      reservationRequestId: Option[Int]
-                    ): Unit = {
+    passengerSchedule: PassengerSchedule,
+    rideHailAgent: RideHailAgentLocation,
+    reservationRequestId: Option[Int]
+  ): Unit = {
     log.debug(
       "RideHailModifyPassengerScheduleManager- reserveVehicle request: " + rideHailAgent.vehicleId
     )
@@ -264,7 +273,10 @@ class RideHailModifyPassengerScheduleManager(
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
     } else {
       cancelRepositionAttempt()
-      log.debug("RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",vehicleId)
+      log.debug(
+        "RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",
+        vehicleId
+      )
     }
   }
 
@@ -280,14 +292,13 @@ class RideHailModifyPassengerScheduleManager(
 
   private def clearModifyStatusFromCacheWithInterruptId(
     interruptId: Id[Interrupt]
-  ): Unit  = {
-    interruptIdToModifyPassengerScheduleStatus.remove(interruptId).foreach {
-      rideHailModifyPassengerScheduleStatus =>
-        val set = vehicleIdToModifyPassengerScheduleStatus(
-          rideHailModifyPassengerScheduleStatus.vehicleId
-        )
-        set -= rideHailModifyPassengerScheduleStatus
-        Some(rideHailModifyPassengerScheduleStatus)
+  ): Unit = {
+    interruptIdToModifyPassengerScheduleStatus.remove(interruptId).foreach { rideHailModifyPassengerScheduleStatus =>
+      val set = vehicleIdToModifyPassengerScheduleStatus(
+        rideHailModifyPassengerScheduleStatus.vehicleId
+      )
+      set -= rideHailModifyPassengerScheduleStatus
+      Some(rideHailModifyPassengerScheduleStatus)
     }
   }
 
@@ -302,7 +313,7 @@ class RideHailModifyPassengerScheduleManager(
     passengerScheduleStatus.status = InterruptMessageStatus.INTERRUPT_SENT
     //    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     passengerScheduleStatus.rideHailAgent !
-      Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick)
+    Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick)
   }
 
   def isPendingReservationEnding(

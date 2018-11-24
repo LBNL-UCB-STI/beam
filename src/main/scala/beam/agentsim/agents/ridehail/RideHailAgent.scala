@@ -89,21 +89,21 @@ object RideHailAgent {
   )
 
   case class ModifyPassengerSchedule(
-                                      updatedPassengerSchedule: PassengerSchedule,
-                                      reservationRequestId: Option[Int] = None
+    updatedPassengerSchedule: PassengerSchedule,
+    reservationRequestId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
-                                         reservationRequestId: Option[Int] = None,
-                                         triggersToSchedule: Vector[ScheduleTrigger],
-                                         vehicleId: Id[Vehicle]
+    reservationRequestId: Option[Int] = None,
+    triggersToSchedule: Vector[ScheduleTrigger],
+    vehicleId: Id[Vehicle]
   )
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Double)
 
   case class Resume()
 
-  sealed trait InterruptReply{
+  sealed trait InterruptReply {
     val interruptId: Id[Interrupt]
     val vehicleId: Id[Vehicle]
     val tick: Double
@@ -117,7 +117,8 @@ object RideHailAgent {
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double) extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 

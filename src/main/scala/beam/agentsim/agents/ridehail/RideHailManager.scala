@@ -109,7 +109,7 @@ object RideHailManager {
   }
 
   case class RoutingResponses(
-                             tick: Int,
+    tick: Int,
     routingResponses: List[RoutingResponse]
   )
 
@@ -516,15 +516,21 @@ class RideHailManager(
           triggersToSchedule,
           vehicleId
         ) =>
-      pendingAgentsSentToPark.get(vehicleId) match{
+      pendingAgentsSentToPark.get(vehicleId) match {
         case Some(_) =>
-          log.debug("modifyPassengerScheduleAck received, handling with outOfServiceManager {}",modifyPassengerScheduleAck)
+          log.debug(
+            "modifyPassengerScheduleAck received, handling with outOfServiceManager {}",
+            modifyPassengerScheduleAck
+          )
           outOfServiceVehicleManager.releaseTrigger(vehicleId, triggersToSchedule)
         case None =>
           requestIdOpt match {
             case None =>
               // None here means this is part of repositioning, i.e. not tied to a reservation request
-              log.debug("modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager {}", modifyPassengerScheduleAck)
+              log.debug(
+                "modifyPassengerScheduleAck received, handling with modifyPassengerScheduleManager {}",
+                modifyPassengerScheduleAck
+              )
               modifyPassengerScheduleManager
                 .modifyPassengerScheduleAckReceivedForRepositioning(
                   triggersToSchedule
@@ -637,7 +643,7 @@ class RideHailManager(
         modifyPassengerScheduleManager.handleInterruptReply(reply)
       }
 
-    case reply @ InterruptedWhileDriving(interruptId,vehicleId, tick, interruptedPassengerSchedule, _) =>
+    case reply @ InterruptedWhileDriving(interruptId, vehicleId, tick, interruptedPassengerSchedule, _) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         log.error(
           "It is not expected in the current implementation that a moving vehicle would be stopped and sent for charging"
@@ -1125,11 +1131,10 @@ class RideHailManager(
 
   }
 
-
   /*
-     * This is common code for both use cases, batch processing and processing a single reservation request immediately.
-     * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
-     */
+   * This is common code for both use cases, batch processing and processing a single reservation request immediately.
+   * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
+   */
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
 
@@ -1145,15 +1150,17 @@ class RideHailManager(
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes) =>
-              handleReservation(request,createTravelProposal(alloc))
+              handleReservation(request, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case NoVehicleAllocated(request) =>
               val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
               if (processBufferedRequestsOnTimeout) {
-                modifyPassengerScheduleManager.addTriggerToSendWithCompletion(ScheduleTrigger(
-                  RideHailResponseTrigger(tick, theResponse),
-                  request.customer.personRef.get
-                ))
+                modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+                  ScheduleTrigger(
+                    RideHailResponseTrigger(tick, theResponse),
+                    request.customer.personRef.get
+                  )
+                )
               } else {
                 request.customer.personRef.get ! theResponse
               }
@@ -1170,15 +1177,18 @@ class RideHailManager(
   }
 
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
-    TravelProposal(alloc.rideHailAgentLocation,
+    TravelProposal(
+      alloc.rideHailAgentLocation,
       alloc.pickDropIdWithRoutes.head.routingResponse,
       alloc.pickDropIdWithRoutes.last.routingResponse,
       None
     )
   }
+
   def createTriggersFromMatchedVehicle(alloc: VehicleMatchedToCustomers): Vector[ScheduleTrigger] = {
     Vector()
   }
+
   def createTriggersFromMatchedVehicles(alloc: VehicleMatchedToCustomers): Vector[ScheduleTrigger] = {
     //TODO actual trigger creation here
 //      Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
