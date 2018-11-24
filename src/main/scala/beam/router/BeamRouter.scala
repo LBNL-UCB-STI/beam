@@ -33,8 +33,6 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.Subscribe
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -148,7 +146,11 @@ class BeamRouter(
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+        log.debug(
+          "TryToSerialize size in bytes: {}, MBytes: {}",
+          byteArray.length,
+          byteArray.size.toDouble / 1024 / 1024
+        )
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -388,11 +390,14 @@ class BeamRouter(
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           services.vehicles += (tripVehId -> vehicle)
+          services.agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
             transportNetwork,
+            tollCalculator,
             eventsManager,
             parkingManager,
             transitDriverId,

@@ -61,6 +61,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private String revenueGraphImageFile = "";
     private String revenueCsvFileName = "";
     private RideHailSurgePricingManager surgePricingManager;
+    private final boolean writeGraph;
 
     @Inject
     public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager) {
@@ -71,6 +72,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         min = null;
 
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
+        this.writeGraph = surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs();
     }
 
     @Override
@@ -106,20 +108,24 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
             double[][] dataset = getDataset(true);
             writePriceSurgeCsv(dataset, categoriesKeys, true);
-            drawGraph(dataset, categoriesKeys, true);
-
-            drawHistogram(dataset, categoriesKeys, true);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, true);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
         } else {
 
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
             double[][] dataset = getDataset(false);
             writePriceSurgeCsv(dataset, categoriesKeys, false);
-            drawGraph(dataset, categoriesKeys, false);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, false);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
 
-            drawHistogram(dataset, categoriesKeys, true);
         }
-
-        drawRevenueGraph(revenueDataSet);
+        if (writeGraph) {
+            drawRevenueGraph(revenueDataSet);
+        }
 
         writeTazCsv(tazDataset);
 

@@ -5,11 +5,12 @@ import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -223,6 +224,9 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
+          bind(classOf[RideHailIterationHistory]).asEagerSingleton()
+          bind(classOf[TollCalculator]).asEagerSingleton()
+
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
 
@@ -362,6 +366,10 @@ trait BeamHelper extends LazyLogging {
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    if (!beamConfig.beam.outputs.writeGraphs) {
+      matsimConfig.counts.setOutputFormat("txt")
+      matsimConfig.controler.setCreateGraphs(false)
+    }
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)

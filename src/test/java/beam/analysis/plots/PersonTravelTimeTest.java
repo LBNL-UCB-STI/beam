@@ -29,7 +29,7 @@ public class PersonTravelTimeTest {
     }
 
     private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
-            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {});
+            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {}, true);
 
     @Before
     public void setUpClass() {

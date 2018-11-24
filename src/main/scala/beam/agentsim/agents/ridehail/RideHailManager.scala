@@ -4,6 +4,7 @@ import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -13,7 +14,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
@@ -47,8 +47,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Await, Future}
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -76,7 +76,8 @@ object RideHailManager {
     router: ActorRef,
     parkingManager: ActorRef,
     boundingBox: Envelope,
-    surgePricingManager: RideHailSurgePricingManager
+    surgePricingManager: RideHailSurgePricingManager,
+    tncIterationStats: Option[TNCIterationStats]
   ): Props = {
     Props(
       new RideHailManager(
@@ -85,7 +86,8 @@ object RideHailManager {
         router,
         parkingManager,
         boundingBox,
-        surgePricingManager
+        surgePricingManager,
+        tncIterationStats
       )
     )
   }
@@ -178,7 +180,8 @@ class RideHailManager(
   val router: ActorRef,
   val parkingManager: ActorRef,
   val boundingBox: Envelope,
-  val surgePricingManager: RideHailSurgePricingManager
+  val surgePricingManager: RideHailSurgePricingManager,
+  val tncIterationStats: Option[TNCIterationStats]
 ) extends VehicleManager
     with ActorLogging
     with HasServices {
@@ -284,7 +287,7 @@ class RideHailManager(
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 
-  override def receive: Receive = {
+  override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>

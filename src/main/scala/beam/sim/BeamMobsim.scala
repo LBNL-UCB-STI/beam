@@ -18,7 +18,12 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
   NotifyIterationEnds,
   RideHailRepositioningTrigger
 }
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{
+  RideHailAgent,
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -28,6 +33,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.InitTransit
+import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils._
@@ -56,10 +62,12 @@ import scala.concurrent.duration._
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val scenario: Scenario,
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
-  val rideHailSurgePricingManager: RideHailSurgePricingManager
+  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+  val rideHailIterationHistory: RideHailIterationHistory
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport
@@ -158,7 +166,8 @@ class BeamMobsim @Inject()(
             beamServices.beamRouter,
             parkingManager,
             envelopeInUTM,
-            rideHailSurgePricingManager
+            rideHailSurgePricingManager,
+            rideHailIterationHistory.oscillationAdjustedTNCIterationStats
           ),
           "RideHailManager"
         )
@@ -195,6 +204,7 @@ class BeamMobsim @Inject()(
             beamServices,
             scheduler,
             transportNetwork,
+            tollCalculator,
             beamServices.beamRouter,
             rideHailManager,
             parkingManager,
@@ -241,10 +251,12 @@ class BeamMobsim @Inject()(
                 .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
             })
 
-          activityLocationsSpatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
-          )
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
+            activityLocationsSpatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
+            )
+          }
         }
         val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
           scenario.getPopulation.getPersons
@@ -324,6 +336,7 @@ class BeamMobsim @Inject()(
               beamServices,
               scheduler,
               transportNetwork,
+              tollCalculator,
               eventsManager,
               parkingManager,
               rideHailAgentPersonId,
@@ -349,10 +362,13 @@ class BeamMobsim @Inject()(
             beamServices.matsimServices.getControlerIO
               .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".csv")
           )
-          rideHailinitialLocationSpatialPlot.writeImage(
-            beamServices.matsimServices.getControlerIO
-              .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")
-          )
+
+          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
+            rideHailinitialLocationSpatialPlot.writeImage(
+              beamServices.matsimServices.getControlerIO
+                .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")
+            )
+          }
         }
         log.info("Initialized {} people", beamServices.personRefs.size)
         log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())
@@ -361,7 +377,7 @@ class BeamMobsim @Inject()(
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         if (beamServices.iterationNumber == 0) {
-          val maxHour = TimeUnit.SECONDS.toHours(beamServices.travelTimeCalculatorConfigGroup.getMaxTime).toInt
+          val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
           val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
           warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
         }
