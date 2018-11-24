@@ -1165,6 +1165,7 @@ class RideHailManager(
         response.request.customer.personRef.get ! response.copy(
           triggersToSchedule = triggersToSchedule.toVector
         )
+        // The following is an API call to allow implementing class to process or cleanup
         rideHailResourceAllocationManager.reservationCompletionNotice(
           response.request.customer.personId,
           response.travelProposal.get.rideHailAgentLocation.vehicleId
