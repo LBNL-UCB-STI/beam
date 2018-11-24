@@ -36,7 +36,7 @@ public class PlanReaderCsv {
     public static final String plansOutputFileName = "plans-output.xml";
 
     private BeamServices beamServices;
-    private Map<String, List<Id<Vehicle>>> vehiclesByHouseHoldId;
+    private Map<Id<Household>, List<Id<Vehicle>>> vehiclesByHouseHoldId;
 
     private Map<String, Map<String, String>> buildings;
     private Map<String, Map<String, String>> houseHolds;
@@ -372,7 +372,7 @@ public class PlanReaderCsv {
             //objHouseHold.setMemberIds(personIds);
 
 
-            objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(hhId));
+            objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(Id.create(hhId, Household.class)));
             objHouseHold.setMemberIds(houseHoldPersons.get(hhId));
 
             Income income;

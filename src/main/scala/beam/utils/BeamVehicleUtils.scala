@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
+import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, Vehicles}
 
 import scala.collection.JavaConverters
@@ -94,9 +95,10 @@ object BeamVehicleUtils {
       .headOption
   }
 
-  def prePopulateVehiclesByHouseHold(beamServices: BeamServices) : java.util.Map[String, java.util.List[Id[Vehicle]]] = {
+  def prePopulateVehiclesByHouseHold(beamServices: BeamServices) : java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
 
-    val vehicles : java.util.Map[String, java.util.List[Id[Vehicle]]] = new util.HashMap()
+    val vehicles : java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
+
     beamServices.privateVehicles.foreach{
       case (k: Id[BeamVehicle], v: BeamVehicle) => {
 
@@ -105,7 +107,7 @@ object BeamVehicleUtils {
           hVehicles = new java.util.ArrayList[Id[Vehicle]]()
         }
         hVehicles.add(Id.createVehicleId(k.toString))
-        vehicles.put(v.houseHoldId, hVehicles)
+        vehicles.put(v.houseHoldId.get, hVehicles)
 
       }
     }

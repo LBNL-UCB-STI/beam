@@ -170,11 +170,12 @@ object BeamServices {
         val vehicleTypeIdString = line.get("vehicleTypeId")
         val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-        val houseHoldId = line.get("houseHoldId")
+        val houseHoldIdString = line.get("houseHoldId")
+        val houseHoldId: Id[Household] = Id.create(houseHoldIdString, classOf[Household])
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, houseHoldId)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, Some(houseHoldId))
         acc += ((vehicleId, beamVehicle))
     }
   }

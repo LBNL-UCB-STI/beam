@@ -59,7 +59,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
             bicycleId,
             powertrain,
             None,
-            beamVehicleType, household.getId.toString
+            beamVehicleType, Some(household.getId)
           )
         )
       )

@@ -482,7 +482,7 @@ class PersonAgentSpec
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, null
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, None
       )
 
       vehicles.put(bus.getId, bus)

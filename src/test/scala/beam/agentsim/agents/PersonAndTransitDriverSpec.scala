@@ -157,7 +157,7 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, null
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, None
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(

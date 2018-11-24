@@ -302,7 +302,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType, null
+          BeamVehicleType.defaultCarBeamVehicleType, None
         )
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
