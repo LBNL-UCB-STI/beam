@@ -61,14 +61,10 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
 
 object RideHailManager {
 
-  val dummyID: Id[RideHailRequest] =
-    Id.create("dummyInquiryId", classOf[RideHailRequest])
-
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
-  val dummyRideHailVehicleId: Id[Vehicle] = Id.createVehicleId("dummyRideHailVehicle")
 
   def nextRideHailInquiryId: Id[RideHailRequest] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailRequest])
@@ -1092,7 +1088,6 @@ class RideHailManager(
         List(travelProposal.responseRideHail2Dest.itineraries.head.legs.head.beamLeg)
       ) // Adds customer's actual trip to destination
     putIntoService(travelProposal.rideHailAgentLocation)
-    lockVehicle(travelProposal.rideHailAgentLocation.vehicleId)
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
@@ -1121,7 +1116,6 @@ class RideHailManager(
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
         log.debug("Completing reservation for {}", requestId)
-        unlockVehicle(response.travelProposal.get.rideHailAgentLocation.vehicleId)
 
         log.debug(
           "completing reservation - customer: {} - vehicle: {}",

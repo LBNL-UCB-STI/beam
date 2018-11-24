@@ -209,12 +209,6 @@ class BeamMobsim @Inject()(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
 
-        val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
-          scenario.getPopulation.getPersons
-            .values()
-            .stream()
-        )
-
         val rand: Random =
           new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -252,7 +246,11 @@ class BeamMobsim @Inject()(
               .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
           )
         }
-
+        val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
+          scenario.getPopulation.getPersons
+            .values()
+            .stream()
+        )
         val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
         persons.view.take(numRideHailAgents.toInt).foreach {
           person =>
