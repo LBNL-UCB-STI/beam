@@ -46,6 +46,5 @@ object DebugRepositioning {
           .replace(iteration, iteration + "/rideHailDebugging")
       )
     }
-
   }
 }
