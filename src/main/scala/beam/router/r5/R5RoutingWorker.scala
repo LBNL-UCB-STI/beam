@@ -143,8 +143,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val tollCalculator = new TollCalculator(beamConfig)
       // TODO FIX ME
       val travelTimeAndCost = new TravelTimeAndCost {
-        override def overrideTravelTimeAndCostFor(origin: Location, destination: Location,
-                                                  departureTime: Int, mode: BeamMode): TimeAndCost = TimeAndCost(None, None)
+        override def overrideTravelTimeAndCostFor(
+          origin: Location,
+          destination: Location,
+          departureTime: Int,
+          mode: BeamMode
+        ): TimeAndCost = TimeAndCost(None, None)
       }
       WorkerParameters(
         beamServices,
@@ -569,7 +573,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             }
           if (!profileResponse.options.isEmpty) {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            buildStreetBasedLegs(streetSegment,time.atTime,routingRequest.mustParkAtEnd)
+            buildStreetBasedLegs(streetSegment, time.atTime, routingRequest.mustParkAtEnd)
           } else {
             throw DestinationUnreachableException // Cannot go to destination with this vehicle, so no options from this vehicle.
           }
@@ -670,7 +674,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 startTime >= time.fromTime && startTime <= time.fromTime + 1800
               }
               .map { itinerary =>
-                toBeamTrip(isRouteForPerson, maybeWalkToVehicle, maybeUseVehicleOnEgress, option, itinerary, routingRequest)
+                toBeamTrip(
+                  isRouteForPerson,
+                  maybeWalkToVehicle,
+                  maybeUseVehicleOnEgress,
+                  option,
+                  itinerary,
+                  routingRequest
+                )
               }
           }
 
@@ -696,7 +707,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
                   (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
-                    if(routingRequest.streetVehicles.find(_.mode == WALK).isEmpty){
+                    if (routingRequest.streetVehicles.find(_.mode == WALK).isEmpty) {
                       val i = 0
                     }
                     val body =
@@ -767,7 +778,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       theTravelPath.duration,
       travelPath = theTravelPath
     )
-    var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR){
+    var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
       splitLegForParking(theLeg)
     } else {
       Vector(theLeg)
@@ -1165,8 +1176,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     egressRouter
   }
 
-  def toBeamTrip(isRouteForPerson: Boolean, maybeWalkToVehicle: Option[BeamLeg], maybeUseVehicleOnEgress: Seq[LegWithFare],
-                 option: ProfileOption, itinerary: Itinerary, routingRequest: RoutingRequest): TripWithFares = {
+  def toBeamTrip(
+    isRouteForPerson: Boolean,
+    maybeWalkToVehicle: Option[BeamLeg],
+    maybeUseVehicleOnEgress: Seq[LegWithFare],
+    option: ProfileOption,
+    itinerary: Itinerary,
+    routingRequest: RoutingRequest
+  ): TripWithFares = {
 
     // Using itinerary start as access leg's startTime
     val tripStartTime = beamServices.dates
@@ -1181,7 +1198,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       // If there's a gap between access leg start time and walk leg, we need to move that ahead
       // this covers the various contingencies for doing this.
       val delayStartTime =
-      Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
+        Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
       legsWithFares += LegWithFare(walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toInt), 0.0)
     })
 
@@ -1275,35 +1292,42 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         legWithFare.leg
     }
 
-    val withUpdatedTimeAndCost = legsWithFares.map { case legWithFare =>
-      val leg = legWithFare.leg
-      val fare = legWithFare.fare
-      val travelPath = leg.travelPath
-      val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(travelPath.startPoint.loc,
-        travelPath.endPoint.loc, leg.startTime, leg.mode)
-      val updatedTravelPath = if (timeOpt.isDefined) {
-        val newTravelTime = timeOpt.get
-        val newLinkTravelTimes = TravelTimeUtils.scaleTravelTime(newTravelTime, travelPath.endPoint.time,
-          travelPath.linkTravelTime)
-        BeamPath(
-          linkIds = travelPath.linkIds,
-          linkTravelTime = newLinkTravelTimes,
-          transitStops = travelPath.transitStops,
-          startPoint = travelPath.startPoint,
-          endPoint = travelPath.endPoint.copy(time = newTravelTime),
-          distanceInM = travelPath.distanceInM)
-      }
-      else {
-        travelPath
-      }
+    val withUpdatedTimeAndCost = legsWithFares.map {
+      case legWithFare =>
+        val leg = legWithFare.leg
+        val fare = legWithFare.fare
+        val travelPath = leg.travelPath
+        val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(
+          travelPath.startPoint.loc,
+          travelPath.endPoint.loc,
+          leg.startTime,
+          leg.mode
+        )
+        val updatedTravelPath = if (timeOpt.isDefined) {
+          val newTravelTime = timeOpt.get
+          val newLinkTravelTimes =
+            TravelTimeUtils.scaleTravelTime(newTravelTime, travelPath.endPoint.time, travelPath.linkTravelTime)
+          BeamPath(
+            linkIds = travelPath.linkIds,
+            linkTravelTime = newLinkTravelTimes,
+            transitStops = travelPath.transitStops,
+            startPoint = travelPath.startPoint,
+            endPoint = travelPath.endPoint.copy(time = newTravelTime),
+            distanceInM = travelPath.distanceInM
+          )
+        } else {
+          travelPath
+        }
 
-      val newCost = costOpt.map { cost =>
-        if (fistNonDummyLeg.contains(leg)) cost
-        else 0.0
-      }.getOrElse(fare)
+        val newCost = costOpt
+          .map { cost =>
+            if (fistNonDummyLeg.contains(leg)) cost
+            else 0.0
+          }
+          .getOrElse(fare)
 
-      // Update travel path and cost
-      LegWithFare(leg.copy(travelPath = updatedTravelPath), newCost)
+        // Update travel path and cost
+        LegWithFare(leg.copy(travelPath = updatedTravelPath), newCost)
     }
 
     TripWithFares(
@@ -1353,28 +1377,30 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
-  def props(beamServices: BeamServices,
-            transportNetwork: TransportNetwork,
-            network: Network,
-            scenario: Scenario,
-            fareCalculator: FareCalculator,
-            tollCalculator: TollCalculator,
-            transitVehicles: Vehicles,
-            travelTimeAndCost: TravelTimeAndCost)=Props(
-      new R5RoutingWorker(
-        WorkerParameters(
-          beamServices,
-          transportNetwork,
-          network,
-          scenario,
-          fareCalculator,
-          tollCalculator,
-          transitVehicles,
-          travelTimeAndCost,
-          Map.empty
-        )
+  def props(
+    beamServices: BeamServices,
+    transportNetwork: TransportNetwork,
+    network: Network,
+    scenario: Scenario,
+    fareCalculator: FareCalculator,
+    tollCalculator: TollCalculator,
+    transitVehicles: Vehicles,
+    travelTimeAndCost: TravelTimeAndCost
+  ) = Props(
+    new R5RoutingWorker(
+      WorkerParameters(
+        beamServices,
+        transportNetwork,
+        network,
+        scenario,
+        fareCalculator,
+        tollCalculator,
+        transitVehicles,
+        travelTimeAndCost,
+        Map.empty
       )
     )
+  )
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 
