@@ -521,7 +521,7 @@ class RideHailManager(
                 modifyPassengerScheduleAck
               )
               modifyPassengerScheduleManager
-                .modifyPassengerScheduleAckReceivedForRepositioning(
+                .modifyPassengerScheduleAckReceived(
                   triggersToSchedule
                 )
             case Some(requestId) =>
@@ -1062,7 +1062,7 @@ class RideHailManager(
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
       request.requestId.toString,
-      RideHailResponse(request, None)
+      RideHailResponse(request, Some(travelProposal))
     )
 
     log.debug(
@@ -1081,26 +1081,22 @@ class RideHailManager(
 
   private def completeReservation(
     requestId: Int,
-    triggersToSchedule: Seq[ScheduleTrigger]
+    finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
-        log.debug("Completing reservation for {}", requestId)
+        val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
+        log.debug("Completing reservation {} for customer {} and vehicle {}", requestId,response.request.customer.personId,theVehicle)
 
-        log.debug(
-          "completing reservation - customer: {} - vehicle: {}",
-          response.request.customer.personId,
-          response.travelProposal.get.rideHailAgentLocation.vehicleId
-        )
-
-        response.request.customer.personRef.get ! response.copy(
-          triggersToSchedule = triggersToSchedule.toVector
-        )
+        if(processBufferedRequestsOnTimeout){
+          modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
+        }else{
+          response.request.customer.personRef.get ! response.copy(
+            triggersToSchedule = finalTriggersToSchedule
+          )
+        }
         // The following is an API call to allow implementing class to process or cleanup
-        rideHailResourceAllocationManager.reservationCompletionNotice(
-          response.request.customer.personId,
-          response.travelProposal.get.rideHailAgentLocation.vehicleId
-        )
+        rideHailResourceAllocationManager.reservationCompletionNotice(response.request.customer.personId, theVehicle)
       case None =>
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)

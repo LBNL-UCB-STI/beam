@@ -18,3 +18,15 @@ case class EmbodiedBeamLeg(
     BeamVehicleType.isHumanVehicle(beamVehicleId)
   val isRideHail: Boolean = BeamVehicleType.isRidehailVehicle(beamVehicleId)
 }
+object EmbodiedBeamLeg{
+  def dummyWalkLegAt(start: Int, bodyId: Id[Vehicle], isLastLeg: Boolean): EmbodiedBeamLeg = {
+    EmbodiedBeamLeg(
+      BeamLeg.dummyWalk(start),
+      bodyId,
+      asDriver = true,
+      None,
+      0,
+      unbecomeDriverOnCompletion = isLastLeg
+    )
+  }
+}

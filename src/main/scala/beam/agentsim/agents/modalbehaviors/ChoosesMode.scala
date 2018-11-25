@@ -602,11 +602,14 @@ trait ChoosesMode {
       )
       val rideHailItinerary = rideHailResult.travelProposal match {
         case Some(travelProposal) =>
+          val origLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs
+          val fullItin = travelProposal.responseRideHail2Dest.itineraries.head.copy(legs =
+            EmbodiedBeamLeg.dummyWalkLegAt(origLegs.head.beamLeg.startTime,bodyId,false) +: origLegs :+ EmbodiedBeamLeg.dummyWalkLegAt(origLegs.head.beamLeg.endTime,bodyId,true)
+          )
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
-              travelProposal.responseRideHail2Dest.itineraries.map { itin =>
-                itin.copy(
-                  legs = itin.legs.map(
+              Vector(fullItin,fullItin.copy(
+                  legs = fullItin.legs.map(
                     origLeg =>
                       origLeg.copy(
                         cost = origLeg.cost * poolingInfo.costFactor,
@@ -614,10 +617,9 @@ trait ChoosesMode {
                         beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                     )
                   )
-                )
-              } ++ travelProposal.responseRideHail2Dest.itineraries
+                ))
             case None =>
-              travelProposal.responseRideHail2Dest.itineraries
+              Vector(fullItin)
           }
         case None =>
           Vector()

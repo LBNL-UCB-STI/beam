@@ -432,6 +432,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
 
+    if(!isRouteForPerson){
+      val i = 0
+    }
+
     def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
       /*
        * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we

@@ -3,13 +3,9 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.HasTickAndTrigger
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{StartLegTrigger, StopDriving}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  RideHailAgentLocation,
-  RideHailRepositioningTrigger
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailAgentLocation, RideHailRepositioningTrigger}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -35,7 +31,7 @@ class RideHailModifyPassengerScheduleManager(
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
-  var numberPendingModifyPassengerScheduleAckForRepositioning: Int = 0
+  var numberPendingModifyPassengerScheduleAcks: Int = 0
   var ignoreErrorPrint = true
 
   /*
@@ -83,7 +79,7 @@ class RideHailModifyPassengerScheduleManager(
                 we send a resume message to the agent. This puts the driver back to state driving, so that the reservation
                 interrupt is received when the agent is in state driving. */
                 if (reply.isInstanceOf[InterruptedWhileDriving]) {
-                  modifyStatus.rideHailAgent ! Resume()
+                  modifyStatus.rideHailAgent.tell(Resume(),rideHailManager)
                 }
               case SingleReservation =>
                 // process reservation interrupt confirmation
@@ -118,24 +114,24 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
     stopDriving: Boolean
   ): Unit = {
-    if (stopDriving) modifyStatus.rideHailAgent ! StopDriving(modifyStatus.tick.toInt)
+    if (stopDriving) modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick.toInt),rideHailManager)
     resourcesNotCheckedIn_onlyForDebugging += modifyStatus.vehicleId
-    modifyStatus.rideHailAgent ! modifyStatus.modifyPassengerSchedule
-    modifyStatus.rideHailAgent ! Resume()
+    modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule,rideHailManager)
+    modifyStatus.rideHailAgent.tell(Resume(),rideHailManager)
     modifyStatus.status = InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
   }
 
   // A wrapper method to make it more understandable what is happening
   def cancelRepositionAttempt(): Unit = {
-    modifyPassengerScheduleAckReceivedForRepositioning(Vector())
+    modifyPassengerScheduleAckReceived(Vector())
   }
 
-  def modifyPassengerScheduleAckReceivedForRepositioning(
+  def modifyPassengerScheduleAckReceived(
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger]
   ): Unit = {
-    numberPendingModifyPassengerScheduleAckForRepositioning -= 1
+    numberPendingModifyPassengerScheduleAcks -= 1
     log.debug(
-      "new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=" + numberPendingModifyPassengerScheduleAckForRepositioning
+      "new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=" + numberPendingModifyPassengerScheduleAcks
     )
     // Following is just error checking
     if (triggersToSchedule.nonEmpty) {
@@ -161,7 +157,7 @@ class RideHailModifyPassengerScheduleManager(
 
     allTriggersInWave = triggersToSchedule ++ allTriggersInWave
 
-    if (numberPendingModifyPassengerScheduleAckForRepositioning == 0) {
+    if (numberPendingModifyPassengerScheduleAcks == 0) {
       sendCompletionAndScheduleNewTimeout(Reposition)
     }
   }
@@ -179,20 +175,22 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType): Unit = {
-    val (tick, triggerId) = releaseTickAndTriggerId()
+    val (currentTick, triggerId) = releaseTickAndTriggerId()
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
         BufferedRideHailRequestsTrigger(
-          tick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
         )
       case Reposition =>
         RideHailRepositioningTrigger(
-          tick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
         )
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    scheduler ! CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager))
+    // We have to now update the timings of all the triggers as some were created in the recent past
+    allTriggersInWave = allTriggersInWave.map(schedTrigger => schedTrigger.copy(trigger = schedTrigger.trigger.asInstanceOf[StartLegTrigger].copy(tick = currentTick)))
+    scheduler.tell(CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager)),rideHailManager)
     allTriggersInWave = Vector()
   }
 
@@ -205,7 +203,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {
-    numberPendingModifyPassengerScheduleAckForRepositioning = awaitAcks
+    numberPendingModifyPassengerScheduleAcks = awaitAcks
   }
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
@@ -213,8 +211,7 @@ class RideHailModifyPassengerScheduleManager(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)
     )
-    assert(numberPendingModifyPassengerScheduleAckForRepositioning <= 0)
-    assert(allTriggersInWave.isEmpty)
+    assert(numberPendingModifyPassengerScheduleAcks <= 0)
     holdTickAndTriggerId(tick, triggerId)
   }
 
@@ -312,8 +309,8 @@ class RideHailModifyPassengerScheduleManager(
     resourcesNotCheckedIn_onlyForDebugging += passengerScheduleStatus.vehicleId
     passengerScheduleStatus.status = InterruptMessageStatus.INTERRUPT_SENT
     //    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
-    passengerScheduleStatus.rideHailAgent !
-    Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick)
+    passengerScheduleStatus.rideHailAgent.tell(
+      Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick),rideHailManager)
   }
 
   def isPendingReservationEnding(
