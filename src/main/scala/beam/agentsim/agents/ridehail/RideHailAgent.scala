@@ -285,6 +285,9 @@ class RideHailAgent(
           self
         )
       )
+      if(updatedPassengerSchedule.schedule.firstKey.startTime==24600){
+        val i = 0
+      }
       goto(WaitingToDriveInterrupted) using data
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(

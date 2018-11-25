@@ -71,6 +71,13 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     }
   }
 
+  def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {
+    val deltaStart = newStartTime - legs.head.beamLeg.startTime
+    this.copy(legs = legs.map{leg =>
+      leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
+    })
+  }
+
   def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[Vehicle]] = {
     legs.map(leg => leg.beamVehicleId).distinct
   }

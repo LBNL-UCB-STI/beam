@@ -22,14 +22,14 @@ import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.{DebugLib}
+import beam.utils.DebugLib
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
@@ -39,9 +39,10 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.HashSet
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future}
+import scala.concurrent.Future
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -95,6 +96,15 @@ object RideHailManager {
     responseRideHail2Dest: RoutingResponse,
     poolingInfo: Option[PoolingInfo] = None
   ) {
+    def makeLegsConsistent(): TravelProposal = {
+      val endTimeOpt = responseRideHail2Pickup.itineraries.headOption.map(trip => trip.beamLegs().last.endTime)
+      endTimeOpt match {
+        case Some(endTime) =>
+          this.copy(responseRideHail2Dest = responseRideHail2Dest.copy(itineraries = responseRideHail2Dest.itineraries.map(itin => itin.updateStartTime(endTime))))
+        case None =>
+          this
+      }
+    }
     lazy val timeToCustomer = responseRideHail2Pickup.itineraries.map(_.totalTravelTimeInSecs).sum
     lazy val estimatedPrice = responseRideHail2Dest.itineraries.headOption.map(_.costEstimate).getOrElse(0.0)
     lazy val estimatedTravelTime =
@@ -736,13 +746,14 @@ class RideHailManager(
     pickupLocation: Coord,
     radius: Double,
     customerRequestTime: Long,
+    excludeRideHailVehicles: Set[Id[Vehicle]] = Set(),
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
   ): Vector[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
     val nearbyAvailableRideHailAgents = availableRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
-      .filter(x => availableRideHailVehicles.contains(x.vehicleId))
+      .filter(x => availableRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId))
     var end = System.currentTimeMillis()
     val diff1 = end - start
 
@@ -868,14 +879,14 @@ class RideHailManager(
   }
 
   def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
-    val preservedOrder = routingRequests.map(_.requestId)
+    val preservedOrder = routingRequests.map(_.staticRequestId)
     val theFutures = Future
       .sequence(routingRequests.map { rRequest =>
         akka.pattern.ask(router, rRequest).mapTo[RoutingResponse]
       })
       .foreach { responseList =>
         val requestIdToResponse = responseList.map { response =>
-          response.requestId.get -> response
+          response.staticRequestId -> response
         }.toMap
         val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
         self ! RoutingResponses(tick, orderedResponses)
@@ -1054,7 +1065,9 @@ class RideHailManager(
       .addPassenger(
         request.customer,
         List(travelProposal.responseRideHail2Dest.itineraries.head.legs.head.beamLeg)
-      ) // Adds customer's actual trip to destination
+      )
+
+    // This makes the vehicle unavailable for others to reserve
     putIntoService(travelProposal.rideHailAgentLocation)
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
@@ -1084,10 +1097,11 @@ class RideHailManager(
     pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
-        log.debug("Completing reservation {} for customer {} and vehicle {}", requestId,response.request.customer.personId,theVehicle)
+        log.info("Completing reservation {} for customer {} and vehicle {}", requestId,response.request.customer.personId,theVehicle)
 
         if(processBufferedRequestsOnTimeout){
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
+          response.request.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
         }else{
           response.request.customer.personRef.get ! response.copy(
             triggersToSchedule = finalTriggersToSchedule
@@ -1098,6 +1112,10 @@ class RideHailManager(
       case None =>
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
+    }
+    if(processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty){
+      log.info("Complete from completeReservation")
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
   }
 
@@ -1154,7 +1172,8 @@ class RideHailManager(
     }
     if (!allRoutesRequired.isEmpty) {
       requestRoutes(tick, allRoutesRequired)
-    } else if (processBufferedRequestsOnTimeout) {
+    } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty) {
+      log.info("Complete from findAllocationsAndProcess at {}",tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
   }
@@ -1165,28 +1184,7 @@ class RideHailManager(
       alloc.pickDropIdWithRoutes.head.routingResponse,
       alloc.pickDropIdWithRoutes.last.routingResponse,
       None
-    )
-  }
-
-  def createTriggersFromMatchedVehicle(alloc: VehicleMatchedToCustomers): Vector[ScheduleTrigger] = {
-    Vector()
-  }
-
-  def createTriggersFromMatchedVehicles(alloc: VehicleMatchedToCustomers): Vector[ScheduleTrigger] = {
-    //TODO actual trigger creation here
-//      Option(travelProposalCache.getIfPresent(request.requestId.toString)) match {
-//        case Some(travelProposal) =>
-//          if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
-//            lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
-//            .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-//            findDriverAndSendRoutingRequests(request)
-//          } else {
-//            handleReservation(request, travelProposal)
-//          }
-//        case None =>
-//          findDriverAndSendRoutingRequests(request)
-//      }
-    Vector()
+    ).makeLegsConsistent()
   }
 
 }

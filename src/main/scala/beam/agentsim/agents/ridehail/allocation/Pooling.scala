@@ -1,6 +1,8 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.{RideHailManager}
+import beam.agentsim.agents.ridehail.RideHailManager
+import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
@@ -9,6 +11,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     vehicleAllocationRequest: AllocationRequests
   ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
+    var alreadyAllocated: Set[Id[Vehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if (routingResponses.isEmpty) =>
         rideHailManager
@@ -37,10 +40,12 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocation,
             rideHailManager.radiusInMeters,
-            tick
+            tick,
+            excludeRideHailVehicles = alreadyAllocated
           )
           .headOption match {
           case Some(agentETA) =>
+            alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
               PickDropIdAndLeg(request.customer.personId, routingResponses.head),
               PickDropIdAndLeg(request.customer.personId, routingResponses.last)

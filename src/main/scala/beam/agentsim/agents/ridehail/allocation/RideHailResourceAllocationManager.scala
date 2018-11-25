@@ -36,6 +36,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+    if(!bufferedRideHailRequests.contains(request))addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
