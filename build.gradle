@@ -281,7 +281,7 @@ task backgroundScalaFmt{
         } as Callable)
     }
 }
-compileScala.dependsOn(backgroundScalaFmt)
+//compileScala.dependsOn(backgroundScalaFmt)
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -608,5 +608,18 @@ task matsimConversion(type: JavaExec) {
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
+    }
+}
+
+task makeSureNoDiff() {
+    doLast {
+        try {
+            def workingDir = new File("${project.projectDir}")
+            def result = 'git diff --exit-code'.execute(null, workingDir)
+            result.waitFor()
+            if (result.exitValue() != 0) throw new Exception("Something is different!")
+        } catch (e) {
+            throw new Exception("Something is different!")
+        }
     }
 }
