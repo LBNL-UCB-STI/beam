@@ -188,8 +188,6 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    // We have to now update the timings of all the triggers as some were created in the recent past
-    allTriggersInWave = allTriggersInWave.map(schedTrigger => schedTrigger.copy(trigger = schedTrigger.trigger.asInstanceOf[StartLegTrigger].copy(tick = currentTick)))
     scheduler.tell(CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager)),rideHailManager)
     allTriggersInWave = Vector()
   }

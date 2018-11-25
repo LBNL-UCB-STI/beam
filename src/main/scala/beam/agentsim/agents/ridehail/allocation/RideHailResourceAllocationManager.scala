@@ -55,12 +55,13 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     // closest request
     val responses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) =>
-        rideHailManager.getClosestIdleRideHailAgent(
+        rideHailManager.getClosestIdleVehiclesWithinRadiusByETA(
           request.pickUpLocation,
-          rideHailManager.radiusInMeters
-        ) match {
-          case Some(agentLocation) =>
-            VehicleMatchedToCustomers(request, agentLocation, List())
+          rideHailManager.radiusInMeters,
+          tick
+        ).headOption match {
+          case Some(agentETA) =>
+            VehicleMatchedToCustomers(request, agentETA.agentLocation, List())
           case None =>
             NoVehicleAllocated(request)
         }
