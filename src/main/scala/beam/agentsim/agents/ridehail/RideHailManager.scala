@@ -1113,7 +1113,10 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if(processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty){
+    if(processBufferedRequestsOnTimeout &&
+      pendingModifyPassengerScheduleAcks.isEmpty &&
+      rideHailResourceAllocationManager.isBufferEmpty
+    ){
       log.info("Complete from completeReservation")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
@@ -1172,7 +1175,8 @@ class RideHailManager(
     }
     if (!allRoutesRequired.isEmpty) {
       requestRoutes(tick, allRoutesRequired)
-    } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty) {
+    } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
+    rideHailResourceAllocationManager.isBufferEmpty) {
       log.info("Complete from findAllocationsAndProcess at {}",tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }

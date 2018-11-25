@@ -44,6 +44,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     bufferedRideHailRequests = bufferedRideHailRequests - request
   }
 
+  def isBufferEmpty = bufferedRideHailRequests.isEmpty
+
   def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
     allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
   }
