@@ -225,8 +225,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case "tick" =>
       firstMsgTime match {
         case Some(firstMsgTimeValue) =>
-          val seconds =
-            ChronoUnit.SECONDS.between(firstMsgTimeValue, ZonedDateTime.now(ZoneOffset.UTC))
+                                                               val seconds = ChronoUnit.SECONDS.between(firstMsgTimeValue, ZonedDateTime.now(ZoneOffset.UTC))
           if (seconds > 0) {
             val rate = msgs.toDouble / seconds
             if (seconds > 60) {
