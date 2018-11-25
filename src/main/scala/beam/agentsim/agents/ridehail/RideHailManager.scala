@@ -1136,9 +1136,9 @@ class RideHailManager(
   }
 
   /*
-   * This is common code for both use cases, batch processing and processing a single reservation request immediately.
-   * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
-   */
+     * This is common code for both use cases, batch processing and processing a single reservation request immediately.
+     * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
+     */
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
 
@@ -1153,22 +1153,13 @@ class RideHailManager(
                 rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, request.requestId)
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
-            case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes) =>
+            case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes) if !pickDropIdWithRoutes.isEmpty =>
               handleReservation(request, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+            case VehicleMatchedToCustomers(request, _, _) =>
+              failedAllocation(request,tick)
             case NoVehicleAllocated(request) =>
-              val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
-              if (processBufferedRequestsOnTimeout) {
-                modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
-                  ScheduleTrigger(
-                    RideHailResponseTrigger(tick, theResponse),
-                    request.customer.personRef.get
-                  )
-                )
-              } else {
-                request.customer.personRef.get ! theResponse
-              }
-              rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+              failedAllocation(request,tick)
           }
         }
       case _ =>
@@ -1189,6 +1180,21 @@ class RideHailManager(
       alloc.pickDropIdWithRoutes.last.routingResponse,
       None
     ).makeLegsConsistent()
+  }
+
+  def failedAllocation(request: RideHailRequest, tick: Int): Unit = {
+    val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
+    if (processBufferedRequestsOnTimeout) {
+      modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+        ScheduleTrigger(
+          RideHailResponseTrigger(tick, theResponse),
+          request.customer.personRef.get
+        )
+      )
+    } else {
+      request.customer.personRef.get ! theResponse
+    }
+    rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
 
 }
