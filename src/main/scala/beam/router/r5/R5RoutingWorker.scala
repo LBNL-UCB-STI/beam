@@ -400,7 +400,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
     profileRequest.fromTime = request.time
-    profileRequest.toTime = request.time + 1
+    profileRequest.toTime = request.time + 61 // Important to allow 61 seconds for transit schedules to be considered!
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = if (request.directMode == null) {
       util.EnumSet.noneOf(classOf[LegMode])
