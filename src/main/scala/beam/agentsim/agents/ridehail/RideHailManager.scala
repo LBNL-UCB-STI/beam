@@ -11,7 +11,6 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
@@ -23,15 +22,14 @@ import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.model.RoutingModel.DiscreteTime
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.{DebugLib, PointToPlot, SpatialPlot}
+import beam.utils.{DebugLib}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
@@ -43,8 +41,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.{Future}
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -444,7 +441,7 @@ class RideHailManager(
         val rideHailFarePerSecond = DefaultCostPerSecond * surgePricingManager
           .getSurgeLevel(
             request.pickUpLocation,
-            request.departAt.atTime.toDouble
+            request.departAt
           )
         val customerCost = rideHailFarePerSecond * itin2Dest.totalTravelTimeInSecs
 
@@ -571,7 +568,7 @@ class RideHailManager(
           val routingRequest = RoutingRequest(
             origin = rideHailAgentLocation.currentLocation.loc,
             destination = destinationLocation,
-            departureTime = DiscreteTime(tick.toInt),
+            departureTime = tick,
             transitModes = Vector(),
             streetVehicles = Vector(rideHailVehicleAtOrigin)
           )
@@ -655,7 +652,7 @@ class RideHailManager(
       val routingRequest = RoutingRequest(
         origin = agentLocation.currentLocation.loc,
         destination = stall.location,
-        departureTime = DiscreteTime(agentLocation.currentLocation.time),
+        departureTime = agentLocation.currentLocation.time,
         transitModes = Vector(),
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
@@ -718,9 +715,9 @@ class RideHailManager(
         inquiry.customer.personRef.get ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, None, poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
-        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry, agentLocation)
+        val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, inquiry.requestId))
-        requestRoutes(inquiry.departAt.atTime, routingRequests)
+        requestRoutes(inquiry.departAt, routingRequests)
     }
   }
 
@@ -833,16 +830,17 @@ class RideHailManager(
     vehicleState(vehicleId)
 
   def createRoutingRequestsToCustomerAndDestination(
+    requestTime: Int,
     request: RideHailRequest,
     rideHailLocation: RideHailAgentLocation
   ): List[RoutingRequest] = {
 
-    val pickupSpaceTime = SpaceTime((request.pickUpLocation, request.departAt.atTime))
+    val pickupSpaceTime = SpaceTime((request.pickUpLocation, request.departAt))
 //    val customerAgentBody =
 //      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
     val rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
-      SpaceTime((rideHailLocation.currentLocation.loc, request.departAt.atTime)),
+      SpaceTime((rideHailLocation.currentLocation.loc, requestTime)),
       CAR,
       asDriver = false
     )
@@ -853,7 +851,7 @@ class RideHailManager(
     val rideHailAgent2Customer = RoutingRequest(
       rideHailLocation.currentLocation.loc,
       request.pickUpLocation,
-      request.departAt,
+      requestTime,
       Vector(),
       Vector(rideHailVehicleAtOrigin)
     )
@@ -861,7 +859,7 @@ class RideHailManager(
     val rideHail2Destination = RoutingRequest(
       request.pickUpLocation,
       request.destination,
-      request.departAt,
+      requestTime,
       Vector(),
       Vector(rideHailVehicleAtPickup)
     )
@@ -1045,7 +1043,7 @@ class RideHailManager(
 
   private def handleReservation(request: RideHailRequest, travelProposal: TravelProposal): Unit = {
     surgePricingManager.addRideCost(
-      request.departAt.atTime,
+      request.departAt,
       travelProposal.estimatedPrice.doubleValue(),
       request.pickUpLocation
     )
@@ -1111,7 +1109,7 @@ class RideHailManager(
     if (processBufferedRequestsOnTimeout) {
       request.customer.personRef.get ! DelayedRideHailResponse
     } else {
-      findAllocationsAndProcess(request.departAt.atTime)
+      findAllocationsAndProcess(request.departAt)
     }
 
   }

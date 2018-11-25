@@ -18,7 +18,6 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.model.RoutingModel.DiscreteTime
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -139,7 +138,7 @@ trait ChoosesParking extends {
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
-          DiscreteTime(currentPoint.time),
+          currentPoint.time,
           Vector(),
           Vector(carStreetVeh, bodyStreetVeh)
         )
@@ -148,7 +147,7 @@ trait ChoosesParking extends {
         val futureStall2DestinationResponse = router ? RoutingRequest(
           beamServices.geo.utm2Wgs(stall.location),
           finalPoint.loc,
-          DiscreteTime(currentPoint.time),
+          currentPoint.time,
           Vector(),
           Vector(
             StreetVehicle(

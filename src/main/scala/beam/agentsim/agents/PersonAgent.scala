@@ -28,7 +28,6 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
-import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -638,7 +637,7 @@ class PersonAgent(
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
-      val departAt = DiscreteTime(legSegment.head.beamLeg.startTime)
+      val departAt = legSegment.head.beamLeg.startTime
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
@@ -651,9 +650,9 @@ class PersonAgent(
 
       eventsManager.processEvent(
         new ReserveRideHailEvent(
-          _currentTick.getOrElse(departAt.atTime).toDouble,
+          _currentTick.getOrElse(departAt).toDouble,
           id,
-          departAt.atTime,
+          departAt,
           nextLeg.beamLeg.travelPath.startPoint.loc,
           legSegment.last.beamLeg.travelPath.endPoint.loc
         )

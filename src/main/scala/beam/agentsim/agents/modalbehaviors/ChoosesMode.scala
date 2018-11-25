@@ -90,7 +90,7 @@ trait ChoosesMode {
         asDriver = true
       )
       val nextAct = nextActivity(choosesModeData.personData).get
-      val departTime = DiscreteTime(_currentTick.get)
+      val departTime = _currentTick.get
 
       val availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
@@ -129,8 +129,8 @@ trait ChoosesMode {
           requestParkingCost(
             nextAct.getCoord,
             nextAct.getType,
-            departTime.atTime,
-            nextAct.getEndTime.toInt - departTime.atTime
+            departTime,
+            nextAct.getEndTime.toInt - departTime
           )
         } else {
           None
@@ -151,13 +151,13 @@ trait ChoosesMode {
 
       def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
-        val startWithWaitBuffer = 900 + departTime.atTime
+        val startWithWaitBuffer = 900 + departTime
         val currentSpaceTime =
           SpaceTime(currentPersonLocation.loc, startWithWaitBuffer)
         val theRequest = RoutingRequest(
           currentSpaceTime.loc,
           nextAct.getCoord,
-          departTime.copy(atTime = startWithWaitBuffer.toInt),
+          startWithWaitBuffer,
           Vector(TRANSIT),
           Vector(bodyStreetVehicle, dummyRHVehicle.copy(location = currentSpaceTime)),
           AccessAndEgress
@@ -233,7 +233,7 @@ trait ChoosesMode {
                   linkIds += r.getEndLinkId.toString.toInt
 
                   val leg = BeamLeg(
-                    departTime.atTime,
+                    departTime,
                     mode,
                     l.getTravelTime.toInt,
                     // TODO FIXME
@@ -464,7 +464,7 @@ trait ChoosesMode {
       RideHailInquiry,
       bodyVehiclePersonId,
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
-      DiscreteTime(legs.head.startTime),
+      legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
     )
     //    println(s"requesting: ${inquiry.requestId}")

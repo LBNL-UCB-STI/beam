@@ -94,24 +94,4 @@ object RoutingModel {
 
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
-  /**
-    * Represent the time in seconds since midnight.
-    * attribute atTime seconds since midnight
-    */
-  sealed trait BeamTime {
-    val atTime: Int
-  }
-
-  case class DiscreteTime(override val atTime: Int) extends BeamTime
-
-  case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {
-    lazy val fromTime: Int = atTime
-    lazy val toTime: Int = atTime + timeFrame
-  }
-
-  object WindowTime {
-
-    def apply(atTime: Int, departureWindow: Double): WindowTime =
-      new WindowTime(atTime, math.round(departureWindow * 60.0).toInt)
-  }
 }

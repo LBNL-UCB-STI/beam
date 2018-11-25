@@ -12,18 +12,20 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if (routingResponses.isEmpty) =>
         rideHailManager
-          .getClosestIdleVehiclesWithinRadius(
+          .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocation,
-            rideHailManager.radiusInMeters
+            rideHailManager.radiusInMeters,
+            tick
           )
           .headOption match {
-          case Some(agentLocation) =>
+          case Some(agentETA) =>
             //TODO how to mix RoutingRequired with VehicleAllocation???
             val routeRequired = RoutingRequiredToAllocateVehicle(
               request,
               rideHailManager.createRoutingRequestsToCustomerAndDestination(
+                tick,
                 request,
-                agentLocation
+                agentETA.agentLocation
               )
             )
             routeRequired
@@ -32,17 +34,18 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         }
       case (request, routingResponses) =>
         rideHailManager
-          .getClosestIdleVehiclesWithinRadius(
+          .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocation,
-            rideHailManager.radiusInMeters
+            rideHailManager.radiusInMeters,
+            tick
           )
           .headOption match {
-          case Some(agentLocation) =>
+          case Some(agentETA) =>
             val pickDropIdAndLegs = List(
               PickDropIdAndLeg(request.customer.personId, routingResponses.head),
               PickDropIdAndLeg(request.customer.personId, routingResponses.last)
             )
-            VehicleMatchedToCustomers(request, agentLocation, pickDropIdAndLegs)
+            VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
             NoVehicleAllocated(request)
         }

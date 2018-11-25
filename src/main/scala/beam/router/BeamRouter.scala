@@ -28,7 +28,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
-import beam.router.model.RoutingModel.BeamTime
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
@@ -445,7 +444,7 @@ object BeamRouter {
   case class RoutingRequest(
     origin: Location,
     destination: Location,
-    departureTime: BeamTime,
+    departureTime: Int,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,

@@ -82,7 +82,7 @@ class TollRoutingSpec
   }
 
   "A time-dependent router with toll calculator" must {
-    val time = RoutingModel.DiscreteTime(3000)
+    val time = 3000
     val origin = new Location(0.00005, 0.01995)
     val destination = new Location(0.02005, 0.01995)
 
@@ -96,7 +96,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -111,7 +111,7 @@ class TollRoutingSpec
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
       assert(carOption.totalTravelTimeInSecs == 144)
 
-      val earlierRequest = request.copy(departureTime = RoutingModel.DiscreteTime(2000))
+      val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
       val earlierResponse = expectMsgType[RoutingResponse]
       val earlierCarOption = earlierResponse.itineraries.find(_.tripClassifier == CAR).get
@@ -151,7 +151,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -176,7 +176,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
           )

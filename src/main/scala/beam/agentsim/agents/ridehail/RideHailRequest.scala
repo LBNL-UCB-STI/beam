@@ -2,7 +2,6 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
-import beam.router.model.RoutingModel.{BeamTime, DiscreteTime}
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -12,7 +11,7 @@ case class RideHailRequest(
   requestType: RideHailRequestType,
   customer: VehiclePersonId,
   pickUpLocation: Location,
-  departAt: BeamTime,
+  departAt: Int,
   destination: Location,
   asPooled: Boolean = false
 ) {
@@ -41,7 +40,7 @@ object RideHailRequest {
     RideHailInquiry,
     VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
     new Coord(Double.NaN, Double.NaN),
-    DiscreteTime(Int.MaxValue),
+    Int.MaxValue,
     new Coord(Double.NaN, Double.NaN)
   )
 }
