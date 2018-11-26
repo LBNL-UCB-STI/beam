@@ -4,6 +4,8 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
@@ -20,6 +22,7 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest._
@@ -66,7 +69,9 @@ class AbstractSfLightSpec
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
-    val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    when(services.agencyAndRouteByVehicleIds).thenReturn( TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn( PtFares(Map[String, List[FareRule]]()))
+    val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
