@@ -20,11 +20,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 
 public class PlanReaderCsv {
@@ -230,19 +230,22 @@ public class PlanReaderCsv {
 
         CsvToMap csvToMap = new CsvToMap();
 
-        TarArchiveInputStream tarInput = null;
+
+
+
         try {
-            tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(csvScenarioFile)));
+            ZipFile zipFile = new ZipFile(csvScenarioFile);
+            Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
-            TarArchiveEntry currentEntry = tarInput.getNextTarEntry();
-            BufferedReader br = null;
-            //StringBuilder sb = new StringBuilder();
-            while (currentEntry != null) {
-                br = new BufferedReader(new InputStreamReader(tarInput)); // Read directly from tarInput
+            while(entries.hasMoreElements()){
+                ZipEntry entry = entries.nextElement();
+                InputStream stream = zipFile.getInputStream(entry);
 
-                System.out.println("For File = " + currentEntry.getName());
+                BufferedReader br = new BufferedReader(new InputStreamReader(stream)); // Read directly from tarInput
 
-                switch (currentEntry.getName()){
+                System.out.println("For File = " + entry.getName());
+
+                switch (entry.getName()){
                     case "buildings.csv":
                         buildings = csvToMap.read(br);
                         //printMap("buildings", buildings);
@@ -275,7 +278,7 @@ public class PlanReaderCsv {
                         //printLines(br);
                 }
 
-                currentEntry = tarInput.getNextTarEntry(); // You forgot to iterate to the next file
+
             }
 
             processData();
