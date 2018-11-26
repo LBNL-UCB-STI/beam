@@ -18,7 +18,7 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
@@ -44,7 +44,7 @@ class ZonalParkingManagerSpec
     BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
 
   def beamServices(config: BeamConfig): BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)

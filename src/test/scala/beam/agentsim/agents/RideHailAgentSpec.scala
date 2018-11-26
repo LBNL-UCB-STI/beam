@@ -21,6 +21,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -63,7 +64,7 @@ class RideHailAgentSpec
   private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -179,7 +180,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -256,7 +258,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -322,7 +325,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 

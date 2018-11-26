@@ -589,3 +589,8 @@ task matsimConversion(type: JavaExec) {
         args Eval.me(confPath)
     }
 }
+
+tasks.withType(ScalaCompile) {
+    // Enable Scala warnings output
+    scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+}

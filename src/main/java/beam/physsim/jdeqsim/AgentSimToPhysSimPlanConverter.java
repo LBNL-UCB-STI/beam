@@ -96,7 +96,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
-                beamServices.travelTimeCalculatorConfigGroup());
+                scenario.getConfig().travelTimeCalculator());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }

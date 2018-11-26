@@ -42,8 +42,6 @@ trait BeamServices extends ActorInject {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup
-
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
   val dates: DateUtils
@@ -71,9 +69,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup =
-    injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

@@ -25,6 +25,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
     private PlotGraph plotGraph = new PlotGraph();
     private int binSize;
     private int numOfBins;
+    private final boolean writeGraph;
 
     public PersonVehicleTransitionAnalysis(BeamConfig beamConfig){
         binSize = beamConfig.beam().outputs().stats().binSize();
@@ -33,6 +34,7 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
         Double _numOfTimeBins = _endTime / binSize;
         _numOfTimeBins = Math.floor(_numOfTimeBins);
         numOfBins = _numOfTimeBins.intValue() + 1;
+        this.writeGraph = beamConfig.beam().outputs().writeGraphs();
     }
 
 
@@ -57,8 +59,9 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
             if (personEnterCount.size() == 0 && personExitCount.size() == 0) {
                 continue;
             }
-            plotGraph.writeGraphic(GraphsStatsAgentSimEventsListener.CONTROLLER_IO, event.getIteration(), mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
-
+            if(writeGraph){
+                plotGraph.writeGraphic(GraphsStatsAgentSimEventsListener.CONTROLLER_IO, event.getIteration(), mode, fileName, personEnterCount, personExitCount, onRoutes, xAxisLabel, binSize);
+            }
         }
     }
 
