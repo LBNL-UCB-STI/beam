@@ -100,16 +100,13 @@ class TollRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        Access,
-        false,
-        timeValueOfMoney
+        )
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 144)
+      assert(carOption.costEstimate == 2.0, "contains three toll links: two specified in OSM, and one in CSV file")
+      assert(carOption.totalTravelTimeInSecs == 288)
 
       val earlierRequest = request.copy(departureTime = RoutingModel.DiscreteTime(2000))
       router ! earlierRequest
@@ -138,7 +135,7 @@ class TollRoutingSpec
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
       // the factor in the config only applies to link tolls at the moment, i.e. one of the three paid is 2.0
-      assert(moreExpensiveCarOption.costEstimate == 4.0)
+      assert(moreExpensiveCarOption.costEstimate == 2.0)
 
       // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
       // (which takes 288 seconds)
@@ -155,10 +152,7 @@ class TollRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        Access,
-        false,
-        higherTimeValueOfMoney
+        )
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
