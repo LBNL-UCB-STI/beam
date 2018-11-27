@@ -9,13 +9,13 @@ import scala.io.Source
 import scala.util.Try
 
 case class PtFares(ptFares: Map[String, List[FareRule]]) {
+
   def getPtFare(agencyId: String, routeId: Option[String], age: Option[Int]): Option[Double] = {
     ptFares
       .getOrElse(agencyId, List())
-      .filter(s =>
-        age.fold(true)(s.age.hasOrEmpty) && routeId.fold(true)(s.routeId.equalsIgnoreCase)
-      )
-    .map(_.amount).reduceOption(_ + _)
+      .filter(s => age.fold(true)(s.age.hasOrEmpty) && routeId.fold(true)(s.routeId.equalsIgnoreCase))
+      .map(_.amount)
+      .reduceOption(_ + _)
   }
 }
 
@@ -46,5 +46,3 @@ object PtFares {
     )
   }
 }
-
-
