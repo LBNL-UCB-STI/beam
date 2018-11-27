@@ -12,6 +12,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
@@ -26,11 +27,15 @@ import java.util.stream.Collectors;
 public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
+    private static final String xAxisRootTitle = "Iteration";
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
+    private static final  String carMode = "car";
     private final String fileBaseName = "averageTravelTimes";
+    private final String fileNameForAverageRootCar = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
+    private List<Double> averageTime = new ArrayList<>();
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
     private final boolean writeGraph;
@@ -104,9 +109,28 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 singleDataSet[0] = dataSets[i];
                 CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
+                if(modes.get(i).equals(carMode)){
+                    double averageCarTime = 0.0;
+                    for(double hourData : dataSets[i]){
+                        averageCarTime += hourData;
+                    }
+                    averageTime.add(averageCarTime);
+                    createRootGraphForAverageCarTravelTime(event);
+                }
             }
         }
         createCSV(data, event.getIteration());
+    }
+
+    public void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
+        double[][] singleCarDataSet = new double[1][event.getIteration()+1];
+        for (int i =0 ;i <= event.getIteration() ;i++){
+            singleCarDataSet[0][i] = averageTime.get(i);
+        }
+        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimesDatasetGraph("car",singleCarDataSet);
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForAverageRootCar + ".png");
+        createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
     Tuple<List<String>, double[][]> compute() {
@@ -252,9 +276,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
+    private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
+
+        String graphTitle = "Average Travel Time [" + mode + "]";
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisRootTitle, yAxisTitle, fileName, false);
+        CategoryPlot plot = chart.getCategoryPlot();
+        GraphUtils.plotLegendItems(plot, dataset.getRowCount());
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
 
     }
-
 }
