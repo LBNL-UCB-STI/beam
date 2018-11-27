@@ -393,11 +393,7 @@ class OtherPersonAgentSpec
       )
       expectMsgType[PersonEntersVehicleEvent]
 
-      val costEvent = expectMsgType[PersonCostEvent]
-      assert(costEvent.getTime == 28800) // is this how it should be?
-
-      val anotherCostEvent = expectMsgType[PersonCostEvent]
-      assert(anotherCostEvent.getTime == 28800) // is this how it should be?
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
 
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
@@ -456,8 +452,9 @@ class OtherPersonAgentSpec
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonCostEvent]
-      expectMsgType[PersonCostEvent]
+
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
