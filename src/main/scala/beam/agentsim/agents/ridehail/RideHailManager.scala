@@ -266,7 +266,7 @@ class RideHailManager(
   private val availableRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
   private val outOfServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
   private val inServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
-  private val pendingModifyPassengerScheduleAcks = mutable.HashMap[String, RideHailResponse]()
+  private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
 
@@ -1072,21 +1072,22 @@ class RideHailManager(
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
-      request.requestId.toString,
+      request.staticRequestId,
       RideHailResponse(request, Some(travelProposal))
     )
 
-    log.debug(
-      "Reserving vehicle: {} customer: {} request: {}",
+    log.info(
+      "Reserving vehicle: {} customer: {} request: {} pendingAcks: {}",
       travelProposal.rideHailAgentLocation.vehicleId,
       request.customer.personId,
-      request.requestId
+      request.staticRequestId,
+      s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}"
     )
 
     modifyPassengerScheduleManager.reserveVehicle(
       passengerSchedule,
       travelProposal.rideHailAgentLocation,
-      Some(request.requestId)
+      Some(request.staticRequestId)
     )
   }
 
@@ -1094,7 +1095,11 @@ class RideHailManager(
     requestId: Int,
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
-    pendingModifyPassengerScheduleAcks.remove(requestId.toString) match {
+    log.info(
+      "Removing request: {}",
+      requestId
+    )
+    pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
         log.info("Completing reservation {} for customer {} and vehicle {}", requestId,response.request.customer.personId,theVehicle)

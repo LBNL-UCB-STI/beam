@@ -18,6 +18,7 @@ import scala.collection.mutable
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
+  private var awaitingRoutes = Set[RideHailRequest]()
 
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.getClosestIdleRideHailAgent(
@@ -36,18 +37,32 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+    if(awaitingRoutes.contains(request))awaitingRoutes -= request
     if(!bufferedRideHailRequests.contains(request))addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
   def removeRequestFromBuffer(request: RideHailRequest) = {
-    bufferedRideHailRequests = bufferedRideHailRequests - request
+    bufferedRideHailRequests -= request
   }
 
   def isBufferEmpty = bufferedRideHailRequests.isEmpty
 
   def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
-    allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
+    var allocationResponse = allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
+    allocationResponse match {
+      case VehicleAllocations(allocations) =>
+        allocations.foreach { alloc =>
+          alloc match {
+            case RoutingRequiredToAllocateVehicle(request,_) =>
+              awaitingRoutes += request
+              bufferedRideHailRequests -= request
+            case _ =>
+          }
+        }
+      case _ =>
+    }
+    allocationResponse
   }
 
   /*
@@ -79,7 +94,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case None =>
             NoVehicleAllocated(request)
         }
-      case (request, routingResponses) =>
+      // The following if condition ensures we actually got routes back in all cases
+      case (request, routingResponses) if routingResponses.find(_.itineraries.size==0).isDefined =>
         rideHailManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocation,
@@ -98,6 +114,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case None =>
             NoVehicleAllocated(request)
         }
+      case (request, _) =>
+        NoVehicleAllocated(request)
     }.toList
     VehicleAllocations(allocResponses)
   }

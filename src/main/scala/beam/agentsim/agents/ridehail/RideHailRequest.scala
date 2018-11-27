@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import java.util.UUID
+
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
 import org.apache.commons.lang.builder.HashCodeBuilder
@@ -21,14 +23,16 @@ case class RideHailRequest(
     *
     * @return hashCode(customer, pickUpLocation, departAt, destination)
     */
-  lazy val requestId: Int = {
-    new HashCodeBuilder()
-      .append(customer)
-      .append(pickUpLocation)
-      .append(departAt)
-      .append(destination)
-      .toHashCode
-  }
+//  lazy val requestId: Int = {
+//    new HashCodeBuilder()
+//      .append(customer)
+//      .append(pickUpLocation)
+//      .append(departAt)
+//      .append(destination)
+//      .toHashCode
+//  }
+  lazy val requestId: Int = UUID.randomUUID().hashCode()
+  lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
 
   override def toString: String =
     s"id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocation, time: $departAt, dest: $destination"

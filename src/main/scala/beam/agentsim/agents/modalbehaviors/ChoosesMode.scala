@@ -482,7 +482,6 @@ trait ChoosesMode {
     if (rideHail2TransitAccessResult.error.isEmpty) {
       val tncAccessLeg =
         rideHail2TransitAccessResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs
-          .dropRight(1)
       // Replacing drive access leg with TNC changes the travel time.
       val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
       tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
@@ -504,11 +503,13 @@ trait ChoosesMode {
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
-          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs.tail
+          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs
         } else {
-          accessAndTransit
+          accessAndTransit.dropRight(1)
         }
-        Some(EmbodiedBeamTrip(fullTrip))
+        Some(EmbodiedBeamTrip(EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.head.beamLeg.startTime,bodyId,false) +:
+          fullTrip :+
+          EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.last.beamLeg.endTime,bodyId,true)))
       }
     } else {
       None
