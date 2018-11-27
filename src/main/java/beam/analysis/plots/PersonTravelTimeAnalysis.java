@@ -32,7 +32,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String otherMode = "others";
     private static final  String carMode = "car";
     private final String fileBaseName = "averageTravelTimes";
-    private final String fileNameForAverageRootCar = "averageCarTravelTimes";
+    private final String fileNameForRootGraph = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
@@ -129,7 +129,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         }
         CategoryDataset averageCarDatasetForRootIteration = buildAverageTimesDatasetGraph("car",singleCarDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForAverageRootCar + ".png");
+        String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForRootGraph + ".png");
         createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
