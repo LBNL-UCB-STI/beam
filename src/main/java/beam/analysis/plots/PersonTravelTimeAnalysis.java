@@ -127,7 +127,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         for (int i =0 ;i <= event.getIteration() ;i++){
             singleCarDataSet[0][i] = averageTime.get(i);
         }
-        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimesDatasetGraph("car",singleCarDataSet);
+        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimesDatasetGraph(carMode,singleCarDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForRootGraph + ".png");
         createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
