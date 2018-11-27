@@ -1307,7 +1307,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
 
     TripWithFares(
-      BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector, mapLegMode(access.mode)),
+      BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector),
       withUpdatedTimeAndCost.map(_.fare).zipWithIndex.map(_.swap).toMap
     )
   }
