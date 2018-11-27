@@ -19,22 +19,22 @@ public class PathTraversalEvent extends Event {
     public static final String ATTRIBUTE_LENGTH = "length";
     public static final String ATTRIBUTE_FUEL_TYPE = "fuelType";
     public static final String ATTRIBUTE_FUEL = "fuel";
-    public static final String ATTRIBUTE_NUM_PASS = "num_passengers";
+    public static final String ATTRIBUTE_NUM_PASS = "numPassengers";
 
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
-    public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
-    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrival_time";
+    public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
+    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
-    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
+    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicleType";
     public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
-    public final static String ATTRIBUTE_START_COORDINATE_X = "start.x";
-    public final static String ATTRIBUTE_START_COORDINATE_Y = "start.y";
-    public final static String ATTRIBUTE_END_COORDINATE_X = "end.x";
-    public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
-    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "end_leg_fuel_level";
-    public final static String ATTRIBUTE_AMOUNT_PAID = "amount_paid";
-    public final static String ATTRIBUTE_SEATING_CAPACITY = "seating_capacity";
+    public final static String ATTRIBUTE_START_COORDINATE_X = "startX";
+    public final static String ATTRIBUTE_START_COORDINATE_Y = "startY";
+    public final static String ATTRIBUTE_END_COORDINATE_X = "endX";
+    public final static String ATTRIBUTE_END_COORDINATE_Y = "endY";
+    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "endLegFuelLevel";
+    public final static String ATTRIBUTE_AMOUNT_PAID = "amountPaid";
+    public final static String ATTRIBUTE_SEATING_CAPACITY = "seatingCapacity";
 
     private final AtomicReference<Map<String, String>> attributes;
 
