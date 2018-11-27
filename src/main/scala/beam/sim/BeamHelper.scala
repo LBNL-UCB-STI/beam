@@ -248,7 +248,7 @@ trait BeamHelper extends LazyLogging {
     )
     val configLocation = parsedArgs.configLocation.get
 
-    ConfConsistencyComparator(configLocation)
+    ConfigConsistencyComparator(configLocation)
 
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)

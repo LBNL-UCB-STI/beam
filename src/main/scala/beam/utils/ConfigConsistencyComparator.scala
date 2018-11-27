@@ -6,7 +6,7 @@ import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => Typesa
 
 import scala.collection.JavaConverters._
 
-case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyLogging {
+case class ConfigConsistencyComparator(userConfFileLocation: String) extends LazyLogging {
 
   def parseBeamTemplateConfFile(): Unit = {
     val baseUserConf = ConfigFactory.parseFile(new File(userConfFileLocation))
@@ -16,25 +16,33 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
     val userConf = userBeamConf.withFallback(userMatsimConf)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
 
-    deprecatedParametersInConfig(userConf, templateConf)
+    var logString = "\n\n******************************************************************************************************************\n" +
+    "Config File Consistency Check\n" +
+    "Testing your config file against what BEAM is expecting.\n\n" +
+    "***Found the following deprecated parameters, you can safely remove them from your config file:\n"
+    logString += deprecatedParametersInConfig(userConf, templateConf)
 
-    defaultParametersInConfig(userConf, templateConf)
+    logString += "\n***The following parameters were missing from your config file and will take on these default values:\n"
+    logString += defaultParametersInConfig(userConf, templateConf)
+    logString += "\n******************************************************************************************************************\n"
+
+    logger.info(logString)
   }
 
-  def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
+  def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
 
-    var logString = "###List of deprecated parameters###"
+    var logString = ""
     userConf.entrySet.asScala.foreach { entry =>
       if (!(templateConf.hasPathOrNull(entry.getKey))) {
         logString += "\n\t" + entry.getKey
       }
     }
-    logger.info(logString)
+    logString
   }
 
-  def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): Unit = {
+  def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
 
-    var logString = "###List of default parameters###"
+    var logString = ""
     templateConf.entrySet().asScala.foreach { entry =>
       val paramValue = entry.getValue.unwrapped.toString
       val value = paramValue.substring(paramValue.lastIndexOf('|')+1).trim
@@ -42,7 +50,7 @@ case class ConfConsistencyComparator(userConfFileLocation: String) extends LazyL
         logString += "\n\t" + entry.getKey + " = " + value
       }
     }
-    logger.info(logString)
+    logString
   }
   parseBeamTemplateConfFile
 }
