@@ -1,8 +1,7 @@
 package beam.analysis.plots;
 
 import beam.analysis.IterationSummaryAnalysis;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -15,12 +14,17 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
-import com.google.common.base.CaseFormat;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {

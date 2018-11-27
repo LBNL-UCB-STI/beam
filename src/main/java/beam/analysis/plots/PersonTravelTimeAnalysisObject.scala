@@ -5,7 +5,7 @@ import java.util
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
 
-class PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
+object PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
 
   private val fileBaseName = PersonTravelTimeAnalysis.fileBaseName
 
