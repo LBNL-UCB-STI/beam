@@ -685,8 +685,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
                 var cost = tripWithFares.legFares.getOrElse(index, 0.0)
                 val age = routingRequest.attributesOfIndividual.flatMap(_.age)
-                val ids = beamServices.agencyAndRouteByVehicleIds.get(beamLeg.travelPath.transitStops.fold(Id.createVehicleId("dumy"))(_.vehicleId))
+                val ids = beamServices.agencyAndRouteByVehicleIds.get(beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId))
                 cost = ids.fold(cost)(id => beamServices.ptFares.getPtFare(id._1, Some(id._2), age).getOrElse(cost))
+
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
                     beamLeg,
