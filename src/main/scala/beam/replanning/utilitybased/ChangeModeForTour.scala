@@ -4,9 +4,9 @@ import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
@@ -23,13 +23,13 @@ import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.util.Random
 
 class ChangeModeForTour(
-  beamServices: BeamServices,
-  chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator
-) extends PlanAlgorithm {
+                         beamServices: BeamServices,
+                         chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator
+                       ) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
   val random = new Random(3004568)
@@ -45,10 +45,8 @@ class ChangeModeForTour(
       )
     )
   )
-  private val drivingCostConfig =
-    beamServices.beamConfig.beam.agentsim.agents.drivingCost
   private val rideHailConfig =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail
+  beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   val DefaultRideHailCostPerMile: Double = rideHailConfig.defaultCostPerMile
   val DefaultRideHailCostPerMinute: Double = rideHailConfig.defaultCostPerMinute
@@ -59,15 +57,15 @@ class ChangeModeForTour(
     val res = weightedRandom.sample(1, Array())
     chainBasedTourVehicleAllocator.identifyChainBasedModesForAgent(person.getId) ++ Vector[
       BeamMode
-    ](res(0)) ++
-    Vector[BeamMode](WALK, RIDE_HAIL)
+      ](res(0)) ++
+      Vector[BeamMode](WALK, RIDE_HAIL)
   }
 
   def scoreTour(
-    tour: Subtour,
-    person: Person,
-    modeChoiceCalculator: ModeChoiceCalculator
-  ): Map[BeamMode, Double] = {
+                 tour: Subtour,
+                 person: Person,
+                 modeChoiceCalculator: ModeChoiceCalculator
+               ): Map[BeamMode, Double] = {
     val alternativesForTour = findAlternativesForTour(tour, person)
     (for { alt <- alternativesForTour } yield {
       alt -> JavaConverters
@@ -92,10 +90,10 @@ class ChangeModeForTour(
   }
 
   def getCostAndTimeForMode(
-    beamMode: BeamMode,
-    origin: Activity,
-    dest: Activity
-  ): (Double, Double) = {
+                             beamMode: BeamMode,
+                             origin: Activity,
+                             dest: Activity
+                           ): (Double, Double) = {
     val originCoord = origin.getCoord
     val destCoord = dest.getCoord
     val tripDistanceInMeters = beamServices.geo
@@ -108,7 +106,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        distance * (drivingCostConfig.defaultLitersPerMeter / LITERS_PER_GALLON) * drivingCostConfig.defaultPricePerGallon
+        BeamVehicleType.defaultCarBeamVehicleType.getCost(distance)
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
@@ -134,9 +132,9 @@ class ChangeModeForTour(
   }
 
   def rankAlternatives(
-    plan: Plan,
-    attributesOfIndividual: AttributesOfIndividual
-  ): Map[Int, Map[BeamMode, Double]] = {
+                        plan: Plan,
+                        attributesOfIndividual: AttributesOfIndividual
+                      ): Map[Int, Map[BeamMode, Double]] = {
     val modeChoiceCalculator =
       beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
     val subTours = JavaConverters.collectionAsScalaIterable(
@@ -191,12 +189,12 @@ class ChangeModeForTour(
   }
 
   def insertEmptyTrip(
-    plan: Plan,
-    fromActivity: Activity,
-    toActivity: Activity,
-    mainMode: String,
-    pf: PopulationFactory
-  ): Unit = {
+                       plan: Plan,
+                       fromActivity: Activity,
+                       toActivity: Activity,
+                       mainMode: String,
+                       pf: PopulationFactory
+                     ): Unit = {
     val list: util.List[Leg] = Collections.singletonList(pf.createLeg(mainMode))
     TripRouter.insertTrip(plan, fromActivity, list, toActivity)
   }
@@ -215,7 +213,7 @@ class ChangeModeForTour(
             acts(1),
             "car",
             chainBasedTourVehicleAllocator.population.getFactory
-        )
+          )
       )
   }
 
@@ -296,8 +294,8 @@ class ChangeModeForTour(
 
   private def maybeFixPlans(plan: Plan): Unit = {
     if (JavaConverters
-          .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
-          .isEmpty) {
+      .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
+      .isEmpty) {
       addTripsBetweenActivities(plan)
     }
     plan.getPlanElements.asScala.foreach {

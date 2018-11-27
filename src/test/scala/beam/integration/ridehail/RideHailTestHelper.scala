@@ -23,7 +23,6 @@ object RideHailTestHelper {
         "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
         ConfigValueFactory.fromAnyRef(0.1)
       )
-      .withValue("beam.debug.skipOverBadActors", ConfigValueFactory.fromAnyRef(true))
       .resolve()
 
     config
