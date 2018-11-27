@@ -15,10 +15,10 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ReserveRideHail";
     public final static String ATTRIBUTE_PERSON_ID = "person";
     public final static String ATTRIBUTE_DEPART_TIME = "departTime";
-    public final static String ATTRIBUTE_PICKUP_LOCATION_X = "originX";
-    public final static String ATTRIBUTE_PICKUP_LOCATION_Y = "originY";
-    public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "destinationX";
-    public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "destinationY";
+    public final static String ATTRIBUTE_PICKUP_LOCATION_X = "startX";
+    public final static String ATTRIBUTE_PICKUP_LOCATION_Y = "startY";
+    public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "endX";
+    public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "endY";
 
     private final Id<Person> customerId;
     private final long departTime;
