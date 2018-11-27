@@ -16,25 +16,37 @@ case class ConfigConsistencyComparator(userConfFileLocation: String) extends Laz
     val userConf = userBeamConf.withFallback(userMatsimConf)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
 
-    var logString = "\n\n******************************************************************************************************************\n" +
-    "Config File Consistency Check\n" +
-    "Testing your config file against what BEAM is expecting.\n\n" +
-    "***Found the following deprecated parameters, you can safely remove them from your config file:\n"
-    logString += deprecatedParametersInConfig(userConf, templateConf)
+    var logString = "\n\n*************************************************************************************************************************\n" +
+    "** Config File Consistency Check\n" +
+    "** Testing your config file against what BEAM is expecting.\n" +
+    "**\n"
+    val deprecatedString = deprecatedParametersInConfig(userConf, templateConf)
+    if(!deprecatedString.equals("**\n")){
+      logString += "** Found the following deprecated parameters, you can safely remove them from your config file:\n"
+      logString += deprecatedString
+      logString += "**\n"
+    }
+    val defaultString = defaultParametersInConfig(userConf, templateConf)
+    if(!defaultString.equals("**\n")) {
+      logString += "** The following parameters were missing from your config file, this is ok, but FYI these default values will be assigned:\n"
+      logString += defaultString
+    }
 
-    logString += "\n***The following parameters were missing from your config file and will take on these default values:\n"
-    logString += defaultParametersInConfig(userConf, templateConf)
-    logString += "\n******************************************************************************************************************\n"
+    if(deprecatedString.equals("**\n") && defaultString.equals("**\n")){
+      logString += "** All good, your config file is fully consistent!\n"
+      logString += "**\n"
+    }
+    logString += "*************************************************************************************************************************\n"
 
     logger.info(logString)
   }
 
   def deprecatedParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
 
-    var logString = ""
+    var logString = "**\n"
     userConf.entrySet.asScala.foreach { entry =>
       if (!(templateConf.hasPathOrNull(entry.getKey))) {
-        logString += "\n\t" + entry.getKey
+        logString += "**\t" + entry.getKey + "\n"
       }
     }
     logString
@@ -42,12 +54,12 @@ case class ConfigConsistencyComparator(userConfFileLocation: String) extends Laz
 
   def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
 
-    var logString = ""
+    var logString = "**\n"
     templateConf.entrySet().asScala.foreach { entry =>
       val paramValue = entry.getValue.unwrapped.toString
       val value = paramValue.substring(paramValue.lastIndexOf('|')+1).trim
       if (!(userConf.hasPathOrNull(entry.getKey))) {
-        logString += "\n\t" + entry.getKey + " = " + value
+        logString += "**\t" + entry.getKey + " = " + value + "\n"
       }
     }
     logString
