@@ -6,6 +6,7 @@ import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
@@ -37,10 +38,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
 
-    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation;
+    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation;
     private final boolean writeGraph;
 
-    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation, boolean writeGraph) {
+    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
     }
@@ -56,10 +57,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         return list;
     }
 
-    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
+    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
 
         @Override
-        public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
+        public Tuple<List<String>, Tuple<double[][], Double>> compute(Map<String, Map<Integer, List<Double>>> stat) {
             List<String> modeKeys = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
             int maxHour = hoursList.get(hoursList.size() - 1);
@@ -67,7 +68,11 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             for (int i = 0; i < modeKeys.size(); i++) {
                 data[i] = buildAverageTimesDataset(stat.get(modeKeys.get(i)));
             }
-            return new Tuple<>(modeKeys, data);
+            double dayAverageData = 0.0;
+            if(stat.get(carMode)!=null) {
+                dayAverageData = buildDayAverageDataset(stat.get(carMode));
+            }
+            return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageData));
         }
 
         private double[] buildAverageTimesDataset(Map<Integer, List<Double>> times) {
@@ -85,8 +90,25 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 }
                 travelTimes[i] = average;
             }
-
             return travelTimes;
+        }
+
+        private double buildDayAverageDataset(Map<Integer, List<Double>> times) {
+            List<Integer> hoursList = new ArrayList<>(times.keySet());
+            int maxHour= 0;
+            if(hoursList !=null) {
+                Collections.sort(hoursList);
+                maxHour = hoursList.get(hoursList.size() - 1);
+            }
+
+            double time = 0d;
+            for (int i = 0; i <= maxHour; i++) {
+                List<Double> hourData = times.get(i);
+                if (hourData != null) {
+                    time  += hourData.stream().mapToDouble(val -> val).sum();
+                }
+            }
+            return time / (maxHour+1);
         }
     }
 
@@ -100,24 +122,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        Tuple<List<String>, double[][]> data = compute();
+        Tuple<List<String>, Tuple<double[][], Double>> data = compute();
         List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond();
+        double[][] dataSets = data.getSecond().getFirst();
         if(writeGraph){
             for (int i = 0; i < modes.size(); i++) {
                 double[][] singleDataSet = new double[1][dataSets[i].length];
                 singleDataSet[0] = dataSets[i];
                 CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
-                if(modes.get(i).equals(carMode)){
-                    double averageCarTime = 0.0;
-                    for(double hourData : dataSets[i]){
-                        averageCarTime += hourData;
-                    }
-                    averageTime.add(averageCarTime);
-                    createRootGraphForAverageCarTravelTime(event);
-                }
             }
+            averageTime.add(data.getSecond().getSecond());
+            createRootGraphForAverageCarTravelTime(event);
         }
         createCSV(data, event.getIteration());
     }
@@ -127,19 +143,19 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         for (int i =0 ;i <= event.getIteration() ;i++){
             singleCarDataSet[0][i] = averageTime.get(i);
         }
-        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimesDatasetGraph(carMode,singleCarDataSet);
+        CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode,singleCarDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForRootGraph + ".png");
         createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
-    Tuple<List<String>, double[][]> compute() {
+    Tuple<List<String>, Tuple<double[][], Double>> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
     }
 
-    private void createCSV(Tuple<List<String>, double[][]> data, int iteration) {
+    private void createCSV(Tuple<List<String>, Tuple<double[][], Double>> data, int iteration) {
         List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond();
+        double[][] dataSets = data.getSecond().getFirst();
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
@@ -288,6 +304,24 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     private CategoryDataset buildAverageTimesDatasetGraph(String mode, double[][] dataset) {
         return DatasetUtilities.createCategoryDataset(mode, "", dataset);
+
+    }
+
+    private CategoryDataset buildAverageTimeDatasetGraphForRoot(String mode , double[][] dataset){
+        return createCategoryRootDataset(mode,"",dataset);
+    }
+
+    private static CategoryDataset createCategoryRootDataset(String rowKeyPrefix, String columnKeyPrefix, double[][] data) {
+
+        DefaultCategoryDataset result = new DefaultCategoryDataset();
+        for (int r = 0; r < data.length; r++) {
+            String rowKey = rowKeyPrefix + (r + 1);
+            for (int c = 0; c < data[r].length; c++) {
+                String columnKey = columnKeyPrefix + (c);
+                result.addValue(new Double(data[r][c]), rowKey, columnKey);
+            }
+        }
+        return result;
 
     }
 }
