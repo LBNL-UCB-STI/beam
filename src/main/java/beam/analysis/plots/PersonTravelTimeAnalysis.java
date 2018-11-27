@@ -23,12 +23,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
+public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
-    private final String fileBaseName = "averageTravelTimes";
+    static final String fileBaseName = "averageTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
@@ -38,17 +38,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
-    }
-
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Mode", "Travel mode chosen"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour,*", "Average time taken to travel by the chosen mode during the given hour of the day"));
-        return list;
     }
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, double[][]>> {
