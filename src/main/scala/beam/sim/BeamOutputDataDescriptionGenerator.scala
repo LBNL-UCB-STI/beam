@@ -78,16 +78,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
       beamServices.beamConfig,
       new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation
     ),
-    new BeamMobsim(
-      beamServices,
-      transportNetwork,
-      new TollCalculator(beamServices.beamConfig),
-      scenario,
-      eventsManager,
-      actorSystem,
-      new RideHailSurgePricingManager(beamServices),
-      new RideHailIterationHistory
-    ),
+    BeamMobsim,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,
