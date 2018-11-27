@@ -20,8 +20,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
-import beam.router.r5.NetworkCoordinator
+import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.osm.TollCalculator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -33,7 +34,6 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -64,7 +64,7 @@ class RideHailAgentSpec
   private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -72,11 +72,11 @@ class RideHailAgentSpec
     when(theServices.geo).thenReturn(geo)
     theServices
   }
-  lazy val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
   case class TestTrigger(tick: Int) extends Trigger
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A RideHailAgent") {
 
@@ -156,9 +156,7 @@ class RideHailAgentSpec
     }
 
     it("should drive around when I tell him to") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.registerResource(self)
@@ -182,7 +180,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -195,7 +194,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // Still, I tell it to resume
       rideHailAgent ! Resume()
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
@@ -231,9 +230,7 @@ class RideHailAgentSpec
     }
 
     it("should let me interrupt it and tell it to cancel its job") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
@@ -261,7 +258,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -274,7 +272,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // I tell it to do nothing instead
       rideHailAgent ! StopDriving(30000)
       assert(rideHailAgent.stateName == IdleInterrupted)
@@ -299,9 +297,7 @@ class RideHailAgentSpec
     }
 
     it("won't let me cancel its job after it has picked up passengers") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
@@ -329,7 +325,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -347,7 +344,7 @@ class RideHailAgentSpec
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
-      expectNoMsg()
+      expectNoMessage()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
     }
 
@@ -360,6 +357,7 @@ class RideHailAgentSpec
       }
     })
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {

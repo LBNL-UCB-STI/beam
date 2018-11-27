@@ -4,7 +4,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{RealizedModeStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeStats}
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeAnalysis}
 import beam.integration.IntegrationSpecCommon
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
@@ -24,12 +24,12 @@ import scala.concurrent.Promise
 object RealizedModeStatsGraphSpec {
 
   class RealizedModeStatsGraph(
-    computation: RealizedModeStats.RealizedModesStatsComputation with EventAnalyzer
+    computation: RealizedModeAnalysis.RealizedModesStatsComputation with EventAnalyzer
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val realizedModeStats =
-      new RealizedModeStats(computation)
+      new RealizedModeAnalysis(computation, true)
 
     override def reset(iteration: Int): Unit = {
       realizedModeStats.resetStats()
@@ -102,7 +102,7 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
   "Realized Mode Graph Collected Data" must {
 
     "contains valid realized mode stats" in {
-      val computation = new RealizedModeStats.RealizedModesStatsComputation with EventAnalyzer {
+      val computation = new RealizedModeAnalysis.RealizedModesStatsComputation with EventAnalyzer {
         private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
 
         override def compute(

@@ -12,7 +12,7 @@ object MathUtils {
     * @param scale number of decimal places to use
     * @return
     */
-  def roundDouble(inVal: Double, scale: Int): Double = {
+  def roundDouble(inVal: Double, scale: Int = 3): Double = {
     BigDecimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 }

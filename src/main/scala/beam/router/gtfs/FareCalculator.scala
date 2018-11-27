@@ -43,10 +43,8 @@ class FareCalculator(directory: String) {
     /**
       * Checks whether its a valid gtfs feed and has fares data.
       *
-      * @param file specific file to check.
-      * @return true if a valid zip having fare data.
       */
-    def hasFares(file: File): Boolean = {
+    val hasFares: FileFilter = file => {
       var isFareExist = false
       if (file.getName.endsWith(".zip")) {
         try {
@@ -118,7 +116,7 @@ class FareCalculator(directory: String) {
 
     if (Files.isDirectory(directory)) {
       directory.toFile
-        .listFiles(hasFares(_))
+        .listFiles(hasFares)
         .map(_.getAbsolutePath)
         .foreach(p => {
           val feed = GTFSFeed.fromFile(p)

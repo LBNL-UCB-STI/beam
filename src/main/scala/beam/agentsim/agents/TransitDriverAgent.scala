@@ -13,9 +13,10 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
   NewDriverAlreadyControllingVehicle
 }
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -32,6 +33,7 @@ object TransitDriverAgent {
     scheduler: ActorRef,
     services: BeamServices,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
@@ -43,12 +45,26 @@ object TransitDriverAgent {
         scheduler,
         services,
         transportNetwork,
+        tollCalculator,
         eventsManager,
         parkingManager,
         transitDriverId,
         vehicle,
         legs
       )
+    )
+  }
+
+  def selectByVehicleId(
+    transitVehicle: Id[Vehicle]
+  )(implicit context: ActorContext): ActorSelection = {
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
+  }
+
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
+    Id.create(
+      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString),
+      classOf[TransitDriverAgent]
     )
   }
 
@@ -66,25 +82,13 @@ object TransitDriverAgent {
 
     override def hasParkingBehaviors: Boolean = false
   }
-
-  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
-    Id.create(
-      "TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString),
-      classOf[TransitDriverAgent]
-    )
-  }
-
-  def selectByVehicleId(
-    transitVehicle: Id[Vehicle]
-  )(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
-  }
 }
 
 class TransitDriverAgent(
   val scheduler: ActorRef,
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
@@ -92,11 +96,16 @@ class TransitDriverAgent(
   val legs: Seq[BeamLeg]
 ) extends DrivesVehicle[TransitDriverData] {
 
-  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
-
-  override def logPrefix(): String = s"TransitDriverAgent:$id "
-
   override val id: Id[TransitDriverAgent] = transitDriverId
+
+  val myUnhandled: StateFunction = {
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
+  }
+
+  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   startWith(Uninitialized, TransitDriverData())
 
@@ -135,18 +144,21 @@ class TransitDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_), _) =>
+    // We are done, but we don't stop ourselves immediately.
+    // Instead, we ask the scheduler to be notified after the
+    // concurrency time window has passed, and then stop.
+    // This is because other agents may still want to interact with us until then.
+    case Event(PassengerScheduleEmptyMessage(_, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! CompletionNotice(triggerId)
+      stay
+    case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
       stop
   }
 
-  val myUnhandled: StateFunction = {
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(Finish, _) =>
-      stop
-  }
+  override def logPrefix(): String = s"TransitDriverAgent:$id "
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 

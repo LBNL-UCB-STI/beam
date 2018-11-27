@@ -86,23 +86,28 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
     val AverageMilesPerGallon = 24.8
 
     def apply(engineInformation: EngineInformation): Powertrain = {
-      engineInformation.getFuelType.name() match {
+      val jpm =
+        litersPerMeterToJoulesPerMeter(engineInformation.getFuelType.name(), engineInformation.getGasConsumption)
+      new Powertrain(jpm)
+    }
+
+    def litersPerMeterToJoulesPerMeter(fuelType: String, ltm: Double): Double = {
+      fuelType match {
         case "gasoline" =>
           // convert from L/m to J/m
-          new Powertrain(engineInformation.getGasConsumption * 34.2E6) // 34.2 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+          ltm * 34.2E6 // 34.2 MJ/L, https://en.wikipedia.org/wiki/Energy_density
         case "diesel" =>
           // convert from L/m to J/m
-          new Powertrain(engineInformation.getGasConsumption * 35.8E6) // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+          ltm * 35.8E6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_density
         case "electricity" =>
           // convert from kWh/m to J/m
-          new Powertrain(engineInformation.getGasConsumption * 3.6E6) // 3.6 MJ/kWh
+          ltm * 3.6E6 // 3.6 MJ/kWh
         case "biodiesel" =>
           // convert from L/m to J/m
-          new Powertrain(engineInformation.getGasConsumption * 34.5E6) // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
+          ltm * 34.5E6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
         case fuelName =>
           throw new RuntimeException(s"Unrecognized fuel type in engine information: $fuelName")
       }
-
     }
 
     def PowertrainFromMilesPerGallon(milesPerGallon: Double): Powertrain =

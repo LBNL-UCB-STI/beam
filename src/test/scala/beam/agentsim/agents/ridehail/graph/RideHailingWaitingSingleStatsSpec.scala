@@ -6,11 +6,12 @@ import beam.agentsim.agents.ridehail.graph.RideHailingWaitingSingleStatsSpec.{
   StatsValidationHandler
 }
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.RideHailingWaitingSingleStats
+import beam.analysis.plots.RideHailingWaitingSingleAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamServices
+import beam.utils.MathUtils
 import com.google.inject.Provides
-import org.matsim.api.core.v01.events.{Event, GenericEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -21,18 +22,17 @@ import org.scalatest.{Matchers, WordSpecLike}
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Promise
-import scala.math.BigDecimal.RoundingMode
 
 object RideHailingWaitingSingleStatsSpec {
 
   class RideHailingWaitingSingleGraph(
     beamServices: BeamServices,
-    waitingComp: RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation with EventAnalyzer
+    waitingComp: RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation with EventAnalyzer
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val railHailingSingleStat =
-      new RideHailingWaitingSingleStats(beamServices.beamConfig, waitingComp)
+      new RideHailingWaitingSingleAnalysis(beamServices.beamConfig, waitingComp)
 
     override def reset(iteration: Int): Unit = {
       railHailingSingleStat.resetStats()
@@ -100,7 +100,7 @@ class RideHailingWaitingSingleStatsSpec extends WordSpecLike with Matchers with 
 
     "contains valid rideHailing single stats" in {
       val rideHailingComputation =
-        new RideHailingWaitingSingleStats.RideHailingWaitingSingleComputation with EventAnalyzer {
+        new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation with EventAnalyzer {
 
           private val promise = Promise[util.Map[Integer, lang.Double]]()
 
@@ -116,10 +116,8 @@ class RideHailingWaitingSingleStatsSpec extends WordSpecLike with Matchers with 
             parseEventFile(iteration, handler)
             promise.future.foreach { a =>
               val modes =
-                BigDecimal(handler.counterValue.sum).setScale(3, RoundingMode.HALF_UP).toDouble
-              val all = BigDecimal(a.asScala.values.map(_.toDouble).sum)
-                .setScale(3, RoundingMode.HALF_UP)
-                .toDouble
+                MathUtils.roundDouble(handler.counterValue.sum)
+              val all = MathUtils.roundDouble(a.asScala.values.map(_.toDouble).sum)
 
               modes shouldEqual all
             }

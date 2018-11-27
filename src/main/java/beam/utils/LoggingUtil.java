@@ -7,9 +7,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.FileAppender;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-
 public class LoggingUtil {
     /**
      * Creates a File based appender to create a log file in output dir
@@ -26,7 +23,7 @@ public class LoggingUtil {
         ple.start();
 
         final FileAppender<ILoggingEvent> fileAppender = new FileAppender<>();
-        fileAppender.setFile(String.format("%s/beam-log.out", outputDirectory));
+        fileAppender.setFile(String.format("%s/beamLog.out", outputDirectory));
         fileAppender.setEncoder(ple);
         fileAppender.setContext(lc);
         fileAppender.start();

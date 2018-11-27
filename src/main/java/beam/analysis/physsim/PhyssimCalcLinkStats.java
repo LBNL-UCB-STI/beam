@@ -1,9 +1,8 @@
 package beam.analysis.physsim;
 
-import beam.calibration.impl.example.CountsObjectiveFunction;
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
+import beam.utils.VolumesAnalyzerFixed;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -13,6 +12,7 @@ import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -36,7 +36,6 @@ public class PhyssimCalcLinkStats {
 
     // Static Initializer
     static {
-
         colors.add(Color.GREEN);
         colors.add(Color.BLUE);
         colors.add(Color.GRAY);
@@ -46,8 +45,6 @@ public class PhyssimCalcLinkStats {
         colors.add(Color.BLACK);
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
-
-
     }
 
     /**
@@ -61,7 +58,8 @@ public class PhyssimCalcLinkStats {
     private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
-    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {
+    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
+                                TravelTimeCalculatorConfigGroup ttcConfigGroup) {
         this.network = network;
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
@@ -76,9 +74,8 @@ public class PhyssimCalcLinkStats {
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
 
-        linkStats = new BeamCalcLinkStats(network);
+        linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
-
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
@@ -89,14 +86,15 @@ public class PhyssimCalcLinkStats {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            createModesFrequencyGraph(dataset, iteration);
-
+            if (beamConfig.beam().outputs().writeGraphs()){
+                createModesFrequencyGraph(dataset, iteration);
+            }
         }
 
     }
 
     private boolean isNotTestMode() {
-        return beamConfig != null;
+        return controllerIO != null;
     }
 
 
@@ -214,7 +212,7 @@ public class PhyssimCalcLinkStats {
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relative_speeds.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relativeSpeeds.png");
 
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 plotTitle, xaxis, yaxis,
@@ -269,12 +267,10 @@ public class PhyssimCalcLinkStats {
         return new Color(r, g, b);
     }
 
-    public void notifyIterationStarts(EventsManager eventsManager) {
-
+    public void notifyIterationStarts(EventsManager eventsManager, TravelTimeCalculatorConfigGroup travelTimeCalculatorConfigGroup) {
         this.linkStats.reset();
-        volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
+        volumes = new VolumesAnalyzerFixed(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network);
         eventsManager.addHandler(volumes);
-
         this.relativeSpeedFrequenciesPerBin.clear();
     }
 

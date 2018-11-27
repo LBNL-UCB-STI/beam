@@ -1,17 +1,24 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 /**
   * BEAM
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
     }
@@ -24,12 +31,7 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
-  override def utilityOf(
-    mode: Modes.BeamMode,
-    cost: BigDecimal,
-    time: BigDecimal,
-    numTransfers: Int
-  ): Double = 0.0
+  override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
 }

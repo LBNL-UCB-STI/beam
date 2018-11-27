@@ -1,7 +1,7 @@
 package beam.utils
 
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.plansampling.PlansSampler
+import beam.utils.plan.sampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -10,11 +10,11 @@ import org.scalatest.{Matchers, WordSpecLike}
 class PlansSamplerAppSpec extends WordSpecLike with Matchers {
 
   val inputData: Array[String] = Array(
-    "test/input/sf-light/population.xml",
+    "test/input/sf-light/sample/1k/population.xml.gz",
     "test/input/sf-light/shape/sflight_muni_mask.shp",
-    "test/input/sf-light/physsim-network.xml",
-    "test/input/sf-light/ind_X_hh_out_test.csv",
-    "test/input/sf-light/vehicles.xml",
+    "test/input/sf-light/r5/physsim-network.xml",
+    "test/input/sf-light/ind_X_hh_out_test.csv.gz",
+    "test/test-resources/vehicles.xml",
     "10",
     "output/test/plansampler/",
     "epsg:4326",

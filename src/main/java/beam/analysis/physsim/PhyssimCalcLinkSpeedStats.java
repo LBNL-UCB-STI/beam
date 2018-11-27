@@ -1,16 +1,16 @@
 package beam.analysis.physsim;
 
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
+import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
-import org.jfree.chart.plot.Plot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -28,7 +28,7 @@ import java.util.List;
  * @author Bhavya Latha Bandaru.
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
-public class PhyssimCalcLinkSpeedStats {
+public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -42,7 +42,7 @@ public class PhyssimCalcLinkSpeedStats {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputFileName = "linkAverageSpeedPercentage";
+    private String outputFileName = "physsimLinkAverageSpeedPercentage";
 
     //Public constructor for the PhyssimCalcLinkSpeedStats class
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
@@ -69,7 +69,9 @@ public class PhyssimCalcLinkSpeedStats {
                 this.writeCSV(processedData,outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName+".csv"));
             }
             //generate the requiredGraph
-            generateAverageLinkSpeedGraph(dataSet,iteration);
+            if(beamConfig.beam().outputs().writeGraphs()){
+                generateAverageLinkSpeedGraph(dataSet,iteration);
+            }
         }
     }
 
@@ -77,7 +79,7 @@ public class PhyssimCalcLinkSpeedStats {
     private void writeCSV(Map<Integer, Double> processedData,String path) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(path));
-            String heading = "Bin,x-coordinate,y-coordinate\n";
+            String heading = "Bin,AverageLinkSpeed\n";
             bw.write(heading);
             for (int i = 0; i < processedData.size(); i++) {
                 String line = String.valueOf(i) + "," + String.valueOf(i) + "," + String.valueOf(processedData.get(i)) + "\n";
@@ -142,8 +144,8 @@ public class PhyssimCalcLinkSpeedStats {
     private void generateAverageLinkSpeedGraph(CategoryDataset dataSet, int iterationNumber) {
         // Settings legend and title for the plot
         String plotTitle = "Average Link speed over a day";
-        String x_axis = "Hour";
-        String y_axis = "Average Link Speed %";
+        String x_axis = "Bin";
+        String y_axis = "AverageLinkSpeed";
         int width = 800;
         int height = 600;
 
@@ -192,7 +194,43 @@ public class PhyssimCalcLinkSpeedStats {
         return new Color(r, g, b);
     }
 
-    public void notifyIterationStarts(EventsManager eventsManager) {
+
+
+    public double getAverageSpeedPercentageOfBin(int bin,TravelTimeCalculator travelTimeCalculator) {
+        try {
+            Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+            double[][] dataSet = buildDataSetFromProcessedData(processedData);
+            double[] averageSpeedPercentages = dataSet[0];
+            return averageSpeedPercentages[bin];
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
+    public double[] getAverageSpeedPercentagesOfAllBins(TravelTimeCalculator travelTimeCalculator) {
+        Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
+        double[][] dataSet = buildDataSetFromProcessedData(processedData);
+        return dataSet[0];
+    }
+
+    public int getNumberOfBins() {
+        return noOfBins;
+    }
+
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputFileName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "Bin", "A given time slot within a day"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "AverageLinkSpeed", "The average speed at which a vehicle can travel across the network during the given time bin"));
+        return list;
+    }
 }
