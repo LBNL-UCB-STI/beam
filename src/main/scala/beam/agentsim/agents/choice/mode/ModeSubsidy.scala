@@ -37,6 +37,8 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]]) {
 
 object ModeSubsidy {
 
+  def apply(modeSubsidiesFile: String): ModeSubsidy = new ModeSubsidy(loadSubsidies(modeSubsidiesFile))
+
   def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
     val subsidies: ListBuffer[Subsidy] = ListBuffer()
     val lines = Try(Source.fromFile(new File(subsidiesFile).toString).getLines().toList.tail).getOrElse(List())
