@@ -491,14 +491,31 @@ object BeamRouter {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
   ) = {
+    checkForConsistentTimeZoneOffsets(beamServices,transportNetwork)
+
+    Props(
+      new BeamRouter(
+        beamServices,
+        transportNetwork,
+        network,
+        scenario,
+        eventsManager,
+        transitVehicles,
+        fareCalculator,
+        tollCalculator
+      )
+    )
+  }
+
+  def checkForConsistentTimeZoneOffsets(beamServices: BeamServices,transportNetwork: TransportNetwork) = {
     if (beamServices.dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
-          beamServices.dates.localBaseDateTime
-        )) {
+      beamServices.dates.localBaseDateTime
+    )) {
       throw new RuntimeException(
         s"Time Zone Mismatch\n\n" +
-        s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(beamServices.dates.localBaseDateTime)}\n" +
-        s"\tZone offset specified in Beam config file: ${beamServices.dates.zonedBaseDateTime.getOffset}\n\n" +
-        "Detailed Explanation:\n\n" +
+          s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(beamServices.dates.localBaseDateTime)}\n" +
+          s"\tZone offset specified in Beam config file: ${beamServices.dates.zonedBaseDateTime.getOffset}\n\n" +
+          "Detailed Explanation:\n\n" +
           "There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems.\n\n" +
           "BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers’ minds, so they infer the time zone of the region being modeled from the 'timezone' field in the 'agency.txt' file in the first GTFS data archive that is parsed during the network building process.\n\n" +
           "Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC.\n\n" +
@@ -513,18 +530,6 @@ object BeamRouter {
       )
     }
 
-    Props(
-      new BeamRouter(
-        beamServices,
-        transportNetwork,
-        network,
-        scenario,
-        eventsManager,
-        transitVehicles,
-        fareCalculator,
-        tollCalculator
-      )
-    )
   }
 
   sealed trait WorkMessage
