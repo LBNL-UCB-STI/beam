@@ -79,8 +79,8 @@ class SingleModeSpec
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
-    when(services.agencyAndRouteByVehicleIds).thenReturn( TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn( PtFares(Map[String, List[FareRule]]()))
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.privateVehicles).thenReturn {
       BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
     }

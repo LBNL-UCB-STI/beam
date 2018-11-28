@@ -5,7 +5,18 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  Address,
+  Cancellable,
+  ExtendedActorSystem,
+  Props,
+  RelativeActorPath,
+  RootActorPath,
+  Stash
+}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -110,8 +121,12 @@ class BeamRouter(
 
   // TODO FIX ME
   val travelTimeAndCost = new TravelTimeAndCost {
-    override def overrideTravelTimeAndCostFor(origin: Location, destination: Location,
-                                              departureTime: Int, mode: BeamMode): TimeAndCost = TimeAndCost(None, None)
+    override def overrideTravelTimeAndCostFor(
+      origin: Location,
+      destination: Location,
+      departureTime: Int,
+      mode: BeamMode
+    ): TimeAndCost = TimeAndCost(None, None)
   }
 
   if (services.beamConfig.beam.useLocalWorker) {
@@ -385,7 +400,8 @@ class BeamRouter(
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           services.vehicles += (tripVehId -> vehicle)
-          services.agencyAndRouteByVehicleIds += (Id.createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
+          services.agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -445,11 +461,11 @@ object BeamRouter {
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
-
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()
-    lazy val timeValueOfMoney: Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+    lazy val timeValueOfMoney
+      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
 
   sealed trait IntermodalUse
