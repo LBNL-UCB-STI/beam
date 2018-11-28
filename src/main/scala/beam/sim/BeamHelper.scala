@@ -6,6 +6,7 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
@@ -17,6 +18,7 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils._
 import beam.utils.csv.readers.PlanReaderCsv
 import beam.utils.reflection.ReflectionUtils
@@ -372,6 +374,13 @@ trait BeamHelper extends LazyLogging {
     }
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+
+
+    val vehicleTypes: List[BeamVehicleType] = VehiclesAdjustment
+      .getVehicleAdjustment(beamServices)
+      .sampleVehicleTypesForHousehold(10, BeamVehicleType.Car,
+        1000.0, 2, null, null)
+
     run(beamServices)
 
     (scenario.getConfig, outputDir)

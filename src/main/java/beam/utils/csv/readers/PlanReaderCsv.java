@@ -378,6 +378,11 @@ public class PlanReaderCsv {
             objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(Id.create(hhId, Household.class)));
             objHouseHold.setMemberIds(houseHoldPersons.get(hhId));
 
+            /*
+            We will get the vehicle types first and then we can generate the vehicles after that
+
+             */
+
             Income income;
             String incomeStr = houseHoldMap.get("income");
 
