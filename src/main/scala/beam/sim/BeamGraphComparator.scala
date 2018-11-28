@@ -53,7 +53,7 @@ object BeamGraphComparator {
     val graphMenu: Elem = <ul class="list-group">
       {
       ListMap(files.toSeq.sortBy(_._1._1): _*) map { grp =>
-        <li class="list-group-item">
+        <li class="list-group-item" style="word-wrap: break-word;">
           <strong>{grp._1._2}</strong>
           <ul>
             {
