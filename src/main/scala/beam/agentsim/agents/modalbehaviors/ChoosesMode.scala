@@ -119,9 +119,9 @@ trait ChoosesMode {
           departTime,
           Modes.filterForTransit(transitModes),
           vehicles,
+          Some(attributes),
           streetVehiclesIntermodalUse,
-          mustParkAtEnd = true,
-          timeValueOfMoney = 3600.0 / attributes.valueOfTime
+          mustParkAtEnd = true
         )
         if (withParking) {
           requestParkingCost(
@@ -158,7 +158,7 @@ trait ChoosesMode {
           departTime.copy(atTime = startWithWaitBuffer.toInt),
           Vector(TRANSIT),
           Vector(bodyStreetVehicle, dummyRHVehicle.copy(location = currentSpaceTime)),
-          AccessAndEgress
+          streetVehiclesUseIntermodalUse = AccessAndEgress
         )
         router ! theRequest
         Some(theRequest.requestId)
@@ -179,7 +179,7 @@ trait ChoosesMode {
       }
 
       val hasRideHail = availableModes.contains(RIDE_HAIL)
-      val willRequestDrivingRoute = streetVehicles.find(_.mode == CAR).isDefined
+      val willRequestDrivingRoute = streetVehicles.exists(_.mode == CAR)
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
@@ -285,7 +285,7 @@ trait ChoosesMode {
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(RIDE_HAIL) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
