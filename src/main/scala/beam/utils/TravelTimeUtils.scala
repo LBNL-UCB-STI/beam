@@ -22,18 +22,17 @@ object TravelTimeUtils {
     if (linkTravelTime.nonEmpty) {
       if (originalTravelTime != 0) {
         val ratio = newTravelTime.toDouble / originalTravelTime
-        val newLinkTravelTimes = linkTravelTime.map { t => (t * ratio).toInt
+        val newLinkTravelTimes = linkTravelTime.map { t =>
+          (t * ratio).toInt
         }.toArray
         val delta = newTravelTime - newLinkTravelTimes.sum
         val newLast = newLinkTravelTimes.last + delta
         newLinkTravelTimes.update(newLinkTravelTimes.length - 1, newLast)
         newLinkTravelTimes
-      }
-      else {
+      } else {
         linkTravelTime
       }
-    }
-    else {
+    } else {
       IndexedSeq.empty
     }
   }
