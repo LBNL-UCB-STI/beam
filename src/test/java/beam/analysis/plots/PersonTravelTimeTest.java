@@ -1,10 +1,15 @@
 package beam.analysis.plots;
 
 import org.junit.Before;
+import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.utils.collections.Tuple;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -29,13 +34,22 @@ public class PersonTravelTimeTest {
     }
 
     private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
-            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {}, true);
+            new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
+                @Override
+                public Tuple<List<String>, Tuple<double[][], Double>>  compute(Map<String, Map<Integer, List<Double>>> stat) {
+                    Tuple<List<String>, Tuple<double[][], Double>>  compute = super.compute(stat);
+                    statsComputed = compute.getSecond().getFirst();
+                    return compute;
+                }
+            }, true);
 
     @Before
     public void setUpClass() {
         GraphTestUtil.createDummySimWithXML(new PersonTravelTimeHandler(personTravelTimeStats));
         personTravelTimeStats.compute();
     }
+
+    private double[][] statsComputed;
 
 
     @Test
@@ -47,7 +61,7 @@ public class PersonTravelTimeTest {
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          *
-         **/
+         */
 
         int expectedResultOfMode[] = {3, 38, 4, 32, 17};
         int actualResultOfMode[] = {
@@ -59,6 +73,8 @@ public class PersonTravelTimeTest {
         };
         assertArrayEquals(expectedResultOfMode, actualResultOfMode);
     }
+
+
 
 
 }

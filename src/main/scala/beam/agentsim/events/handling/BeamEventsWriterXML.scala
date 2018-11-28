@@ -37,7 +37,7 @@ class BeamEventsWriterXML(
     try {
       val attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes)
       val keyValues = attrKeys.asScala map { key =>
-        val encodedString = encodeAttributeValue(eventAttributes.getOrDefault(key, ""))
+        val encodedString = encodeAttributeValue(checkForNull(eventAttributes.getOrDefault(key, "")))
         key + "=\"" + encodedString + "\" "
       }
       //write the event tag to the xml file
@@ -47,6 +47,10 @@ class BeamEventsWriterXML(
       case e: Exception =>
         throw e
     }
+  }
+
+  private def checkForNull(v: String): String = {
+    if(null == v) "" else v
   }
 
   /**

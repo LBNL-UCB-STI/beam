@@ -1,15 +1,12 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
-  PersonTravelTimeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
 import com.google.inject.Provides
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
@@ -83,21 +80,13 @@ object PersonTravelTimeStatsGraphSpec {
     private def updateCounterTime(evn: PersonArrivalEvent): Seq[(String, Double)] = {
       val mode = evn.getLegMode
       val personId = evn.getPersonId.toString
-      val modePersonTime = personTravelTime
+      val modeTime = personTravelTime
         .get(mode -> personId)
-        .map(i => (mode -> personId) -> i)
-        .orElse(
-          personTravelTime.find { case ((_, pers), _) => pers == personId }
-        )
-      modePersonTime.map(_._1._1).foreach { m =>
-        personTravelTime = personTravelTime - (m -> personId)
-      }
-      val modeTime = modePersonTime
-        .map {
-          case ((m, _), time) if m == mode => m        -> time
-          case ((_, _), time)              => "others" -> time
+        .map { time =>
+          val travelTime = (evn.getTime - time) / 60
+          mode -> travelTime
         }
-        .map({ case (m, time) => (m, (evn.getTime - time) / 60) })
+      personTravelTime = personTravelTime - (mode -> personId)
       modeTime.fold(counter)(items => counter :+ items)
     }
 
@@ -111,7 +100,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
 
   "Person Travel Time Graph Collected Data" must {
 
-    "contains valid travel time stats" ignore {
+    "contains valid travel time stats" in {
       val travelTimeComputation = new PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer {
 
         private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
@@ -121,9 +110,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             String,
             util.Map[Integer, util.List[lang.Double]]
           ]
-        ): Tuple[util.List[String], Array[
-          Array[Double]
-        ]] = {
+        ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
           promise.success(stat)
           super.compute(stat)
         }
@@ -143,11 +130,18 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
               case (mode, times) =>
                 mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
             }
-            //handler.isEmpty shouldBe true
+//            handler.isEmpty shouldBe true
             modes shouldEqual all
           }
         }
       }
+
+      val testConfig = baseConfig.withValue(
+        "beam.outputs.events.overrideWritingLevels",
+        ConfigValueFactory.fromAnyRef(
+          "org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE,org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE"
+        )
+      )
 
       GraphRunHelper(
         new AbstractModule() {
@@ -163,11 +157,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             graph
           }
         },
-        ConfigFactory
-          .parseString(
-            "beam.outputs.events.overrideWritingLevels = \"org.matsim.api.core.v01.events.ActivityEndEvent:REGULAR,org.matsim.api.core.v01.events.ActivityStartEvent:REGULAR, org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE, org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE\""
-          )
-          .withFallback(baseConfig)
+        testConfig
       ).run()
     }
   }

@@ -49,6 +49,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
+//        int expectedResult = 956;//1114;//1113.5134131391999 ;
         long expectedResult = 16566982237L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
