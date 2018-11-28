@@ -1,6 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.File
+import java.io.FileNotFoundException
+import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 
@@ -24,8 +25,10 @@ object PtFares {
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
   def loadPtFares(subsidiesFile: String): Map[String, List[FareRule]] = {
+    if (Files.notExists(Paths.get(subsidiesFile)))
+      throw new FileNotFoundException(s"PtFares file not found at location: $subsidiesFile")
     val fareRules: ListBuffer[FareRule] = ListBuffer()
-    val lines = Try(Source.fromFile(new File(subsidiesFile).toString).getLines().toList.tail).getOrElse(List())
+    val lines = Try(Source.fromFile(subsidiesFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 

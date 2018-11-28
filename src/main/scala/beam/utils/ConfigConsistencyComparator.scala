@@ -21,18 +21,18 @@ case class ConfigConsistencyComparator(userConfFileLocation: String) extends Laz
     "** Testing your config file against what BEAM is expecting.\n" +
     "**\n"
     val deprecatedString = deprecatedParametersInConfig(userConf, templateConf)
-    if(!deprecatedString.equals("**\n")){
+    if (!deprecatedString.equals("**\n")) {
       logString += "** Found the following deprecated parameters, you can safely remove them from your config file:\n"
       logString += deprecatedString
       logString += "**\n"
     }
     val defaultString = defaultParametersInConfig(userConf, templateConf)
-    if(!defaultString.equals("**\n")) {
+    if (!defaultString.equals("**\n")) {
       logString += "** The following parameters were missing from your config file, this is ok, but FYI these default values will be assigned:\n"
       logString += defaultString
     }
 
-    if(deprecatedString.equals("**\n") && defaultString.equals("**\n")){
+    if (deprecatedString.equals("**\n") && defaultString.equals("**\n")) {
       logString += "** All good, your config file is fully consistent!\n"
       logString += "**\n"
     }
@@ -57,7 +57,7 @@ case class ConfigConsistencyComparator(userConfFileLocation: String) extends Laz
     var logString = "**\n"
     templateConf.entrySet().asScala.foreach { entry =>
       val paramValue = entry.getValue.unwrapped.toString
-      val value = paramValue.substring(paramValue.lastIndexOf('|')+1).trim
+      val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
       if (!(userConf.hasPathOrNull(entry.getKey))) {
         logString += "**\t" + entry.getKey + " = " + value + "\n"
       }
