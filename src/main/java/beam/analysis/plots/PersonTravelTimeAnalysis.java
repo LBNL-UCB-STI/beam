@@ -94,21 +94,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         }
 
         private double buildDayAverageDataset(Map<Integer, List<Double>> times) {
-            List<Integer> hoursList = new ArrayList<>(times.keySet());
-            int maxHour= 0;
-            if(hoursList !=null) {
-                Collections.sort(hoursList);
-                maxHour = hoursList.get(hoursList.size() - 1);
-            }
-
+            Set<Integer> hourSet = times.keySet();
+            int count= 0;
             double time = 0d;
-            for (int i = 0; i <= maxHour; i++) {
+            for (Integer i: hourSet) {
                 List<Double> hourData = times.get(i);
                 if (hourData != null) {
                     time  += hourData.stream().mapToDouble(val -> val).sum();
+                    count += hourData.size();
                 }
             }
-            return time / (maxHour+1);
+
+            return time / count;
         }
     }
 
