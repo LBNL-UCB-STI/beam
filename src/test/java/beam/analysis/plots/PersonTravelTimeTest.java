@@ -36,9 +36,9 @@ public class PersonTravelTimeTest {
     private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(
             new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
                 @Override
-                public Tuple<List<String>, double[][]> compute(Map<String, Map<Integer, List<Double>>> stat) {
-                    Tuple<List<String>, double[][]> compute = super.compute(stat);
-                    statsComputed = compute.getSecond();
+                public Tuple<List<String>, Tuple<double[][], Double>>  compute(Map<String, Map<Integer, List<Double>>> stat) {
+                    Tuple<List<String>, Tuple<double[][], Double>>  compute = super.compute(stat);
+                    statsComputed = compute.getSecond().getFirst();
                     return compute;
                 }
             }, true);
