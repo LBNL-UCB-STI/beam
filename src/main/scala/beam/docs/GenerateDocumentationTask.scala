@@ -6,7 +6,8 @@ import java.nio.file.{FileSystems, Path, Paths}
 import scala.collection.JavaConverters._
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.{OutputDataDescription, ScoreStatsOutputs}
+import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription, ScoreStatsOutputs}
+import beam.utils.OutputDataDescriptor
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
@@ -23,11 +24,14 @@ object GenerateDocumentationTask extends App with StrictLogging {
 
     initializeDependencies(outputDirectory.toString)
 
-    val content = buildDocument()
+    BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs.foreach { clazz: OutputDataDescriptor =>
+      val outputFilename = clazz.getClass.getSimpleName
+      val content = buildDocument(clazz)
+      val outputFile = Paths.get(outputDirectory.toString, outputFilename + ".rst")
+      writeFile(content, outputFile)
+      logger.info("Generating Output data description finished")
+    }
 
-    val outputFile = Paths.get(outputDirectory.toString, "outputs.rst")
-    writeFile(content, outputFile)
-    logger.info("Generating Output data description finished")
   }
 
   def loadValues(): Seq[OutputDataDescription] = {
@@ -41,23 +45,23 @@ object GenerateDocumentationTask extends App with StrictLogging {
     )
   }
 
-  def buildDocument(): String = {
-    new StringBuilder(buildTitle)
-      .append(buildTable())
+  def buildDocument(descriptor: OutputDataDescriptor ): String = {
+    new StringBuilder(buildTitle(descriptor))
+      .append(buildTable(descriptor))
       .toString()
   }
 
-  def buildTitle: String = {
-    """
-      |Output data description
+  def buildTitle(descriptor: OutputDataDescriptor): String = {
+    s"""
+      |${descriptor.getClass.getName}
       |=======================
       |""".stripMargin
   }
 
-  def buildTable(): String = {
+  def buildTable(descriptor: OutputDataDescriptor): String = {
     val eol = System.lineSeparator()
 
-    val allValues: Seq[OutputDataDescription] = ScoreStatsOutputs.getOutputDataDescriptions.asScala
+    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions.asScala
 
     val columns: Seq[String] = ReflectionUtil.classAccessors[OutputDataDescription].map(_.name.toString)
     val columnsSize: Map[String, Int] = columns.map { fieldName =>
