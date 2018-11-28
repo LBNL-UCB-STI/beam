@@ -1,10 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.{File, FileNotFoundException}
+import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
@@ -21,7 +20,7 @@ case class PtFares(ptFares: Map[String, List[FareRule]]) {
   }
 }
 
-object PtFares extends LazyLogging {
+object PtFares {
 
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
