@@ -4,38 +4,36 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
-import akka.event.LoggingAdapter
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.vehicleId2BeamVehicleId
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.vehicleId2BeamVehicleId
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.contrib.bicycle.BicycleUtils
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 class Population(
   val scenario: Scenario,
   val beamServices: BeamServices,
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
@@ -52,10 +50,10 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val initParkingVeh = mutable.ListBuffer[ActorRef]()
+  private val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer()
 
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
-    mutable.Map[Id[Person], Id[Household]]()
+    mutable.Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
     personToHouseholdId ++= matSimHousehold.getMemberIds.asScala
       .map(personId => personId -> householdId)
@@ -69,7 +67,7 @@ class Population(
     // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
-      initParkingVeh.foreach(context.stop(_))
+      initParkingVeh.foreach(context.stop)
       initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
@@ -115,17 +113,21 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-            Population.getVehiclesFromHousehold(household, beamServices)
-
-          houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
-
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+            .collectionAsScalaIterable(household.getVehicleIds)
+            .map { vid =>
+              val bvid = BeamVehicle.createId(vid)
+              bvid -> beamServices.privateVehicles(bvid)
+            }
+            .toMap
+          householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
               beamServices.modeChoiceCalculatorFactory,
               scheduler,
               transportNetwork,
+              tollCalculator,
               router,
               rideHailManager,
               parkingManager,
@@ -133,17 +135,17 @@ class Population(
               scenario.getPopulation,
               household.getId,
               household,
-              houseHoldVehicles,
+              householdVehicles,
               homeCoord
             ),
             household.getId.toString
           )
 
-          houseHoldVehicles.values.foreach { veh =>
+          householdVehicles.values.foreach { veh =>
             veh.manager = Some(householdActor)
           }
 
-          houseHoldVehicles.foreach {
+          householdVehicles.foreach {
             vehicle =>
               val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
                 parkingManager ! ParkingInquiry(
@@ -157,7 +159,7 @@ class Population(
                   0
                 ) //TODO personSelectedPlan.getType is null
 
-                def receive = {
+                def receive: Receive = {
                   case ParkingInquiryResponse(stall, _) =>
                     vehicle._2.useParkingStall(stall)
                     context.stop(self)
@@ -183,9 +185,7 @@ class Population(
 
 object Population {
   val defaultVehicleRange = 500e3
-  val refuelRateLimitInWatts = None
-
-  case object InitParkingVehicles
+  val refuelRateLimitInWatts: Option[_] = None
 
   def getVehiclesFromHousehold(
     household: Household,
@@ -214,6 +214,7 @@ object Population {
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -225,6 +226,7 @@ object Population {
         services,
         scheduler,
         transportNetwork,
+        tollCalculator,
         router,
         rideHailManager,
         parkingManager,
@@ -232,5 +234,7 @@ object Population {
       )
     )
   }
+
+  case object InitParkingVehicles
 
 }

@@ -1,27 +1,13 @@
 package beam.replanning
 
-import com.google.inject.Provider
-import org.matsim.api.core.v01.population.Plan
-import org.matsim.api.core.v01.replanning.PlanStrategyModule
-import org.matsim.core.replanning.selectors.RandomPlanSelector
-import org.matsim.core.replanning.{PlanStrategy, PlanStrategyImpl, ReplanningContext}
-
-import scala.collection.JavaConverters._
-import scala.util.Random
-
 import javax.inject.Inject
-
-import org.matsim.api.core.v01.population.{HasPlansAndId, Leg, Person, Plan}
+import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 import org.matsim.core.config.Config
-import org.matsim.core.replanning.{PlanStrategy, ReplanningContext}
 
 import scala.collection.JavaConverters._
-
 import scala.util.Random
 
-class SwitchModalityStyle @Inject()(config: Config) extends PlanStrategy {
-  override def init(replanningContext: ReplanningContext): Unit = {}
-
+class SwitchModalityStyle @Inject()(config: Config) extends PlansStrategyAdopter {
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     ReplanningUtil.updateAndAddExperiencedPlan(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)
@@ -41,8 +27,6 @@ class SwitchModalityStyle @Inject()(config: Config) extends PlanStrategy {
     }
     plan.getAttributes.putAttribute("modality-style", styleToTryNext)
   }
-
-  override def finish(): Unit = {}
 }
 
 object SwitchModalityStyle {

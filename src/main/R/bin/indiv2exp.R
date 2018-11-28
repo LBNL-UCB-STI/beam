@@ -19,8 +19,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-c('pruning-1','/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-19_21-23-36 2/','/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/')
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
+  #args<-c('pruning-1','/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-19_21-23-36 2/','/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/')
+  args<-c('rh2transit','/Users/critter/Downloads/output 2/application-sfbay/RH2Transit_Plus10__2018-09-26_04-55-53/')
   args <- parse_args(OptionParser(option_list = option_list,usage = "indiv2exp.R [exp-name] [run-directories]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "indiv2exp.R [exp-name] [run-directories]"),positional_arguments=T)

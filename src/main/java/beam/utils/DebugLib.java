@@ -92,7 +92,6 @@ public class DebugLib {
 
     public static void whileTrue() {
         System.out.print("starting DebugLib.whileTrue");
-        while (true) {
-        }
+        while (true);
     }
 }

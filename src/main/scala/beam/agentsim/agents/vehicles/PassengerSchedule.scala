@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -24,11 +24,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     })
     newSchedule = newSchedule ++ legs.headOption.map(boardLeg => {
       val manifest: Manifest = newSchedule.getOrElse(boardLeg, Manifest())
-      (boardLeg, manifest.copy(boarders = manifest.boarders + passenger.vehicleId))
+      (boardLeg, manifest.copy(boarders = manifest.boarders + passenger))
     })
     newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => {
       val manifest: Manifest = newSchedule.getOrElse(alightLeg, Manifest())
-      (alightLeg, manifest.copy(alighters = manifest.alighters + passenger.vehicleId))
+      (alightLeg, manifest.copy(alighters = manifest.alighters + passenger))
     })
     PassengerSchedule(newSchedule)
   }
@@ -45,12 +45,16 @@ object BeamLegOrdering extends Ordering[BeamLeg] {
 
   def compare(a: BeamLeg, b: BeamLeg): Int = {
     val compare1 = java.lang.Long.compare(a.startTime, b.startTime)
-    if (compare1 != 0) return compare1
-    val compare2 = java.lang.Long.compare(a.duration, b.duration)
-    if (compare2 != 0) return compare2
-    val compare3 = a.travelPath == b.travelPath
-    if (!compare3) return 1
-    0
+    if (compare1 != 0) compare1
+    else {
+      val compare2 = java.lang.Long.compare(a.duration, b.duration)
+      if (compare2 != 0) compare2
+      else {
+        val compare3 = a.travelPath == b.travelPath
+        if (!compare3) 1
+        else 0
+      }
+    }
   }
 }
 
@@ -68,8 +72,8 @@ case class VehiclePersonId(
 
 case class Manifest(
   riders: Set[VehiclePersonId] = Set.empty,
-  boarders: Set[Id[Vehicle]] = Set.empty,
-  alighters: Set[Id[Vehicle]] = Set.empty
+  boarders: Set[VehiclePersonId] = Set.empty,
+  alighters: Set[VehiclePersonId] = Set.empty
 ) {
   override def toString: String = {
     s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"

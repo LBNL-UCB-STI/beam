@@ -1,9 +1,10 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.FileUtils
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -25,8 +26,9 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
@@ -42,7 +44,9 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
       }
     )
 
-    val controller = injector.getInstance(classOf[BeamServices]).controler
+    val services = injector.getInstance(classOf[BeamServices])
+    DefaultPopulationAdjustment(services).update(scenario)
+    val controller = services.controler
     controller.run()
 
     verify(iterationCounter, times(1)).notifyIterationEnds(any())

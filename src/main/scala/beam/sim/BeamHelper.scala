@@ -2,22 +2,23 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.r5.NetworkCoordinator
+import beam.router.osm.TollCalculator
+import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.PopulationAdjustment
+import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
+import beam.utils._
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{BashUtils, BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -191,6 +192,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[BeamSim])
 
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
+          bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
 
           bindMobsim().to(classOf[BeamMobsim])
@@ -203,6 +205,7 @@ trait BeamHelper extends LazyLogging {
           addPlanStrategyBinding("SwitchModalityStyle").to(classOf[SwitchModalityStyle])
           addPlanStrategyBinding("ClearRoutes").to(classOf[ClearRoutes])
           addPlanStrategyBinding("ClearModes").to(classOf[ClearModes])
+          addPlanStrategyBinding("TimeMutator").to(classOf[BeamTimeMutator])
           addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString)
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
@@ -221,8 +224,12 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
+          bind(classOf[RideHailIterationHistory]).asEagerSingleton()
+          bind(classOf[TollCalculator]).asEagerSingleton()
+
           // Override EventsManager
           bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
+
         }
       }
     )
@@ -237,7 +244,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "config is a required value, and must yield a valid config."
+      "Beam config is a required, Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
@@ -333,6 +340,25 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
+    val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      module(config, scenario, networkCoordinator)
+    )
+
+    networkCoordinator.convertFrequenciesToTrips()
+
+    scenario.setNetwork(networkCoordinator.network)
+
+    val beamServices = injector.getInstance(classOf[BeamServices])
+    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+    run(beamServices)
+
+    (scenario.getConfig, outputDir)
+  }
+
+  def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
@@ -340,6 +366,10 @@ trait BeamHelper extends LazyLogging {
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    if (!beamConfig.beam.outputs.writeGraphs) {
+      matsimConfig.counts.setOutputFormat("txt")
+      matsimConfig.controler.setCreateGraphs(false)
+    }
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
@@ -354,31 +384,45 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
-    logger.info(s"Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
+    logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
-    logger.info(s"Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+    val networkCoordinator: NetworkCoordinator =
+      if (Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
+        FrequencyAdjustingNetworkCoordinator(beamConfig)
+      } else {
+        DefaultNetworkCoordinator(beamConfig)
+      }
+    networkCoordinator.init()
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
+    val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
+    val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
+    beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
 
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      module(config, scenario, networkCoordinator)
-    )
+    // TODO ASIF
+    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
+    if (beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
 
-    val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
+      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
+      scenario.setPopulation(population)
 
-    samplePopulation(scenario, beamConfig, matsimConfig, beamServices)
+      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty) {
+        logger.warn(
+          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
+        )
+      }
+    }
 
+    (scenario, outputDirectory, networkCoordinator)
+  }
+
+  def run(beamServices: BeamServices) {
     beamServices.controler.run()
-
     if (isMetricsEnable) Kamon.shutdown()
-
-    (matsimConfig, outputDirectory)
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
@@ -423,10 +467,24 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
-    }
 
-    val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
-    populationAdjustment.update(scenario)
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
+
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+    } else {
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      populationAdjustment.update(scenario)
+      beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+        .values()
+        .asScala
+        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+        .toMap
+    }
   }
 }
 

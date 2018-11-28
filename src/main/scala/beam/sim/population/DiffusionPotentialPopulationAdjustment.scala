@@ -12,7 +12,7 @@ import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 
-class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
 
@@ -156,21 +156,13 @@ object DiffusionPotentialPopulationAdjustment {
   }
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
-    val itrPerson = population.getPersons.values().iterator()
-    while (itrPerson.hasNext) {
-      val person = itrPerson.next()
-      if (person.getId.equals(personId)) return Some(person)
-    }
-    None
+    val persons = population.getPersons.values().asScala
+    persons.collectFirst { case person if person.getId.equals(personId) => person }
   }
 
   def findHousehold(scenario: Scenario, personId: Id[Person]): Option[Household] = {
-    val itrHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-    while (itrHouseholds.hasNext) {
-      val household = itrHouseholds.next()
-      if (household.getMemberIds.contains(personId)) return Some(household)
-    }
-    None
+    val households = scenario.getHouseholds.getHouseholds.values().asScala
+    households.collectFirst { case household if household.getMemberIds.contains(personId) => household }
   }
 
   /*val dependentVariables = Map(

@@ -1,19 +1,23 @@
 package beam.calibration.utils
 
+import java.io.File
+
 import beam.calibration.SigoptExperimentData
+import beam.experiment.{ExperimentApp, ExperimentDef}
 import com.sigopt.Sigopt
 import com.typesafe.scalalogging.LazyLogging
 
-object CreateExperiment extends LazyLogging {
+object CreateExperiment extends ExperimentApp {
   private val NEW_EXPERIMENT_FLAG = "00000"
 
   // Store CLI inputs as private members
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
 
-  def main(args: Array[String]): Unit = {
+  override def lastThingDoneInMain(): Unit = {
     val experimentLoc: String =
-      "production/application-sfbay/calibration/experiment_modes_and_counts_calibration_intercept_and_network.yml"
+      "production/application-sfbay/calibration/experiment_modes_calibration.yml"
     val benchmarkLoc: String = "production/application-sfbay/calibration/benchmark.csv"
-    SigoptExperimentData(experimentLoc, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
+    SigoptExperimentData(experimentDef, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
   }
+
 }

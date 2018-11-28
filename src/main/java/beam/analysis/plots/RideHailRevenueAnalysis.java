@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -18,12 +20,15 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
-public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
+public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
 
     private RideHailSurgePricingManager surgePricingManager;
+    private String fileBaseName = "rideHailRevenue";
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
@@ -49,8 +54,9 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
         model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-
-        createGraph(data);
+        if(surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()){
+            createGraph(data);
+        }
 
         writeRideHailRevenueCsv(data);
 
@@ -71,7 +77,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
                 PlotOrientation.VERTICAL,
                 false, true, false);
 
-        String graphImageFile = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.png");
+        String graphImageFile = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
@@ -94,7 +100,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
 
     private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
-            String fileName = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.csv");
+            String fileName = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
 
             out.write("iteration #,revenue");
@@ -118,5 +124,16 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iteration #", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "revenue", "Revenue generated from ride hail"));
+        return list;
     }
 }

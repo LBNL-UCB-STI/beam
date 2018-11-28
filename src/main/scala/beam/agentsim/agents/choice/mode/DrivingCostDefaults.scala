@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
 /**
@@ -9,18 +9,16 @@ import beam.sim.BeamServices
   */
 object DrivingCostDefaults {
   val LITERS_PER_GALLON = 3.78541
+  val zero: Double = 0
 
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
-  ): IndexedSeq[BigDecimal] = {
-
-    val drivingCostConfig =
-      beamServices.beamConfig.beam.agentsim.agents.drivingCost
+  ): IndexedSeq[Double] = {
 
     alternatives.map { alt =>
       alt.tripClassifier match {
-        case CAR if alt.costEstimate == 0.0 =>
+        case CAR if alt.costEstimate == zero =>
           val legs = alt.legs
           val neededLeg = legs
             .collectFirst {
@@ -39,14 +37,14 @@ object DrivingCostDefaults {
             .sum
 
           val cost =
-            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && null != vehicle.beamVehicleType.primaryFuelConsumptionInJoule) {
-              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoule * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
+              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
             } else {
               0 //TODO
             }
-          BigDecimal(cost)
+          cost
         case _ =>
-          BigDecimal(0)
+          zero
       }
     }
   }

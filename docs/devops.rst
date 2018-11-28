@@ -1,5 +1,8 @@
 DevOps Guide
-=================
+============
+
+Git LFS
+^^^^^^^
 
 Setup git-lfs Server
 --------------------
@@ -75,6 +78,8 @@ Set Aws access key, secret ky and s3 details based on previous steps.
 
 This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first time.
 
+Jenkins
+^^^^^^^
 
 Setup Jenkins Server
 --------------------
@@ -469,7 +474,7 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
 |image39|
 
 Configure Periodic Jobs
-----------------------
+-----------------------
 
 You can schedule any Jenkins job to run periodically based on provided schedule. To configure periodic build follow the steps below:
 
@@ -560,3 +565,12 @@ https://jmaitrehenry.ca/2016/08/04/how-to-install-a-jenkins-master-that-spawn-sl
 .. |image40| image:: _static/figs/jenkins-periodic-build1.png
 .. |image41| image:: _static/figs/jenkins-periodic-build2.png
 .. |image42| image:: _static/figs/jenkins-periodic-build3.png
+
+Automated Cloud Deployment
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Automatic Image (AMI) Update
+----------------------------
+In Automated Cloud Deployment capability, there is a baseline image (AMI) that used to instantiate new EC2 instance. It contains copy of git repository and gradle dependency libraries. All of these are outdated in few days due to active development of BEAM. And when we start instance from an outdated image it take additional time to update them before starting the simulation/run. This process help Cloud Automatic Deployment to keep up to date image for fast execution.
+To trigger this update process a Cloud Watch Event is setup with one week frequency. This event triggers an AWS Lambda (named `updateDependencies`) and lambda then starts an instance from the outdated image with instructions to update the image with latest LFS files for pre configured branches (these branches are mentioned in its environment variables that we can configure easily without any change in lambda code). One LFS files and gradle dependencies are updated in the new instance, the instance invoke a new lambda (named `updateBeamAMI`) to take its new image. This new lambda creates an image of the instance, terminate the instance and update this new image id to Automated Cloud Deployment process for future use.
+
+This process is designed to get latest LFS files from different branches. To add a new branch or update existing one, an environment variable named `BRANCHES` need to update with space as branch name delimiter. 

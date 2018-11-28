@@ -1,11 +1,10 @@
 package beam.agentsim.events;
 
 import beam.agentsim.agents.vehicles.BeamVehicleType;
-import beam.router.RoutingModel;
+import beam.router.model.BeamLeg;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
-import org.matsim.vehicles.VehicleType;
 
 import java.util.Collections;
 import java.util.Map;
@@ -18,27 +17,31 @@ public class PathTraversalEvent extends Event {
     public final static String EVENT_TYPE = "PathTraversal";
 
     public static final String ATTRIBUTE_LENGTH = "length";
+    public static final String ATTRIBUTE_FUEL_TYPE = "fuelType";
     public static final String ATTRIBUTE_FUEL = "fuel";
-    public static final String ATTRIBUTE_NUM_PASS = "num_passengers";
+    public static final String ATTRIBUTE_NUM_PASS = "numPassengers";
 
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
-    public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
-    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrival_time";
+    public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
+    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
-    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
+    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicleType";
     public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
-    public final static String ATTRIBUTE_START_COORDINATE_X = "start.x";
-    public final static String ATTRIBUTE_START_COORDINATE_Y = "start.y";
-    public final static String ATTRIBUTE_END_COORDINATE_X = "end.x";
-    public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
-    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "end_leg_fuel_level";
+    public final static String ATTRIBUTE_START_COORDINATE_X = "startX";
+    public final static String ATTRIBUTE_START_COORDINATE_Y = "startY";
+    public final static String ATTRIBUTE_END_COORDINATE_X = "endX";
+    public final static String ATTRIBUTE_END_COORDINATE_Y = "endY";
+    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "endLegFuelLevel";
+    public final static String ATTRIBUTE_AMOUNT_PAID = "amountPaid";
+    public final static String ATTRIBUTE_SEATING_CAPACITY = "seatingCapacity";
 
     private final AtomicReference<Map<String, String>> attributes;
 
     private final String vehicleType;
     private final String vehicleId;
     private final String mode;
+    private final String fuelType;
     private final Double fuel;
     private final Integer numPass;
     private final Integer capacity;
@@ -51,19 +54,22 @@ public class PathTraversalEvent extends Event {
     private final double startY;
     private final double endX;
     private final double endY;
+    private final Integer seatingCapacity;
+    private final double amountPaid;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
-        this(time, vehicleId, vehicleType.vehicleCategory(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
+        this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
-                fuelConsumed,
+                (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().fuelTypeId().toString(), fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
                 beamLeg.travelPath().startPoint().loc().getX(), beamLeg.travelPath().startPoint().loc().getY(), beamLeg.travelPath().endPoint().loc().getX(),
-                beamLeg.travelPath().endPoint().loc().getY());
+                beamLeg.travelPath().endPoint().loc().getY(),(int)vehicleType.seatingCapacity(),
+                amountPaid);
     }
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, double fuel,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
                               double legLength, String linkIds, long departureTime, long arrivalTime, double startX, double startY, double endX,
-                              double endY) {
+                              double endY, int seatingCapacity, double amountPaid) {
         super(time);
         this.vehicleType = vehicleType;
         this.vehicleId = vehicleId.toString();
@@ -71,6 +77,7 @@ public class PathTraversalEvent extends Event {
         this.numPass = numPass;
         this.endLegFuelLevel = endLegFuelLevel;
         this.capacity = capacity;
+        this.fuelType = fuelType;
         this.fuel = fuel;
         this.legLength = legLength;
         this.linkIds = linkIds;
@@ -80,7 +87,9 @@ public class PathTraversalEvent extends Event {
         this.startY = startY;
         this.endX = endX;
         this.endY = endY;
-        this.attributes = new AtomicReference<Map<String, String>>(Collections.EMPTY_MAP);
+        this.attributes = new AtomicReference<>(Collections.emptyMap());
+        this.seatingCapacity = seatingCapacity;
+        this.amountPaid = amountPaid;
     }
 
     public static PathTraversalEvent apply(Event event) {
@@ -93,6 +102,7 @@ public class PathTraversalEvent extends Event {
                     Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
                     Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
                     Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
+                    attr.get(ATTRIBUTE_FUEL_TYPE),
                     Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
                     Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
                     attr.get(ATTRIBUTE_LINK_IDS),
@@ -101,7 +111,9 @@ public class PathTraversalEvent extends Event {
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
                     Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y))
+                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
+                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
             );
         }
         return (PathTraversalEvent) event;
@@ -123,6 +135,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_ARRIVAL_TIME, Long.toString(arrivalTime));
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
+        attr.put(ATTRIBUTE_FUEL_TYPE, fuelType);
         attr.put(ATTRIBUTE_FUEL, fuel.toString());
         attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString());
 
@@ -131,6 +144,8 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_END_COORDINATE_X, Double.toString(endX));
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(endY));
         attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
+        attr.put(ATTRIBUTE_SEATING_CAPACITY, Integer.toString(seatingCapacity));
+        attr.put(ATTRIBUTE_AMOUNT_PAID, Double.toString(amountPaid));
 
         attributes.set(attr);
 

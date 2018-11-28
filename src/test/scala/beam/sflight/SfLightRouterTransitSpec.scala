@@ -2,7 +2,6 @@ package beam.sflight
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.TestProbe
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -10,9 +9,10 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel
 import beam.router.gtfs.FareCalculator
+import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
 import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -20,15 +20,14 @@ import org.scalatest._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
-class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
+class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with LazyLogging {
 
   override def beforeAll: Unit = {
     super.beforeAll
     val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, Some(router))
     within(5 minutes) { // Router can take a while to initialize
       router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
-      expectMsgType[Success]
+      expectMsgType[Any] // success
     }
   }
 
@@ -65,7 +64,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
       assert(transitOption.legs.head.beamLeg.startTime == 25990)
     }
 
-    "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
+    "respond with a drive_transit and a walk_transit route for each trip in sflight" ignore {
       scenario.getPopulation.getPersons
         .values()
         .forEach(person => {
@@ -100,14 +99,12 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
 
               // writeResponseToFile(origin, destination, time, response)
               if (!response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) {
-                print("failure here")
+                logger.debug("failure here")
               }
 
               assert(response.itineraries.exists(_.costEstimate > 0))
-              assert(
-                response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0)
-              )
-//              assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+              assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
+              assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
               assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
             })
         })
@@ -172,10 +169,10 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     destination: Location,
     time: RoutingModel.DiscreteTime,
     response: RoutingResponse
-  ) = {
+  ): Unit = {
     response.itineraries.foreach(
       it =>
-        println(
+        logger.debug(
           Vector(
             "itinerary ->",
             origin,
@@ -190,7 +187,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
                   it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum
               )
             )
-          )
+          ).toString()
       )
     )
   }
@@ -201,7 +198,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     destination: Location,
     time: RoutingModel.DiscreteTime,
     response: RoutingResponse
-  ) = {
+  ): Unit = {
     val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
     response.itineraries.foreach(
       it =>
@@ -227,7 +224,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
     writer.close()
   }
 
-  def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
+  def assertMakesSense(trip: EmbodiedBeamTrip): Unit = {
     var time = trip.legs.head.beamLeg.startTime
     trip.legs.foreach(leg => {
       assert(leg.beamLeg.startTime >= time, "Leg starts when or after previous one finishes.")
