@@ -27,15 +27,16 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]]) {
   def getSubsidy(mode: BeamMode, age: Option[Int], income: Option[Int]): Option[Double] = {
     modeSubsidies
       .getOrElse(mode, List())
-      .filter(s =>
-        age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty)
-      )
-    .map(_.amount).reduceOption(_ + _)
+      .filter(s => age.fold(false)(s.age.hasOrEmpty) && income.fold(true)(s.income.hasOrEmpty))
+      .map(_.amount)
+      .reduceOption(_ + _)
   }
 
 }
 
 object ModeSubsidy {
+
+  def apply(modeSubsidiesFile: String): ModeSubsidy = new ModeSubsidy(loadSubsidies(modeSubsidiesFile))
 
   def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
     val subsidies: ListBuffer[Subsidy] = ListBuffer()

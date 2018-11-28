@@ -163,7 +163,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
       val walkTrip =
         response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip
       inside(walkTrip) {
-        case BeamTrip(legs, _) =>
+        case BeamTrip(legs) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
           inside(legs.loneElement) {
             case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
@@ -214,7 +214,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                 .get
                 .toBeamTrip
               inside(walkTrip) {
-                case BeamTrip(legs, _) =>
+                case BeamTrip(legs) =>
                   legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
                   inside(legs.loneElement) {
                     case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
@@ -229,7 +229,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                   .toBeamTrip
                 assertMakesSense(carTrip)
                 inside(carTrip) {
-                  case BeamTrip(legs, _) =>
+                  case BeamTrip(legs) =>
                     legs should have size 3
                     inside(legs(0)) {
                       case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>

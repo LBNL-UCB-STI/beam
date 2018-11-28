@@ -110,9 +110,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             String,
             util.Map[Integer, util.List[lang.Double]]
           ]
-        ): Tuple[util.List[String], Array[
-          Array[Double]
-        ]] = {
+        ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
           promise.success(stat)
           super.compute(stat)
         }
