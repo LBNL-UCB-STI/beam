@@ -14,7 +14,9 @@ case class PtFares(ptFares: Map[String, List[FareRule]]) {
   def getPtFare(agencyId: String, routeId: Option[String], age: Option[Int]): Option[Double] = {
     ptFares
       .getOrElse(agencyId, List())
-      .filter(s => age.fold(true)(s.age.hasOrEmpty) && routeId.fold(true)(s.routeId.equalsIgnoreCase))
+      .filter(s =>
+        s.age.hasOrEmpty(age.getOrElse(0)) &&
+        (s.routeId.isEmpty || routeId.fold(false)(s.routeId.equalsIgnoreCase)))
       .map(_.amount)
       .reduceOption(_ + _)
   }
