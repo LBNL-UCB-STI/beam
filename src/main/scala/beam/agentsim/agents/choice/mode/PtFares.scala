@@ -14,9 +14,11 @@ case class PtFares(ptFares: Map[String, List[FareRule]]) {
   def getPtFare(agencyId: String, routeId: Option[String], age: Option[Int]): Option[Double] = {
     ptFares
       .getOrElse(agencyId, List())
-      .filter(s =>
-        s.age.hasOrEmpty(age.getOrElse(0)) &&
-        (s.routeId.isEmpty || routeId.fold(false)(s.routeId.equalsIgnoreCase)))
+      .filter(
+        s =>
+          s.age.hasOrEmpty(age.getOrElse(0)) &&
+          (s.routeId.isEmpty || routeId.fold(false)(s.routeId.equalsIgnoreCase))
+      )
       .map(_.amount)
       .reduceOption(_ + _)
   }
@@ -26,11 +28,11 @@ object PtFares {
 
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
-  def loadPtFares(subsidiesFile: String): Map[String, List[FareRule]] = {
-    if (Files.notExists(Paths.get(subsidiesFile)))
-      throw new FileNotFoundException(s"PtFares file not found at location: $subsidiesFile")
+  def loadPtFares(ptFaresFile: String): Map[String, List[FareRule]] = {
+    if (Files.notExists(Paths.get(ptFaresFile)))
+      throw new FileNotFoundException(s"PtFares file not found at location: $ptFaresFile")
     val fareRules: ListBuffer[FareRule] = ListBuffer()
-    val lines = Try(Source.fromFile(subsidiesFile).getLines().toList.tail).getOrElse(List())
+    val lines = Try(Source.fromFile(ptFaresFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 
