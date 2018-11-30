@@ -507,9 +507,13 @@ trait ChoosesMode {
         } else {
           accessAndTransit.dropRight(1)
         }
-        Some(EmbodiedBeamTrip(EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.head.beamLeg.startTime,bodyId,false) +:
-          fullTrip :+
-          EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.last.beamLeg.endTime,bodyId,true)))
+        Some(
+          EmbodiedBeamTrip(
+            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.head.beamLeg.startTime, bodyId, false) +:
+            fullTrip :+
+            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.last.beamLeg.endTime, bodyId, true)
+          )
+        )
       }
     } else {
       None
@@ -604,12 +608,17 @@ trait ChoosesMode {
       val rideHailItinerary = rideHailResult.travelProposal match {
         case Some(travelProposal) =>
           val origLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs
-          val fullItin = travelProposal.responseRideHail2Dest.itineraries.head.copy(legs =
-            EmbodiedBeamLeg.dummyWalkLegAt(origLegs.head.beamLeg.startTime,bodyId,false) +: origLegs :+ EmbodiedBeamLeg.dummyWalkLegAt(origLegs.head.beamLeg.endTime,bodyId,true)
+          val fullItin = travelProposal.responseRideHail2Dest.itineraries.head.copy(
+            legs =
+            EmbodiedBeamLeg
+              .dummyWalkLegAt(origLegs.head.beamLeg.startTime, bodyId, false) +: origLegs :+ EmbodiedBeamLeg
+              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)
           )
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
-              Vector(fullItin,fullItin.copy(
+              Vector(
+                fullItin,
+                fullItin.copy(
                   legs = fullItin.legs.map(
                     origLeg =>
                       origLeg.copy(
@@ -618,7 +627,8 @@ trait ChoosesMode {
                         beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                     )
                   )
-                ))
+                )
+              )
             case None =>
               Vector(fullItin)
           }

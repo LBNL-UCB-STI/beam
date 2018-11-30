@@ -15,7 +15,11 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -96,11 +100,15 @@ object RideHailManager {
     responseRideHail2Dest: RoutingResponse,
     poolingInfo: Option[PoolingInfo] = None
   ) {
+
     def makeLegsConsistent(): TravelProposal = {
       val endTimeOpt = responseRideHail2Pickup.itineraries.headOption.map(trip => trip.beamLegs().last.endTime)
       endTimeOpt match {
         case Some(endTime) =>
-          this.copy(responseRideHail2Dest = responseRideHail2Dest.copy(itineraries = responseRideHail2Dest.itineraries.map(itin => itin.updateStartTime(endTime))))
+          this.copy(
+            responseRideHail2Dest = responseRideHail2Dest
+              .copy(itineraries = responseRideHail2Dest.itineraries.map(itin => itin.updateStartTime(endTime)))
+          )
         case None =>
           this
       }
@@ -1102,12 +1110,17 @@ class RideHailManager(
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
-        log.info("Completing reservation {} for customer {} and vehicle {}", requestId,response.request.customer.personId,theVehicle)
+        log.info(
+          "Completing reservation {} for customer {} and vehicle {}",
+          requestId,
+          response.request.customer.personId,
+          theVehicle
+        )
 
-        if(processBufferedRequestsOnTimeout){
+        if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
           response.request.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
-        }else{
+        } else {
           response.request.customer.personRef.get ! response.copy(
             triggersToSchedule = finalTriggersToSchedule
           )
@@ -1118,10 +1131,9 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if(processBufferedRequestsOnTimeout &&
-      pendingModifyPassengerScheduleAcks.isEmpty &&
-      rideHailResourceAllocationManager.isBufferEmpty
-    ){
+    if (processBufferedRequestsOnTimeout &&
+        pendingModifyPassengerScheduleAcks.isEmpty &&
+        rideHailResourceAllocationManager.isBufferEmpty) {
       log.info("Complete from completeReservation")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
@@ -1141,9 +1153,9 @@ class RideHailManager(
   }
 
   /*
-     * This is common code for both use cases, batch processing and processing a single reservation request immediately.
-     * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
-     */
+   * This is common code for both use cases, batch processing and processing a single reservation request immediately.
+   * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
+   */
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
 
@@ -1158,13 +1170,14 @@ class RideHailManager(
                 rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, request.requestId)
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
-            case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes) if !pickDropIdWithRoutes.isEmpty =>
+            case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
+                if !pickDropIdWithRoutes.isEmpty =>
               handleReservation(request, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
-              failedAllocation(request,tick)
+              failedAllocation(request, tick)
             case NoVehicleAllocated(request) =>
-              failedAllocation(request,tick)
+              failedAllocation(request, tick)
           }
         }
       case _ =>
@@ -1172,8 +1185,8 @@ class RideHailManager(
     if (!allRoutesRequired.isEmpty) {
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
-    rideHailResourceAllocationManager.isBufferEmpty) {
-      log.info("Complete from findAllocationsAndProcess at {}",tick)
+               rideHailResourceAllocationManager.isBufferEmpty) {
+      log.info("Complete from findAllocationsAndProcess at {}", tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
   }

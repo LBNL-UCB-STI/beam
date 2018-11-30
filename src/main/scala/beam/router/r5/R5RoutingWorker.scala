@@ -432,7 +432,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
 
-    if(!isRouteForPerson){
+    if (!isRouteForPerson) {
       val i = 0
     }
 
@@ -493,7 +493,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               )
             }
           if (profileResponse.options.isEmpty) {
-            Some(R5RoutingWorker.createBushwackingBeamLeg(routingRequest.departureTime , from, to, beamServices))
+            Some(R5RoutingWorker.createBushwackingBeamLeg(routingRequest.departureTime, from, to, beamServices))
           } else {
             val streetSegment = profileResponse.options.get(0).access.get(0)
             val theTravelPath = buildStreetPath(streetSegment, routingRequest.departureTime, StreetMode.WALK)

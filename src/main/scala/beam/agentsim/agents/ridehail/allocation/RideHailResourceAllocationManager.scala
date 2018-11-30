@@ -37,8 +37,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
-    if(awaitingRoutes.contains(request))awaitingRoutes -= request
-    if(!bufferedRideHailRequests.contains(request))addRequestToBuffer(request)
+    if (awaitingRoutes.contains(request)) awaitingRoutes -= request
+    if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
@@ -54,7 +54,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case VehicleAllocations(allocations) =>
         allocations.foreach { alloc =>
           alloc match {
-            case RoutingRequiredToAllocateVehicle(request,_) =>
+            case RoutingRequiredToAllocateVehicle(request, _) =>
               awaitingRoutes += request
               bufferedRideHailRequests -= request
             case _ =>
@@ -95,7 +95,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(request)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.size==0).isDefined =>
+      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         rideHailManager
