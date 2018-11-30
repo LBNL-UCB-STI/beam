@@ -32,7 +32,7 @@ class RideHailModifyPassengerScheduleManager(
     mutable.Map[Id[Vehicle], mutable.ListBuffer[RideHailModifyPassengerScheduleStatus]]()
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
   var numberPendingModifyPassengerScheduleAcks: Int = 0
-  var ignoreErrorPrint = true
+  var ignoreErrorPrint = false
 
   /*
    * This is the core of all the handling happening in this manager
@@ -145,7 +145,7 @@ class RideHailModifyPassengerScheduleManager(
           "more rideHailVehicle interruptions in process than should be possible: {} -> further errors supressed (debug later if this is still relevant)",
           vehicleId
         )
-        ignoreErrorPrint = false
+        ignoreErrorPrint = true
       }
       if (modifyStatusList.size > 1 && modifyStatusList.exists(_.interruptOrigin == SingleReservation)) {
         // this means there is a race condition between a repositioning and reservation message and we should remove the reposition/not process it further

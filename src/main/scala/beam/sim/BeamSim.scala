@@ -9,7 +9,7 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, TNCIterationsStatsCollector}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.analysis.IterationStatsProvider
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -61,7 +61,7 @@ class BeamSim @Inject()(
   private var modalityStyleStats: ModalityStyleStats = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
-  private var tncIterationsStatsCollector: TNCIterationsStatsCollector = _
+  private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
@@ -122,7 +122,7 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )
 
-    tncIterationsStatsCollector = new TNCIterationsStatsCollector(
+    tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
       eventsManager,
       beamServices,
       event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),

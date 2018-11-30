@@ -96,6 +96,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         }
       // The following if condition ensures we actually got routes back in all cases
       case (request, routingResponses) if routingResponses.find(_.itineraries.size==0).isDefined =>
+        NoVehicleAllocated(request)
+      case (request, routingResponses) =>
         rideHailManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocation,
@@ -114,8 +116,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case None =>
             NoVehicleAllocated(request)
         }
-      case (request, _) =>
-        NoVehicleAllocated(request)
     }.toList
     VehicleAllocations(allocResponses)
   }
