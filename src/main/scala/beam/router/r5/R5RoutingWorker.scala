@@ -24,7 +24,7 @@ import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router.{Modes, TimeAndCost, TransitInitializer, TravelTimeAndCost}
+import beam.router._
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -150,6 +150,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           mode: BeamMode
         ): TimeAndCost = TimeAndCost(None, None)
       }
+      BeamRouter.checkForConsistentTimeZoneOffsets(beamServices,transportNetwork)
       WorkerParameters(
         beamServices,
         transportNetwork,
