@@ -404,18 +404,19 @@ class PersonAgent(
       val estimateCost = data.currentTrip.get.costEstimate
       val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
 
-      if ((estimateCost + subsidy) != 0.0)
+      val subsidisedCost = Math.max(estimateCost - subsidy, 0)
+      if (subsidisedCost > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             id,
             mode.value,
             PersonCostEvent.COST_TYPE_COST,
-            estimateCost + subsidy
+            subsidisedCost
           )
         )
 
-      if (subsidy != 0.0)
+      if (subsidy > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
         )
