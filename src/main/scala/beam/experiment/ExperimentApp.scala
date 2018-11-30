@@ -61,6 +61,7 @@ class ExperimentApp extends App {
 }
 
 object ExperimentApp {
+
   def getExperimentPath(experimentLoc: String): Path = {
 
     val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath

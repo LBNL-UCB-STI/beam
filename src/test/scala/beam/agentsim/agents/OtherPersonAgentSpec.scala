@@ -8,6 +8,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -88,7 +89,7 @@ class OtherPersonAgentSpec
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map()))
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
@@ -393,11 +394,7 @@ class OtherPersonAgentSpec
       )
       expectMsgType[PersonEntersVehicleEvent]
 
-      val costEvent = expectMsgType[PersonCostEvent]
-      assert(costEvent.getTime == 28800) // is this how it should be?
-
-      val anotherCostEvent = expectMsgType[PersonCostEvent]
-      assert(anotherCostEvent.getTime == 28800) // is this how it should be?
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
 
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
@@ -456,8 +453,9 @@ class OtherPersonAgentSpec
         personActor
       ) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonCostEvent]
-      expectMsgType[PersonCostEvent]
+
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]

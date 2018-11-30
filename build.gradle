@@ -24,6 +24,7 @@ plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
+    id 'maven-publish'
 }
 
 //ext {
@@ -601,4 +602,22 @@ task generateDocumentation(type: JavaExec) {
 tasks.withType(ScalaCompile) {
     // Enable Scala warnings output
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+}
+
+task checkScalaFmt() {
+    doLast {
+        try {
+            def workingDir = new File("${project.projectDir}")
+            def result = 'git diff --exit-code'.execute(null, workingDir)
+            result.waitFor()
+            if (result.exitValue() != 0) throw new Exception("""
+Please run ./gradlew scalaFmtAll and commit/push the subsequent results to fix this error.
+This happened because a git diff yielded a non-zero exit code. 
+This task was built to be run on the CI server AFTER scalaFmtAll
+It should only error if the results of scalaFmtAll resulted in code modifications.
+And that would only happen if the committed code is not formatted as expected.""")
+        } catch (e) {
+            throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
+        }
+    }
 }

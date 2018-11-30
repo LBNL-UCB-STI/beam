@@ -7,6 +7,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -88,7 +89,7 @@ class PersonAndTransitDriverSpec
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map()))
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
     theServices
   }
 
@@ -395,11 +396,15 @@ class PersonAndTransitDriverSpec
       personEvents.expectMsgType[PathTraversalEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[PersonCostEvent]
-      personEvents.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[PersonCostEvent]
-      personEvents.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[VehicleEntersTrafficEvent]
       personEvents.expectMsgType[VehicleLeavesTrafficEvent]

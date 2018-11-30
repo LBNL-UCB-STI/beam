@@ -217,7 +217,8 @@ class ZonalParkingManager(
                 selectStallWithCharger(inquiry, 500.0)
             }
         },
-        inquiry.requestId
+        inquiry.requestId,
+        inquiry.reserveStall
       )
   }
 
@@ -244,10 +245,12 @@ class ZonalParkingManager(
     }
   }
 
-  def respondWithStall(stall: ParkingStall, requestId: Int): Unit = {
-    resources.put(stall.id, stall)
-    val stallValues = pooledResources(stall.attributes)
-    stallValues._numStalls -= 1
+  def respondWithStall(stall: ParkingStall, requestId: Int, reserveStall: Boolean): Unit = {
+    if (reserveStall) {
+      resources.put(stall.id, stall)
+      val stallValues = pooledResources(stall.attributes)
+      stallValues._numStalls -= 1
+    }
     sender() ! ParkingInquiryResponse(stall, requestId)
   }
 

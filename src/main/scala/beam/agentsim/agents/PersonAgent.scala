@@ -6,7 +6,6 @@ import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterRes
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StartLegTrigger}
@@ -22,6 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
 }
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -31,7 +31,6 @@ import beam.router.model.RoutingModel.DiscreteTime
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -219,6 +218,8 @@ class PersonAgent(
       stay()
     case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
       stay()
+    case Event(ParkingInquiryResponse(_, _), _) =>
+      stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(StateTimeout, _) =>
@@ -248,15 +249,20 @@ class PersonAgent(
       case PerformingActivity =>
         _experiencedBeamPlan.getTourContaining(currentActivity(data))
       case _ =>
-        _experiencedBeamPlan.getTourContaining(nextActivity(data).right.get)
+        _experiencedBeamPlan.getTourContaining(nextActivity(data).get)
     }
   }
 
   def currentActivity(data: BasePersonData): Activity =
     _experiencedBeamPlan.activities(data.currentActivityIndex)
 
-  def nextActivity(data: BasePersonData): Either[String, Activity] = {
-    activityOrMessage(data.currentActivityIndex + 1, "plan finished")
+  def nextActivity(data: BasePersonData): Option[Activity] = {
+    val ind = data.currentActivityIndex + 1
+    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) {
+      None
+    } else {
+      Some(_experiencedBeamPlan.activities(ind))
+    }
   }
 
   when(Uninitialized) {
@@ -278,12 +284,11 @@ class PersonAgent(
 
   when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
-      nextActivity(data).fold(
-        msg => {
-          logDebug(s"didn't get nextActivity because $msg")
+      nextActivity(data) match {
+        case None =>
+          logDebug(s"didn't get nextActivity")
           stop replying CompletionNotice(triggerId)
-        },
-        nextAct => {
+        case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
           goto(ChoosingMode) using ChoosesModeData(
@@ -305,8 +310,7 @@ class PersonAgent(
               )
             )
           )
-        }
-      )
+      }
   }
 
   when(WaitingForDeparture) {
@@ -397,20 +401,24 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
-      val subsidy = beamServices.modeSubsidies.getSubsidy(mode, attributes.age, attributes.income.map(x => x.toInt))
-      eventsManager.processEvent(
-        new PersonCostEvent(
-          tick,
-          id,
-          mode.value,
-          PersonCostEvent.COST_TYPE_COST,
-          data.currentTrip.get.costEstimate + subsidy
-        )
-      )
+      val estimateCost = data.currentTrip.get.costEstimate
+      val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
 
-      eventsManager.processEvent(
-        new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
-      )
+      if ((estimateCost + subsidy) != 0.0)
+        eventsManager.processEvent(
+          new PersonCostEvent(
+            tick,
+            id,
+            mode.value,
+            PersonCostEvent.COST_TYPE_COST,
+            estimateCost + subsidy
+          )
+        )
+
+      if (subsidy != 0.0)
+        eventsManager.processEvent(
+          new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
+        )
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
@@ -639,7 +647,7 @@ class PersonAgent(
         )
         ) =>
       nextActivity(data) match {
-        case Right(activity) =>
+        case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
           val endTime =
             if (activity.getEndTime >= tick && Math
@@ -700,8 +708,8 @@ class PersonAgent(
             currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
             hasDeparted = false
           )
-        case Left(msg) =>
-          logDebug(msg)
+        case None =>
+          logDebug("PersonAgent nextActivity returned None")
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId)
           stop
