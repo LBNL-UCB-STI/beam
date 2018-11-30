@@ -154,7 +154,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           mode: BeamMode
         ): TimeAndCost = TimeAndCost(None, None)
       }
-      BeamRouter.checkForConsistentTimeZoneOffsets(beamServices,transportNetwork)
+      BeamRouter.checkForConsistentTimeZoneOffsets(beamServices, transportNetwork)
       WorkerParameters(
         beamServices,
         transportNetwork,
