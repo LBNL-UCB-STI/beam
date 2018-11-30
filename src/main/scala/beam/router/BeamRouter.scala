@@ -35,6 +35,7 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.Subscribe
+import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -399,6 +400,8 @@ class BeamRouter(
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           services.vehicles += (tripVehId -> vehicle)
+          services.agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -455,12 +458,14 @@ object BeamRouter {
     departureTime: BeamTime,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false,
-    timeValueOfMoney: Double = 360.0 // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+    mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val timeValueOfMoney
+      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
 
   sealed trait IntermodalUse

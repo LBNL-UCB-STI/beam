@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
 import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
@@ -27,6 +27,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -50,6 +51,7 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+  val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
@@ -58,6 +60,7 @@ trait BeamServices extends ActorInject {
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
   val modeSubsidies: ModeSubsidy
+  val ptFares: PtFares
   var iterationNumber: Int = -1
 
   def startNewIteration()
@@ -81,6 +84,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
+  val agencyAndRouteByVehicleIds = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
@@ -96,7 +100,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  val modeSubsidies = ModeSubsidy(loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
+  val modeSubsidies = ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
   def clearAll(): Unit = {
     personRefs.clear

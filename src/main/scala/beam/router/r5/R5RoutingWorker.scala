@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
@@ -58,6 +58,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
@@ -110,6 +111,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
+        override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
@@ -118,8 +120,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =
-          ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
-
+          ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
+        override protected def injectActor[A <: Actor](implicit factory: ActorRefFactory, tag: ClassTag[A]): ActorRef =
+          super.injectActor
         override def startNewIteration(): Unit = throw new Exception("???")
 
         override protected def injector: Injector = throw new Exception("???")
@@ -160,7 +164,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         tollCalculator,
         scenario.getTransitVehicles,
         travelTimeAndCost,
-        transits,
+        transits
       )
     })
   }
@@ -692,7 +696,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               .indexWhere(pair => pair.size == 2 && pair.head.mode == CAR && pair.head.mode == pair.last.mode)
             val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
-                val cost = tripWithFares.legFares.getOrElse(index, 0.0)
+                var cost = tripWithFares.legFares.getOrElse(index, 0.0)
+                val age = routingRequest.attributesOfIndividual.flatMap(_.age)
+                val ids = beamServices.agencyAndRouteByVehicleIds.get(
+                  beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
+                )
+                cost = ids.fold(cost)(id => beamServices.ptFares.getPtFare(id._1, Some(id._2), age).getOrElse(cost))
+
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
                     beamLeg,
@@ -708,7 +718,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
                   (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
-                    if (routingRequest.streetVehicles.find(_.mode == WALK).isEmpty) {
+                    if (!routingRequest.streetVehicles.exists(_.mode == WALK)) {
                       val i = 0
                     }
                     val body =
@@ -1332,7 +1342,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
 
     TripWithFares(
-      BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector, mapLegMode(access.mode)),
+      BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector),
       withUpdatedTimeAndCost.map(_.fare).zipWithIndex.map(_.swap).toMap
     )
   }

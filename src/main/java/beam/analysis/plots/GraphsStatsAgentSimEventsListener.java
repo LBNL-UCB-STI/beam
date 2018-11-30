@@ -54,7 +54,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                                              OutputDirectoryHierarchy controlerIO,
                                              BeamServices services, BeamConfig beamConfig) {
         this(services);
-        statsFactory.createStats();
+        try{
+            statsFactory.createStats();
+        }catch (Exception e){
+            log.error("exception: {}", e.getMessage());
+        }
+
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
         PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
@@ -89,33 +94,32 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
         deadHeadingStats.collectEvents(event);
     }
 
-    public void createGraphs(IterationEndsEvent event) throws IOException {
-        for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(event);
-        DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
-        deadHeadingStats.createGraph(event, "TNC0");
-
-
-        if (CONTROLLER_IO != null) {
+    public void createGraphs(IterationEndsEvent event) {
             try {
-                // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
+                for (GraphAnalysis stat : statsFactory.getGraphAnalysis()) stat.createGraph(event);
+                DeadHeadingAnalysis deadHeadingStats = (DeadHeadingAnalysis) statsFactory.getAnalysis(StatsType.DeadHeading);
+                deadHeadingStats.createGraph(event, "TNC0");
+                if (CONTROLLER_IO != null) {
+                    // TODO: Asif - benchmarkFileLoc also part of calibraiton yml -> remove there (should be just in config file)
 
-                // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
-                ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
-                modeChoseStats.writeToRootCSV(ModeChosenAnalysis.getModeChoiceFileBaseName());
-                if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
-                    String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
-                    Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
-                            .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
-                    log.info("modesAbsoluteError: " + modesAbsoluteError);
+                    // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
+                    ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
+                    modeChoseStats.writeToRootCSV(ModeChosenAnalysis.getModeChoiceFileBaseName());
+                    if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
+                        String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
+                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                                .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
+                        log.info("modesAbsoluteError: " + modesAbsoluteError);
 
-                    Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
-                            .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
-                    log.info("modesRMSPError: " + modesRMSPError);
+                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                                .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
+                        log.info("modesRMSPError: " + modesRMSPError);
+                    }
                 }
             } catch (Exception e) {
                 log.error("exception: {}", e.getMessage());
             }
-        }
+
     }
 
     public void notifyShutdown(ShutdownEvent event) throws Exception {

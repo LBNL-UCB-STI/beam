@@ -1,6 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.File
+import java.io.FileNotFoundException
+import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.router.Modes.BeamMode
@@ -36,9 +37,13 @@ case class ModeSubsidy(modeSubsidies: Map[BeamMode, List[Subsidy]]) {
 
 object ModeSubsidy {
 
+  def apply(modeSubsidiesFile: String): ModeSubsidy = new ModeSubsidy(loadSubsidies(modeSubsidiesFile))
+
   def loadSubsidies(subsidiesFile: String): Map[BeamMode, List[Subsidy]] = {
+    if (Files.notExists(Paths.get(subsidiesFile)))
+      throw new FileNotFoundException(s"ModeSubsidy file not found at location: $subsidiesFile")
     val subsidies: ListBuffer[Subsidy] = ListBuffer()
-    val lines = Try(Source.fromFile(new File(subsidiesFile).toString).getLines().toList.tail).getOrElse(List())
+    val lines = Try(Source.fromFile(subsidiesFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
 
