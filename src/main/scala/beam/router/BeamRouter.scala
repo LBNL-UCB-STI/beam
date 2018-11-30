@@ -462,7 +462,7 @@ object BeamRouter {
     mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }

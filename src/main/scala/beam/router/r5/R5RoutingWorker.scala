@@ -1177,7 +1177,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     itinerary: Itinerary,
     routingRequest: RoutingRequest
   ): TripWithFares = {
-
     // Using itinerary start as access leg's startTime
     val tripStartTime = beamServices.dates
       .toBaseMidnightSeconds(
@@ -1191,7 +1190,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       // If there's a gap between access leg start time and walk leg, we need to move that ahead
       // this covers the various contingencies for doing this.
       val delayStartTime =
-        Math.max(0.0, (tripStartTime - routingRequest.departureTime.atTime) - walkLeg.duration)
+        Math.max(0.0, (tripStartTime - routingRequest.departureTime) - walkLeg.duration)
       legsWithFares += LegWithFare(walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toInt), 0.0)
     })
 
@@ -1209,8 +1208,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (isTransit) {
       var arrivalTime: Int = Int.MinValue
       /*
- Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
- assuming that: For each transit in option there is a TransitJourneyID in connection
+   Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
+   assuming that: For each transit in option there is a TransitJourneyID in connection
        */
       val segments = option.transit.asScala zip itinerary.connection.transit.asScala
       val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
@@ -1278,7 +1277,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
       legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
     }
-
     // TODO is it correct way to find first non-dummy leg
     val fistNonDummyLeg = legsWithFares.collectFirst {
       case legWithFare if legWithFare.leg.mode == BeamMode.WALK && legWithFare.leg.travelPath.linkIds.nonEmpty =>
