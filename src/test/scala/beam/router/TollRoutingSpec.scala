@@ -4,6 +4,8 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -23,11 +25,13 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import scala.collection.concurrent.TrieMap
 import scala.language.postfixOps
 
 class TollRoutingSpec
@@ -54,13 +58,15 @@ class TollRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -100,16 +106,13 @@ class TollRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        Access,
-        false,
-        timeValueOfMoney
+        )
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 144)
+      assert(carOption.costEstimate == 2.0, "contains three toll links: two specified in OSM, and one in CSV file")
+      assert(carOption.totalTravelTimeInSecs == 288)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -138,7 +141,7 @@ class TollRoutingSpec
       val moreExpensiveResponse = expectMsgType[RoutingResponse]
       val moreExpensiveCarOption = moreExpensiveResponse.itineraries.find(_.tripClassifier == CAR).get
       // the factor in the config only applies to link tolls at the moment, i.e. one of the three paid is 2.0
-      assert(moreExpensiveCarOption.costEstimate == 4.0)
+      assert(moreExpensiveCarOption.costEstimate == 2.0)
 
       // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
       // (which takes 288 seconds)
@@ -155,10 +158,7 @@ class TollRoutingSpec
             Modes.BeamMode.CAR,
             asDriver = true
           )
-        ),
-        Access,
-        false,
-        higherTimeValueOfMoney
+        )
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]

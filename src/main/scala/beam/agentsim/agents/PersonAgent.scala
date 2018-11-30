@@ -13,7 +13,7 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.ridehail.{ReserveRide, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.VehicleProtocol.{
   BecomeDriverOfVehicleSuccess,
   DriverAlreadyAssigned,
@@ -430,20 +430,21 @@ class PersonAgent(
 
       val mode = data.currentTrip.get.tripClassifier
       val estimateCost = data.currentTrip.get.costEstimate
-      val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, data.currentTrip.get.vehiclesInTrip, mode)
+      val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
 
-      if ((estimateCost + subsidy) != 0.0)
+      val subsidisedCost = Math.max(estimateCost - subsidy, 0)
+      if (subsidisedCost > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             id,
             mode.value,
             PersonCostEvent.COST_TYPE_COST,
-            estimateCost + subsidy
+            subsidisedCost
           )
         )
 
-      if (subsidy != 0.0)
+      if (subsidy > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
         )

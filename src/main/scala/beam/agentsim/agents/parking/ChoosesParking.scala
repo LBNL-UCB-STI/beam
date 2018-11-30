@@ -140,7 +140,8 @@ trait ChoosesParking extends {
           beamServices.geo.utm2Wgs(stall.location),
           currentPoint.time,
           Vector(),
-          Vector(carStreetVeh, bodyStreetVeh)
+          Vector(carStreetVeh, bodyStreetVeh),
+          Some(attributes)
         )
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
@@ -156,7 +157,8 @@ trait ChoosesParking extends {
               WALK,
               asDriver = true
             )
-          )
+          ),
+          Some(attributes)
         )
 
         val responses = for {

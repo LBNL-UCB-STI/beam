@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
 import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
@@ -23,6 +23,7 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
@@ -59,10 +60,10 @@ trait BeamServices extends ActorInject {
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
   val modeSubsidies: ModeSubsidy
+  val ptFares: PtFares
   var iterationNumber: Int = -1
 
   def startNewIteration()
-
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -99,8 +100,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  val modeSubsidies =
-    ModeSubsidy(loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file), agencyAndRouteByVehicleIds)
+  val modeSubsidies = ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
   def clearAll(): Unit = {
     personRefs.clear

@@ -32,6 +32,9 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
+import beam.sim.metrics.MetricsPrinter
+import beam.sim.metrics.MetricsPrinter.Subscribe
+import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -115,6 +118,16 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  // TODO FIX ME
+  val travelTimeAndCost = new TravelTimeAndCost {
+    override def overrideTravelTimeAndCostFor(
+      origin: Location,
+      destination: Location,
+      departureTime: Int,
+      mode: BeamMode
+    ): TimeAndCost = TimeAndCost(None, None)
+  }
+
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
@@ -124,7 +137,8 @@ class BeamRouter(
         scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles
+        transitVehicles,
+        travelTimeAndCost
       ),
       "router-worker"
     )
@@ -145,11 +159,7 @@ class BeamRouter(
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.debug(
-          "TryToSerialize size in bytes: {}, MBytes: {}",
-          byteArray.length,
-          byteArray.size.toDouble / 1024 / 1024
-        )
+        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -447,12 +457,14 @@ object BeamRouter {
     departureTime: Int,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false,
-    timeValueOfMoney: Double = 360.0 // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+    mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
+    lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val timeValueOfMoney
+      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
 
   sealed trait IntermodalUse

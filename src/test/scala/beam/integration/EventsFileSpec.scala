@@ -43,7 +43,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   private def tripsFromEvents(vehicleType: String) = {
     val trips = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
-      if event.getAttributes.get("vehicle_type") == vehicleType
+      if event.getAttributes.get("vehicleType") == vehicleType
       vehicleTag <- event.getAttributes.asScala.get("vehicle")
     } yield vehicleTag.split(":")(1).split("-").take(3).mkString("-")
     trips.toSet
@@ -71,7 +71,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val pathTraversals = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get("vehicle_type") == vehicleType
+      if event.getAttributes.get("vehicleType") == vehicleType
     } yield event
     val eventsByTrip =
       pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
@@ -93,7 +93,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val tollEvents = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get("amount_paid").toDouble != 0.0
+      if event.getAttributes.get("amountPaid").toDouble != 0.0
     } yield event
     tollEvents should not be empty
   }

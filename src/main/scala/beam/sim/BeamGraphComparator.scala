@@ -25,7 +25,8 @@ object BeamGraphComparator {
     */
   private def generateHtml(
     files: mutable.HashMap[(String, String), Map[String, Array[(String, File)]]],
-    iterationsCount: Int
+    iterationsCount: Int,
+    event: ControlerEvent
   ): Elem = {
     val scriptToDisplayAllImages =
       """function displayAllGraphs(images){
@@ -53,14 +54,14 @@ object BeamGraphComparator {
     val graphMenu: Elem = <ul class="list-group">
       {
       ListMap(files.toSeq.sortBy(_._1._1): _*) map { grp =>
-        <li class="list-group-item">
+        <li class="list-group-item" style="word-wrap: break-word;">
           <strong>{grp._1._2}</strong>
           <ul>
             {
             ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
               <li>
                 <h4><a href="javascript:" onclick={displayAllGraphs(t._2 map { f =>
-                  Json.obj("path" -> f._2.getAbsolutePath,
+                  Json.obj("path" -> f._2.getCanonicalPath.replace(event.getServices.getControlerIO.getOutputPath + "/",""),
                     "name" -> f._2.getName)
                 })}>{t._1}</a></h4>
               </li>
@@ -188,7 +189,7 @@ object BeamGraphComparator {
     })
     //Generate graph comparison html element and write it to the html page at desired location
     val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(subGroups, numberOfIterations)
+    val htmlElem = this.generateHtml(subGroups, numberOfIterations, event)
     try {
       bw.write(htmlElem.mkString)
     } catch {
