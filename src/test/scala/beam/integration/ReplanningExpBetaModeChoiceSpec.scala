@@ -54,8 +54,6 @@ class ReplanningExpBetaModeChoiceSpec
       val allAvgAvg = Range(0,20).map(getAvgAvgScore(_).get)
       val lowestOfFirst10 = allAvgAvg.take(10).min
       val avgOfLast5 = allAvgAvg.takeRight(5).sum
-//      lazy val it2Score = getAvgAvgScore(2)
-//      lazy val it10Score = getAvgBestScore(20)
 
       lowestOfFirst10 should be < avgOfLast5
     }
