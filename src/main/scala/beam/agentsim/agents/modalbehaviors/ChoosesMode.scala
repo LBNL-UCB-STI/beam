@@ -405,7 +405,6 @@ trait ChoosesMode {
               BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
               bodyId,
               asDriver = true,
-              None,
               0,
               unbecomeDriverOnCompletion = false
             )
@@ -413,7 +412,6 @@ trait ChoosesMode {
               BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
               bodyId,
               asDriver = true,
-              None,
               0,
               unbecomeDriverOnCompletion = true
             )
@@ -480,20 +478,21 @@ trait ChoosesMode {
     driveTransitTrip: EmbodiedBeamTrip
   ): Option[EmbodiedBeamTrip] = {
     if (rideHail2TransitAccessResult.error.isEmpty) {
-      val tncAccessLeg =
-        rideHail2TransitAccessResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs
+      val tncAccessLeg: Vector[EmbodiedBeamLeg] =
+        rideHail2TransitAccessResult.travelProposal.get.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
       // Replacing drive access leg with TNC changes the travel time.
+      val timeToCustomer = rideHail2TransitAccessResult.travelProposal.get.passengerSchedule.legsBeforePassengerBoards(bodyVehiclePersonId).map(_.duration).sum
       val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
-      tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
+      tncAccessLeg.last.beamLeg.duration - timeToCustomer
       if (extraWaitTimeBuffer < 300) {
         // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
         None
       } else {
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-        val startTimeAdjustment = driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - rideHail2TransitAccessResult.travelProposal.get.timeToCustomer.toInt
+        val startTimeAdjustment = driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
         val startTimeBufferForWaiting = math.min(
           extraWaitTimeBuffer,
-          math.max(300.0, rideHail2TransitAccessResult.travelProposal.head.timeToCustomer * 1.5)
+          math.max(300.0, timeToCustomer.toDouble * 1.5)
         ) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
         val accessAndTransit = tncAccessLeg.map(
           leg =>
@@ -503,7 +502,7 @@ trait ChoosesMode {
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
-          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.head.responseRideHail2Dest.itineraries.head.legs
+          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.get.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
         } else {
           accessAndTransit.dropRight(1)
         }
@@ -607,13 +606,10 @@ trait ChoosesMode {
       )
       val rideHailItinerary = rideHailResult.travelProposal match {
         case Some(travelProposal) =>
-          val origLegs = travelProposal.responseRideHail2Dest.itineraries.head.legs
-          val fullItin = travelProposal.responseRideHail2Dest.itineraries.head.copy(
-            legs =
-            EmbodiedBeamLeg
+          val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
+          val fullItin = EmbodiedBeamTrip((EmbodiedBeamLeg
               .dummyWalkLegAt(origLegs.head.beamLeg.startTime, bodyId, false) +: origLegs :+ EmbodiedBeamLeg
-              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)
-          )
+              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)).toIndexedSeq)
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
               Vector(

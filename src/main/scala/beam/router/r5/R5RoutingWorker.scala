@@ -325,8 +325,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val finalLegs = if (mustParkAtEnd) {
         val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
         val embodiedPair = Vector(
-          EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = false),
-          EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, None, 0, unbecomeDriverOnCompletion = true)
+          EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, 0, unbecomeDriverOnCompletion = false),
+          EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, 0, unbecomeDriverOnCompletion = true)
         )
         if (legPair.size == 1) {
           Vector(embodiedPair.head)
@@ -339,7 +339,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             leg.copy(duration = duration.toInt),
             vehicleId,
             asDriver = true,
-            None,
             0,
             unbecomeDriverOnCompletion = true
           )
@@ -690,7 +689,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     beamLeg,
                     beamLeg.travelPath.transitStops.get.vehicleId,
                     asDriver = false,
-                    None,
                     cost,
                     unbecomeDriverOnCompletion = false
                   )
@@ -705,9 +703,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     }
                     val body =
                       routingRequest.streetVehicles.find(_.mode == WALK).get
-                    EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, None, 0.0, unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
-                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, None, cost, unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, cost, unbecomeDriverAtComplete)
                   }
                 }
               }
@@ -1436,7 +1434,6 @@ object R5RoutingWorker {
           createBushwackingBeamLeg(atTime, origin, dest, beamServices),
           bodyId,
           asDriver = true,
-          None,
           0,
           unbecomeDriverOnCompletion = false
         )

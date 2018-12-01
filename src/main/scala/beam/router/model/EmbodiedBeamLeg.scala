@@ -8,7 +8,6 @@ case class EmbodiedBeamLeg(
   beamLeg: BeamLeg,
   beamVehicleId: Id[Vehicle],
   asDriver: Boolean,
-  passengerSchedule: Option[PassengerSchedule],
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
   isPooledTrip: Boolean = false
@@ -26,7 +25,6 @@ object EmbodiedBeamLeg {
       BeamLeg.dummyWalk(start),
       bodyId,
       asDriver = true,
-      None,
       0,
       unbecomeDriverOnCompletion = isLastLeg
     )

@@ -1,12 +1,9 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  PoolingInfo,
-  RideHailAgentLocation
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
+import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -109,8 +106,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(request.customer.personId, routingResponses.head),
-              PickDropIdAndLeg(request.customer.personId, routingResponses.last)
+              PickDropIdAndLeg(request.customer, routingResponses.head),
+              PickDropIdAndLeg(request.customer, routingResponses.last)
             )
             VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
@@ -220,7 +217,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: Id[Person], routingResponse: RoutingResponse)
+case class PickDropIdAndLeg(personId: VehiclePersonId, routingResponse: RoutingResponse)
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

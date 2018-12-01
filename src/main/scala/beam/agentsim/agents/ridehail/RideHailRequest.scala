@@ -15,7 +15,8 @@ case class RideHailRequest(
   pickUpLocation: Location,
   departAt: Int,
   destination: Location,
-  asPooled: Boolean = false
+  asPooled: Boolean = false,
+  groupedWithOtherRequests: List[RideHailRequest] = List()
 ) {
 
   /**
