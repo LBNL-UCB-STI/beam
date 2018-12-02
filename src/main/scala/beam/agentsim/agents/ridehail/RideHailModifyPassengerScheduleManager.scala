@@ -192,7 +192,7 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    log.info("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
+//    log.info("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
     if (!allTriggersInWave.isEmpty) {
       log.info(
         "triggers from {} to {}",

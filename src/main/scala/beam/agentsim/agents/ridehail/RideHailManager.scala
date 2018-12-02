@@ -1102,6 +1102,9 @@ class RideHailManager(
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
           response.request.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
+          response.request.groupedWithOtherRequests.foreach { subReq =>
+            subReq.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
+          }
         } else {
           response.request.customer.personRef.get ! response.copy(
             triggersToSchedule = finalTriggersToSchedule
@@ -1116,7 +1119,6 @@ class RideHailManager(
     if (processBufferedRequestsOnTimeout &&
         pendingModifyPassengerScheduleAcks.isEmpty &&
         rideHailResourceAllocationManager.isBufferEmpty) {
-      log.info("Complete from completeReservation")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
   }
@@ -1168,7 +1170,6 @@ class RideHailManager(
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
                rideHailResourceAllocationManager.isBufferEmpty) {
-      log.info("Complete from findAllocationsAndProcess at {}", tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     }
   }
@@ -1184,7 +1185,7 @@ class RideHailManager(
   }
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
-    val consistentPickDrops = pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.beamLeg)))
+    val consistentPickDrops = pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
     val allLegs = consistentPickDrops.map(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
     consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
@@ -1192,6 +1193,9 @@ class RideHailManager(
       val lastLeg = personPickDrop._2.last._2
       val subtrip = allLegs.dropWhile(_ != firstLeg).takeWhile(_ != lastLeg) :+ lastLeg
       passSched = passSched.addPassenger(personPickDrop._1,subtrip)
+    }
+    if(passSched.schedule.size>2){
+      val i = 0
     }
     passSched
   }

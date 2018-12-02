@@ -9,7 +9,11 @@ import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
+
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
+
+  val tempPickDropStore: mutable.Map[Int,PickDropIdAndLeg] = mutable.Map()
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.getClosestIdleVehiclesWithinRadiusByETA(
@@ -50,7 +54,12 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
         if(rideHailManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)){
           alreadyAllocated = alreadyAllocated + vehicleId
-          val pickDropIdAndLegs = routeResponses.map(rResp => PickDropIdAndLeg(request.customer,rResp.itineraries.head.legs.head))
+          val pickDropIdAndLegs = routeResponses.map{ rResp =>
+            tempPickDropStore.remove(rResp.staticRequestId).getOrElse(PickDropIdAndLeg(request.customer,None)).copy(leg = rResp.itineraries.head.legs.headOption)
+          }
+          if(routeResponses.size>2){
+            val i = 0
+          }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(request, rideHailManager.getIdleVehicles(vehicleId), pickDropIdAndLegs)
         }else{
           allocResponses = allocResponses :+ NoVehicleAllocated(request)
@@ -139,6 +148,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
+      tempPickDropStore.put(routeReq2Pickup.staticRequestId,PickDropIdAndLeg(req.customer,None))
 
       rideHailVehicleAtOrigin = StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.pickUpLocation, startTime)), CAR, asDriver = false)
     }
@@ -153,6 +163,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
+      tempPickDropStore.put(routeReq2Dropoff.staticRequestId,PickDropIdAndLeg(req.customer,None))
 
       rideHailVehicleAtOrigin = StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.destination, startTime)), CAR, asDriver = false)
     }
