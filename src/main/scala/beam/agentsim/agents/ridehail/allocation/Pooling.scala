@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManager.{PoolingInfo, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -10,6 +10,20 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
+
+  override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
+    rideHailManager.getClosestIdleVehiclesWithinRadiusByETA(
+      inquiry.pickUpLocation,
+      rideHailManager.radiusInMeters,
+      inquiry.departAt
+    ).headOption match {
+      case Some(agentETA) =>
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None, Some(PoolingInfo(1.1,0.6)))
+      case None =>
+        NoVehiclesAvailable
+    }
+  }
+
   override def allocateVehiclesToCustomers(
                                             tick: Int,
                                             vehicleAllocationRequest: AllocationRequests
@@ -25,7 +39,28 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       case (request, _) =>
         notToPool += request
     }
-    toPool.sliding(2).foreach { twoToPool =>
+    notToPool.foreach{ request =>
+      val routeResponses = vehicleAllocationRequest.requests(request)
+
+      // First check for broken route responses (failed routing attempt)
+      if(routeResponses.find(_.itineraries.size == 0).isDefined){
+        allocResponses = allocResponses :+ NoVehicleAllocated(request)
+      }else{
+        // Make sure vehicle still available
+        val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
+        if(rideHailManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)){
+          alreadyAllocated = alreadyAllocated + vehicleId
+          val pickDropIdAndLegs = routeResponses.map(rResp => PickDropIdAndLeg(request.customer,rResp.itineraries.head.legs.head))
+          allocResponses = allocResponses :+ VehicleMatchedToCustomers(request, rideHailManager.getIdleVehicles(vehicleId), pickDropIdAndLegs)
+        }else{
+          allocResponses = allocResponses :+ NoVehicleAllocated(request)
+          request.groupedWithOtherRequests.foreach{req =>
+            allocResponses = allocResponses :+ NoVehicleAllocated(req)
+          }
+        }
+      }
+    }
+    toPool.grouped(2).foreach { twoToPool =>
       twoToPool.size match {
         case 1 =>
           val request = twoToPool.head
@@ -66,26 +101,27 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
             case Some(agentETA) =>
               alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
               allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
-                request1.copy(groupedWithOtherRequests = List(request2)),
+                request1.addSubRequest(request2),
                 createRoutingRequestsForPooledTrip(List(request1, request2),
-                  agentETA.agentLocation
+                  agentETA.agentLocation,
+                  tick
                 )
               )
+              // When we group request 2 with 1 we need to remove it from the buffer
+              // so it won't be processed again (it's fate is now tied to request 1)
+              removeRequestFromBuffer(request2)
             case None =>
               allocResponses = allocResponses :+ NoVehicleAllocated(request1)
               allocResponses = allocResponses :+ NoVehicleAllocated(request2)
           }
       }
     }
-    if(allocResponses.size>0){
-      val i = 0
-    }
     VehicleAllocations(allocResponses)
   }
 
-  def createRoutingRequestsForPooledTrip(requests: List[RideHailRequest], rideHailLocation: RideHailAgentLocation): List[RoutingRequest] = {
+  def createRoutingRequestsForPooledTrip(requests: List[RideHailRequest], rideHailLocation: RideHailAgentLocation, tick: Int): List[RoutingRequest] = {
     var routeReqs: List[RoutingRequest] = List()
-    var startTime = requests.head.departAt
+    var startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       SpaceTime((rideHailLocation.currentLocation.loc, startTime)),

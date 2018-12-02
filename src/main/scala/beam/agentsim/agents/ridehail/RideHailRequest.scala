@@ -16,27 +16,15 @@ case class RideHailRequest(
   departAt: Int,
   destination: Location,
   asPooled: Boolean = false,
-  groupedWithOtherRequests: List[RideHailRequest] = List()
+  groupedWithOtherRequests: List[RideHailRequest] = List(),
+  requestId: Int = UUID.randomUUID().hashCode()
 ) {
 
-  /**
-    * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
-    *
-    * @return hashCode(customer, pickUpLocation, departAt, destination)
-    */
-//  lazy val requestId: Int = {
-//    new HashCodeBuilder()
-//      .append(customer)
-//      .append(pickUpLocation)
-//      .append(departAt)
-//      .append(destination)
-//      .toHashCode
-//  }
-  lazy val requestId: Int = UUID.randomUUID().hashCode()
-  lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
-
+  def addSubRequest(subRequest: RideHailRequest): RideHailRequest = this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  override def equals(that: Any) = this.requestId == that.asInstanceOf[RideHailRequest].requestId
+  override def hashCode: Int = requestId
   override def toString: String =
-    s"id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocation, time: $departAt, dest: $destination"
+    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocation, time: $departAt, dest: $destination)"
 }
 
 object RideHailRequest {

@@ -413,7 +413,7 @@ class RideHailManager(
         "Illegal use of CheckOutResource, RideHailManager is responsible for checking out vehicles in fleet."
       )
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _) =>
       handleRideHailInquiry(inquiry)
 
     case R5Network(network) =>
@@ -426,8 +426,14 @@ class RideHailManager(
     case RoutingResponses(tick, responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       responses.foreach { routeResponse =>
+        if(responses.size>10){
+          val i = 0
+        }
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
+      }
+      if(tick>=23400){
+        val i = 0
       }
       self ! ContinueBufferedRideHailRequests(tick)
 
@@ -441,6 +447,10 @@ class RideHailManager(
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
       )
+
+      if(tick>=23460){
+        val i = 0
+      }
 
       // If any response contains no RIDE_HAIL legs, then the router failed
       if(responses.map(_.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL)).isEmpty).contains(true)) {
@@ -475,7 +485,7 @@ class RideHailManager(
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.staticRequestId))
 
-    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _) =>
+    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _) =>
       handleReservationRequest(reserveRide)
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
@@ -1052,7 +1062,7 @@ class RideHailManager(
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
-      request.staticRequestId,
+      request.requestId,
       RideHailResponse(request, Some(travelProposal))
     )
 
@@ -1060,14 +1070,14 @@ class RideHailManager(
       "Reserving vehicle: {} customer: {} request: {} pendingAcks: {}",
       travelProposal.rideHailAgentLocation.vehicleId,
       request.customer.personId,
-      request.staticRequestId,
+      request.requestId,
       s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}"
     )
 
     modifyPassengerScheduleManager.reserveVehicle(
       travelProposal.passengerSchedule,
       travelProposal.rideHailAgentLocation,
-      Some(request.staticRequestId)
+      Some(request.requestId)
     )
   }
 
@@ -1171,17 +1181,17 @@ class RideHailManager(
       calcFare(alloc.request,passSched),
       None
     )
-    //TODO make legs consistent
   }
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
-    val allLegs = BeamLeg.makeLegsConsistent(pickDrops.flatMap(_.routingResponse.itineraries.flatMap(_.beamLegs())))
-    val passSched = PassengerSchedule().addLegs(allLegs)
-    pickDrops.groupBy(_.personId).foreach { personPickDrop =>
-      val firstLeg = personPickDrop._2.head.routingResponse.itineraries.head.legs.head.beamLeg
-      val lastLeg = personPickDrop._2.last.routingResponse.itineraries.last.legs.last.beamLeg
+    val consistentPickDrops = pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.beamLeg)))
+    val allLegs = consistentPickDrops.map(_._2)
+    var passSched = PassengerSchedule().addLegs(allLegs)
+    consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
+      val firstLeg = personPickDrop._2.head._2
+      val lastLeg = personPickDrop._2.last._2
       val subtrip = allLegs.dropWhile(_ != firstLeg).takeWhile(_ != lastLeg) :+ lastLeg
-      passSched.addPassenger(personPickDrop._1,subtrip)
+      passSched = passSched.addPassenger(personPickDrop._1,subtrip)
     }
     passSched
   }

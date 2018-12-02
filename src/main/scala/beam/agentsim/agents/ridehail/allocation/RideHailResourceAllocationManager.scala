@@ -5,6 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
+import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -64,7 +65,9 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   /*
    * This method is called in both contexts, either with a single allocation request or with a batch of requests
-   * to be processed.
+   * to be processed. The default implementation here uses a greedy, closest vehicle approach and only
+   * allocates single-occupant rides. For pooled rides, you will need to use the "Pooling" allocation manager
+   * or a variation on that manager.
    */
   def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponse = {
     // closest request
@@ -106,8 +109,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(request.customer, routingResponses.head),
-              PickDropIdAndLeg(request.customer, routingResponses.last)
+              PickDropIdAndLeg(request.customer, routingResponses.head.itineraries.head.legs.head),
+              PickDropIdAndLeg(request.customer, routingResponses.last.itineraries.head.legs.head)
             )
             VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
@@ -217,7 +220,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: VehiclePersonId, routingResponse: RoutingResponse)
+case class PickDropIdAndLeg(personId: VehiclePersonId, leg: EmbodiedBeamLeg)
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 
