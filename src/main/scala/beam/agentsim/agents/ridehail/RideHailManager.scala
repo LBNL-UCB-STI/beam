@@ -1191,11 +1191,8 @@ class RideHailManager(
     consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
       val firstLeg = personPickDrop._2.head._2
       val lastLeg = personPickDrop._2.last._2
-      val subtrip = allLegs.dropWhile(_ != firstLeg).takeWhile(_ != lastLeg) :+ lastLeg
+      val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
       passSched = passSched.addPassenger(personPickDrop._1,subtrip)
-    }
-    if(passSched.schedule.size>2){
-      val i = 0
     }
     passSched
   }
