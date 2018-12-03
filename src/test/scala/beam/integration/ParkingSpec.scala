@@ -241,30 +241,5 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .takeRight(5)
         .sum should be > limitedModeChoiceCarCount.takeRight(5).sum
     }
-
-    "limited parking access should increase walking distances" in {
-      def filterPathTraversalForWalk(e: Event): Boolean = {
-        PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
-        "walk".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
-      }
-
-      val defaultPathTraversalEvents = defaultEvents.head.filter(filterPathTraversalForWalk)
-
-      val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0) {
-        case (acc, ev) =>
-          val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-          acc + currLength
-      } / defaultPathTraversalEvents.size
-
-      val limitedPathTraversalEvents = limitedEvents.head.filter(filterPathTraversalForWalk)
-
-      val limitedPathLength = limitedPathTraversalEvents.foldLeft(0.0) {
-        case (acc, ev) =>
-          val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-          acc + currLength
-      } / limitedPathTraversalEvents.size
-
-      limitedPathLength should be > defaultPathLength
-    }
   }
 }
