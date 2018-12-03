@@ -432,6 +432,11 @@ class OtherPersonAgentSpec
       )
       expectMsgType[ModeChoiceEvent]
 
+      // Person first does the dummy walk leg
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(
         reservationRequestTram.requestId,
