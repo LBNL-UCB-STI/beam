@@ -192,7 +192,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator)));
 
-
         if (shouldWritePhysSimEvents(iterationNumber)) {
             assert eventsWriterXML != null;
             eventsWriterXML.closeFile();
