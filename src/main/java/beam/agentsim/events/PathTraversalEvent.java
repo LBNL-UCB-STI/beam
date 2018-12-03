@@ -22,6 +22,7 @@ public class PathTraversalEvent extends Event {
     public static final String ATTRIBUTE_NUM_PASS = "numPassengers";
 
     public final static String ATTRIBUTE_LINK_IDS = "links";
+    public final static String ATTRIBUTE_LINK_TRAVEL_TIMES = "linkTravelTimes";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
     public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
@@ -48,6 +49,7 @@ public class PathTraversalEvent extends Event {
     private final double endLegFuelLevel;
     private final double legLength;
     private final String linkIds;
+    private final String linkTravelTimes;
     private final long departureTime;
     private final long arrivalTime;
     private final double startX;
@@ -61,14 +63,14 @@ public class PathTraversalEvent extends Event {
         this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().fuelTypeId().toString(), fuelConsumed,
-                beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
+                beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.travelPath().linkTravelTime().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
                 beamLeg.travelPath().startPoint().loc().getX(), beamLeg.travelPath().startPoint().loc().getY(), beamLeg.travelPath().endPoint().loc().getX(),
                 beamLeg.travelPath().endPoint().loc().getY(),(int)vehicleType.seatingCapacity(),
                 amountPaid);
     }
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
-                              double legLength, String linkIds, long departureTime, long arrivalTime, double startX, double startY, double endX,
+                              double legLength, String linkIds, String linkTravelTimes, long departureTime, long arrivalTime, double startX, double startY, double endX,
                               double endY, int seatingCapacity, double amountPaid) {
         super(time);
         this.vehicleType = vehicleType;
@@ -81,6 +83,7 @@ public class PathTraversalEvent extends Event {
         this.fuel = fuel;
         this.legLength = legLength;
         this.linkIds = linkIds;
+        this.linkTravelTimes = linkTravelTimes;
         this.departureTime = departureTime;
         this.arrivalTime = arrivalTime;
         this.startX = startX;
@@ -106,6 +109,7 @@ public class PathTraversalEvent extends Event {
                     Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
                     Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
                     attr.get(ATTRIBUTE_LINK_IDS),
+                    attr.get(ATTRIBUTE_LINK_TRAVEL_TIMES),
                     Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
                     Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
@@ -135,6 +139,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_ARRIVAL_TIME, Long.toString(arrivalTime));
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
+        attr.put(ATTRIBUTE_LINK_TRAVEL_TIMES, linkTravelTimes);
         attr.put(ATTRIBUTE_FUEL_TYPE, fuelType);
         attr.put(ATTRIBUTE_FUEL, fuel.toString());
         attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString());
