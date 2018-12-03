@@ -289,7 +289,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
@@ -413,7 +412,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
@@ -505,7 +503,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
       )
@@ -525,7 +522,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -545,7 +541,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = tramId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -636,7 +631,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -659,7 +653,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               )

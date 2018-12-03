@@ -172,7 +172,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -192,7 +191,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -212,7 +210,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -232,7 +229,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -337,7 +333,6 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -360,7 +355,6 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )
@@ -421,7 +415,6 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )

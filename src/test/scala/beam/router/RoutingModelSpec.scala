@@ -22,7 +22,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       ),
       Id.createVehicleId(13),
       asDriver = true,
-      None,
       0,
       unbecomeDriverOnCompletion = true
     )
@@ -53,7 +52,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       ),
       Id.createVehicleId(13),
       asDriver = true,
-      None,
       0,
       unbecomeDriverOnCompletion = true
     )
@@ -83,7 +81,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       ),
       Id.createVehicleId(13),
       asDriver = true,
-      None,
       0,
       unbecomeDriverOnCompletion = true
     )
@@ -102,7 +99,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
       asDriver = true,
-      None,
       0,
       unbecomeDriverOnCompletion = true
     )
@@ -120,7 +116,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
       asDriver = true,
-      passengerSchedule = None,
       cost = 0,
       unbecomeDriverOnCompletion = true
     )
@@ -137,7 +132,6 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
       asDriver = true,
-      passengerSchedule = None,
       cost = 0,
       unbecomeDriverOnCompletion = true
     )

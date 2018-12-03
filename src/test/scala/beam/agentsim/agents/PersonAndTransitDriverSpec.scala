@@ -187,7 +187,6 @@ class PersonAndTransitDriverSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
       )
@@ -207,7 +206,6 @@ class PersonAndTransitDriverSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -227,7 +225,6 @@ class PersonAndTransitDriverSpec
         ),
         beamVehicleId = tramId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -354,7 +351,6 @@ class PersonAndTransitDriverSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -377,7 +373,6 @@ class PersonAndTransitDriverSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               )
