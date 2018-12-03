@@ -324,10 +324,24 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
       val finalLegs = if (mustParkAtEnd) {
         val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
-        val fuelCostPerLeg = legPair.map(DrivingCostDefaults.estimateFuelCost(_,vehicleId,beamServices))
+        val fuelCostPerLeg = legPair.map(DrivingCostDefaults.estimateFuelCost(_, vehicleId, beamServices))
         val embodiedPair = Vector(
-          EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, None, fuelCostPerLeg.head, unbecomeDriverOnCompletion = false),
-          EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, None, fuelCostPerLeg.last, unbecomeDriverOnCompletion = true)
+          EmbodiedBeamLeg(
+            legPair.head,
+            vehicleId,
+            asDriver = true,
+            None,
+            fuelCostPerLeg.head,
+            unbecomeDriverOnCompletion = false
+          ),
+          EmbodiedBeamLeg(
+            legPair.last,
+            vehicleId,
+            asDriver = true,
+            None,
+            fuelCostPerLeg.last,
+            unbecomeDriverOnCompletion = true
+          )
         )
         if (legPair.size == 1) {
           Vector(embodiedPair.head)
@@ -341,7 +355,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             vehicleId,
             asDriver = true,
             None,
-            DrivingCostDefaults.estimateFuelCost(leg,vehicleId,beamServices),
+            DrivingCostDefaults.estimateFuelCost(leg, vehicleId, beamServices),
             unbecomeDriverOnCompletion = true
           )
         )
@@ -725,7 +739,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       routingRequest.streetVehicles.find(_.mode == WALK).get
                     EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, None, 0.0, unbecomeDriverAtComplete)
                   } else {
-                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, None, DrivingCostDefaults.estimateFuelCost(beamLeg,vehicle.id,beamServices), unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(
+                      beamLeg,
+                      vehicle.id,
+                      vehicle.asDriver,
+                      None,
+                      DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.id, beamServices),
+                      unbecomeDriverAtComplete
+                    )
                   }
                 }
               }

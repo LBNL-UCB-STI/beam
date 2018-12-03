@@ -448,7 +448,15 @@ class PersonAgent(
       val rawCost = data.restOfCurrentTrip.head.cost + data.currentTripCosts
       if (toll > 0.0 || rawCost > 0.0)
         eventsManager.processEvent(
-          new PersonCostEvent(tick, matsimPlan.getPerson.getId, data.restOfCurrentTrip.head.beamLeg.mode.value, rawCost, 0.0, toll, rawCost + toll)
+          new PersonCostEvent(
+            tick,
+            matsimPlan.getPerson.getId,
+            data.restOfCurrentTrip.head.beamLeg.mode.value,
+            rawCost,
+            0.0,
+            toll,
+            rawCost + toll
+          )
         )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)
@@ -483,7 +491,10 @@ class PersonAgent(
         data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, currentCost)
         ) =>
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
-      goto(ChoosingParkingSpot) using data.copy(restOfCurrentTrip = theRestOfCurrentTrip, currentTripCosts = (currentCost + completedLeg.cost))
+      goto(ChoosingParkingSpot) using data.copy(
+        restOfCurrentTrip = theRestOfCurrentTrip,
+        currentTripCosts = (currentCost + completedLeg.cost)
+      )
   }
 
   onTransition {
@@ -644,7 +655,8 @@ class PersonAgent(
           currentTourPersonalVehicle,
           _,
           _,
-          _, _
+          _,
+          _
         )
         ) =>
       nextActivity(data) match {

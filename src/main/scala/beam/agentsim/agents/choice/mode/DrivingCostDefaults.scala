@@ -13,7 +13,7 @@ object DrivingCostDefaults {
   val zero: Double = 0
 
   def estimateFuelCost(leg: BeamLeg, vehicleId: Id[Vehicle], beamServices: BeamServices): Double = {
-    if(beamServices.vehicles.contains(vehicleId)){
+    if (beamServices.vehicles.contains(vehicleId)) {
       val vehicle = beamServices.vehicles(vehicleId)
       val distance = leg.travelPath.distanceInM
       if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
@@ -25,18 +25,20 @@ object DrivingCostDefaults {
       zero
     }
   }
+
   def estimateFuelCost(leg: EmbodiedBeamLeg, beamServices: BeamServices): Double = {
-    estimateFuelCost(leg.beamLeg,leg.beamVehicleId,beamServices)
+    estimateFuelCost(leg.beamLeg, leg.beamVehicleId, beamServices)
   }
+
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
   ): IndexedSeq[Double] = {
 
     alternatives.map { alt =>
-      if(alt.costEstimate == zero) {
+      if (alt.costEstimate == zero) {
         alt.legs.map(estimateFuelCost(_, beamServices)).sum
-      }else{
+      } else {
         zero
       }
     }
