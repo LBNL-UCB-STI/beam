@@ -41,8 +41,6 @@ object Modes {
 
     case object RIDE_HAIL extends BeamMode(value = "ride_hail", Some(Left(LegMode.CAR)), TransportMode.other)
 
-    case object EV extends BeamMode(value = "ev", Some(Left(LegMode.CAR)), TransportMode.other)
-
     // Transit
 
     case object BUS extends BeamMode(value = "bus", Some(Right(TransitModes.BUS)), TransportMode.pt)
@@ -95,7 +93,7 @@ object Modes {
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
-    val chainBasedModes = Seq(CAR, EV, BIKE)
+    val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY, TRAM)

@@ -401,24 +401,21 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
-      val estimateCost = data.currentTrip.get.costEstimate
+      val rawCost = data.currentTrip.get.costEstimate
       val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
+      val netCost = Math.max(rawCost - subsidy, 0)
 
-      val subsidisedCost = Math.max(estimateCost - subsidy, 0)
-      if (subsidisedCost > 0.0)
+      if (rawCost > 0.0 || subsidy > 0.0 || netCost > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             id,
             mode.value,
-            PersonCostEvent.COST_TYPE_COST,
-            subsidisedCost
+            rawCost,
+            subsidy,
+            0.0,
+            netCost
           )
-        )
-
-      if (subsidy > 0.0)
-        eventsManager.processEvent(
-          new PersonCostEvent(tick, id, mode.value, PersonCostEvent.COST_TYPE_SUBSIDY, subsidy)
         )
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
@@ -447,9 +444,10 @@ class PersonAgent(
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      if (toll != 0.0)
+      val rawCost = data.restOfCurrentTrip.head.cost
+      if (toll > 0.0 || rawCost > 0.0)
         eventsManager.processEvent(
-          new PersonCostEvent(tick, matsimPlan.getPerson.getId, "car", "toll", toll)
+          new PersonCostEvent(tick, matsimPlan.getPerson.getId, data.restOfCurrentTrip.head.beamLeg.mode.value, rawCost, 0.0, toll, rawCost + toll)
         )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)

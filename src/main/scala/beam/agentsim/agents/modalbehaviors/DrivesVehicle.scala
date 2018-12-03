@@ -70,6 +70,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
+  private var tollsAccumulated = 0.0
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
@@ -162,6 +163,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           tick,
@@ -224,8 +226,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .travelPath
               .endPoint
           ),
-          tollOnCurrentLeg
+          tollsAccumulated
         )
+        tollsAccumulated = 0.0
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
@@ -332,6 +335,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           stopTick,
@@ -357,8 +361,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .travelPath
             .endPoint
         ),
-        tollOnCurrentLeg
+        tollsAccumulated
       )
+      tollsAccumulated = 0.0
       goto(PassengerScheduleEmptyInterrupted) using data
         .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
         .asInstanceOf[T]
