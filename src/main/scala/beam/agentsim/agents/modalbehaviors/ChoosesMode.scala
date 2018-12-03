@@ -481,7 +481,10 @@ trait ChoosesMode {
       val tncAccessLeg: Vector[EmbodiedBeamLeg] =
         rideHail2TransitAccessResult.travelProposal.get.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
       // Replacing drive access leg with TNC changes the travel time.
-      val timeToCustomer = rideHail2TransitAccessResult.travelProposal.get.passengerSchedule.legsBeforePassengerBoards(bodyVehiclePersonId).map(_.duration).sum
+      val timeToCustomer = rideHail2TransitAccessResult.travelProposal.get.passengerSchedule
+        .legsBeforePassengerBoards(bodyVehiclePersonId)
+        .map(_.duration)
+        .sum
       val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
       tncAccessLeg.last.beamLeg.duration - timeToCustomer
       if (extraWaitTimeBuffer < 300) {
@@ -502,7 +505,8 @@ trait ChoosesMode {
           )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
-          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.get.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
+          accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.get
+            .toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
         } else {
           accessAndTransit.dropRight(1)
         }
@@ -607,9 +611,11 @@ trait ChoosesMode {
       val rideHailItinerary = rideHailResult.travelProposal match {
         case Some(travelProposal) =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
-          val fullItin = EmbodiedBeamTrip((EmbodiedBeamLeg
+          val fullItin = EmbodiedBeamTrip(
+            (EmbodiedBeamLeg
               .dummyWalkLegAt(origLegs.head.beamLeg.startTime, bodyId, false) +: origLegs :+ EmbodiedBeamLeg
-              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)).toIndexedSeq)
+              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)).toIndexedSeq
+          )
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
               Vector(

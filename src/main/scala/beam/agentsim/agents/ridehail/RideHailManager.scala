@@ -15,7 +15,11 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -94,23 +98,30 @@ object RideHailManager {
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
     passengerSchedule: PassengerSchedule,
-    estimatedPrice: Map[Id[Person],Double],
+    estimatedPrice: Map[Id[Person], Double],
     poolingInfo: Option[PoolingInfo] = None
   ) {
 
-    def timeToCustomer(passenger: VehiclePersonId) = passengerSchedule.legsBeforePassengerBoards(passenger).map(_.duration).sum
-    def travelTimeForCustomer(passenger: VehiclePersonId) = passengerSchedule.legsWithPassenger(passenger).map(_.duration).sum
+    def timeToCustomer(passenger: VehiclePersonId) =
+      passengerSchedule.legsBeforePassengerBoards(passenger).map(_.duration).sum
+
+    def travelTimeForCustomer(passenger: VehiclePersonId) =
+      passengerSchedule.legsWithPassenger(passenger).map(_.duration).sum
+
     def toEmbodiedBeamLegsForCustomer(passenger: VehiclePersonId): Vector[EmbodiedBeamLeg] = {
-      passengerSchedule.legsWithPassenger(passenger).map { beamLeg =>
-        EmbodiedBeamLeg(
-          beamLeg,
-          rideHailAgentLocation.vehicleId,
-          false,
-          estimatedPrice(passenger.personId),
-          false,
-          passengerSchedule.schedule.values.flatMap(_.riders).size>1
-        )
-      }.toVector
+      passengerSchedule
+        .legsWithPassenger(passenger)
+        .map { beamLeg =>
+          EmbodiedBeamLeg(
+            beamLeg,
+            rideHailAgentLocation.vehicleId,
+            false,
+            estimatedPrice(passenger.personId),
+            false,
+            passengerSchedule.schedule.values.flatMap(_.riders).size > 1
+          )
+        }
+        .toVector
     }
     override def toString: String =
       s"RHA: ${rideHailAgentLocation.vehicleId}, price: $estimatedPrice, passengerSchedule: $passengerSchedule"
@@ -284,7 +295,6 @@ class RideHailManager(
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 
-
   override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
@@ -426,13 +436,13 @@ class RideHailManager(
     case RoutingResponses(tick, responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       responses.foreach { routeResponse =>
-        if(responses.size>10){
+        if (responses.size > 10) {
           val i = 0
         }
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
       }
-      if(tick>=23400){
+      if (tick >= 23400) {
         val i = 0
       }
       self ! ContinueBufferedRideHailRequests(tick)
@@ -448,12 +458,12 @@ class RideHailManager(
         routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
       )
 
-      if(tick>=23460){
+      if (tick >= 23460) {
         val i = 0
       }
 
       // If any response contains no RIDE_HAIL legs, then the router failed
-      if(responses.map(_.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL)).isEmpty).contains(true)) {
+      if (responses.map(_.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL)).isEmpty).contains(true)) {
         log.debug(
           "Router could not find route to customer person={} for requestId={}",
           request.customer.personId,
@@ -464,13 +474,22 @@ class RideHailManager(
           None,
           Some(CouldNotFindRouteToCustomer)
         )
-      }else {
+      } else {
         // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
         // for a simple single-occupant trip sequence, we know that first
         // itin is RH2Customer and second is Pickup2Destination.
-        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, EmbodiedBeamTrip(responses.map { response =>
-          response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
-        }.flatten.flatMap(_.legs).toIndexedSeq))
+        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(
+          request,
+          EmbodiedBeamTrip(
+            responses
+              .map { response =>
+                response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
+              }
+              .flatten
+              .flatMap(_.legs)
+              .toIndexedSeq
+          )
+        )
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
@@ -689,11 +708,14 @@ class RideHailManager(
 
   }
 
-  def singleOccupantItinsToPassengerSchedule(request: RideHailRequest, embodiedTrip: EmbodiedBeamTrip): PassengerSchedule = {
+  def singleOccupantItinsToPassengerSchedule(
+    request: RideHailRequest,
+    embodiedTrip: EmbodiedBeamTrip
+  ): PassengerSchedule = {
     val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList)
     PassengerSchedule()
       .addLegs(beamLegs)
-      .addPassenger(request.customer,beamLegs.tail)
+      .addPassenger(request.customer, beamLegs.tail)
   }
 
   def calcFare(request: RideHailRequest, trip: PassengerSchedule): Map[Id[Person], Double] = {
@@ -1179,20 +1201,21 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request,passSched),
+      calcFare(alloc.request, passSched),
       None
     )
   }
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
-    val consistentPickDrops = pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
+    val consistentPickDrops =
+      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
     val allLegs = consistentPickDrops.map(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
     consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
       val firstLeg = personPickDrop._2.head._2
       val lastLeg = personPickDrop._2.last._2
       val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
-      passSched = passSched.addPassenger(personPickDrop._1,subtrip)
+      passSched = passSched.addPassenger(personPickDrop._1, subtrip)
     }
     passSched
   }
@@ -1211,6 +1234,5 @@ class RideHailManager(
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
-
 
 }

@@ -49,13 +49,13 @@ object BeamLeg {
       .updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[BeamLeg]): List[BeamLeg] = {
-    if(legs.size > 0){
+    if (legs.size > 0) {
       var runningStartTime = legs.head.startTime
-      for(leg <- legs)yield {
+      for (leg <- legs) yield {
         val newLeg = leg.updateStartTime(runningStartTime)
         runningStartTime = newLeg.endTime
         newLeg
       }
-    }else{ legs }
+    } else { legs }
   }
 }

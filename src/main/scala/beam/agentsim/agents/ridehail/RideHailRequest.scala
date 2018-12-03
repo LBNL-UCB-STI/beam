@@ -20,7 +20,8 @@ case class RideHailRequest(
   requestId: Int = UUID.randomUUID().hashCode()
 ) {
 
-  def addSubRequest(subRequest: RideHailRequest): RideHailRequest = this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
+    this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
   override def equals(that: Any) = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
   override def toString: String =

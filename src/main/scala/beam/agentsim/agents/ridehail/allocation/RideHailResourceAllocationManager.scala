@@ -1,7 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  PoolingInfo,
+  RideHailAgentLocation
+}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
