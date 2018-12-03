@@ -2,30 +2,19 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
-import beam.agentsim.Resource.CheckInResource
-import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
+import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  EndLegTrigger,
-  EndRefuelTrigger,
-  StartLegTrigger,
-  StartRefuelTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -184,7 +173,7 @@ class RideHailAgent(
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
+          vehicle.manager.get ! CheckInResource(vehicle.getId, Some(SpaceTime(initialLocation, tick)))
           eventsManager.processEvent(
             new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
           )

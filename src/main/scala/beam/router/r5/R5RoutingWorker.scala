@@ -16,6 +16,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
+import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.model.BeamLeg._
@@ -24,26 +25,23 @@ import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router._
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.reflection.ReflectionUtils
 import beam.utils._
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -58,7 +56,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
@@ -122,22 +119,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val modeSubsidies: ModeSubsidy =
           ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
-        override protected def injectActor[A <: Actor](implicit factory: ActorRefFactory, tag: ClassTag[A]): ActorRef =
-          super.injectActor
         override def startNewIteration(): Unit = throw new Exception("???")
-
-        override protected def injector: Injector = throw new Exception("???")
-
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-
-        override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
-
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
-
-        override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
       }
 
       val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)

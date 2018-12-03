@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse, RegisterResource}
-import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
+import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
@@ -14,11 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
@@ -212,8 +207,6 @@ class PersonAgent(
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
       stash()
       stay
-    case Event(NotifyResourceInUse(_, _), _) =>
-      stay()
     case Event(RegisterResource(_), _) =>
       stay()
     case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>

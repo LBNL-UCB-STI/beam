@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
-import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -15,7 +14,6 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
@@ -23,7 +21,6 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
@@ -39,7 +36,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 
 @ImplementedBy(classOf[BeamServicesImpl])
-trait BeamServices extends ActorInject {
+trait BeamServices {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
@@ -48,7 +45,6 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
-  var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]

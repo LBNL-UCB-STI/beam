@@ -1,8 +1,7 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse}
-import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -108,7 +107,7 @@ object HouseholdActor {
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord
-  ) extends VehicleManager
+  ) extends Actor
       with ActorLogging {
 
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
@@ -159,8 +158,7 @@ object HouseholdActor {
 
     }
 
-    override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
-    resources ++ vehicles
+    private val resources = mutable.Map() ++ vehicles
 
     /**
       * Available [[Vehicle]]s in [[Household]].
@@ -191,9 +189,6 @@ object HouseholdActor {
     // Initial vehicle assignments.
     initializeHouseholdVehicles()
 
-    override def findResource(vehicleId: Id[BeamVehicle]): Option[BeamVehicle] =
-      resources.get(vehicleId)
-
     override def receive: Receive = {
 
       case NotifyVehicleResourceIdle(
@@ -206,10 +201,6 @@ object HouseholdActor {
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
         log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
-
-      case NotifyResourceInUse(vId, whenWhere) =>
-        val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
       case CheckInResource(vehicleId, _) =>
         checkInVehicleResource(vehicleId.asInstanceOf[Id[BeamVehicle]])

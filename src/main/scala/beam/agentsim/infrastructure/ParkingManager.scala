@@ -13,7 +13,6 @@ import org.matsim.vehicles.Vehicle
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes
 ) extends Actor
-    with ResourceManager[ParkingStall] {}
 
 object ParkingManager {
 

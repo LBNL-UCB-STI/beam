@@ -27,8 +27,6 @@ class RepositioningLowWaitingTimes(
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
         val idleVehicles = rideHailManager.getIdleVehicles
-        val fleetSize = rideHailManager.resources.size
-
         val repositioningConfig =
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
         // TODO: get proper number here from rideHailManager
@@ -37,7 +35,7 @@ class RepositioningLowWaitingTimes(
         val percentageOfVehiclesToReposition =
           repositioningConfig.percentageOfVehiclesToReposition
         val maxNumberOfVehiclesToReposition =
-          (fleetSize * percentageOfVehiclesToReposition).toInt
+          (rideHailManager.fleetSize * percentageOfVehiclesToReposition).toInt
 
         var repositionCircleRadiusInMeters =
           repositioningConfig.repositionCircleRadiusInMeters

@@ -7,7 +7,6 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, P
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
@@ -74,7 +73,6 @@ class Population(
         case Terminated(_) =>
           dieIfNoChildren()
       }
-    case InitParkingVehicles =>
   }
 
   def dieIfNoChildren(): Unit = {
@@ -234,7 +232,4 @@ object Population {
       )
     )
   }
-
-  case object InitParkingVehicles
-
 }

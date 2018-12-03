@@ -3,23 +3,18 @@ package beam.agentsim.agents.ridehail
 import java.util
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
-import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -199,7 +194,7 @@ class RideHailManager(
   val boundingBox: Envelope,
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats]
-) extends VehicleManager
+) extends Actor
     with ActorLogging
     with HasServices {
 
@@ -217,8 +212,9 @@ class RideHailManager(
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
   }
-  override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] =
-    mutable.Map[Id[BeamVehicle], BeamVehicle]()
+
+  val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  def fleetSize: Int = resources.size
 
   val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
@@ -382,10 +378,6 @@ class RideHailManager(
         }
       }
 
-    case NotifyResourceInUse(vId, whenWhere) =>
-      val vehId = vId.asInstanceOf[Id[Vehicle]]
-      updateLocationOfAgent(vehId, whenWhere, InService)
-
     case BeamVehicleStateUpdate(id, beamVehicleState) =>
       vehicleState.put(id, beamVehicleState)
 
@@ -406,7 +398,6 @@ class RideHailManager(
               log.debug("Checking in: {}", vehicleId)
               makeAvailable(rideHailAgentLocation)
             }
-            sender ! CheckInSuccess
             log.debug(
               "checking in resource: vehicleId({});availableIn.time({})",
               vehicleId,
@@ -416,12 +407,6 @@ class RideHailManager(
             driver ! GetBeamVehicleState
           })
       }
-
-    case CheckOutResource(_) =>
-      // Because the RideHail Manager is in charge of deciding which specific vehicles to assign to customers, this should never be used
-      throw new RuntimeException(
-        "Illegal use of CheckOutResource, RideHailManager is responsible for checking out vehicles in fleet."
-      )
 
     case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _) =>
       handleRideHailInquiry(inquiry)
