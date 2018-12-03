@@ -1,16 +1,17 @@
 package beam.docs
 
-import java.io.PrintWriter
+import java.io.{FileOutputStream, PrintWriter}
 import java.nio.file.{FileSystems, Path, Paths}
 
 import scala.collection.JavaConverters._
-
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription, ScoreStatsOutputs}
 import beam.utils.OutputDataDescriptor
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
+
+import scala.tools.nsc.io.File
 
 object GenerateDocumentationTask extends App with StrictLogging {
 
@@ -24,10 +25,11 @@ object GenerateDocumentationTask extends App with StrictLogging {
 
     initializeDependencies(outputDirectory.toString)
 
+    val outputFile = Paths.get(outputDirectory.toString, "outputs.rst")
+    (new PrintWriter(outputFile.toFile)).append("\n.. _model-outputs:\n\nModel Outputs\n=============\n\n").close()
+
     BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs.foreach { clazz: OutputDataDescriptor =>
-      val outputFilename = clazz.getClass.getSimpleName
       val content = buildDocument(clazz)
-      val outputFile = Paths.get(outputDirectory.toString, outputFilename + ".rst")
       writeFile(content, outputFile)
       logger.info("Generating Output data description finished")
     }
@@ -53,8 +55,8 @@ object GenerateDocumentationTask extends App with StrictLogging {
 
   def buildTitle(descriptor: OutputDataDescriptor): String = {
     s"""
-      |${descriptor.getClass.getName}
-      |=======================
+      |${descriptor.getClass.getSimpleName.substring(0,descriptor.getClass.getSimpleName.length-1)}
+      |${"-" * (descriptor.getClass.getSimpleName.length - 1)}
       |""".stripMargin
   }
 
@@ -103,11 +105,13 @@ object GenerateDocumentationTask extends App with StrictLogging {
   }
 
   def writeFile(fullTable: String, path: Path): Unit = {
-    val pw = new PrintWriter(path.toFile)
+    val f = path.toFile
+    val out:PrintWriter = if (f.exists && !f.isDirectory) new PrintWriter(new FileOutputStream(path.toFile, true))
+    else new PrintWriter(path.toFile)
     try {
-      pw.write(fullTable)
+      out.append(fullTable)
     } finally {
-      pw.close()
+      out.close()
     }
   }
 
