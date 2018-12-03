@@ -60,7 +60,7 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)) =>
       if (data.currentVehicle.isEmpty) {
         stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
       } else {
@@ -173,7 +173,7 @@ trait ChoosesParking extends {
       }
     case Event(
         (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
+        data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
