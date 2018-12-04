@@ -70,7 +70,7 @@ class LinkTraversalAnalysis @Inject()
     * Write the analysis at the end of the required iteration
     * @param event Iteration ends Event
     */
-  def writeAnalysis(event: IterationEndsEvent): Unit = {
+  def generateAnalysis(event: IterationEndsEvent): Unit = {
     //    beamServices.beamConfig.beam.outputs.events.
     val outputFilePath = outputDirectoryHierarchy.getIterationFilename(event.getIteration,outputFileBaseName + ".csv")
     if(event.getIteration == 1)

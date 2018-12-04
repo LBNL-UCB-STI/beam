@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -60,6 +61,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
+    private static LinkTraversalAnalysis linkTraversalAnalysis;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -100,7 +102,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 scenario.getConfig().travelTimeCalculator());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-
+        linkTraversalAnalysis = new LinkTraversalAnalysis(scenario,beamServices,controlerIO);
     }
 
 
@@ -252,11 +254,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
+        if(event instanceof PathTraversalEvent)
+            linkTraversalAnalysis.handleEvent(event);
+
         if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-            new LinkTraversalAnalysis(agentSimScenario).handleEvent(event);
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
@@ -343,6 +347,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
+    }
+
+    public void generateAnalysis(IterationEndsEvent iterationEndsEvent) {
+        linkTraversalAnalysis.generateAnalysis(iterationEndsEvent);
     }
 
     private void createLastActivityOfDayForPopulation() {
