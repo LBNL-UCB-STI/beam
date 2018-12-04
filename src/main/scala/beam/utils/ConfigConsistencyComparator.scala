@@ -55,12 +55,19 @@ case class ConfigConsistencyComparator(userConfFileLocation: String) extends Laz
   def defaultParametersInConfig(userConf: TypesafeConfig, templateConf: TypesafeConfig): String = {
 
     var logString = "**\n"
-    templateConf.entrySet().asScala.foreach { entry =>
-      val paramValue = entry.getValue.unwrapped.toString
-      val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
-      if (!(userConf.hasPathOrNull(entry.getKey))) {
-        logString += "**\t" + entry.getKey + " = " + value + "\n"
+    val theparams = templateConf
+      .entrySet()
+      .asScala
+      .filter(entry => !userConf.hasPathOrNull(entry.getKey))
+      .map { entry =>
+        val paramValue = entry.getValue.unwrapped.toString
+        val value = paramValue.substring(paramValue.lastIndexOf('|') + 1).trim
+        (entry.getKey -> value)
       }
+      .toMap
+    theparams.keys.toList.sorted.foreach { entryKey =>
+      val value = theparams(entryKey)
+      logString += "**\t" + entryKey + " = " + value + "\n"
     }
     logString
   }
