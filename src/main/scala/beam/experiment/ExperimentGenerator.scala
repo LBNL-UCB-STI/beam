@@ -24,7 +24,6 @@ import scala.collection.JavaConverters._
 object ExperimentGenerator extends ExperimentApp {
   import beam.experiment.ExperimentApp
 
-
   override def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(
@@ -40,7 +39,6 @@ object ExperimentGenerator extends ExperimentApp {
     }
   }
 
-
   def getExperimentPath(): Path = {
     Paths.get(experimentPath.getParent.toString, "runs")
   }
@@ -48,7 +46,6 @@ object ExperimentGenerator extends ExperimentApp {
   def getBatchRunScriptPath = {
     Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
-
 
   val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)
   val experimentVariations = experimentDef.combinationsOfLevels()

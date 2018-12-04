@@ -46,7 +46,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -94,10 +94,16 @@ class OtherPersonAgentSpec
   }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] =
+    override def apply(
+      alternatives: IndexedSeq[EmbodiedBeamTrip],
+      attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+    ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
     override val beamServices: BeamServices = beamSvc
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+    ): Double = 0.0
     override def utilityOf(
       mode: BeamMode,
       cost: Double,

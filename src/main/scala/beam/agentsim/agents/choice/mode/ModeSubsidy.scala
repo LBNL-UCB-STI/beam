@@ -67,11 +67,11 @@ object ModeSubsidy {
         val bounds = pattern.split(":")
         val lowerBound = Try(
           bounds(0).substring(1).toInt
-            + (if (bounds(0).startsWith("(")) 1 else 0)
+          + (if (bounds(0).startsWith("(")) 1 else 0)
         ).getOrElse(0)
         val upperBound = Try(
           bounds(1).substring(0, bounds(1).length - 1).toInt
-            - (if (bounds(1).endsWith(")")) 1 else 0)
+          - (if (bounds(1).endsWith(")")) 1 else 0)
         ).getOrElse(Int.MaxValue)
         Range(lowerBound, upperBound)
       }

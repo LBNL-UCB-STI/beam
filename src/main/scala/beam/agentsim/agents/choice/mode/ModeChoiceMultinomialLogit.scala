@@ -20,11 +20,15 @@ import scala.util.Random
   * BEAM
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
-    extends ModeChoiceCalculator with LazyLogging {
+    extends ModeChoiceCalculator
+    with LazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Option[EmbodiedBeamTrip] = {
+  override def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
@@ -69,7 +73,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     mct.scaledTime + mct.cost
   }
 
-  def altsToModeCostTimeTransfers(alternatives: IndexedSeq[EmbodiedBeamTrip], attributesOfIndividual: HouseholdActor.AttributesOfIndividual): IndexedSeq[ModeCostTimeTransfer] = {
+  def altsToModeCostTimeTransfers(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+  ): IndexedSeq[ModeCostTimeTransfer] = {
     val walkTripStartTime = alternatives
       .find(_.tripClassifier == WALK)
       .map(_.legs.head.beamLeg.startTime)
@@ -116,7 +123,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val subsidisedCost =
         Math.max(0, totalCost.toDouble - subsidy)
 
-      if(totalCost < subsidy) logger.warn("Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}", mode, totalCost, subsidy)
+      if (totalCost < subsidy)
+        logger.warn(
+          "Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}",
+          mode,
+          totalCost,
+          subsidy
+        )
 
       val numTransfers = mode match {
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
@@ -153,7 +166,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: HouseholdActor.AttributesOfIndividual): Double = {
+  override def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: HouseholdActor.AttributesOfIndividual
+  ): Double = {
     val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual).head
     utilityOf(
       modeCostTimeTransfer.mode,
