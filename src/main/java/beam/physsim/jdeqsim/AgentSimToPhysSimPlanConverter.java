@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.LinkTraversalAnalysis;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
@@ -99,7 +100,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 scenario.getConfig().travelTimeCalculator());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
+
     }
+
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
@@ -253,6 +256,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+            new LinkTraversalAnalysis(agentSimScenario).handleEvent(event);
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
