@@ -83,6 +83,7 @@ object BeamConfig {
               car_intercept: scala.Double,
               drive_transit_intercept: scala.Double,
               ride_hail_intercept: scala.Double,
+              ride_hail_pooled_intercept: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
               walk_intercept: scala.Double,
@@ -100,7 +101,10 @@ object BeamConfig {
                   drive_transit_intercept =
                     if (c.hasPathOrNull("drive_transit_intercept")) c.getDouble("drive_transit_intercept") else 0.0,
                   ride_hail_intercept =
-                    if (c.hasPathOrNull("ride_hail_intercept")) c.getDouble("ride_hail_intercept") else -2.0,
+                    if (c.hasPathOrNull("ride_hail_intercept")) c.getDouble("ride_hail_intercept") else 0.0,
+                  ride_hail_pooled_intercept =
+                    if (c.hasPathOrNull("ride_hail_pooled_intercept")) c.getDouble("ride_hail_pooled_intercept")
+                    else 0.0,
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
@@ -201,7 +205,8 @@ object BeamConfig {
             name: java.lang.String,
             randomRepositioning: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RandomRepositioning,
             repositionLowWaitingTimes: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RepositionLowWaitingTimes,
-            timeoutInSeconds: scala.Int
+            repositionTimeoutInSeconds: scala.Int,
+            requestBufferTimeoutInSeconds: scala.Int
           )
 
           object AllocationManager {
@@ -292,7 +297,10 @@ object BeamConfig {
                     if (c.hasPathOrNull("repositionLowWaitingTimes")) c.getConfig("repositionLowWaitingTimes")
                     else com.typesafe.config.ConfigFactory.parseString("repositionLowWaitingTimes{}")
                   ),
-                timeoutInSeconds = if (c.hasPathOrNull("timeoutInSeconds")) c.getInt("timeoutInSeconds") else 120
+                repositionTimeoutInSeconds =
+                  if (c.hasPathOrNull("repositionTimeoutInSeconds")) c.getInt("repositionTimeoutInSeconds") else 0,
+                requestBufferTimeoutInSeconds =
+                  if (c.hasPathOrNull("requestBufferTimeoutInSeconds")) c.getInt("requestBufferTimeoutInSeconds") else 0
               )
             }
           }

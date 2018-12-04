@@ -139,12 +139,6 @@ object ModeChoiceCalculator {
         )
         _ =>
           new ModeChoiceMultinomialLogit(beamServices, logit)
-      case "ModeChoiceMultinomialLogitTest" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
-        )
-        _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
 

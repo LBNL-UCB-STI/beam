@@ -262,7 +262,7 @@ class PersonAgentSpec
       personActor ! RoutingResponse(
         itineraries = Vector(),
         requestId = Some(request1.requestId),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       // This is the regular routing request.
@@ -289,7 +289,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
@@ -297,7 +296,7 @@ class PersonAgentSpec
           )
         ),
         requestId = Some(request2.requestId),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -413,14 +412,13 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -505,7 +503,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
       )
@@ -525,7 +522,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -545,7 +541,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = tramId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -636,7 +631,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -659,14 +653,13 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]
