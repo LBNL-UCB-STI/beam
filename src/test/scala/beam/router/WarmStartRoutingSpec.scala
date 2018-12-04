@@ -162,7 +162,7 @@ class WarmStartRoutingSpec
   "A warmStart router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(3000)
+    val time = 3000
 
     "take given link traversal times into account" in {
       router ! RoutingRequest(
@@ -173,7 +173,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -194,7 +194,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -227,7 +227,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -247,7 +247,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -277,7 +277,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -296,7 +296,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -321,7 +321,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -352,7 +352,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )

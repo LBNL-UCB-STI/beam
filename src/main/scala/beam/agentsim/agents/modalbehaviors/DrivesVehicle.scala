@@ -18,7 +18,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
@@ -247,12 +247,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       val currentVehicleUnderControl =
         beamServices.vehicles(data.currentVehicle.head)
-      goto(DrivingInterrupted) replying InterruptedAt(
+      goto(DrivingInterrupted) replying InterruptedWhileDriving(
         interruptId,
-        data.passengerSchedule,
-        data.currentLegPassengerScheduleIndex,
         currentVehicleUnderControl.id,
-        tick
+        tick,
+        data.passengerSchedule,
+        data.currentLegPassengerScheduleIndex
       )
 
     case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
@@ -263,7 +263,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
             log.info("stopping vehicle: {}", id)
-
             goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
               success = true,
               requestId,

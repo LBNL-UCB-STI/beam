@@ -5,7 +5,16 @@ import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogi
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
@@ -92,7 +101,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
           (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
           gasolineCostDefaults(altAndIdx._2)
-        case RIDE_HAIL =>
+        case RIDE_HAIL | RIDE_HAIL_POOLED =>
           (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
         case RIDE_HAIL_TRANSIT =>
           (altAndIdx._1.legs.view
@@ -139,7 +148,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       val waitTime = mode match {
-        case RIDE_HAIL =>
+        case RIDE_HAIL | RIDE_HAIL_POOLED =>
           altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
             altAndIdx._1.legs.head.beamLeg.startTime
           )
@@ -192,6 +201,12 @@ object ModeChoiceMultinomialLogit {
         "intercept",
         "intercept",
         mnlConfig.params.ride_hail_intercept
+      ),
+      new MnlData(
+        "ride_hail_pooled",
+        "intercept",
+        "intercept",
+        mnlConfig.params.ride_hail_pooled_intercept
       ),
       new MnlData("bike", "intercept", "intercept", mnlConfig.params.bike_intercept),
       new MnlData(
