@@ -114,4 +114,14 @@ object BeamVehicleUtils {
 
     vehicles
   }
+
+  def getBeamVehicle(vehicle: Vehicle, household: Household, beamVehicleType: BeamVehicleType): BeamVehicle = {
+
+    val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+    val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, None, beamVehicleType, Some(household.getId))
+
+    beamVehicle
+  }
 }

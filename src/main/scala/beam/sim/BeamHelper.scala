@@ -359,7 +359,7 @@ trait BeamHelper extends LazyLogging {
     //
     val beamConfig = beamServices.beamConfig
     var useCSVFiles: Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()
-
+    useCSVFiles = true
     if(useCSVFiles) {
 
       val planReaderCsv: PlanReaderCsv = new PlanReaderCsv(scenario, beamServices)
@@ -374,12 +374,6 @@ trait BeamHelper extends LazyLogging {
     }
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
-
-
-    val vehicleTypes: List[BeamVehicleType] = VehiclesAdjustment
-      .getVehicleAdjustment(beamServices)
-      .sampleVehicleTypesForHousehold(10, BeamVehicleType.Car,
-        1000.0, 2, null, null)
 
     run(beamServices)
 

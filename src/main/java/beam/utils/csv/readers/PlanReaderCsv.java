@@ -1,6 +1,11 @@
 package beam.utils.csv.readers;
 
+import beam.agentsim.agents.vehicles.BeamVehicle;
+import beam.agentsim.agents.vehicles.BeamVehicleType;
+import beam.agentsim.agents.vehicles.BeamVehicleType$;
 import beam.sim.BeamServices;
+import beam.sim.vehicles.VehiclesAdjustment;
+import beam.sim.vehicles.VehiclesAdjustment$;
 import beam.utils.BeamVehicleUtils;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -12,12 +17,17 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.households.*;
+import org.matsim.utils.objectattributes.ObjectAttributes;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 import org.matsim.vehicles.VehicleTypeImpl;
 import org.matsim.vehicles.VehicleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.None;
+import scala.Option;
+import scala.Some;
+import scala.collection.concurrent.TrieMap;
 
 import java.io.*;
 import java.util.*;
@@ -51,10 +61,15 @@ public class PlanReaderCsv {
 
     List<Vehicle> allVehicles = new ArrayList<>();
     List<Person> allPersons = new ArrayList<>();
-    int vehicleCounter = 0;
+    int vehicleCounter = 1;
     int personCounter = 0;
 
     MutableScenario scenario;
+
+    VehiclesAdjustment vehiclesAdjustment;
+    TrieMap<Id<BeamVehicle>, BeamVehicle> privateVehicles;
+
+    boolean vehiclesFileAvailable = false;
 
     public static void main(String[] args) throws IOException {
 
@@ -80,7 +95,23 @@ public class PlanReaderCsv {
         population.getPersons().clear();
         population.getPersonAttributes().clear();
 
-        vehiclesByHouseHoldId = BeamVehicleUtils.prePopulateVehiclesByHouseHold(beamServices);
+        privateVehicles = beamServices.privateVehicles();
+        privateVehicles.clear();
+
+
+        for(Id<Vehicle> vId : scenario.getVehicles().getVehicles().keySet()){
+            scenario.getVehicles().removeVehicle(vId);
+        }
+
+
+        // TODO: if vehicles file is available then use that otherwise use sampling
+        if(vehiclesFileAvailable == true) {
+            //vehiclesByHouseHoldId = BeamVehicleUtils.prePopulateVehiclesByHouseHold(beamServices);
+        }else {
+            VehiclesAdjustment$ va = VehiclesAdjustment$.MODULE$;
+            this.vehiclesAdjustment = va.getVehicleAdjustment(beamServices);
+        }
+
 
         readGzipScenario();
     }
@@ -362,30 +393,10 @@ public class PlanReaderCsv {
             HouseholdImpl objHouseHold = new HouseholdsFactoryImpl().createHousehold(_houseHoldId);
 
             // Setting the coordinates
-            setCoords(objHouseHold, houseHoldMap);
-
-            // If vehicles file not specified then we do the build vehicle other we should somehow be using the
-            // v file to assign the vehicles to the household
-
-
-            //List<Id<Vehicle>> vehicleIds = buildVehicles(numberOfVehicles);
-            //List<Id<Person>> personIds = buildPersons(numberOfPersons);
-
-            //objHouseHold.setVehicleIds(vehicleIds);
-            //objHouseHold.setMemberIds(personIds);
-
-
-            objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(Id.create(hhId, Household.class)));
-            objHouseHold.setMemberIds(houseHoldPersons.get(hhId));
-
-            /*
-            We will get the vehicle types first and then we can generate the vehicles after that
-
-             */
+            Coord coord = setCoords(objHouseHold, houseHoldMap);
 
             Income income;
             String incomeStr = houseHoldMap.get("income");
-
 
             if(incomeStr != null && !incomeStr.isEmpty()) {
                 try {
@@ -393,6 +404,8 @@ public class PlanReaderCsv {
                     Double _income = Double.parseDouble(incomeStr);
 
                     income = new IncomeImpl(_income, Income.IncomePeriod.year);
+                    income.setCurrency("usd");
+
                     objHouseHold.setIncome(income);
 
                 } catch (Exception e) {
@@ -400,6 +413,53 @@ public class PlanReaderCsv {
                 }
             }
 
+            objHouseHold.setMemberIds(houseHoldPersons.get(hhId));
+
+            // If vehicles file not specified then we do the build vehicle other we should somehow be using the
+            // v file to assign the vehicles to the household
+            /*List<Id<Vehicle>> vehicleIds = buildVehicles(numberOfVehicles);
+            List<Id<Person>> personIds = buildPersons(numberOfPersons);
+            objHouseHold.setVehicleIds(vehicleIds);
+            objHouseHold.setMemberIds(personIds);*/
+
+            /* We will get the vehicle types first and then we can generate the vehicles after that */
+            if(vehiclesFileAvailable == true) {
+                objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(Id.create(hhId, Household.class)));
+            }else {
+                scala.collection.immutable.List<BeamVehicleType> vehicleTypes = vehiclesAdjustment.sampleVehicleTypesForHousehold(numberOfVehicles, BeamVehicleType.Car$.MODULE$,
+                        objHouseHold.getIncome().getIncome(), objHouseHold.getMemberIds().size(),
+                        null, coord);
+                scala.collection.Iterator<BeamVehicleType> iter = vehicleTypes.iterator();
+
+                List<Id<Vehicle>> vehicleIds = new ArrayList<>();
+                while(iter.hasNext()){
+
+                    BeamVehicleType bvt = iter.next();
+                    VehicleType vt = VehicleUtils.getFactory().createVehicleType(Id.create(bvt.vehicleTypeId(), VehicleType.class));
+                    Vehicle v = VehicleUtils.getFactory().createVehicle(Id.createVehicleId(vehicleCounter++), vt);
+                    vehicleIds.add(v.getId());
+
+
+                    //Id<BeamVehicle> bvId = Id.create(v.getId(), BeamVehicle.class);
+
+                    //Option<ObjectAttributes> objectAttributesOption = None;
+
+                    //BeamVehicle bv = new BeamVehicle(bvId, null, None, bvt, Some(objHouseHold.getId()));
+
+                    BeamVehicle bv = BeamVehicleUtils.getBeamVehicle(v, objHouseHold, bvt);
+                    if(!scenario.getVehicles().getVehicleTypes().keySet().contains(vt.getId()))
+                        scenario.getVehicles().addVehicleType(vt);
+                    scenario.getVehicles().addVehicle(v);
+
+                    privateVehicles.put(bv.getId(), bv);
+
+                    //BeamVehicle beamVehicle = new BeamVehicle(v.getId(), null , null, vt, objHouseHold.getId());
+
+
+                }
+
+                objHouseHold.setVehicleIds(vehicleIds);
+            }
 
             houseHoldsList.add(objHouseHold);
 
@@ -409,10 +469,7 @@ public class PlanReaderCsv {
             Population will have
             plans, households, household will have persons and vehicles right
             create default car based on the number in the cars column in the households.csv file
-
-
              */
-
         }
 
 
@@ -505,7 +562,7 @@ public class PlanReaderCsv {
         System.out.println("All csv files processed");
     }
 
-    private void setCoords(HouseholdImpl objHouseHold, Map<String, String> houseHoldMap) {
+    private Coord setCoords(HouseholdImpl objHouseHold, Map<String, String> houseHoldMap) {
 
         String x = "";
         String y = "";
@@ -549,6 +606,8 @@ public class PlanReaderCsv {
         if(y != null && !y.isEmpty()) {
             objHouseHold.getAttributes().putAttribute("homecoordy", y);
         }
+
+        return new Coord(Double.parseDouble(x), Double.parseDouble(y));
     }
 
 
