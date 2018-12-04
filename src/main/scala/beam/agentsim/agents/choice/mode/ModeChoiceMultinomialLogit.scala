@@ -19,6 +19,7 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.logging.ExponentialLazyLogging
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -30,7 +31,7 @@ import scala.util.Random
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
     extends ModeChoiceCalculator
-    with LazyLogging {
+    with ExponentialLazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
 
