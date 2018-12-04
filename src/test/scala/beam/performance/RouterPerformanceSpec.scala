@@ -19,7 +19,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model.RoutingModel
 import beam.router.model.RoutingModel.WindowTime
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -95,7 +95,7 @@ class RouterPerformanceSpec
     config = testConfig(confPath)
     val beamConfig = BeamConfig(config)
 
-    val services: BeamServices = mock[BeamServices]
+    val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
     val geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
@@ -106,12 +106,13 @@ class RouterPerformanceSpec
       )
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
@@ -120,6 +121,7 @@ class RouterPerformanceSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,

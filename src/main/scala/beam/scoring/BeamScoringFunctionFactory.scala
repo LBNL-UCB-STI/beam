@@ -2,9 +2,9 @@ package beam.scoring
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event

@@ -11,24 +11,21 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
-import beam.utils.plan.sampling.AvailableModeUtils.{isModeAvailableForPerson, _}
+import beam.sim.population.AttributesOfIndividual
+import beam.utils.plan.sampling.AvailableModeUtils.isModeAvailableForPerson
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
-import org.matsim.households.Income.IncomePeriod
-import org.matsim.households.{Household, IncomeImpl}
-import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Random
 
 object HouseholdActor {
 
@@ -43,6 +40,7 @@ object HouseholdActor {
     modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -59,6 +57,7 @@ object HouseholdActor {
         modeChoiceCalculator,
         schedulerRef,
         transportNetwork,
+        tollCalculator,
         router,
         rideHailManager,
         parkingManager,
@@ -80,25 +79,6 @@ object HouseholdActor {
 
   case class InitializeRideHailAgent(b: Id[Person])
 
-  case class HouseholdAttributes(
-    householdIncome: Double,
-    householdSize: Int,
-    numCars: Int,
-    numBikes: Int
-  )
-
-  case class AttributesOfIndividual(
-    person: Person,
-    householdAttributes: HouseholdAttributes,
-    householdId: Id[Household],
-    modalityStyle: Option[String],
-    isMale: Boolean,
-    availableModes: Seq[BeamMode],
-    valueOfTime: Double
-  ) {
-    lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
-  }
-
   /**
     * Implementation of intra-household interaction in BEAM using actors.
     *
@@ -118,6 +98,7 @@ object HouseholdActor {
     modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
@@ -133,39 +114,15 @@ object HouseholdActor {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
-    val personAttributes: ObjectAttributes = population.getPersonAttributes
+
     household.members.foreach { person =>
-      // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
-      //let's put here human body vehicle too, it should be clean up on each iteration
-      val personId = person.getId
-
-      val bodyVehicleIdFromPerson = BeamVehicle.createId(personId, Some("body"))
-
-      val availableModes: Seq[BeamMode] = Option(
-        personAttributes.getAttribute(
-          person.getId.toString,
-          beam.utils.plan.sampling.PlansSampler.availableModeString
-        )
-      ).fold(BeamMode.availableModes)(
-        attr => availableModeParser(attr.toString)
-      )
-
-      val valueOfTime: Double =
-        personAttributes.getAttribute(person.getId.toString, "valueOfTime") match {
-          case null =>
-            beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-          case specifiedVot =>
-            specifiedVot.asInstanceOf[Double]
-        }
-
-      val attributes =
-        AttributesOfIndividual(person, household, vehicles, availableModes, valueOfTime)
-
-      person.getCustomAttributes.put("beam-attributes", attributes)
+      val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
       val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
 
-      modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> valueOfTime)
+      val bodyVehicleIdFromPerson = BeamVehicle.createId(person.getId, Some("body"))
+
+      modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
 
       val personRef: ActorRef = context.actorOf(
         PersonAgent.props(
@@ -173,16 +130,17 @@ object HouseholdActor {
           beamServices,
           modeChoiceCalculator,
           transportNetwork,
+          tollCalculator,
           router,
           rideHailManager,
           parkingManager,
           eventsManager,
-          personId,
+          person.getId,
           household,
           person.getSelectedPlan,
           bodyVehicleIdFromPerson
         ),
-        personId.toString
+        person.getId.toString
       )
       context.watch(personRef)
 
@@ -197,7 +155,7 @@ object HouseholdActor {
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
 
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
-      beamServices.personRefs += ((personId, personRef))
+      beamServices.personRefs += ((person.getId, personRef))
 
     }
 
@@ -209,11 +167,6 @@ object HouseholdActor {
       */
     val _vehicles: Vector[Id[BeamVehicle]] =
       vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
-
-    /**
-      * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
-      */
-    val _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map()
 
     /**
       * Current [[Vehicle]] assignments.
@@ -427,70 +380,6 @@ object HouseholdActor {
         Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]),
         personId
       )
-  }
-
-  object AttributesOfIndividual {
-
-    def apply(
-      person: Person,
-      household: Household,
-      vehicles: Map[Id[BeamVehicle], BeamVehicle],
-      valueOfTime: Double
-    ): AttributesOfIndividual = {
-      val modalityStyle =
-        Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
-          .map(_.asInstanceOf[String])
-      AttributesOfIndividual(
-        person,
-        HouseholdAttributes(household, vehicles),
-        household.getId,
-        modalityStyle,
-        new Random().nextBoolean(),
-        BeamMode.availableModes,
-        valueOfTime
-      )
-    }
-
-    def apply(
-      person: Person,
-      household: Household,
-      vehicles: Map[Id[BeamVehicle], BeamVehicle],
-      availableModes: Seq[BeamMode],
-      valueOfTime: Double
-    ): AttributesOfIndividual = {
-      val modalityStyle =
-        Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
-          .map(_.asInstanceOf[String])
-
-      AttributesOfIndividual(
-        person,
-        HouseholdAttributes(household, vehicles),
-        household.getId,
-        modalityStyle,
-        person.getCustomAttributes.get("sex").asInstanceOf[Boolean],
-        availableModes,
-        valueOfTime
-      )
-    }
-
-  }
-
-  object HouseholdAttributes {
-
-    def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
-      new HouseholdAttributes(
-        Option(household.getIncome)
-          .getOrElse(new IncomeImpl(0, IncomePeriod.year))
-          .getIncome,
-        household.getMemberIds.size(),
-        household.getVehicleIds.asScala
-          .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("car")),
-        household.getVehicleIds.asScala
-          .map(id => vehicles(id))
-          .count(_.beamVehicleType.vehicleTypeId.toLowerCase.contains("bike"))
-      )
-    }
   }
 
 }

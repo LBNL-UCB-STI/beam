@@ -36,7 +36,6 @@ public class PhyssimCalcLinkStats {
 
     // Static Initializer
     static {
-
         colors.add(Color.GREEN);
         colors.add(Color.BLUE);
         colors.add(Color.GRAY);
@@ -46,8 +45,6 @@ public class PhyssimCalcLinkStats {
         colors.add(Color.BLACK);
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
-
-
     }
 
     /**
@@ -89,8 +86,9 @@ public class PhyssimCalcLinkStats {
             if (isNotTestMode() && writeLinkStats(iteration)) {
                 linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
-            createModesFrequencyGraph(dataset, iteration);
-
+            if (beamConfig.beam().outputs().writeGraphs()){
+                createModesFrequencyGraph(dataset, iteration);
+            }
         }
 
     }
@@ -214,7 +212,7 @@ public class PhyssimCalcLinkStats {
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relative_speeds.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber, "relativeSpeeds.png");
 
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 plotTitle, xaxis, yaxis,

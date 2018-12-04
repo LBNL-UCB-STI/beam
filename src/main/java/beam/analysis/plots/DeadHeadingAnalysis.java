@@ -7,6 +7,9 @@ import beam.analysis.plots.passengerpertrip.CarPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.GenericPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -20,7 +23,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingAnalysis implements GraphAnalysis {
+public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;
@@ -29,6 +32,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
     private static final String deadHeadingXAxisTitle = "Hour";
     private static final String deadHeadingYAxisTitle = "# trips";
     private static final String fileNameBase = "rideHail";
+    private static final String dataFileBaseName = "rideHailStats";
     private static final int DEFAULT_OCCURRENCE = 1;
     private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
     private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
@@ -39,7 +43,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
+    private boolean writeGraph;
     private static List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+
+    public DeadHeadingAnalysis(boolean writeGraph){
+        this.writeGraph = writeGraph;
+    }
 
     private static String getLegendText(String graphName, int i, int bucketSize) {
 
@@ -75,7 +84,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
         //createDeadHeadingPassengerPerTripGraph(event, graphType);
 
         for (IGraphPassengerPerTrip graph : passengerPerTripMap.values()) {
-            graph.process(event);
+            if(writeGraph){
+                graph.process(event);
+            }
         }
     }
 
@@ -248,11 +259,11 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
     private void createDeadHeadingDistanceGraph(IterationEndsEvent event) throws IOException {
         double[][] dataSet = buildDeadHeadingDataSetTnc0();
         CategoryDataset tnc0DeadHeadingDataSet = DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
-        createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
-
+        if(writeGraph){
+            createDeadHeadingGraphTnc0(tnc0DeadHeadingDataSet, event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
+        }
 
         writeToCSV(event.getIteration(), GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE);
-
 
         // Updating the model for the RideHailStats.csv
         updateRideHailStatsModel(event);
@@ -618,11 +629,11 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
     // Utility Methods
     private String getFileName(String graphName, String extension) {
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            return "passengerPerTrip_" + fileNameBase + "." + extension;
+            return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, fileNameBase) + "." + extension;
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
             return fileNameBase + "TripDistance." + extension;
         } else {
-            return "passengerPerTrip_" + graphName + "." + extension;
+            return "passengerPerTrip" + CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, fileNameBase) + "." + extension;
         }
     }
 
@@ -720,7 +731,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
 
     private void writeRideHailStatsCSV(IterationEndsEvent event) {
 
-        String csvFileName = event.getServices().getControlerIO().getOutputFilename("rideHailStats.csv");
+        String csvFileName = event.getServices().getControlerIO().getOutputFilename(dataFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
             String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTimeInSeconds,totalRideHailWaitingTimeInSeconds,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
@@ -806,4 +817,22 @@ public class DeadHeadingAnalysis implements GraphAnalysis {
         return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
     }
 
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(dataFileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", "Kilometers travelled by the vehicle with a passenger"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", "Kilometers travelled by the vehicle to reposition to fleet"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", "Kilometers travelled by an empty vehicle towards the passenger"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", "The average value of surged price levels of ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", "The maximum value of surged price levels of ride hail"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", "Count of the number of passenger reservations made for the ride hail"));
+        return list;
+    }
 }

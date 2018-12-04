@@ -4,13 +4,14 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -23,7 +24,7 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -53,7 +54,7 @@ class AbstractSfLightSpec
   lazy val config = testConfig(confPath)
   lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
-  lazy val services: BeamServices = mock[BeamServices]
+  lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
 
   override def beforeAll: Unit = {
 
@@ -67,12 +68,15 @@ class AbstractSfLightSpec
       )
     )
     when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig)
+    when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
+    val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    val tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(
@@ -80,6 +84,7 @@ class AbstractSfLightSpec
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,

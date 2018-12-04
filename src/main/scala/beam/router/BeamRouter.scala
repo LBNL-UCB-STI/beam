@@ -5,42 +5,55 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  Address,
+  Cancellable,
+  ExtendedActorSystem,
+  Props,
+  RelativeActorPath,
+  RootActorPath,
+  Stash
+}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
-
-import scala.collection.immutable
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.model._
 import beam.router.gtfs.FareCalculator
 import beam.router.model.RoutingModel.BeamTime
+import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.BeamServices
+import beam.sim.metrics.MetricsPrinter
+import beam.sim.metrics.MetricsPrinter.Subscribe
+import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.util.Try
 
 class BeamRouter(
   services: BeamServices,
   transportNetwork: TransportNetwork,
   network: Network,
+  scenario: Scenario,
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
@@ -106,15 +119,27 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  // TODO FIX ME
+  val travelTimeAndCost = new TravelTimeAndCost {
+    override def overrideTravelTimeAndCostFor(
+      origin: Location,
+      destination: Location,
+      departureTime: Int,
+      mode: BeamMode
+    ): TimeAndCost = TimeAndCost(None, None)
+  }
+
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
         services,
         transportNetwork,
         network,
+        scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles
+        transitVehicles,
+        travelTimeAndCost
       ),
       "router-worker"
     )
@@ -122,49 +147,48 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-  private val metricsPrinter = context.actorOf(MetricsPrinter.props())
-
   private var traveTimeOpt: Option[TravelTime] = None
+
+  val kryoSerializer = new KryoSerializer(context.system.asInstanceOf[ExtendedActorSystem])
+
+  private val updateTravelTimeTimeout: Timeout = Timeout(3, TimeUnit.MINUTES)
 
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
+    case t: TryToSerialize =>
+      if (log.isDebugEnabled) {
+        val byteArray = kryoSerializer.toBinary(t)
+        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+      }
+    case msg: UpdateTravelTimeLocal =>
+      traveTimeOpt = Some(msg.travelTime)
+      localNodes.foreach(_.forward(msg))
+    case UpdateTravelTimeRemote(map) =>
+      val nodes = remoteNodes
+      nodes.foreach { address =>
+        resolveAddressBlocking(address).foreach { serviceActor =>
+          log.info("Sending UpdateTravelTime_v2 to  {}", serviceActor)
+          serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
+        }
+      }
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
         val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
-        metricsPrinter ! Subscribe("histogram", "**")
         localNodes.map { localWorker =>
           localWorker ! TransitInited(transits)
           Success(s"local worker '$localWorker' inited")
         }
       }
       localInit.pipeTo(sender)
-    case msg: UpdateTravelTime =>
-      traveTimeOpt = Some(msg.travelTime)
-      if (!services.beamConfig.beam.cluster.enabled) {
-        metricsPrinter ! Print(
-          Seq(
-            "cache-router-time",
-            "noncache-router-time",
-            "noncache-transit-router-time",
-            "noncache-nontransit-router-time"
-          ),
-          Nil
-        )
-        remoteNodes.foreach(address => {
-          val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
-          remoteWorker.forward(msg)
-        })
-        localNodes.foreach(_.forward(msg))
-      }
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
       traveTimeOpt match {
-        case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
+        case Some(travelTime) => sender ! UpdateTravelTimeLocal(travelTime)
         case None             => sender ! R5Network(transportNetwork)
       }
     case state: CurrentClusterState =>
@@ -345,6 +369,27 @@ class BeamRouter(
     outstandingWorkIdToTimeSent.remove(workId)
   }
 
+  private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
+    Try(Await.result(resolveAddress(addr, d), d)).recover {
+      case t: Throwable =>
+        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
+        None
+    }.get
+  }
+
+  private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
+    workerFrom(addr)
+      .resolveOne(duration)
+      .map { r =>
+        Option(r)
+      }
+      .recover {
+        case t: Throwable =>
+          log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
+          None
+      }
+  }
+
   private def initDriverAgents(
     initializer: TransitInitializer,
     scheduler: ActorRef,
@@ -355,11 +400,14 @@ class BeamRouter(
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           services.vehicles += (tripVehId -> vehicle)
+          services.agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
             transportNetwork,
+            tollCalculator,
             eventsManager,
             parkingManager,
             transitDriverId,
@@ -385,11 +433,14 @@ object BeamRouter {
     id: UUID = UUID.randomUUID(),
     mustParkAtEnd: Boolean = false
   )
-  case class UpdateTravelTime(travelTime: TravelTime)
+  case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
   case object GetTravelTime
   case class MATSimNetwork(network: Network)
   case object GetMatSimNetwork
+
+  case class TryToSerialize(obj: Object)
+  case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
 
   /**
     * It is use to represent a request object
@@ -407,11 +458,14 @@ object BeamRouter {
     departureTime: BeamTime,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val timeValueOfMoney
+      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
 
   sealed trait IntermodalUse
@@ -436,22 +490,52 @@ object BeamRouter {
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     network: Network,
+    scenario: Scenario,
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
-  ) =
+  ) = {
+    checkForConsistentTimeZoneOffsets(beamServices, transportNetwork)
+
     Props(
       new BeamRouter(
         beamServices,
         transportNetwork,
         network,
+        scenario,
         eventsManager,
         transitVehicles,
         fareCalculator,
         tollCalculator
       )
     )
+  }
+
+  def checkForConsistentTimeZoneOffsets(beamServices: BeamServices, transportNetwork: TransportNetwork) = {
+    if (beamServices.dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
+          beamServices.dates.localBaseDateTime
+        )) {
+      throw new RuntimeException(
+        s"Time Zone Mismatch\n\n" +
+        s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(beamServices.dates.localBaseDateTime)}\n" +
+        s"\tZone offset specified in Beam config file: ${beamServices.dates.zonedBaseDateTime.getOffset}\n\n" +
+        "Detailed Explanation:\n\n" +
+        "There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems.\n\n" +
+        "BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers’ minds, so they infer the time zone of the region being modeled from the 'timezone' field in the 'agency.txt' file in the first GTFS data archive that is parsed during the network building process.\n\n" +
+        "Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC.\n\n" +
+        "Meanwhile, there is a parameter in beam, 'beam.routing.baseDate' that is used to ensure that routing requests to R5 are send with the appropriate timestamp. This allows you to run BEAM using any sub-schedule in your GTFS archive. I.e. if your base date is a weekday, R5 will use the weekday schedules for transit, if it’s a weekend day, then the weekend schedules will be used.\n\n" +
+        "The time zone in the baseDate parameter (e.g. for PST one might use '2016-10-17T00:00:00-07:00') must match the time zone in the GTFS archive(s) provided to R5.\n\n" +
+        "As a default, we provide a 'dummy' GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:\n\n" +
+        "https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1\n\n" +
+        "But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the 'timezone' field in the 'agency.txt' data file in the GTFS archive.\n\n" +
+        "The date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the 'calendar.txt' data file in the GTFS archive and make sure your baseDate is within the 'start_date' and 'end_date' fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges… the particular dates chosen are arbitrary and will have no other impact on the simulation results.\n\n" +
+        "One more word of caution. If you make changes to GTFS data, then make sure your properly zip the data back into an archive. You do this by selecting all of the individual text files and then right-click-compress. Do not compress the folder containing the GTFS files, if you do this, R5 will fail to read your data and will do so without any warning or errors.\n\n" +
+        "Finally, any time you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file 'network.dat' under the 'r5' sub-directory. This will signal to the R5 library to re-build the network."
+      )
+    }
+
+  }
 
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage

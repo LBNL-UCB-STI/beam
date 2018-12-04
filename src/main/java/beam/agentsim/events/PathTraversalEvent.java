@@ -19,21 +19,22 @@ public class PathTraversalEvent extends Event {
     public static final String ATTRIBUTE_LENGTH = "length";
     public static final String ATTRIBUTE_FUEL_TYPE = "fuelType";
     public static final String ATTRIBUTE_FUEL = "fuel";
-    public static final String ATTRIBUTE_NUM_PASS = "num_passengers";
+    public static final String ATTRIBUTE_NUM_PASS = "numPassengers";
 
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
-    public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
-    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrival_time";
+    public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
+    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
-    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
+    public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicleType";
     public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
-    public final static String ATTRIBUTE_START_COORDINATE_X = "start.x";
-    public final static String ATTRIBUTE_START_COORDINATE_Y = "start.y";
-    public final static String ATTRIBUTE_END_COORDINATE_X = "end.x";
-    public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
-    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "end_leg_fuel_level";
-    public final static String ATTRIBUTE_SEATING_CAPACITY = "seating_capacity";
+    public final static String ATTRIBUTE_START_COORDINATE_X = "startX";
+    public final static String ATTRIBUTE_START_COORDINATE_Y = "startY";
+    public final static String ATTRIBUTE_END_COORDINATE_X = "endX";
+    public final static String ATTRIBUTE_END_COORDINATE_Y = "endY";
+    public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "endLegFuelLevel";
+    public final static String ATTRIBUTE_AMOUNT_PAID = "amountPaid";
+    public final static String ATTRIBUTE_SEATING_CAPACITY = "seatingCapacity";
 
     private final AtomicReference<Map<String, String>> attributes;
 
@@ -54,19 +55,21 @@ public class PathTraversalEvent extends Event {
     private final double endX;
     private final double endY;
     private final Integer seatingCapacity;
+    private final double amountPaid;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel) {
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
         this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().fuelTypeId().toString(), fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
                 beamLeg.travelPath().startPoint().loc().getX(), beamLeg.travelPath().startPoint().loc().getY(), beamLeg.travelPath().endPoint().loc().getX(),
-                beamLeg.travelPath().endPoint().loc().getY(),(int)vehicleType.seatingCapacity());
+                beamLeg.travelPath().endPoint().loc().getY(),(int)vehicleType.seatingCapacity(),
+                amountPaid);
     }
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
                               double legLength, String linkIds, long departureTime, long arrivalTime, double startX, double startY, double endX,
-                              double endY, int seatingCapacity) {
+                              double endY, int seatingCapacity, double amountPaid) {
         super(time);
         this.vehicleType = vehicleType;
         this.vehicleId = vehicleId.toString();
@@ -86,6 +89,7 @@ public class PathTraversalEvent extends Event {
         this.endY = endY;
         this.attributes = new AtomicReference<>(Collections.emptyMap());
         this.seatingCapacity = seatingCapacity;
+        this.amountPaid = amountPaid;
     }
 
     public static PathTraversalEvent apply(Event event) {
@@ -108,7 +112,8 @@ public class PathTraversalEvent extends Event {
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
                     Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY))
+                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
             );
         }
         return (PathTraversalEvent) event;
@@ -140,6 +145,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(endY));
         attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
         attr.put(ATTRIBUTE_SEATING_CAPACITY, Integer.toString(seatingCapacity));
+        attr.put(ATTRIBUTE_AMOUNT_PAID, Double.toString(amountPaid));
 
         attributes.set(attr);
 

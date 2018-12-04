@@ -30,7 +30,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   lazy val tazTreeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
 
   lazy val beamServices: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)

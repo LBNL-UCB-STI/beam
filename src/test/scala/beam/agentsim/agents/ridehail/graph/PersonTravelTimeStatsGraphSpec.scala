@@ -30,7 +30,7 @@ object PersonTravelTimeStatsGraphSpec {
       with IterationEndsListener {
 
     private lazy val personTravelTimeStats =
-      new PersonTravelTimeAnalysis(computation)
+      new PersonTravelTimeAnalysis(computation, true)
 
     override def reset(iteration: Int): Unit = {
       personTravelTimeStats.resetStats()
@@ -112,9 +112,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             String,
             util.Map[Integer, util.List[lang.Double]]
           ]
-        ): Tuple[util.List[String], Array[
-          Array[Double]
-        ]] = {
+        ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
           promise.success(stat)
           super.compute(stat)
         }

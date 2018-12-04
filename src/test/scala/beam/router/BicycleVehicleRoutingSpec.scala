@@ -11,7 +11,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -21,7 +21,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -44,13 +44,13 @@ class BicycleVehicleRoutingSpec
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
-  var networkCoordinator: NetworkCoordinator = _
+  var networkCoordinator: DefaultNetworkCoordinator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
 
     // Have to mock a lot of things to get the router going
-    val services: BeamServices = mock[BeamServices]
+    val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
@@ -60,19 +60,21 @@ class BicycleVehicleRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any()))
       .thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
         services,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,

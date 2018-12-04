@@ -20,17 +20,17 @@ class ReplanningExpBetaModeChoiceSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with EventsFileHandlingCommon
     with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
+    .withValue("matsim.modules.strategy.maxAgentPlanMemorySize", ConfigValueFactory.fromAnyRef(4))
     .withValue("matsim.modules.strategy.Module_1", ConfigValueFactory.fromAnyRef("SelectExpBeta"))
     .withValue("matsim.modules.strategy.Module_2", ConfigValueFactory.fromAnyRef("ClearRoutes"))
     .withValue("matsim.modules.strategy.Module_3", ConfigValueFactory.fromAnyRef("ClearModes"))
     .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
     .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.0))
     .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(10))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(20))
     .resolve()
 
   lazy val beamConfig = BeamConfig(config)
@@ -51,12 +51,11 @@ class ReplanningExpBetaModeChoiceSpec
     }
 
     "increase test scores over iterations" in {
-      lazy val it0Score = getAvgBestScore(0)
-      lazy val it5Score = getAvgBestScore(5)
-      lazy val it10Score = getAvgBestScore(10)
+      val allAvgAvg = Range(0, 20).map(getAvgAvgScore(_).get)
+      val lowestOfFirst10 = allAvgAvg.take(10).min
+      val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5
 
-      it0Score should be < it5Score
-      it5Score should be < it10Score
+      lowestOfFirst10 should be < avgOfLast5
     }
   }
 
@@ -69,6 +68,13 @@ class ReplanningExpBetaModeChoiceSpec
     scenario.getPopulation.getPersons.values().asScala.map(_.getPlans.size()).sum
   }
 
+  private def getAvgAvgScore(iterationNum: Int) = {
+    val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scorestats.txt")
+    val itScores = bufferedSource.getLines.toList.find(_.startsWith(s"$iterationNum\t"))
+    bufferedSource.close
+
+    itScores.flatMap(_.split("\t").map(_.trim).lift(3).map(_.toDouble))
+  }
   private def getAvgBestScore(iterationNum: Int) = {
     val bufferedSource = Source.fromFile(s"${matsimConfig.controler().getOutputDirectory}/scorestats.txt")
     val itScores = bufferedSource.getLines.toList.find(_.startsWith(s"$iterationNum\t"))
