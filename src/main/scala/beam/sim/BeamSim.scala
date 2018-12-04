@@ -21,7 +21,7 @@ import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.DebugLib
-import beam.utils.scripts.PopulationWriterCSV
+import beam.utils.scripts.{FailFast, PopulationWriterCSV}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.base.CaseFormat
 import com.google.inject.Inject
@@ -131,6 +131,8 @@ class BeamSim @Inject()(
 
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
+
+    FailFast.run(beamServices)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
