@@ -71,9 +71,10 @@ class LinkTraversalAnalysis @Inject()
     * @param event Iteration ends Event
     */
   def generateAnalysis(event: IterationEndsEvent): Unit = {
-    //    beamServices.beamConfig.beam.outputs.events.
+    val writeInterval: Int = beamServices.beamConfig.beam.outputs.writeLinkTraversalInterval
+    println("Write interval is : " + writeInterval)
     val outputFilePath = outputDirectoryHierarchy.getIterationFilename(event.getIteration,outputFileBaseName + ".csv")
-    if(event.getIteration == 1)
+    if(writeInterval > 0 && event.getIteration == writeInterval)
       this.writeCSV(analysisData,outputFilePath)
   }
 
@@ -99,7 +100,6 @@ class LinkTraversalAnalysis @Inject()
       bw.close()
     }
   }
-
 
   /**
     * Get description of fields written to the output files.
