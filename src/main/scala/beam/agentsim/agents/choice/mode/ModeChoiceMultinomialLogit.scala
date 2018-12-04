@@ -5,20 +5,12 @@ import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogi
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.logging.ExponentialLazyLogging
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -30,7 +22,7 @@ import scala.util.Random
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
     extends ModeChoiceCalculator
-    with LazyLogging {
+    with ExponentialLazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
 

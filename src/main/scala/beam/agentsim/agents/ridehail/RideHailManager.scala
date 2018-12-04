@@ -1088,7 +1088,7 @@ class RideHailManager(
       RideHailResponse(request, Some(travelProposal))
     )
 
-    log.info(
+    log.debug(
       "Reserving vehicle: {} customer: {} request: {} pendingAcks: {}",
       travelProposal.rideHailAgentLocation.vehicleId,
       request.customer.personId,
@@ -1107,14 +1107,14 @@ class RideHailManager(
     requestId: Int,
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
-    log.info(
+    log.debug(
       "Removing request: {}",
       requestId
     )
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
         val theVehicle = response.travelProposal.get.rideHailAgentLocation.vehicleId
-        log.info(
+        log.debug(
           "Completing reservation {} for customer {} and vehicle {}",
           requestId,
           response.request.customer.personId,
