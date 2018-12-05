@@ -49,7 +49,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithCarPlanSpec
     extends TestKit(
@@ -173,7 +173,7 @@ class PersonWithCarPlanSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 24*60*60,
+          stopTick = 24 * 60 * 60,
           maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -191,22 +191,25 @@ class PersonWithCarPlanSpec
       })
 
       val householdActor = TestActorRef[HouseholdActor](
-        Props(new HouseholdActor(
-          beamSvc,
-          _ => modeChoiceCalculator,
-          scheduler,
-          networkCoordinator.transportNetwork,
-          tollCalculator,
-          self,
-          self,
-          parkingManager,
-          eventsManager,
-          population,
-          household.getId,
-          household,
-          Map(beamVehicle.getId -> beamVehicle),
-          new Coord(0.0, 0.0)
-        )), supervisor
+        Props(
+          new HouseholdActor(
+            beamSvc,
+            _ => modeChoiceCalculator,
+            scheduler,
+            networkCoordinator.transportNetwork,
+            tollCalculator,
+            self,
+            self,
+            parkingManager,
+            eventsManager,
+            population,
+            household.getId,
+            household,
+            Map(beamVehicle.getId -> beamVehicle),
+            new Coord(0.0, 0.0)
+          )
+        ),
+        supervisor
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
@@ -316,7 +319,7 @@ class PersonWithCarPlanSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 24*60*60,
+          stopTick = 24 * 60 * 60,
           maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -346,7 +349,7 @@ class PersonWithCarPlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg,vehicleId,_,_) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
@@ -371,7 +374,6 @@ class PersonWithCarPlanSpec
       println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
       println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
       println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
-
 
       expectMsgType[CompletionNotice]
     }
@@ -409,7 +411,7 @@ class PersonWithCarPlanSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 24*60*60,
+          stopTick = 24 * 60 * 60,
           maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -448,7 +450,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(1,2),
+                    linkIds = Vector(1, 2),
                     linkTravelTime = Vector(50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
@@ -467,7 +469,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3,4),
+                    linkIds = Vector(3, 4),
                     linkTravelTime = Vector(50),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),
@@ -556,7 +558,7 @@ class PersonWithCarPlanSpec
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
-          stopTick = 24*60*60,
+          stopTick = 24 * 60 * 60,
           maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
@@ -595,7 +597,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(1,2),
+                    linkIds = Vector(1, 2),
                     linkTravelTime = Vector(50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
@@ -614,7 +616,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3,4),
+                    linkIds = Vector(3, 4),
                     linkTravelTime = Vector(50),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),

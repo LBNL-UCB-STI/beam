@@ -117,15 +117,15 @@ class TransitDriverAgent(
         .copy(currentVehicle = Vector(vehicle.id))
         .withPassengerSchedule(schedule)
         .asInstanceOf[TransitDriverData] replying
-        CompletionNotice(
-          triggerId,
-          Vector(
-            ScheduleTrigger(
-              StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
-              self
-            )
+      CompletionNotice(
+        triggerId,
+        Vector(
+          ScheduleTrigger(
+            StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
+            self
           )
         )
+      )
   }
 
   when(PassengerScheduleEmpty) {

@@ -6,7 +6,12 @@ import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  EndLegTrigger,
+  EndRefuelTrigger,
+  StartLegTrigger,
+  StartRefuelTrigger
+}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}

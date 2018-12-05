@@ -14,12 +14,12 @@ object Resource {
   case class CheckInResource(resourceId: Id[_], whenWhere: Option[SpaceTime])
 
   case class NotifyVehicleResourceIdle(
-                                        resourceId: Id[_],
-                                        whenWhere: Option[SpaceTime],
-                                        passengerSchedule: PassengerSchedule,
-                                        beamVehicleState: BeamVehicleState,
-                                        triggerId: Option[Long] // triggerId is included to facilitate debugging
-                                      )
+    resourceId: Id[_],
+    whenWhere: Option[SpaceTime],
+    passengerSchedule: PassengerSchedule,
+    beamVehicleState: BeamVehicleState,
+    triggerId: Option[Long] // triggerId is included to facilitate debugging
+  )
 
 }
 
