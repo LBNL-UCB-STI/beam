@@ -22,7 +22,6 @@ public class PathTraversalEvent extends Event {
     public static final String ATTRIBUTE_NUM_PASS = "numPassengers";
 
     public final static String ATTRIBUTE_LINK_IDS = "links";
-    public final static String ATTRIBUTE_LINK_TRAVEL_TIMES = "linkTravelTimes";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
     public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
@@ -49,7 +48,6 @@ public class PathTraversalEvent extends Event {
     private final double endLegFuelLevel;
     private final double legLength;
     private final String linkIds;
-    private final String linkTravelTimes;
     private final long departureTime;
     private final long arrivalTime;
     private final double startX;
@@ -58,6 +56,8 @@ public class PathTraversalEvent extends Event {
     private final double endY;
     private final Integer seatingCapacity;
     private final double amountPaid;
+
+    private String linkTravelTimes;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
         this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
@@ -95,33 +95,33 @@ public class PathTraversalEvent extends Event {
         this.amountPaid = amountPaid;
     }
 
-    public static PathTraversalEvent apply(Event event) {
-        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            Map<String, String> attr = event.getAttributes();
-            return new PathTraversalEvent(event.getTime(),
-                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
-                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
-                    attr.get(ATTRIBUTE_MODE),
-                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
-                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
-                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
-                    attr.get(ATTRIBUTE_FUEL_TYPE),
-                    Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
-                    attr.get(ATTRIBUTE_LINK_IDS),
-                    attr.get(ATTRIBUTE_LINK_TRAVEL_TIMES),
-                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
-                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
-            );
-        }
-        return (PathTraversalEvent) event;
-    }
+//    public static PathTraversalEvent apply(Event event) {
+//        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+//            Map<String, String> attr = event.getAttributes();
+//            return new PathTraversalEvent(event.getTime(),
+//                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
+//                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
+//                    attr.get(ATTRIBUTE_MODE),
+//                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
+//                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
+//                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
+//                    attr.get(ATTRIBUTE_FUEL_TYPE),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
+//                    attr.get(ATTRIBUTE_LINK_IDS),
+//                    getLinkTravelTimes(),
+//                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
+//                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
+//                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
+//                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
+//            );
+//        }
+//        return (PathTraversalEvent) event;
+//    }
 
     @Override
     public Map<String, String> getAttributes() {
@@ -139,7 +139,6 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_ARRIVAL_TIME, Long.toString(arrivalTime));
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
-        attr.put(ATTRIBUTE_LINK_TRAVEL_TIMES, linkTravelTimes);
         attr.put(ATTRIBUTE_FUEL_TYPE, fuelType);
         attr.put(ATTRIBUTE_FUEL, fuel.toString());
         attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString());
@@ -159,6 +158,10 @@ public class PathTraversalEvent extends Event {
 
     public String getVehicleId() {
         return this.vehicleId;
+    }
+
+    public String getLinkTravelTimes() {
+        return this.linkTravelTimes;
     }
 
     @Override

@@ -35,18 +35,33 @@ class LinkTraversalAnalysis @Inject()
         case pe if event.isInstanceOf[PathTraversalEvent] =>
           val eventAttributes: mutable.Map[String, String] = pe.getAttributes.asScala
           val linkIds = eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_LINK_IDS, "").split(",")
-          val linkTravelTimes = eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_LINK_TRAVEL_TIMES, "").split(",")
+          val linkTravelTimes: Array[String] = event.asInstanceOf[PathTraversalEvent].getLinkTravelTimes.split(",")
           val vehicleId = eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID, "")
           val vehicleType = eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE, "")
-          val arrivalTime = eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME, "")
+          val pathArrivalTime = try {
+            eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME, "").toLong
+          } catch {
+            case _ : Exception => 0
+          }
+          val linkArrivalTimes: Seq[Long] = for(i <- linkTravelTimes.indices) yield {
+            i match {
+              case 0 => pathArrivalTime
+              case _ => pathArrivalTime + (try {
+                linkTravelTimes(i - 1).toLong
+              } catch {
+                case _ : Exception => 0
+              })
+            }
+          }
           val networkLinks = scenario.getNetwork.getLinks.values().asScala
           val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
           if (linkIds.nonEmpty) {
-            val data = linkIds zip nextLinkIds zip linkTravelTimes flatMap { tuple =>
-              val ((id, nextId), travelTime) = tuple
+            val data = linkIds zip nextLinkIds zip linkTravelTimes zip linkArrivalTimes flatMap { tuple =>
+              val (((id, nextId), travelTime),arrivalTime) = tuple
               val nextLink: Option[Link] = networkLinks.find(x => x.getId.toString.equals(nextId))
               networkLinks.find(x => x.getId.toString.equals(id)) map { currentLink =>
                 val freeFlowSpeed = currentLink.getFreespeed
+                val linkCapacity = currentLink.getCapacity
                 val averageSpeed = try {
                   currentLink.getLength / travelTime.toInt
                 } catch {
@@ -54,7 +69,7 @@ class LinkTraversalAnalysis @Inject()
                 }
                 val turnAtLinkEnd = getDirection(currentLink.getCoord,nextLink.map(_.getCoord).getOrElse(new Coord(0.0,0.0)))
                 val numberOfStops = if(turnAtLinkEnd.equalsIgnoreCase("NA")) 0 else 1
-                (id,averageSpeed,freeFlowSpeed,arrivalTime,vehicleId,vehicleType,turnAtLinkEnd,numberOfStops)
+                (id,linkCapacity,averageSpeed,freeFlowSpeed,arrivalTime,vehicleId,vehicleType,turnAtLinkEnd,numberOfStops)
               }
             }
             analysisData = analysisData ++ data
@@ -72,7 +87,6 @@ class LinkTraversalAnalysis @Inject()
     */
   def generateAnalysis(event: IterationEndsEvent): Unit = {
     val writeInterval: Int = beamServices.beamConfig.beam.outputs.writeLinkTraversalInterval
-    println("Write interval is : " + writeInterval)
     val outputFilePath = outputDirectoryHierarchy.getIterationFilename(event.getIteration,outputFileBaseName + ".csv")
     if(writeInterval > 0 && event.getIteration == writeInterval)
       this.writeCSV(analysisData,outputFilePath)
@@ -87,10 +101,11 @@ class LinkTraversalAnalysis @Inject()
   private def writeCSV(data: Array[LinkTraversalData], outputFilePath: String): Unit = {
     val bw = new BufferedWriter(new FileWriter(outputFilePath))
     try {
-      val heading = "linkId, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
+      val heading = "linkId,linkCapacity, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
       bw.append(heading + "\n")
-      val content = (data map { e =>
-        e._1 + ", " + e._2 + ", " + e._3 + ", " + e._4 + ", " + e._5 + ", " + e._6 + ", " + e._7 + ", " + e._8
+      val content = (data.distinct
+        map { e =>
+        e._1 + ", " + e._2 + ", " + e._3 + ", " + e._4 + ", " + e._5 + ", " + e._6 + ", " + e._7 + ", " + e._8 + ", " + e._9
       }).mkString("\n")
       bw.append(content)
     } catch {
@@ -122,7 +137,7 @@ class LinkTraversalAnalysis @Inject()
     list
   }
 
-  type LinkTraversalData = (String, Double, Double, String, String, String, String, Int)
+  type LinkTraversalData = (String,Double, Double, Double, Long, String, String, String, Int)
 
   /**
     * Computes the angle between two coordinates

@@ -265,7 +265,7 @@ class TNCIterationsStatsCollector(
         collectPersonEntersEvents(event.asInstanceOf[PersonEntersVehicleEvent])
 
       case PathTraversalEvent.EVENT_TYPE =>
-        calculateStats(PathTraversalEvent.apply(event))
+        calculateStats(event.asInstanceOf[PathTraversalEvent])
 
       case ActivityEndEvent.EVENT_TYPE =>
         calculateActivityEndStats(event.asInstanceOf[ActivityEndEvent])
