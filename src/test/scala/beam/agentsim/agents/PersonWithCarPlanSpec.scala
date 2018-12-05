@@ -363,9 +363,149 @@ class PersonWithCarPlanSpec
 
       expectMsgType[CompletionNotice]
     }
+
+    it("should walk to a car that is far away (if told so by the router") {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
+        }
+      )
+      val vehicleId = Id.createVehicleId("car-1")
+      val beamVehicle = new BeamVehicle(
+        vehicleId,
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType
+      )
+      vehicles.put(vehicleId, beamVehicle)
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, false)
+      population.addPerson(person)
+
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24*60*60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+
+      val householdActor = TestActorRef[HouseholdActor](
+        new HouseholdActor(
+          beamSvc,
+          _ => modeChoiceCalculator,
+          scheduler,
+          networkCoordinator.transportNetwork,
+          tollCalculator,
+          self,
+          self,
+          parkingManager,
+          eventsManager,
+          population,
+          household.getId,
+          household,
+          Map(beamVehicle.getId -> beamVehicle),
+          new Coord(0.0, 0.0)
+        )
+      )
+      val personActor = householdActor.getSingleChild(person.getId.toString)
+
+      scheduler ! StartSchedule(0)
+
+      val routingRequest = expectMsgType[RoutingRequest]
+      personActor ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1,2),
+                    linkTravelTime = Vector(50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = false
+              ),
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28950,
+                  mode = BeamMode.CAR,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(3,4),
+                    linkTravelTime = Vector(50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.01, 29000),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("car-1"),
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = Some(routingRequest.requestId),
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
+      )
+
+      expectMsgType[ModeChoiceEvent]
+      expectMsgType[ActivityEndEvent]
+      expectMsgType[PersonDepartureEvent]
+
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+
+      println(expectMsgType[PersonEntersVehicleEvent])
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+      println(expectMsgType[PersonLeavesVehicleEvent])
+
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+
+      expectMsgType[PersonLeavesVehicleEvent]
+      expectMsgType[TeleportationArrivalEvent]
+
+      expectMsgType[PersonArrivalEvent]
+      expectMsgType[ActivityStartEvent]
+
+      expectMsgType[CompletionNotice]
+    }
+
   }
 
-  private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle]) = {
+  private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], withRoute: Boolean = true) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person)
     val plan = PopulationUtils.getFactory.createPlan()
@@ -374,17 +514,19 @@ class PersonWithCarPlanSpec
     homeActivity.setCoord(new Coord(0.0, 0.0))
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg("car")
-    val route = RouteUtils.createLinkNetworkRouteImpl(
-      Id.createLinkId(0),
-      Array(Id.createLinkId(1)),
-      Id.createLinkId(2)
-    )
-    route.setVehicleId(vehicleId)
-    leg.setRoute(route)
+    if (withRoute) {
+      val route = RouteUtils.createLinkNetworkRouteImpl(
+        Id.createLinkId(0),
+        Array(Id.createLinkId(1)),
+        Id.createLinkId(2)
+      )
+      route.setVehicleId(vehicleId)
+      leg.setRoute(route)
+    }
     plan.addLeg(leg)
     val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
     workActivity.setEndTime(61200) //5:00:00 PM
-    workActivity.setCoord(new Coord(1.0, 1.0))
+    workActivity.setCoord(new Coord(0.01, 0.01))
     plan.addActivity(workActivity)
     person.addPlan(plan)
     person
