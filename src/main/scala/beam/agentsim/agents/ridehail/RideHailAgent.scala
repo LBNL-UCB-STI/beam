@@ -93,12 +93,12 @@ object RideHailAgent {
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
-    msgId: Option[Int] = None
+    reservationRequestId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
-    msgId: Option[Int] = None,
-    triggersToSchedule: Seq[ScheduleTrigger],
+    reservationRequestId: Option[Int] = None,
+    triggersToSchedule: Vector[ScheduleTrigger],
     vehicleId: Id[Vehicle]
   )
 
@@ -106,15 +106,22 @@ object RideHailAgent {
 
   case class Resume()
 
-  case class InterruptedAt(
+  sealed trait InterruptReply {
+    val interruptId: Id[Interrupt]
+    val vehicleId: Id[Vehicle]
+    val tick: Double
+  }
+
+  case class InterruptedWhileDriving(
     interruptId: Id[Interrupt],
+    vehicleId: Id[Vehicle],
+    tick: Double,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
-    vehicleId: Id[Vehicle],
-    tick: Double
-  )
+  ) extends InterruptReply
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -278,6 +285,9 @@ class RideHailAgent(
           self
         )
       )
+      if (updatedPassengerSchedule.schedule.firstKey.startTime == 24600) {
+        val i = 0
+      }
       goto(WaitingToDriveInterrupted) using data
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(

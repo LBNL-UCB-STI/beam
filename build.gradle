@@ -24,6 +24,7 @@ plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
+    id 'maven-publish'
 }
 
 //ext {
@@ -261,6 +262,7 @@ configurations.all {
 }
 
 //compileScala.dependsOn(scalafmtAll)
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -595,6 +597,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
 }
 
+task fmt(dependsOn: scalafmtAll) 
 task checkScalaFmt() {
     doLast {
         try {

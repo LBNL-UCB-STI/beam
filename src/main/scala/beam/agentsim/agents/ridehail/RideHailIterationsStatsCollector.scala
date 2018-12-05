@@ -81,7 +81,7 @@ object RideHailStatsEntry {
     first.aggregate(second)
 }
 
-class TNCIterationsStatsCollector(
+class RideHailIterationsStatsCollector(
   eventsManager: EventsManager,
   beamServices: BeamServices,
   rideHailIterationHistoryActor: RideHailIterationHistory,
@@ -425,15 +425,15 @@ class TNCIterationsStatsCollector(
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
-    logger.debug(
-      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
-      startTazId,
-      endTazId,
-      startBin,
-      endingBin,
-      currentEvent.getAttributes
-        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-    )
+//    logger.debug(
+//      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
+//      startTazId,
+//      endTazId,
+//      startBin,
+//      endingBin,
+//      currentEvent.getAttributes
+//        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
+//    )
 
     var idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins

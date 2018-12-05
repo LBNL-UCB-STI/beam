@@ -111,8 +111,11 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
             util.Map[String, Integer]
           ], util.Set[String]]
         ): Array[Array[Double]] = {
-          promise.success(stat.getFirst)
+          //this check handle to exit from current function recursion
+          if (!promise.isCompleted)
+            promise.success(stat.getFirst)
           super.compute(stat)
+
         }
 
         override def eventFile(iteration: Int): Unit = {

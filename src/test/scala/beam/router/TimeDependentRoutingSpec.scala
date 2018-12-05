@@ -98,7 +98,7 @@ class TimeDependentRoutingSpec
   "A time-dependent router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(3000)
+    val time = 3000
 
     "give updated travel times for a given route" in {
       val leg = BeamLeg(
@@ -130,7 +130,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -150,7 +150,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -170,7 +170,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -199,7 +199,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             vehicleId,
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -233,7 +233,7 @@ class TimeDependentRoutingSpec
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
-              new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+              new SpaceTime(new Coord(origin.getX, origin.getY), time),
               Modes.BeamMode.CAR,
               asDriver = true
             )

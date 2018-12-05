@@ -14,9 +14,9 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
 import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTimeout,
+  BufferedRideHailRequestsTrigger,
   NotifyIterationEnds,
-  RideHailAllocationManagerTimeout
+  RideHailRepositioningTrigger
 }
 import beam.agentsim.agents.ridehail.{
   RideHailAgent,
@@ -219,12 +219,6 @@ class BeamMobsim @Inject()(
           beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
         )
 
-        val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
-          scenario.getPopulation.getPersons
-            .values()
-            .stream()
-        )
-
         val rand: Random =
           new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -264,7 +258,11 @@ class BeamMobsim @Inject()(
             )
           }
         }
-
+        val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
+          scenario.getPopulation.getPersons
+            .values()
+            .stream()
+        )
         val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
         persons.view.take(numRideHailAgents.toInt).foreach {
           person =>
@@ -452,12 +450,10 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          val timerTrigger = RideHailAllocationManagerTimeout(0)
-          val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager)
-          scheduler ! timerMessage
-
-          scheduler ! ScheduleTrigger(BufferedRideHailRequestsTimeout(0), rideHailManager)
-          log.info(s"rideHailManagerTimerScheduled")
+          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)
+            scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
+          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
+            scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
         }
 
         private def cleanupRideHailingAgents(): Unit = {

@@ -172,7 +172,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -192,7 +191,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -212,7 +210,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -232,7 +229,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -337,7 +333,6 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -360,14 +355,13 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -421,16 +415,20 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        java.util.UUID.randomUUID().hashCode()
       )
       expectMsgType[ModeChoiceEvent]
+
+      // Person first does the dummy walk leg
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(

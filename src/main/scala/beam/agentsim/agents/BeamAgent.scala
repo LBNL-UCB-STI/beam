@@ -26,14 +26,12 @@ object BeamAgent {
 
 case class InitializeTrigger(tick: Int) extends Trigger
 
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTickAndTrigger {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
-  protected var _currentTriggerId: Option[Long] = None
 
   protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
-  protected var _currentTick: Option[Int] = None
 
   def id: Id[_]
 
@@ -49,23 +47,6 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       log.error("State: {} Event: {}", currentState, event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
-  }
-
-  def holdTickAndTriggerId(tick: Int, triggerId: Long): Unit = {
-    if (_currentTriggerId.isDefined || _currentTick.isDefined)
-      throw new IllegalStateException(
-        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
-      )
-
-    _currentTick = Some(tick)
-    _currentTriggerId = Some(triggerId)
-  }
-
-  def releaseTickAndTriggerId(): (Int, Long) = {
-    val theTuple = (_currentTick.get, _currentTriggerId.get)
-    _currentTick = None
-    _currentTriggerId = None
-    theTuple
   }
 
   def logPrefix(): String
