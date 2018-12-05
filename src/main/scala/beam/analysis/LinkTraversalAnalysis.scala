@@ -17,13 +17,15 @@ import org.matsim.core.events.handler.BasicEventHandler
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class LinkTraversalAnalysis @Inject()
-(private val scenario: Scenario,
- private val beamServices: BeamServices,
- outputDirectoryHierarchy: OutputDirectoryHierarchy) extends BasicEventHandler with OutputDataDescriptor {
+class LinkTraversalAnalysis @Inject()(
+  private val scenario: Scenario,
+  private val beamServices: BeamServices,
+  outputDirectoryHierarchy: OutputDirectoryHierarchy
+) extends BasicEventHandler
+    with OutputDataDescriptor {
 
   private val outputFileBaseName = "linkTraversalAnalysis"
-  private var analysisData : Array[LinkTraversalData] = Array()
+  private var analysisData: Array[LinkTraversalData] = Array()
 
   /**
     * Handles the PathTraversalEvent notification and generates the analysis data
@@ -41,23 +43,24 @@ class LinkTraversalAnalysis @Inject()
           val pathArrivalTime = try {
             eventAttributes.getOrElse(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME, "").toLong
           } catch {
-            case _ : Exception => 0
+            case _: Exception => 0
           }
-          val linkArrivalTimes: Seq[Long] = for(i <- linkTravelTimes.indices) yield {
+          val linkArrivalTimes: Seq[Long] = for (i <- linkTravelTimes.indices) yield {
             i match {
               case 0 => pathArrivalTime
-              case _ => pathArrivalTime + (try {
-                linkTravelTimes(i - 1).toLong
-              } catch {
-                case _ : Exception => 0
-              })
+              case _ =>
+                pathArrivalTime + (try {
+                  linkTravelTimes(i - 1).toLong
+                } catch {
+                  case _: Exception => 0
+                })
             }
           }
           val networkLinks = scenario.getNetwork.getLinks.values().asScala
           val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
           if (linkIds.nonEmpty) {
             val data = linkIds zip nextLinkIds zip linkTravelTimes zip linkArrivalTimes flatMap { tuple =>
-              val (((id, nextId), travelTime),arrivalTime) = tuple
+              val (((id, nextId), travelTime), arrivalTime) = tuple
               val nextLink: Option[Link] = networkLinks.find(x => x.getId.toString.equals(nextId))
               networkLinks.find(x => x.getId.toString.equals(id)) map { currentLink =>
                 val freeFlowSpeed = currentLink.getFreespeed
@@ -67,9 +70,20 @@ class LinkTraversalAnalysis @Inject()
                 } catch {
                   case _: Exception => 0.0
                 }
-                val turnAtLinkEnd = getDirection(currentLink.getCoord,nextLink.map(_.getCoord).getOrElse(new Coord(0.0,0.0)))
-                val numberOfStops = if(turnAtLinkEnd.equalsIgnoreCase("NA")) 0 else 1
-                (id,linkCapacity,averageSpeed,freeFlowSpeed,arrivalTime,vehicleId,vehicleType,turnAtLinkEnd,numberOfStops)
+                val turnAtLinkEnd =
+                  getDirection(currentLink.getCoord, nextLink.map(_.getCoord).getOrElse(new Coord(0.0, 0.0)))
+                val numberOfStops = if (turnAtLinkEnd.equalsIgnoreCase("NA")) 0 else 1
+                (
+                  id,
+                  linkCapacity,
+                  averageSpeed,
+                  freeFlowSpeed,
+                  arrivalTime,
+                  vehicleId,
+                  vehicleType,
+                  turnAtLinkEnd,
+                  numberOfStops
+                )
               }
             }
             analysisData = analysisData ++ data
@@ -77,7 +91,7 @@ class LinkTraversalAnalysis @Inject()
         case _ =>
       }
     } catch {
-      case e : Exception => e.printStackTrace()
+      case e: Exception => e.printStackTrace()
     }
   }
 
@@ -87,9 +101,9 @@ class LinkTraversalAnalysis @Inject()
     */
   def generateAnalysis(event: IterationEndsEvent): Unit = {
     val writeInterval: Int = beamServices.beamConfig.beam.outputs.writeLinkTraversalInterval
-    val outputFilePath = outputDirectoryHierarchy.getIterationFilename(event.getIteration,outputFileBaseName + ".csv")
-    if(writeInterval > 0 && event.getIteration == writeInterval)
-      this.writeCSV(analysisData,outputFilePath)
+    val outputFilePath = outputDirectoryHierarchy.getIterationFilename(event.getIteration, outputFileBaseName + ".csv")
+    if (writeInterval > 0 && event.getIteration == writeInterval)
+      this.writeCSV(analysisData, outputFilePath)
   }
 
   /**
@@ -101,10 +115,11 @@ class LinkTraversalAnalysis @Inject()
   private def writeCSV(data: Array[LinkTraversalData], outputFilePath: String): Unit = {
     val bw = new BufferedWriter(new FileWriter(outputFilePath))
     try {
-      val heading = "linkId,linkCapacity, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
+      val heading =
+        "linkId,linkCapacity, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
       bw.append(heading + "\n")
       val content = (data.distinct
-        map { e =>
+      map { e =>
         e._1 + ", " + e._2 + ", " + e._3 + ", " + e._4 + ", " + e._5 + ", " + e._6 + ", " + e._7 + ", " + e._8 + ", " + e._9
       }).mkString("\n")
       bw.append(content)
@@ -127,17 +142,52 @@ class LinkTraversalAnalysis @Inject()
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new util.ArrayList[OutputDataDescription]
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "linkId", "Id of the network link"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "averageSpeed", "Calculated average speed at which a vehicle drove through the link"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "freeFlowSpeed", "Possible free speed at which a vehicle can drive through the link"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "linkEnterTime", "Time at which vehicle entered the link"))
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "averageSpeed",
+        "Calculated average speed at which a vehicle drove through the link"
+      )
+    )
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "freeFlowSpeed",
+        "Possible free speed at which a vehicle can drive through the link"
+      )
+    )
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "linkEnterTime",
+        "Time at which vehicle entered the link"
+      )
+    )
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicleId", "Id of the vehicle"))
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "vehicleType", "Type of the vehicle"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "turnAtLinkEnd", "The direction to be taken by the vehicle at the end of link"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "numberOfStops", "Number of stops at which the vehicle needs to be stopped"))
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "turnAtLinkEnd",
+        "The direction to be taken by the vehicle at the end of link"
+      )
+    )
+    list.add(
+      OutputDataDescription(
+        this.getClass.getSimpleName,
+        relativePath,
+        "numberOfStops",
+        "Number of stops at which the vehicle needs to be stopped"
+      )
+    )
     list
   }
 
-  type LinkTraversalData = (String,Double, Double, Double, Long, String, String, String, Int)
+  type LinkTraversalData = (String, Double, Double, Double, Long, String, String, String, Int)
 
   /**
     * Computes the angle between two coordinates
@@ -145,7 +195,7 @@ class LinkTraversalAnalysis @Inject()
     * @param destination destination coordinates
     * @return angle
     */
-  private def computeAngle(source : Coord, destination: Coord): Double = {
+  private def computeAngle(source: Coord, destination: Coord): Double = {
     val angle: Double = Math.toDegrees(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
     if (angle < 0) angle + 360 else angle
   }
@@ -156,15 +206,15 @@ class LinkTraversalAnalysis @Inject()
     * @param destination destination coordinates
     * @return Direction ( L / R / S / U / NA )
     */
-  private def getDirection(source : Coord, destination: Coord): String = {
-    if(!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val angle = this.computeAngle(source,destination)
+  private def getDirection(source: Coord, destination: Coord): String = {
+    if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
+      val angle = this.computeAngle(source, destination)
       angle match {
-        case r if angle > 0 & angle < 90 => "R"
-        case l if angle >= 90 & angle < 180 => "L"
-        case u if angle >= 180 && angle <=360 => "U"
-        case s if angle == 90 => "S"
-        case _ => "NA"
+        case r if angle > 0 & angle < 90       => "R"
+        case l if angle >= 90 & angle < 180    => "L"
+        case u if angle >= 180 && angle <= 360 => "U"
+        case s if angle == 90                  => "S"
+        case _                                 => "NA"
       }
     } else "NA"
   }
