@@ -13,7 +13,6 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +119,15 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         if (modesFrequencyDataset != null && writeGraph)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName;
+        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
+        if (dataset != null && writeGraph){
+            fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
+            createRootRealizedModeChoosenGraph(dataset, fileName);
+        }
+
+        writeToRootCSV();
         writeToCSV(event);
     }
 
@@ -275,15 +283,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         });
         cumulativeMode.addAll(modes);
         return modes;
-    }
-
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
-        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null && writeGraph)
-            createRootRealizedModeChoosenGraph(dataset, fileName);
-        writeToRootCSV();
     }
 
 
