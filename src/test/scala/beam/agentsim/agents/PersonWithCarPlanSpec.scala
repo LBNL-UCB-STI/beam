@@ -2,7 +2,8 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
@@ -178,8 +179,19 @@ class PersonWithCarPlanSpec
         )
       )
 
+      val supervisor = TestActorRef(new Actor {
+        override def receive: Receive = {
+          case "Wurst" =>
+        }
+        override val supervisorStrategy: OneForOneStrategy =
+          OneForOneStrategy(maxNrOfRetries = 0) {
+            case _: Exception      => Stop
+            case _: AssertionError => Stop
+          }
+      })
+
       val householdActor = TestActorRef[HouseholdActor](
-        new HouseholdActor(
+        Props(new HouseholdActor(
           beamSvc,
           _ => modeChoiceCalculator,
           scheduler,
@@ -194,7 +206,7 @@ class PersonWithCarPlanSpec
           household,
           Map(beamVehicle.getId -> beamVehicle),
           new Coord(0.0, 0.0)
-        )
+        )), supervisor
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
@@ -630,6 +642,9 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+
+      // This agent gets stuck for now.
+      // As soon as it can re-plan, change this test accordingly.
 
       expectMsgType[CompletionNotice]
 

@@ -1,6 +1,7 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
@@ -109,6 +110,12 @@ object HouseholdActor {
     homeCoord: Coord
   ) extends Actor
       with ActorLogging {
+
+    override val supervisorStrategy: OneForOneStrategy =
+      OneForOneStrategy(maxNrOfRetries = 0) {
+        case _: Exception      => Stop
+        case _: AssertionError => Stop
+      }
 
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
