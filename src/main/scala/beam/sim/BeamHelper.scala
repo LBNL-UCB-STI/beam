@@ -388,6 +388,7 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
+    new java.io.File(outputDirectory).mkdirs
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
