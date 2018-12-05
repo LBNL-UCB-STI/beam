@@ -60,20 +60,22 @@ class BeamVehicle(
   /**
     * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
     * a call of [[unsetDriver]] will remove the driver.
-    * Send back appropriate response to caller depending on protocol.
     *
     * @param newDriverRef incoming driver
     */
-  def becomeDriver(
-    newDriverRef: ActorRef
-  ): BecomeDriverResponse = {
+  def becomeDriver(newDriverRef: ActorRef): Unit = {
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
-      BecomeDriverOfVehicleSuccess
-    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
-      NewDriverAlreadyControllingVehicle
     } else {
-      DriverAlreadyAssigned(driver.get)
+      // This is _always_ a programming error.
+      // A BeamVehicle is only a data structure, not an Actor.
+      // It must be ensured externally, by other means, that only one agent can access
+      // it at any time, e.g. by using a ResourceManager etc.
+      // Also, this exception is only a "best effort" error detection.
+      // Technically, it can also happen that it is _not_ thrown in the failure case,
+      // as this method is not synchronized.
+      // Don't try to catch this exception.
+      throw new RuntimeException("Trying to set a driver where there already is one.")
     }
   }
 

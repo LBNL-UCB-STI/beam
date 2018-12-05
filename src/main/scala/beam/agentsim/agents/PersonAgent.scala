@@ -13,7 +13,6 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
@@ -558,31 +557,15 @@ class PersonAgent(
             throw new RuntimeException("I don't have access to that vehicle. I can only drive my body and my currentTourPersonalVehicle.")
           }
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          vehicle.becomeDriver(self) match {
-            case DriverAlreadyAssigned(currentDriver) =>
-              log.error(
-                "I attempted to become driver of vehicle {} but driver {} already assigned.",
-                vehicle.id,
-                currentDriver
-              )
-              None
-            case NewDriverAlreadyControllingVehicle =>
-              log.debug(
-                "I attempted to become driver of vehicle {} but I already am driving this vehicle (person {})",
-                vehicle.id,
-                id
-              )
-              Some(currentVehicle)
-            case BecomeDriverOfVehicleSuccess =>
-              eventsManager.processEvent(
-                new PersonEntersVehicleEvent(
-                  currentTick,
-                  Id.createPersonId(id),
-                  nextLeg.beamVehicleId
-                )
-              )
-              Some(nextLeg.beamVehicleId +: currentVehicle)
-          }
+          vehicle.becomeDriver(self)
+          eventsManager.processEvent(
+            new PersonEntersVehicleEvent(
+              currentTick,
+              Id.createPersonId(id),
+              nextLeg.beamVehicleId
+            )
+          )
+          Some(nextLeg.beamVehicleId +: currentVehicle)
         } else {
           Some(currentVehicle)
         }

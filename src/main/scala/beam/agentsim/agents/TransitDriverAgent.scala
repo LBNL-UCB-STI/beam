@@ -7,11 +7,6 @@ import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, Ve
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -112,35 +107,25 @@ class TransitDriverAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
-      vehicle.becomeDriver(self) match {
-        case DriverAlreadyAssigned(_) =>
-          stop(
-            Failure(
-              s"BeamAgent $id attempted to become driver of vehicle $id " +
-              s"but driver ${vehicle.driver.get} already assigned."
+      vehicle.becomeDriver(self)
+      eventsManager.processEvent(
+        new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver")
+      )
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+      val schedule = data.passengerSchedule.addLegs(legs)
+      goto(WaitingToDrive) using data
+        .copy(currentVehicle = Vector(vehicle.id))
+        .withPassengerSchedule(schedule)
+        .asInstanceOf[TransitDriverData] replying
+        CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
+              self
             )
           )
-        case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver")
-          )
-          eventsManager
-            .processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-          val schedule = data.passengerSchedule.addLegs(legs)
-          goto(WaitingToDrive) using data
-            .copy(currentVehicle = Vector(vehicle.id))
-            .withPassengerSchedule(schedule)
-            .asInstanceOf[TransitDriverData] replying
-          CompletionNotice(
-            triggerId,
-            Vector(
-              ScheduleTrigger(
-                StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
-                self
-              )
-            )
-          )
-      }
+        )
   }
 
   when(PassengerScheduleEmpty) {

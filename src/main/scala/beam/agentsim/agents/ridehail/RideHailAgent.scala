@@ -8,7 +8,6 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -163,24 +162,14 @@ class RideHailAgent(
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
-      vehicle
-        .becomeDriver(self) match {
-        case DriverAlreadyAssigned(_) =>
-          stop(
-            Failure(
-              s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
-              s"but driver ${vehicle.driver.get} already assigned."
-            )
-          )
-        case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          vehicle.manager.get ! CheckInResource(vehicle.getId, Some(SpaceTime(initialLocation, tick)))
-          eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
-          )
-          eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-          goto(Idle) replying CompletionNotice(triggerId) using data
-            .copy(currentVehicle = Vector(vehicle.id))
-      }
+      vehicle.becomeDriver(self)
+      vehicle.manager.get ! CheckInResource(vehicle.getId, Some(SpaceTime(initialLocation, tick)))
+      eventsManager.processEvent(
+        new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
+      )
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+      goto(Idle) replying CompletionNotice(triggerId) using data
+        .copy(currentVehicle = Vector(vehicle.id))
   }
 
   when(Idle) {
