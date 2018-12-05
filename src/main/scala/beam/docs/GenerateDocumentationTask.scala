@@ -66,6 +66,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
     val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions.asScala
 
     val columns: Seq[String] = ReflectionUtil.classAccessors[OutputDataDescription].map(_.name.toString)
+        .filterNot(value => value == "className" || value == "outputFile")
     val columnsSize: Map[String, Int] = columns.map { fieldName =>
       fieldName -> allValues.map(record => ReflectionUtil.getValue(record, fieldName).toString.length).max
     }.toMap
