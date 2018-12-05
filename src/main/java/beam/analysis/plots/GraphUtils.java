@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.List;
 
 public class GraphUtils {
+    private static final Map<String, Color> colorsForModes = new HashMap<>();
     private static final List<Color> colors = new ArrayList<>();
     private static final Color DEFAULT_BACK_GROUND = new Color(255, 255, 255);
     /**
@@ -32,6 +33,20 @@ public class GraphUtils {
         colors.add(Color.BLACK);
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
+
+        colorsForModes.put("car", Color.GREEN);
+        colorsForModes.put("walk", Color.BLUE);
+        colorsForModes.put("bike", Color.GRAY);
+        colorsForModes.put("ride_hail_transit", Color.PINK);
+        colorsForModes.put("ride_hail", Color.RED);
+        colorsForModes.put("walk_transit", Color.MAGENTA);
+        colorsForModes.put("drive_transit", Color.BLACK);
+        colorsForModes.put("subway", Color.CYAN);
+        colorsForModes.put("tram", Color.ORANGE);
+        colorsForModes.put("rail", Color.LIGHT_GRAY);
+        colorsForModes.put("bus", Color.DARK_GRAY);
+        colorsForModes.put("others", Color.YELLOW);
+
     }
 
     public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
@@ -60,8 +75,14 @@ public class GraphUtils {
     public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount) {
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
-            Color color = getBarAndLegendColor(i);
-            legendItems.add(new LegendItem(legendItemName.get(i), color));
+            String legendName = legendItemName.get(i);
+            Color color;
+            if (colorsForModes.containsKey(legendName)) {
+                color = colorsForModes.get(legendName);
+            } else {
+                color = getBarAndLegendColor(i);   // keeping this for legends other than modes legends
+            }
+            legendItems.add(new LegendItem(legendName, color));
             plot.getRenderer().setSeriesPaint(i, color);
         }
         plot.setFixedLegendItems(legendItems);
