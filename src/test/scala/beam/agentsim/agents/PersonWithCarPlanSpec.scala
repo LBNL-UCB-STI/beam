@@ -503,6 +503,138 @@ class PersonWithCarPlanSpec
       expectMsgType[CompletionNotice]
     }
 
+    it("should refuse to use a car that is not available (even if told so by the router") {
+      vehicles.clear()
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            self ! event
+          }
+        }
+      )
+      val car1 = new BeamVehicle(
+        Id.createVehicleId("car-1"),
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType
+      )
+      vehicles.put(car1.getId, car1)
+      val car2 = new BeamVehicle(
+        Id.createVehicleId("car-2"),
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType
+      )
+      vehicles.put(car2.getId, car2)
+
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId, false)
+      population.addPerson(person)
+
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24*60*60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+
+      val householdActor = TestActorRef[HouseholdActor](
+        new HouseholdActor(
+          beamSvc,
+          _ => modeChoiceCalculator,
+          scheduler,
+          networkCoordinator.transportNetwork,
+          tollCalculator,
+          self,
+          self,
+          parkingManager,
+          eventsManager,
+          population,
+          household.getId,
+          household,
+          Map(car1.getId -> car1),
+          new Coord(0.0, 0.0)
+        )
+      )
+      val personActor = householdActor.getSingleChild(person.getId.toString)
+
+      scheduler ! StartSchedule(0)
+
+      val routingRequest = expectMsgType[RoutingRequest]
+      personActor ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1,2),
+                    linkTravelTime = Vector(50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = false
+              ),
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28950,
+                  mode = BeamMode.CAR,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(3,4),
+                    linkTravelTime = Vector(50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.01, 29000),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = car2.getId,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = Some(routingRequest.requestId),
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
+      )
+
+      expectMsgType[ModeChoiceEvent]
+      expectMsgType[ActivityEndEvent]
+      expectMsgType[PersonDepartureEvent]
+
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+
+      expectMsgType[CompletionNotice]
+
+    }
+
   }
 
   private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], withRoute: Boolean = true) = {
