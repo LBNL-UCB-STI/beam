@@ -50,7 +50,7 @@ class OutOfServiceVehicleManager(
     triggerIds.put(vehicleId, triggerId).flatten
   }
 
-  def handleInterrupt(
+  def handleInterruptReply(
     vehicleId: Id[Vehicle],
   ): Unit = {
 

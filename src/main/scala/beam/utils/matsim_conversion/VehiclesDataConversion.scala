@@ -1,6 +1,6 @@
 package beam.utils.matsim_conversion
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 import java.util
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -279,7 +279,9 @@ object VehiclesDataConversion extends App {
     val vehicles = (vehiclesDoc \ "vehicle").map { vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
-    val beamVehiclesPath = scenarioDirectory + "/vehicles.csv"
+    val beamVehiclesPath = new File(
+      "C:\\Users\\sidfe\\current_code\\scala\\BeamCompetitions\\fixed-data\\siouxfalls\\sample\\1k\\vehicles.csv"
+    ).toString
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
   }

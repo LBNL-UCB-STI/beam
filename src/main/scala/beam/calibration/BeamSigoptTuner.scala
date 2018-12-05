@@ -16,7 +16,6 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.JavaConverters
 import scala.util.Try
 
-
 object BeamSigoptTuner {
 
   val client = new Client(Sigopt.clientToken)
@@ -32,9 +31,9 @@ object BeamSigoptTuner {
     */
   @throws[SigoptException]
   def fetchExperiment(
-                       experimentId: String,
-                       development: Boolean = false
-                     ): Option[Experiment] = {
+    experimentId: String,
+    development: Boolean = false
+  ): Option[Experiment] = {
 
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
@@ -49,7 +48,7 @@ object BeamSigoptTuner {
   def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
-    val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
+    val factors = JavaConverters.asScalaIterator(experimentDef.factors.iterator()).seq
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
     val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build

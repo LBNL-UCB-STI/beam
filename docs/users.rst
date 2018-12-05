@@ -1,6 +1,6 @@
 
 User's Guide
-=================
+============
 
 Getting Started
 ---------------
@@ -205,16 +205,17 @@ that the SigOpt optimization algorithm should search. The calibration problem is
 hyperparameters that minimize the output of the objective function.
 
 Operationally, for each calibration attempt, BEAM creates an `Experiment` using specified `Parameter` variables,
-their `Bounds`s, and the number of workers (applicable only when using parallel calibration execution, see `Parallel Runs`_)
-using the SigOpt API. The experiment is assigned a unique ID and then receives a `Suggestion` from the SigOpt API,
-which assigns a value for each `Parameter`. Once the simulation has completed, the metric (an implementation of the
-`beam.calibration.api.ObjectiveFunction` interface) is evaluated,providing an `Observation` to the SigOpt API. This
-completes one iteration of the calibration cycle. At the start of the next iteration new `Suggestion` is
-returned by SigOpt and the simulation is re-run with the new parameter values. This process continues
+their `Bounds`s, and the number of workers (applicable only when using parallel calibration execution) using the
+SigOpt API. The experiment is assigned a unique ID and then receives a `Suggestion` (parameter values to simulate)
+from the SigOpt API, which assigns a value for each `Parameter`. Once the simulation has completed, the metric (an
+implementation of the `beam.calibration.api.ObjectiveFunction` interface) is evaluated, providing an `Observation`
+to the SigOpt API. This completes one iteration of the calibration cycle. At the start of the next iteration new
+`Suggestion` is returned by SigOpt and the simulation is re-run with the new parameter values. This process continues
 for the number of iterations specified in a command-line argument.
-(Note that this is a different type of iteration from the number of iterations of a run of BEAM itself.
+
+ Note: that this is a different type of iteration from the number of iterations of a run of BEAM itself.
  Users may wish to run BEAM for several iterations of the co-evolutionary plan modification loop prior to
- evaluating the metric).
+ evaluating the metric.
 
 SigOpt Setup
 ^^^^^^^^^^^^
@@ -233,9 +234,37 @@ environmental variables in your execution environment with the keys `SIGOPT_API_
 Configuration
 ^^^^^^^^^^^^^
 
+Prepare YML File
+~~~~~~~~~~~~~~~~
+
 Configuring a BEAM scenario for calibration proceeds in much the same way as it does for an experiment using the
 `Experiment Manager`_. In fact, with some minor adjustments, the `YAML` text file used to define experiments
-has the same general structure as the one used to specify tuning hyperparameters and ranges for calibration.
+has the same general structure as the one used to specify tuning hyperparameters and ranges for calibration
+(see example file beam/test/input/beamville/example-calibration/experiment.yml)::
+
+  title: this is the name of the SigOpt experiment
+  beamTemplateConfPath: the config file to be used for the experiments
+  modeChoiceTemplate: mode choice template file
+  numWorkers: this defines for a remote run, how many parallel runs should be executed (number of machines to be started)
+  params:
+   ### ---- run template env variables ---####
+   EXPERIMENT_MAX_RAM: 16g (might be removed in future)
+   S3_OUTPUT_PATH_SUFFIX: "sf-light" (might be removed in future)
+   DROP_OUTPUT_ONCOMPLETE: "true" (might be removed in future)
+   IS_PARALLEL: "false" (might be removed in future)
+
+  runName: instance name for remote run
+  beamBranch: branch name
+  beamCommit: commit hash
+  deployMode: "execute"
+  executeClass: "beam.calibration.RunCalibration"
+  beamBatch: "false"
+  shutdownWait: "15"
+  shutdownBehavior: "stop"
+  s3Backup: "true"
+  maxRAM: "140g"
+  region: "us-west-2"
+  instanceType: "m4.16xlarge"
 
 The major exceptions are the following:
 
@@ -245,12 +274,28 @@ These act as bounds on the values that SigOpt will try for a particular decision
 * The level of parallelism is controlled by a new parameter in the header called `numberOfWorkers`. Setting its value
 above 1 permits running calibrations in parallel in response to multiple concurrent open `Suggestions`.
 
+Create Experiment
+~~~~~~~~~~~~~~~~~
+
+Use `beam.calibration.utils.CreateExperiment` to create a new SigOpt experiment. Two inputs are needed for this:
+a `YAML` file and a `benchmark.csv` file (this second parameter might be removed in the near future, as not needed).
+
+After running the script you should be able to see the newly created experiment in the SigOpt web interface and
+the experiment id is also printed out in the console.
+
+Set in Config
+~~~~~~~~~~~~~
+
 One must also select the appropriate implementation of the `ObjectiveFunction` interface in the `.conf` file
 pointed to in the `YAML`, which implicitly defines the metric and input files.
 Several example implementations are provided such as `ModeChoiceObjectiveFunction`. This implementation
 compares modes used at the output of the simulation with benchmark values. To optimize this objective, it is necessary
-to have a set of comparison benchmark values, which are placed in the same directory as other calibration files.
+to have a set of comparison benchmark values, which are placed in the same directory as other calibration files::
 
+  beam.calibration.objectiveFunction = "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
+  beam.calibration.mode.benchmarkFileLoc=${beam.inputDirectory}"/calibration/benchmark.csv"
+
+(Needed for scoring funtions which try to match mode share).
 
 Execution
 ^^^^^^^^^
@@ -258,12 +303,24 @@ Execution
 Execution of a calibration experiment requires running the `beam.calibration.RunCalibration` class using the
 following arguments:
 
---benchmark     Location of the benchmark file (note that separators in Windows paths must be escaped using double `\\`)
+--experiments   production/application-sfbay/calibration/experiment_counts_calibration.yml
 
---num_iters     Number of iterations for which to run experiment.
+--benchmark     Location of the benchmark file (production/applicaion-sfbay/calibration/benchmark.csv)
+
+--num_iters     Number of SigOpt iterations to be conducted (in series).
 
 --experiment_id     If an `experimentID` has already been defined, add it here to continue an experiment or put
 "None" to start a new experiment.
+
+--run_type      Can be local or remote
+
+
+Manage Experiment
+^^^^^^^^^^^^^^^^^
+
+As the number of open suggestions for an experiment is limited (10 in our case), we sometimes might need to cleanup
+suggestions maually using `beam.calibration.utils.DeleteSuggestion` script to both delete specific and all open
+suggestions (e.g. if there was an exception during all runs and need to restart).
 
 
 
@@ -287,7 +344,7 @@ The time zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T
 
 As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:
 
-https://github.com/LBNL-UCB-STI/beam/raw/master/test/input/beamville/r5/dummy.zip
+https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1
 
 But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. 
 
@@ -311,6 +368,8 @@ The following inputs are optional and only recommended if your MATSim scenario h
 
 * Matsim vehicle definition (e.g. vehicles.xml) 
 * Travel Analysis Zone shapefile for the region, (e.g. as can be downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_taz.html)
+
+Finally, this conversion can only be done with a clone of the full BEAM repository. Gradle commands will **not** work with releases: https://github.com/LBNL-UCB-STI/beam/releases
 
 Conversion Instructions
 ^^^^^^^^^^^^^^^^^^^^^^^

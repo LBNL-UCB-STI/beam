@@ -1,9 +1,10 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.FileUtils
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -24,8 +25,9 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
@@ -40,8 +42,12 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
         }
       }
     )
+    val popAdjustment = DefaultPopulationAdjustment
 
-    val controller = injector.getInstance(classOf[BeamServices]).controler
+    val beamServices = injector.getInstance(classOf[BeamServices])
+    val controller = beamServices.controler
+    popAdjustment(beamServices).update(scenario)
+
     controller.run()
 
     verify(iterationCounter, times(1)).notifyIterationEnds(any())

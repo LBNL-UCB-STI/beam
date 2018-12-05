@@ -13,12 +13,11 @@ object CreateExperiment extends ExperimentApp {
   // Store CLI inputs as private members
   Sigopt.clientToken = SigOptApiToken.getClientAPIToken
 
-  override def main(args: Array[String]): Unit = {
+  override def lastThingDoneInMain(): Unit = {
     val experimentLoc: String =
       "production/application-sfbay/calibration/experiment_modes_calibration.yml"
     val benchmarkLoc: String = "production/application-sfbay/calibration/benchmark.csv"
     SigoptExperimentData(experimentDef, benchmarkLoc, NEW_EXPERIMENT_FLAG, development = false)
   }
-
 
 }

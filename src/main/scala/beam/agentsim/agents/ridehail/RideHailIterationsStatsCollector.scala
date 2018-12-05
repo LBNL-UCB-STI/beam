@@ -1,7 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.UpdateRideHailStats
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
@@ -83,10 +81,10 @@ object RideHailStatsEntry {
     first.aggregate(second)
 }
 
-class TNCIterationsStatsCollector(
+class RideHailIterationsStatsCollector(
   eventsManager: EventsManager,
   beamServices: BeamServices,
-  rideHailIterationHistoryActor: ActorRef,
+  rideHailIterationHistoryActor: RideHailIterationHistory,
   transportNetwork: TransportNetwork
 ) extends BasicEventHandler
     with LazyLogging {
@@ -117,13 +115,12 @@ class TNCIterationsStatsCollector(
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     updateStatsForIdlingVehicles()
 
-    rideHailIterationHistoryActor ! UpdateRideHailStats(
-      TNCIterationStats(
-        rideHailStats.mapValues(_.toList),
-        beamServices.tazTreeMap,
-        timeBinSizeInSec,
-        numberOfTimeBins
-      )
+    rideHailIterationHistoryActor updateRideHailStats
+    TNCIterationStats(
+      rideHailStats.mapValues(_.toList),
+      beamServices.tazTreeMap,
+      timeBinSizeInSec,
+      numberOfTimeBins
     )
 
     clearStats()
@@ -428,15 +425,15 @@ class TNCIterationsStatsCollector(
     val startBin = getTimeBin(startTime)
     val endingBin = getTimeBin(endTime)
 
-    logger.debug(
-      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
-      startTazId,
-      endTazId,
-      startBin,
-      endingBin,
-      currentEvent.getAttributes
-        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-    )
+//    logger.debug(
+//      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
+//      startTazId,
+//      endTazId,
+//      startBin,
+//      endingBin,
+//      currentEvent.getAttributes
+//        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
+//    )
 
     var idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins

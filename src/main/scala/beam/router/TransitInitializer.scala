@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
-import beam.router.model.RoutingModel.{TransitStopsInfo, WindowTime}
+import beam.router.model.RoutingModel.{TransitStopsInfo}
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.LegMode
@@ -189,7 +189,8 @@ class TransitInitializer(
       Source
         .fromFile(services.beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
         .getLines()
-        .toList.tail
+        .toList
+        .tail
     ).getOrElse(List())
       .map(_.trim.split(","))
       .filter(_.length > 2)
@@ -279,10 +280,8 @@ class TransitInitializer(
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    val time =
-      WindowTime(0, services.beamConfig.beam.routing.r5.departureWindow)
-    profileRequest.fromTime = time.fromTime
-    profileRequest.toTime = time.toTime
+    profileRequest.fromTime = 0
+    profileRequest.toTime = services.beamConfig.beam.routing.r5.departureWindow.toInt
     profileRequest.date = services.dates.localBaseDate
     profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
     profileRequest.transitModes = null

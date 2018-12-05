@@ -31,6 +31,13 @@ case class BeamPath(
       endPoint = this.endPoint.copy(time = newStartTime + this.duration)
     )
 
+  def scaleTravelTimes(scaleBy: Double): BeamPath = {
+    this.copy(
+      linkTravelTime = this.linkTravelTime.map(travelTime => (travelTime.toDouble * scaleBy).toInt),
+      endPoint = this.endPoint.copy(time = this.startPoint.time + (this.duration.toDouble * scaleBy).toInt)
+    )
+  }
+
 }
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))

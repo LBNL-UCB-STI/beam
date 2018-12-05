@@ -26,6 +26,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -40,6 +41,7 @@ object RideHailAgent {
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
@@ -55,7 +57,8 @@ object RideHailAgent {
         eventsManager,
         parkingManager,
         services,
-        transportNetwork
+        transportNetwork,
+        tollCalculator
       )
     )
 
@@ -90,12 +93,12 @@ object RideHailAgent {
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
-    msgId: Option[Int] = None
+    reservationRequestId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
-    msgId: Option[Int] = None,
-    triggersToSchedule: Seq[ScheduleTrigger],
+    reservationRequestId: Option[Int] = None,
+    triggersToSchedule: Vector[ScheduleTrigger],
     vehicleId: Id[Vehicle]
   )
 
@@ -103,15 +106,22 @@ object RideHailAgent {
 
   case class Resume()
 
-  case class InterruptedAt(
+  sealed trait InterruptReply {
+    val interruptId: Id[Interrupt]
+    val vehicleId: Id[Vehicle]
+    val tick: Double
+  }
+
+  case class InterruptedWhileDriving(
     interruptId: Id[Interrupt],
+    vehicleId: Id[Vehicle],
+    tick: Double,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
-    vehicleId: Id[Vehicle],
-    tick: Double
-  )
+  ) extends InterruptReply
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -127,7 +137,8 @@ class RideHailAgent(
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
-  val transportNetwork: TransportNetwork
+  val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator
 ) extends BeamAgent[RideHailAgentData]
     with DrivesVehicle[RideHailAgentData]
     with Stash {
@@ -274,6 +285,9 @@ class RideHailAgent(
           self
         )
       )
+      if (updatedPassengerSchedule.schedule.firstKey.startTime == 24600) {
+        val i = 0
+      }
       goto(WaitingToDriveInterrupted) using data
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
@@ -299,7 +313,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
@@ -312,7 +326,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmptyInterrupted) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data
         .withPassengerSchedule(PassengerSchedule())

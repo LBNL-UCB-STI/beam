@@ -6,12 +6,15 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
+import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -24,6 +27,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -39,8 +43,6 @@ trait BeamServices extends ActorInject {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup
-
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
   val dates: DateUtils
@@ -49,6 +51,7 @@ trait BeamServices extends ActorInject {
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+  val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
@@ -56,18 +59,19 @@ trait BeamServices extends ActorInject {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
-
+  val modeSubsidies: ModeSubsidy
+  val ptFares: PtFares
   var iterationNumber: Int = -1
+
   def startNewIteration()
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-
-  val travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = injector.getInstance(classOf[TravelTimeCalculatorConfigGroup])
 
   val dates: DateUtils = DateUtils(
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -80,20 +84,24 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
+  val agencyAndRouteByVehicleIds = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-    BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
 
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+    maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes))
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+    readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
   var matsimServices: MatsimServices = _
 
-  val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+  val modeSubsidies = ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
   def clearAll(): Unit = {
     personRefs.clear
@@ -104,6 +112,27 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     clearAll()
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
+  }
+
+  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
+  // say, a yacht or personal bus, but I think this will be fine for now.
+  def maybeScaleTransit(
+    vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    beamConfig.beam.agentsim.tuning.transitCapacity match {
+      case Some(scalingFactor) =>
+        vehicleTypes.map {
+          case (id, bvt) =>
+            id -> (if (bvt.standingRoomCapacity > 0)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity * scalingFactor),
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)
+                     )
+                   else
+                     bvt)
+        }
+      case None => vehicleTypes
+    }
   }
 }
 
@@ -124,13 +153,13 @@ object BeamServices {
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
-        BeamServices.defaultTazTreeMap
+        defaultTazTreeMap
       case e: Exception =>
         logger.error(
           "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
           e
         )
-        BeamServices.defaultTazTreeMap
+        defaultTazTreeMap
     }
   }
 

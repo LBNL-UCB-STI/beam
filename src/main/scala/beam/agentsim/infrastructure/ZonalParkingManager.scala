@@ -24,8 +24,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-
-
 class ZonalParkingManager(
   override val beamServices: BeamServices,
   val beamRouter: ActorRef,
@@ -106,7 +104,7 @@ class ZonalParkingManager(
 
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
-override def receive: Receive = {
+  override def receive: Receive = {
     case RegisterResource =>
     // For Zonal Parking, stalls are created internally
 
@@ -219,11 +217,10 @@ override def receive: Receive = {
                 selectStallWithCharger(inquiry, 500.0)
             }
         },
-        inquiry.requestId
+        inquiry.requestId,
+        inquiry.reserveStall
       )
   }
-
-
 
   private def maybeCreateNewStall(
     attrib: StallAttributes,
@@ -248,10 +245,12 @@ override def receive: Receive = {
     }
   }
 
-  def respondWithStall(stall: ParkingStall, requestId: Int): Unit = {
-    resources.put(stall.id, stall)
-    val stallValues = pooledResources(stall.attributes)
-    stallValues._numStalls -= 1
+  def respondWithStall(stall: ParkingStall, requestId: Int, reserveStall: Boolean): Unit = {
+    if (reserveStall) {
+      resources.put(stall.id, stall)
+      val stallValues = pooledResources(stall.attributes)
+      stallValues._numStalls -= 1
+    }
     sender() ! ParkingInquiryResponse(stall, requestId)
   }
 

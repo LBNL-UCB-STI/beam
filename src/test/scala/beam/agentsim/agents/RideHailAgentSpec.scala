@@ -21,7 +21,8 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
-import beam.router.r5.NetworkCoordinator
+import beam.router.osm.TollCalculator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -63,7 +64,7 @@ class RideHailAgentSpec
   private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -75,7 +76,7 @@ class RideHailAgentSpec
 
   case class TestTrigger(tick: Int) extends Trigger
 
-  private lazy val networkCoordinator = new NetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
   describe("A RideHailAgent") {
 
@@ -179,7 +180,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -189,7 +191,7 @@ class RideHailAgentSpec
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
@@ -256,7 +258,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -266,7 +269,7 @@ class RideHailAgentSpec
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
@@ -322,7 +325,8 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
-          networkCoordinator.transportNetwork
+          networkCoordinator.transportNetwork,
+          tollCalculator = new TollCalculator(config)
         )
       )
 
@@ -337,7 +341,7 @@ class RideHailAgentSpec
 
       trigger = expectMsgType[TriggerWithId] // 40000
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
@@ -353,6 +357,7 @@ class RideHailAgentSpec
       }
     })
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
   }
 
   override def afterAll: Unit = {

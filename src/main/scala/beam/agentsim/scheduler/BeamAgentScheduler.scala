@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAllocationManagerTimeout
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -50,13 +50,11 @@ object BeamAgentScheduler {
 
   case object SkipOverBadActors extends SchedulerMessage
 
-  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
+  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage
 
-    def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
-      CompletionNotice(triggerId, scheduleTriggers)
-    }
+  case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
 
-  }
+  case class KillTrigger(tick: Int) extends Trigger
 
   /**
     *
@@ -213,6 +211,10 @@ class BeamAgentScheduler(
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
 
+    case ScheduleKillTrigger(agent: ActorRef) =>
+      context.watch(agent)
+      scheduleTrigger(ScheduleTrigger(KillTrigger(nowInSeconds + maxWindow), agent))
+
     case Terminated(actor) =>
       awaitingResponse
         .values()
@@ -246,7 +248,7 @@ class BeamAgentScheduler(
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
           st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
-            .isInstanceOf[RideHailAllocationManagerTimeout]
+            .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
         canClean.foreach { stuckInfo =>
@@ -264,7 +266,7 @@ class BeamAgentScheduler(
           scheduledTriggerToStuckTimes.put(st, times + 1)
           // We have to add them back to `stuckFinder`
           if (times < 50) {
-            stuckFinder.add(stuckInfo.time, st)
+            stuckFinder.add(stuckInfo.time, st, false)
           }
 
           if (times == 10) {
@@ -281,7 +283,11 @@ class BeamAgentScheduler(
 
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
-    if (newNow <= stopTick) {
+    if (newNow <= stopTick || !triggerQueue.isEmpty && triggerQueue
+          .peek()
+          .triggerWithId
+          .trigger
+          .tick <= stopTick) {
       nowInSeconds = newNow
 
       // println("doSimStep:" + newNow)
@@ -298,10 +304,10 @@ class BeamAgentScheduler(
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick.toDouble, scheduledTrigger)
-          stuckFinder.add(System.currentTimeMillis(), scheduledTrigger)
+          stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          triggerMeasurer.sent(triggerWithId)
+          triggerMeasurer.sent(triggerWithId, scheduledTrigger.agent)
           scheduledTrigger.agent ! triggerWithId
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
@@ -327,7 +333,7 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
@@ -361,7 +367,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(3, TimeUnit.SECONDS),
+          new FiniteDuration(5, TimeUnit.SECONDS),
           self,
           Monitor
         )

@@ -4,12 +4,12 @@ import beam.agentsim.agents.GenericEventsSpec
 import org.matsim.core.events.EventsUtils
 import org.scalatest.Matchers
 
-class TNCIterationsStatsCollectorSpec extends GenericEventsSpec with Matchers {
+class RideHailIterationsStatsCollectorSpec extends GenericEventsSpec with Matchers {
 
   "A TNC Iterations Stats Collector " must {
     "collect stats" in {
       val events = EventsUtils.createEventsManager
-      val tncHandler = new TNCIterationsStatsCollector(
+      val tncHandler = new RideHailIterationsStatsCollector(
         events,
         beamServices,
         null,

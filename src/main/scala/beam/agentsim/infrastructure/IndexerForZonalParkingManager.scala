@@ -4,14 +4,12 @@ import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import org.matsim.api.core.v01.Id
 
-private[infrastructure] case class IndexForFilter
-(
+private[infrastructure] case class IndexForFilter(
   tazId: Id[TAZ],
   reservedFor: ReservedParkingType
 )
 
-private[infrastructure] case class IndexForFind
-(
+private[infrastructure] case class IndexForFind(
   tazId: Id[TAZ],
   parkingType: ParkingType,
   pricingModel: PricingModel,
@@ -25,11 +23,18 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
 
   private[this] val mapForFind: Map[IndexForFind, Array[StallValues]] = idxForFind(resources)
 
-  def find(tazId: Id[TAZ], parkingType: ParkingType, reservedFor: ReservedParkingType): Option[(IndexForFind, StallValues)] = {
+  def find(
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    reservedFor: ReservedParkingType
+  ): Option[(IndexForFind, StallValues)] = {
     def find(key: IndexForFind): Option[(IndexForFind, StallValues)] = {
       mapForFind.get(key).flatMap { arr =>
-        arr.find(stallValue => stallValue.numStalls > 0 && stallValue.feeInCents == 0)
-          .map { found => (key, found) }
+        arr
+          .find(stallValue => stallValue.numStalls > 0 && stallValue.feeInCents == 0)
+          .map { found =>
+            (key, found)
+          }
       }
     }
 
@@ -39,13 +44,18 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
 
     // We still have to do two look-ups by key because we don't know exact pricing model
     allPricingModels.view
-      .map { pricingModel => find(key(pricingModel)) }
+      .map { pricingModel =>
+        find(key(pricingModel))
+      }
       .filter(_.isDefined)
-      .head
+      .headOption
+      .getOrElse(None)
   }
 
-  def filter(tazWithDistance: Vector[(TAZ, Double)],
-             reservedFor: ReservedParkingType): Option[Map[StallAttributes, StallValues]] = {
+  def filter(
+    tazWithDistance: Vector[(TAZ, Double)],
+    reservedFor: ReservedParkingType
+  ): Option[Map[StallAttributes, StallValues]] = {
     def find(idx: IndexForFilter): Option[Map[StallAttributes, StallValues]] = {
       mapForFilter.get(idx).map { map =>
         map.filter {
@@ -62,9 +72,9 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
     tazWithDistance.view
       .map { case (taz, _) => find(key(taz.tazId, reservedFor)) }
       .filter(_.isDefined)
-      .head
+      .headOption
+      .getOrElse(None)
   }
-
 
 }
 
@@ -73,15 +83,25 @@ object IndexerForZonalParkingManager {
   val allPricingModels: Array[PricingModel] = Array(FlatFee, Block)
 
   def idxForFind(resources: Map[StallAttributes, StallValues]): Map[IndexForFind, Array[StallValues]] = {
-    resources.groupBy { case (key, _) =>
-      IndexForFind(tazId = key.tazId, parkingType = key.parkingType, pricingModel = key.pricingModel,
-        reservedFor = key.reservedFor)
-    }.map { case (key, map) => key -> map.values.toArray }
+    resources
+      .groupBy {
+        case (key, _) =>
+          IndexForFind(
+            tazId = key.tazId,
+            parkingType = key.parkingType,
+            pricingModel = key.pricingModel,
+            reservedFor = key.reservedFor
+          )
+      }
+      .map { case (key, map) => key -> map.values.toArray }
   }
 
-  def idxForFilter(resources: Map[StallAttributes, StallValues]): Map[IndexForFilter, Map[StallAttributes, StallValues]] = {
-    resources.groupBy { case (key, _) =>
-      IndexForFilter(tazId = key.tazId, reservedFor = key.reservedFor)
+  def idxForFilter(
+    resources: Map[StallAttributes, StallValues]
+  ): Map[IndexForFilter, Map[StallAttributes, StallValues]] = {
+    resources.groupBy {
+      case (key, _) =>
+        IndexForFilter(tazId = key.tazId, reservedFor = key.reservedFor)
     }
   }
 }

@@ -5,6 +5,8 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.via.CSVWriter;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -18,19 +20,37 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
-    private static final String fileName = "energy_use.png";
+    private static final String fileBaseName = "energyUse.png";
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
+    private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
 
-    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation) {
+    public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation, boolean writeGraph) {
         this.statsComputation = statsComputation;
+        this.writeGraph = writeGraph;
+    }
+
+    /**
+     * Get description of fields written to the output files.
+     *
+     * @return list of data description objects
+     */
+    @Override
+    public List<OutputDataDescription> getOutputDataDescriptions() {
+        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
+        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
+        String relativePath = outputFilePath.replace(outputDirPath, "");
+        List<OutputDataDescription> list = new ArrayList<>();
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Modes", "Mode of travel chosen by the passenger"));
+        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"));
+        return list;
     }
 
     public static class FuelUsageStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
@@ -72,7 +92,9 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         CategoryDataset modesFuelageDataSet = buildModesFuelageGraphDataset();
-        createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+        if(writeGraph){
+            createModesFuelageGraph(modesFuelageDataSet, event.getIteration());
+        }
         createFuelCSV(hourModeFuelage, event.getIteration());
     }
 
@@ -134,12 +156,12 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, true);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileBaseName, true);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesFuelList = new ArrayList<>(modesFuel);
         Collections.sort(modesFuelList);
         GraphUtils.plotLegendItems(plot, modesFuelList, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
@@ -153,54 +175,42 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private void createFuelCSV(Map<Integer, Map<String, Double>> hourModeFuelage, int iterationNumber) {
 
-        String SEPERATOR = ",";
+        String SEPARATOR = ",";
 
-        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "energy_use.csv"));
+        CSVWriter csvWriter = new CSVWriter(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv"));
         BufferedWriter bufferedWriter = csvWriter.getBufferedWriter();
-
-
         List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
         List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
 
         int maxHour = hours.get(hours.size() - 1);
-        //double[][] dataset = new double[modesFuel.size()][maxHour + 1];
-
         try {
-
-
             bufferedWriter.append("Modes");
-            bufferedWriter.append(SEPERATOR);
+            bufferedWriter.append(SEPARATOR);
             for (int j = 0; j < maxHour; j++) {
                 bufferedWriter.append("Bin_")
                         .append(String.valueOf(j))
-                        .append(SEPERATOR);
+                        .append(SEPARATOR);
             }
             bufferedWriter.append("\n");
-
             for (String modeChosen : modesFuelList) {
                 bufferedWriter.append(modeChosen);
-                bufferedWriter.append(SEPERATOR);
+                bufferedWriter.append(SEPARATOR);
 
                 for (int j = 0; j < maxHour; j++) {
                     Map<String, Double> modesData = hourModeFuelage.get(j);
-
-
                     String modeHourValue = "0";
-
                     if (modesData != null) {
                         if (modesData.get(modeChosen) != null) {
                             modeHourValue = modesData.get(modeChosen).toString();
                         }
                     }
-
                     bufferedWriter.append(modeHourValue);
-                    bufferedWriter.append(SEPERATOR);
+                    bufferedWriter.append(SEPARATOR);
                 }
                 bufferedWriter.append("\n");
             }
             bufferedWriter.flush();
             csvWriter.closeFile();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
