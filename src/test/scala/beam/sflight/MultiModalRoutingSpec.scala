@@ -18,7 +18,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec {
     "return a route with a starting time consistent with profile request" in {
       val origin = new BeamRouter.Location(552788, 4179300) // -122.4007,37.7595
       val destination = new BeamRouter.Location(548918, 4182749) // -122.4444,37.7908
-      val time = RoutingModel.WindowTime(100, 200)
+      val time = 100
       router ! RoutingRequest(
         origin,
         destination,
@@ -27,7 +27,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec {
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
           )

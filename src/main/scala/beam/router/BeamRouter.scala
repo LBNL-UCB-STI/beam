@@ -28,7 +28,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
-import beam.router.model.RoutingModel.BeamTime
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
@@ -64,7 +63,7 @@ class BeamRouter(
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
-  type WorkId = UUID
+  type WorkId = Int
   type TimeSent = ZonedDateTime
 
   val clearRoutedOutstandingWorkEnabled: Boolean = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
@@ -364,7 +363,7 @@ class BeamRouter(
     worker
   }
 
-  private def removeOutstandingWorkBy(workId: UUID): Unit = {
+  private def removeOutstandingWorkBy(workId: Int): Unit = {
     outstandingWorkIdToOriginalSenderMap.remove(workId)
     outstandingWorkIdToTimeSent.remove(workId)
   }
@@ -424,13 +423,13 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class ClearRoutedWorkerTracker(workIdToClear: UUID)
+  case class ClearRoutedWorkerTracker(workIdToClear: Int)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
   case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
-    id: UUID = UUID.randomUUID(),
+    id: Int = UUID.randomUUID().hashCode(),
     mustParkAtEnd: Boolean = false
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
@@ -455,7 +454,7 @@ object BeamRouter {
   case class RoutingRequest(
     origin: Location,
     destination: Location,
-    departureTime: BeamTime,
+    departureTime: Int,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
@@ -463,7 +462,7 @@ object BeamRouter {
     mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
@@ -480,10 +479,14 @@ object BeamRouter {
     */
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
-    staticRequestId: UUID,
+    staticRequestId: Int,
     requestId: Option[Int] = None
   ) {
     lazy val responseId: UUID = UUID.randomUUID()
+  }
+
+  object RoutingResponse {
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID().hashCode()))
   }
 
   def props(
