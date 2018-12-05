@@ -54,9 +54,10 @@ object GenerateDocumentationTask extends App with StrictLogging {
   }
 
   def buildTitle(descriptor: OutputDataDescriptor): String = {
+    val clazzName = descriptor.getClass.getSimpleName.dropRight(1)
     s"""
-      |${descriptor.getClass.getSimpleName.substring(0,descriptor.getClass.getSimpleName.length-1)}
-      |${"-" * (descriptor.getClass.getSimpleName.length - 1)}
+      |${clazzName}
+      |${"-" * clazzName.length}
       |""".stripMargin
   }
 
