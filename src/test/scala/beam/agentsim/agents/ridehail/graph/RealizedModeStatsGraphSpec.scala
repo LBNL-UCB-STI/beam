@@ -112,7 +112,7 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
           ], util.Set[String]]
         ): Array[Array[Double]] = {
           //this check handle to exit from current function recursion
-          if(!promise.isCompleted)
+          if (!promise.isCompleted)
             promise.success(stat.getFirst)
           super.compute(stat)
 
