@@ -412,7 +412,7 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
-                cost = 0.0,
+                cost = 1.0,
                 unbecomeDriverOnCompletion = true
               )
             )
@@ -437,8 +437,8 @@ class PersonAgentSpec
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[PersonCostEvent]
+      println(expectMsgType[PathTraversalEvent])
+      println(expectMsgType[PersonCostEvent])
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
