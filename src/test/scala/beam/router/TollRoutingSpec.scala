@@ -108,15 +108,17 @@ class TollRoutingSpec
             asDriver = true
           )
         ),
-        attributesOfIndividual = Some(AttributesOfIndividual(
-          HouseholdAttributes.EMPTY,
-          None,
-          true,
-          Vector(BeamMode.CAR),
-          valueOfTime = 10000000.0, // I don't mind tolls at all
-          None,
-          None
-        ))
+        attributesOfIndividual = Some(
+          AttributesOfIndividual(
+            HouseholdAttributes.EMPTY,
+            None,
+            true,
+            Vector(BeamMode.CAR),
+            valueOfTime = 10000000.0, // I don't mind tolls at all
+            None,
+            None
+          )
+        )
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
@@ -166,17 +168,19 @@ class TollRoutingSpec
             asDriver = true
           )
         ),
-        attributesOfIndividual = Some(AttributesOfIndividual(
-          HouseholdAttributes.EMPTY,
-          None,
-          true,
-          Vector(BeamMode.CAR),
-          // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
-          // (which takes 288 seconds)
-          valueOfTime = 3600.0 / 145.0,
-          None,
-          None
-        ))
+        attributesOfIndividual = Some(
+          AttributesOfIndividual(
+            HouseholdAttributes.EMPTY,
+            None,
+            true,
+            Vector(BeamMode.CAR),
+            // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
+            // (which takes 288 seconds)
+            valueOfTime = 3600.0 / 145.0,
+            None,
+            None
+          )
+        )
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
