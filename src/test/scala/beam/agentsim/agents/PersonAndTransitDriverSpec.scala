@@ -281,8 +281,6 @@ class PersonAndTransitDriverSpec
 
       val busDriver = router.getSingleChild("TransitDriverAgent-my_bus")
       val tramDriver = router.getSingleChild("TransitDriverAgent-my_tram")
-      bus.becomeDriver(busDriver)
-      tram.becomeDriver(tramDriver)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), busDriver)
       scheduler ! ScheduleTrigger(InitializeTrigger(10000), tramDriver)
 
@@ -327,7 +325,7 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
+
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
