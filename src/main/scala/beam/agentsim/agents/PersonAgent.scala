@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle, RegisterResource}
+import beam.agentsim.Resource.{NotifyVehicleResourceIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
@@ -123,7 +123,7 @@ object PersonAgent {
     restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
     currentVehicle: VehicleStack = Vector(),
     currentTourMode: Option[BeamMode] = None,
-    currentTourPersonalVehicle: Option[Id[Vehicle]] = None,
+    currentTourPersonalVehicle: Option[BeamVehicle] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false
@@ -554,7 +554,7 @@ class PersonAgent(
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          if (nextLeg.beamVehicleId != bodyId && !data.currentTourPersonalVehicle.contains(nextLeg.beamVehicleId)) {
+          if (nextLeg.beamVehicleId != bodyId && !data.currentTourPersonalVehicle.map(_.id).contains(nextLeg.beamVehicleId)) {
             throw new RuntimeException(
               "I don't have access to that vehicle. I can only drive my body and my currentTourPersonalVehicle."
             )
@@ -710,7 +710,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVeh) =>
                 if (activity.getType.equals("Home")) {
-                  context.parent ! ReleaseVehicleReservation(beamServices.vehicles(personalVeh))
+                  context.parent ! ReleaseVehicleReservation(personalVeh)
                   None
                 } else {
                   currentTourPersonalVehicle
