@@ -5,11 +5,14 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
+import beam.router.Modes.BeamMode
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 
@@ -35,6 +38,8 @@ class BeamVehicle(
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
+  var spaceTime: SpaceTime = _
+
   var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
   /**
@@ -44,6 +49,7 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+  var reservedFor: Option[Id[Person]] = None
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
@@ -63,9 +69,9 @@ class BeamVehicle(
     *
     * @param newDriverRef incoming driver
     */
-  def becomeDriver(newDriverRef: ActorRef): Unit = {
+  def becomeDriver(newDriver: ActorRef): Unit = {
     if (driver.isEmpty) {
-      driver = Some(newDriverRef)
+      driver = Some(newDriver)
     } else {
       // This is _always_ a programming error.
       // A BeamVehicle is only a data structure, not an Actor.
@@ -141,6 +147,9 @@ class BeamVehicle(
       driver,
       stall
     )
+
+  def toStreetVehicle: StreetVehicle =
+    StreetVehicle(id.asInstanceOf[Id[Vehicle]], spaceTime, BeamMode.CAR, true)
 
 }
 

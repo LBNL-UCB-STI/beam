@@ -710,8 +710,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVeh) =>
                 if (activity.getType.equals("Home")) {
-                  context.parent ! ReleaseVehicleReservation(id, personalVeh)
-                  context.parent ! CheckInResource(personalVeh, None)
+                  context.parent ! ReleaseVehicleReservation(beamServices.vehicles(personalVeh))
                   None
                 } else {
                   currentTourPersonalVehicle

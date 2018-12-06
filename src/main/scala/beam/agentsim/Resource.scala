@@ -15,7 +15,7 @@ object Resource {
 
   case class NotifyVehicleResourceIdle(
     resourceId: Id[_],
-    whenWhere: Option[SpaceTime],
+    whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
     triggerId: Option[Long] // triggerId is included to facilitate debugging

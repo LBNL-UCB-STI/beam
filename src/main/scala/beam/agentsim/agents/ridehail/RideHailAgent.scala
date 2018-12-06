@@ -211,12 +211,11 @@ class RideHailAgent(
             )
           )
           parkingManager ! CheckInResource(theVehicle.stall.get.id, None)
-          val whenWhere = Some(SpaceTime(theVehicle.stall.get.location, tick))
           theVehicle.unsetParkingStall()
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(
               currentVehicleUnderControl,
-              whenWhere,
+              SpaceTime(theVehicle.stall.get.location, tick),
               data.passengerSchedule,
               theVehicle.getState,
               _currentTriggerId

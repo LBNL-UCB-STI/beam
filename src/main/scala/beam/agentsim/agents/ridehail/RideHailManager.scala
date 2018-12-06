@@ -319,14 +319,13 @@ class RideHailManager(
 
     case ev @ NotifyVehicleResourceIdle(
           vId,
-          whenWhereOpt,
+          whenWhere,
           passengerSchedule,
           beamVehicleState,
           triggerId
         ) =>
       log.debug("RHM.NotifyVehicleResourceIdle: {}", ev)
       val vehicleId = vId.asInstanceOf[Id[Vehicle]]
-      val whenWhere = whenWhereOpt.getOrElse(getRideHailAgentLocation(vehicleId).currentLocation)
 
       updateLocationOfAgent(vehicleId, whenWhere, getServiceStatusOf(vehicleId))
 

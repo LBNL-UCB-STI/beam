@@ -122,7 +122,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleResourceIdle(
             currentVehicleUnderControl,
-            Some(beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)),
+            beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
             data.passengerSchedule,
             theVehicle.getState,
             Some(triggerId)
@@ -306,7 +306,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleResourceIdle(
           currentVehicleUnderControl,
-          Some(beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint)),
+          beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
           data.passengerSchedule,
           theVehicle.getState,
           _currentTriggerId
