@@ -553,12 +553,12 @@ class PersonAgent(
 
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
           if (nextLeg.beamVehicleId != bodyId && !data.currentTourPersonalVehicle.contains(nextLeg.beamVehicleId)) {
             throw new RuntimeException(
               "I don't have access to that vehicle. I can only drive my body and my currentTourPersonalVehicle."
             )
           }
-          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
           vehicle.becomeDriver(self)
           eventsManager.processEvent(
             new PersonEntersVehicleEvent(

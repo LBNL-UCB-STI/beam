@@ -77,8 +77,6 @@ object HouseholdActor {
 
   case class MobilityStatusResponse(streetVehicle: Vector[StreetVehicle])
 
-  case class InitializeRideHailAgent(b: Id[Person])
-
   /**
     * Implementation of intra-household interaction in BEAM using actors.
     *
@@ -210,7 +208,24 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
 
       case CheckInResource(vehicleId, _) =>
-        checkInVehicleResource(vehicleId.asInstanceOf[Id[BeamVehicle]])
+        /*
+         * If the resource is checked out, remove. If the resource is not reserved to an individual, make available to all.
+         */
+        val beamVehicleId = vehicleId.asInstanceOf[Id[BeamVehicle]]
+        val personIDOpt = _checkedOutVehicles.remove(beamVehicleId)
+        personIDOpt match {
+          case Some(personId) =>
+            _reservedForPerson.get(personId) match {
+              case None =>
+                _availableVehicles.add(beamVehicleId)
+              case Some(_) =>
+            }
+          case None =>
+            if (!_reservedForPerson.values.toSet.contains(beamVehicleId)) {
+              _availableVehicles.add(beamVehicleId)
+            }
+        }
+        log.debug("Resource {} is now available again", beamVehicleId)
 
       case ReleaseVehicleReservation(personId, vehId) =>
         /*
@@ -252,11 +267,6 @@ object HouseholdActor {
           .filter(
             veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
           )
-          .filter { theveh =>
-            // also make sure there isn't another driver using this vehicle
-            val existingDriver = beamServices.vehicles(theveh.id).driver
-            existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString)
-          }
           .foreach { x =>
             _availableVehicles.remove(x.id)
             _checkedOutVehicles.put(x.id, personId)
@@ -281,26 +291,6 @@ object HouseholdActor {
       } else {
         log.debug("Remaining: {}", context.children)
       }
-    }
-
-    private def checkInVehicleResource(vehicleId: Id[Vehicle]): Unit = {
-      /*
-       * If the resource is checked out, remove. If the resource is not reserved to an individual, make available to all.
-       */
-      val personIDOpt = _checkedOutVehicles.remove(vehicleId)
-      personIDOpt match {
-        case Some(personId) =>
-          _reservedForPerson.get(personId) match {
-            case None =>
-              _availableVehicles.add(vehicleId)
-            case Some(_) =>
-          }
-        case None =>
-          if (!_reservedForPerson.values.toSet.contains(vehicleId)) {
-            _availableVehicles.add(vehicleId)
-          }
-      }
-      log.debug("Resource {} is now available again", vehicleId)
     }
 
     // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last
