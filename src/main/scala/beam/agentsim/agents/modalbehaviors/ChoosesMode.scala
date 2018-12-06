@@ -54,11 +54,9 @@ trait ChoosesMode {
     case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
         ProcessingNextLegOrStartActivity) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
-        case Some(CAR | BIKE | DRIVE_TRANSIT) =>
+        case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
-          context.parent ! MobilityStatusInquiry(id)
-        case None =>
-          context.parent ! MobilityStatusInquiry(id)
+          context.parent ! MobilityStatusInquiry()
         case _ =>
           // Otherwise, send empty list to self
           self ! MobilityStatusResponse(Vector())

@@ -49,7 +49,6 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
-  var reservedFor: Option[Id[Person]] = None
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None

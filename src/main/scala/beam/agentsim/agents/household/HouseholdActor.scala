@@ -64,7 +64,7 @@ object HouseholdActor {
     )
   }
 
-  case class MobilityStatusInquiry(personId: Id[Person])
+  case class MobilityStatusInquiry()
   case class ReleaseVehicleReservation(vehicle: BeamVehicle)
 
   case class MobilityStatusResponse(streetVehicle: Vector[BeamVehicle])
@@ -170,7 +170,7 @@ object HouseholdActor {
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, id)
 
-      case MobilityStatusInquiry(personId) =>
+      case MobilityStatusInquiry() =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             sender() ! MobilityStatusResponse(Vector(firstVehicle))
