@@ -41,7 +41,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       joulesPerMeter * distanceInMeters
     }
 
-    def estimateConsumptionInJoules(distanceInMeters: Double,fuelConsumption: List[FuelConsumption]): Double = {
+    def estimateConsumptionInJoules(distanceInMeters: Double, fuelConsumption: List[FuelConsumption]): Double = {
       joulesPerMeter * distanceInMeters
     }
 
