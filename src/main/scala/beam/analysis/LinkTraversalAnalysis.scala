@@ -17,6 +17,12 @@ import org.matsim.core.events.handler.BasicEventHandler
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+/**
+  * Analyze the link traversal events.
+  * @param scenario beam scenario.
+  * @param beamServices beam services.
+  * @param outputDirectoryHierarchy output directory hierarchy.
+  */
 class LinkTraversalAnalysis @Inject()(
   private val scenario: Scenario,
   private val beamServices: BeamServices,
