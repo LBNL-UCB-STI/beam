@@ -163,8 +163,6 @@ object HouseholdActor {
 
     }
 
-    private val resources = mutable.Map() ++ vehicles
-
     /**
       * Available [[Vehicle]]s in [[Household]].
       */
@@ -320,9 +318,6 @@ object HouseholdActor {
     }
 
     private def initializeHouseholdVehicles(): Unit = {
-      // Add the vehicles to resources managed by this ResourceManager.
-
-      vehicles.foreach(idAndVeh => resources.put(idAndVeh._1, idAndVeh._2))
       // Initial assignments
 
       for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
