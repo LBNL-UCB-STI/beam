@@ -100,10 +100,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
 
     val planReaderCsv: PlanReaderCsv = new PlanReaderCsv(scenario, beamServices)
 
-    for(h: Household <- planReaderCsv.getHouseHoldsList.asScala){
-      scenario.getHouseholds.getHouseholds.put(h.getId, h)
-    }
-
     scenario
   }
 
@@ -200,6 +196,7 @@ object HouseHoldComparator extends Comparator[Household]{
           o1.getIncome.getCurrency == o2.getIncome.getCurrency &&
           o1.getIncome.getIncome == o2.getIncome.getIncome &&
           o1.getIncome.getIncomePeriod.equals(o2.getIncome.getIncomePeriod) &&
+          o1.getAttributes.toString.equals(o2.getAttributes.toString) &&
           //o1.getIncome.getIncomePeriod.values().deep == o2.getIncome.getIncomePeriod.values.deep &&
           /*Vehicle ids dont match because we are generating vehicles on the fly dynamically in the case of csv data*/
 //          o1.getVehicleIds.equals(o2.getVehicleIds) &&
@@ -217,6 +214,29 @@ object HouseHoldComparator extends Comparator[Household]{
     val houseHolds2 = o2.getHouseholds.getHouseholds
 
     if(flag == 0 && houseHolds1.size() != houseHolds2.size()) flag = 1
+
+
+    Breaks.breakable {
+      o1.getHouseholds.getHouseholds.forEach {
+        case (hhId: Id[Household], hh: Household) => {
+          //o1.getHouseholds.getHouseholdAttributes.removeAttribute(hhId.toString, "housingtype")
+          val x1 = o1.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordx")
+          val y1 = o1.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordy")
+          val x2 = o2.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordx")
+          val y2 = o2.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordy")
+
+          if(x1 != x2 || y1 != y2) {
+            flag = 1
+            Breaks.break
+          }
+        }
+      }
+    }
+
+    /*if(!o1.getHouseholds.getHouseholdAttributes.toString.equals(o2.getHouseholds.getHouseholdAttributes.toString))
+      flag = 1*/
+
+
 
     if(flag == 0) {
 
@@ -305,6 +325,7 @@ object PersonComparator extends Comparator[Person]{
     if(flag == 0 && p1.getPlanElements.size() != p2.getPlanElements.size()) flag = 1
 
 
+
     if(flag == 0) {
       val pElements1 = p1.getPlanElements
       val pElements2 = p2.getPlanElements
@@ -338,6 +359,27 @@ object PersonComparator extends Comparator[Person]{
   def comparePersons(o1: MutableScenario, o2: MutableScenario) : Int = {
     var flag = 0
 
+    /*if(!o1.getPopulation.getPersonAttributes.toString.equals(o2.getPopulation.getPersonAttributes.toString))
+      flag = 1*/
+
+    Breaks.breakable {
+      o1.getPopulation.getPersons.forEach {
+        case (pId: Id[Person], p: Person) => {
+          val age1 = o1.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
+          val age2 = o2.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
+
+          val availableModes1 = o1.getPopulation.getPersonAttributes.getAttribute(pId.toString, "available-modes")
+          val availableModes2 = o2.getPopulation.getPersonAttributes.getAttribute(pId.toString, "available-modes")
+          /*age1 != age2 ||*/
+          if (availableModes1 != availableModes2) {
+            flag = 1
+            Breaks.break()
+          }
+        }
+      }
+    }
+
+
     val persons1 = o1.getPopulation.getPersons
     val persons2 = o2.getPopulation.getPersons
 
@@ -355,7 +397,7 @@ object PersonComparator extends Comparator[Person]{
             PersonComparator.compare(p1, p2) match {
               case 1 => {
                 flag = 1
-                //Breaks.break
+                Breaks.break
               }
               case _ =>
             }

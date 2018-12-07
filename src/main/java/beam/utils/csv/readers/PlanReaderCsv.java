@@ -57,7 +57,6 @@ public class PlanReaderCsv {
     private String defaultAvailableModes = "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram";
 
 
-    List<Household> houseHoldsList = new ArrayList<>();
 
     List<Vehicle> allVehicles = new ArrayList<>();
     List<Person> allPersons = new ArrayList<>();
@@ -90,6 +89,9 @@ public class PlanReaderCsv {
         this.delimiter = delimiter == null ? this.delimiter : delimiter;
 
         this.csvScenarioFile = beamServices.beamConfig().beam().agentsim().agents().population().beamPopulationFile();
+
+        scenario.getHouseholds().getHouseholds().clear();
+        scenario.getHouseholds().getHouseholdAttributes().clear();
 
         population = scenario.getPopulation();
         population.getPersons().clear();
@@ -393,7 +395,7 @@ public class PlanReaderCsv {
             HouseholdImpl objHouseHold = new HouseholdsFactoryImpl().createHousehold(_houseHoldId);
 
             // Setting the coordinates
-            Coord coord = setCoords(objHouseHold, houseHoldMap);
+            Coord houseHoldCoord = setCoords(houseHoldMap);
 
             Income income;
             String incomeStr = houseHoldMap.get("income");
@@ -428,7 +430,7 @@ public class PlanReaderCsv {
             }else {
                 scala.collection.immutable.List<BeamVehicleType> vehicleTypes = vehiclesAdjustment.sampleVehicleTypesForHousehold(numberOfVehicles, BeamVehicleType.Car$.MODULE$,
                         objHouseHold.getIncome().getIncome(), objHouseHold.getMemberIds().size(),
-                        null, coord);
+                        null, houseHoldCoord);
                 scala.collection.Iterator<BeamVehicleType> iter = vehicleTypes.iterator();
 
                 List<Id<Vehicle>> vehicleIds = new ArrayList<>();
@@ -439,11 +441,8 @@ public class PlanReaderCsv {
                     Vehicle v = VehicleUtils.getFactory().createVehicle(Id.createVehicleId(vehicleCounter++), vt);
                     vehicleIds.add(v.getId());
 
-
                     //Id<BeamVehicle> bvId = Id.create(v.getId(), BeamVehicle.class);
-
                     //Option<ObjectAttributes> objectAttributesOption = None;
-
                     //BeamVehicle bv = new BeamVehicle(bvId, null, None, bvt, Some(objHouseHold.getId()));
 
                     BeamVehicle bv = BeamVehicleUtils.getBeamVehicle(v, objHouseHold, bvt);
@@ -454,14 +453,14 @@ public class PlanReaderCsv {
                     privateVehicles.put(bv.getId(), bv);
 
                     //BeamVehicle beamVehicle = new BeamVehicle(v.getId(), null , null, vt, objHouseHold.getId());
-
-
                 }
 
                 objHouseHold.setVehicleIds(vehicleIds);
             }
 
-            houseHoldsList.add(objHouseHold);
+            scenario.getHouseholds().getHouseholds().put(objHouseHold.getId(), objHouseHold);
+            scenario.getHouseholds().getHouseholdAttributes().putAttribute(objHouseHold.getId().toString(), "homecoordx", houseHoldCoord.getX());
+            scenario.getHouseholds().getHouseholdAttributes().putAttribute(objHouseHold.getId().toString(), "homecoordy", houseHoldCoord.getY());
 
             // PopulationImpl to set households
             // I have to check in Matsim
@@ -519,18 +518,16 @@ public class PlanReaderCsv {
             person.getCustomAttributes().put("node_id_small", node_id_small);
             person.getCustomAttributes().put("node_id_walk", node_id_walk);
             person.getCustomAttributes().put("job_id", job_id);*/
-
-            person.getAttributes().putAttribute("age", Integer.parseInt(age));
-
+            //person.getAttributes().putAttribute("age", Integer.parseInt(age));
             //population.getPersonAttributes().putAttribute(person.getId().toString(), "age", age);
+
             population.getPersonAttributes().putAttribute(person.getId().toString(), "rank", 0);
-            addCarModes(person);
+            population.getPersonAttributes().putAttribute(person.getId().toString(), "age", Integer.parseInt(age));
+            population.getPersonAttributes().putAttribute(person.getId().toString(), "available-modes", defaultAvailableModes);
 
-
+            //addCarModes(person);
             //person.getCustomAttributes().put("beam-attributes", person.getAttributes());
-
             population.addPerson(person);
-
 
             List<Id<Person>> persons = houseHoldPersons.get(household_id);
             if(persons == null){
@@ -539,16 +536,6 @@ public class PlanReaderCsv {
             persons.add(person.getId());
             houseHoldPersons.put(household_id, persons);
         }
-    }
-
-
-
-    private void addCarModes(Person person) {
-
-        /*person.getCustomAttributes().put("available-modes", availableModes);
-        person.getAttributes().putAttribute("available-modes", availableModes);*/
-        population.getPersonAttributes().putAttribute(person.getId().toString(), "available-modes", defaultAvailableModes);
-
     }
 
     private void processData(){
@@ -562,7 +549,7 @@ public class PlanReaderCsv {
         System.out.println("All csv files processed");
     }
 
-    private Coord setCoords(HouseholdImpl objHouseHold, Map<String, String> houseHoldMap) {
+    private Coord setCoords(Map<String, String> houseHoldMap) {
 
         String x = "";
         String y = "";
@@ -599,13 +586,13 @@ public class PlanReaderCsv {
             }
         }
 
-        if(x != null && !x.isEmpty()) {
+        /*if(x != null && !x.isEmpty()) {
             objHouseHold.getAttributes().putAttribute("homecoordx", x);
         }
 
         if(y != null && !y.isEmpty()) {
             objHouseHold.getAttributes().putAttribute("homecoordy", y);
-        }
+        }*/
 
         return new Coord(Double.parseDouble(x), Double.parseDouble(y));
     }
@@ -619,9 +606,6 @@ public class PlanReaderCsv {
         return allVehicles;
     }
 
-    public List<Household> getHouseHoldsList() {
-        return houseHoldsList;
-    }
 
 }
 
