@@ -446,9 +446,9 @@ public class PlanReaderCsv {
                     //BeamVehicle bv = new BeamVehicle(bvId, null, None, bvt, Some(objHouseHold.getId()));
 
                     BeamVehicle bv = BeamVehicleUtils.getBeamVehicle(v, objHouseHold, bvt);
-                    if(!scenario.getVehicles().getVehicleTypes().keySet().contains(vt.getId()))
-                        scenario.getVehicles().addVehicleType(vt);
-                    scenario.getVehicles().addVehicle(v);
+                    /*if(!scenario.getVehicles().getVehicleTypes().keySet().contains(vt.getId()))
+                        scenario.getVehicles().addVehicleType(vt);*/
+                    //scenario.getVehicles().addVehicle(v);
 
                     privateVehicles.put(bv.getId(), bv);
 

@@ -34,6 +34,10 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
   val configFile = "test/input/beamville/beam.conf"
   val xmlScenario = loadScenarioUsingXmlMode()
   val csvScenario = loadScenarioUsingCsvMode()
+
+  var b1: BeamServices = _
+  var b2: BeamServices = _
+
   logScenario(xmlScenario)
   logScenario(csvScenario)
 
@@ -49,8 +53,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     if(flag == 0 && HouseHoldComparator.compareHouseHolds(o1, o2) != 0)
       houseHoldsEqual = 1
 
-    // if(flag == 0 && VehicleComparator.compareVehicles(o1, o2) != 0)
-    //  vehiclesEqual = 1
+    if(flag == 0 && VehicleComparator.compareVehicles(b1, b2) != 0)
+      vehiclesEqual = 1
 
     if(flag == 0 && PersonComparator.comparePersons(o1, o2) != 0)
       personsEqual = 1
@@ -83,6 +87,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
     val beamServices = getBeamServices(config)
+    b1 = beamServices
 
     scenario
   }
@@ -99,6 +104,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     val beamServices = getBeamServices(config)
 
     val planReaderCsv: PlanReaderCsv = new PlanReaderCsv(scenario, beamServices)
+
+    b2 = beamServices
 
     scenario
   }
@@ -264,41 +271,35 @@ object HouseHoldComparator extends Comparator[Household]{
 
 }
 
-object VehicleComparator extends Comparator[Vehicle]{
+object VehicleComparator extends Comparator[BeamVehicle]{
 
-  override def compare(v1: Vehicle, v2: Vehicle): Int = {
+  override def compare(v1: BeamVehicle, v2: BeamVehicle): Int = {
     if(
-      v1.getId == v2.getId &&
-      v1.getType.getCapacity == v2.getType.getCapacity &&
-      v1.getType.getDescription == v2.getType.getDescription &&
-      v1.getType.getDoorOperationMode == v2.getType.getDoorOperationMode &&
-      v1.getType.getFlowEfficiencyFactor == v2.getType.getFlowEfficiencyFactor &&
-      v1.getType.getLength == v2.getType.getLength &&
-      v1.getType.getMaximumVelocity == v2.getType.getMaximumVelocity &&
-      v1.getType.getPcuEquivalents == v2.getType.getPcuEquivalents &&
-      v1.getType.getWidth == v2.getType.getWidth
+      v1.getId == v2.getId
+      && v1.houseHoldId.get.equals(v2.houseHoldId.get)
+      && v1.beamVehicleType.equals(v2.beamVehicleType)
     ) 0
     else 1
   }
 
-  def compareVehicles(o1: MutableScenario, o2: MutableScenario) : Int = {
+  def compareVehicles(o1: BeamServices, o2: BeamServices) : Int = {
     var flag = 0
 
-    val vehicles1 = o1.getVehicles.getVehicles
-    val vehicles2 = o2.getVehicles.getVehicles
+    val vehicles1: TrieMap[Id[BeamVehicle], BeamVehicle] = o1.vehicles
+    val vehicles2 = o2.vehicles
 
-    if(flag == 0 && vehicles1.size() != vehicles2.size()) flag = 1
+    if(flag == 0 && vehicles1.keySet.size != vehicles2.keySet.size) flag = 1
 
     if(flag == 0) {
 
       Breaks.breakable{
-        vehicles1.keySet().forEach {
-          case (vId1: Id[Vehicle]) => {
+        vehicles1.foreach{
+          case (vId1: Id[BeamVehicle], v: BeamVehicle) => {
 
-            val v1 = vehicles1.get(vId1)
-            val v2 = vehicles2.get(vId1)
+            /*val v1 = vehicles1.get(vId1)
+            val v2 = vehicles2.get(vId1)*/
 
-            VehicleComparator.compare(v1, v2) match {
+            VehicleComparator.compare(v, vehicles2.get(vId1).get) match {
               case 1 => {
                 flag = 1
                 Breaks.break
