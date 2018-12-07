@@ -12,7 +12,7 @@ import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 
@@ -178,7 +178,7 @@ class BeamVehicle(
 
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
-    val scenario = beamServices.matsimServices.getInjector.getInstance(classOf[Scenario])
+    val scenario = beamServices.matsimServices.getScenario
     val fuelConsumption: Option[List[FuelConsumption]] = Some(
       this.generateFuelConsumptionData(beamLeg, scenario.getNetwork)
     )
