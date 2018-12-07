@@ -131,7 +131,6 @@ class Population(
               parkingManager,
               eventsManager,
               scenario.getPopulation,
-              household.getId,
               household,
               householdVehicles,
               homeCoord

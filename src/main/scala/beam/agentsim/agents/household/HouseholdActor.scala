@@ -38,7 +38,6 @@ object HouseholdActor {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
-    householdId: Id[Household],
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord
@@ -55,7 +54,6 @@ object HouseholdActor {
         parkingManager,
         eventsManager,
         population,
-        householdId,
         matSimHousehold,
         houseHoldVehicles,
         homeCoord
@@ -93,10 +91,10 @@ object HouseholdActor {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
-    id: Id[households.Household],
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
+    homeCoord: Coord,
+    sharedVehicleFleets: Vector[ActorRef] = Vector()
   ) extends Actor
       with ActorLogging {
 
@@ -170,7 +168,7 @@ object HouseholdActor {
       case ReleaseVehicle(vehicle) =>
         vehicle.taken = false
         availableVehicles = vehicle :: availableVehicles
-        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, id)
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
       case MobilityStatusInquiry() =>
         availableVehicles = availableVehicles match {

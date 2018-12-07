@@ -319,7 +319,6 @@ class PersonAndTransitDriverSpec
           parkingManager = parkingManager,
           eventsManager = eventsManager,
           population = population,
-          id = household.getId,
           household = household,
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0)

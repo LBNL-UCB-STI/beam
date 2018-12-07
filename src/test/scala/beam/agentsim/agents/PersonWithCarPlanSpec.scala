@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
@@ -49,7 +48,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithCarPlanSpec
     extends TestKit(
@@ -179,17 +178,6 @@ class PersonWithCarPlanSpec
         )
       )
 
-      val supervisor = TestActorRef(new Actor {
-        override def receive: Receive = {
-          case "Wurst" =>
-        }
-        override val supervisorStrategy: OneForOneStrategy =
-          OneForOneStrategy(maxNrOfRetries = 0) {
-            case _: Exception      => Stop
-            case _: AssertionError => Stop
-          }
-      })
-
       val householdActor = TestActorRef[HouseholdActor](
         Props(
           new HouseholdActor(
@@ -203,13 +191,11 @@ class PersonWithCarPlanSpec
             parkingManager,
             eventsManager,
             population,
-            household.getId,
             household,
             Map(beamVehicle.getId -> beamVehicle),
             new Coord(0.0, 0.0)
           )
-        ),
-        supervisor
+        )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
@@ -337,7 +323,6 @@ class PersonWithCarPlanSpec
           parkingManager,
           eventsManager,
           population,
-          household.getId,
           household,
           Map(car1.getId -> car1, car2.getId -> car2),
           new Coord(0.0, 0.0)
@@ -429,7 +414,6 @@ class PersonWithCarPlanSpec
           parkingManager,
           eventsManager,
           population,
-          household.getId,
           household,
           Map(beamVehicle.getId -> beamVehicle),
           new Coord(0.0, 0.0)
@@ -576,7 +560,6 @@ class PersonWithCarPlanSpec
           parkingManager,
           eventsManager,
           population,
-          household.getId,
           household,
           Map(car1.getId -> car1),
           new Coord(0.0, 0.0)

@@ -293,7 +293,6 @@ class OtherPersonAgentSpec
           parkingManager,
           eventsManager,
           population,
-          household.getId,
           household,
           Map(),
           new Coord(0.0, 0.0)
