@@ -98,7 +98,7 @@ class BeamVehicle(
     * Computes the angle between two coordinates
     * @param source source coordinates
     * @param destination destination coordinates
-    * @return angle
+    * @return angle between the coordinates (in radians).
     */
   private def computeAngle(source: Coord, destination: Coord): Double =
     Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
@@ -107,7 +107,7 @@ class BeamVehicle(
     * Get the desired direction to be taken , based on the angle between the coordinates
     * @param source source coordinates
     * @param destination destination coordinates
-    * @return Direction ( L / R / S / U / NA )
+    * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
     */
   private def getDirection(source: Coord, destination: Coord): String = {
     if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
@@ -132,7 +132,6 @@ class BeamVehicle(
     * @return list of fuel consumption objects generated
     */
   private def generateFuelConsumptionData(beamLeg: BeamLeg, network: Network): List[FuelConsumption] = {
-    println("Beam Path : " + beamLeg.travelPath.linkIds)
     val linkIds = beamLeg.travelPath.linkIds
     val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
     // generate the link arrival times for each link ,by adding cumulative travel times of previous links
