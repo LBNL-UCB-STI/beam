@@ -48,7 +48,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithVehicleSharingSpec
     extends TestKit(
@@ -285,11 +285,11 @@ class PersonWithVehicleSharingSpec
               modeChoiceEvents.ref ! event
             }
             if (event.isInstanceOf[PersonEntersVehicleEvent] &&
-              event.asInstanceOf[HasPersonId].getPersonId == person1.getId) {
+                event.asInstanceOf[HasPersonId].getPersonId == person1.getId) {
               person1EntersVehicleEvents.ref ! event
             }
             if (event.isInstanceOf[PersonEntersVehicleEvent] &&
-              event.asInstanceOf[HasPersonId].getPersonId == person2.getId) {
+                event.asInstanceOf[HasPersonId].getPersonId == person2.getId) {
               person2EntersVehicleEvents.ref ! event
             }
           }
@@ -372,8 +372,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       val person2EntersCar = person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      assert(person1EntersCar.getVehicleId != person2EntersCar.getVehicleId,
-        "Agents should get into different cars.")
+      assert(person1EntersCar.getVehicleId != person2EntersCar.getVehicleId, "Agents should get into different cars.")
 
       expectMsgType[CompletionNotice]
     }

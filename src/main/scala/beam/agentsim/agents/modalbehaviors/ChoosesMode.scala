@@ -35,7 +35,6 @@ import akka.pattern._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
 /**
   * BEAM
   */
@@ -53,16 +52,23 @@ trait ChoosesMode {
   onTransition {
     case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
         ProcessingNextLegOrStartActivity) -> ChoosingMode =>
-      stateData.asInstanceOf[BasePersonData].currentTourMode match {
+      stateData match {
+        // If I am already on a tour in a vehicle, only that vehicle is available to me
+        case BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _) =>
+          self ! MobilityStatusResponse(Vector(vehicle))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
-        case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
+        case BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
-          Future.sequence(vehicleManagers.map(_ ? MobilityStatusInquiry()))
-            .map(listOfResponses => MobilityStatusResponse(listOfResponses.collect {
-              case MobilityStatusResponse(vehicles) =>
-                vehicles
-            }.flatten)) pipeTo self
+          Future
+            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry()))
+            .map(
+              listOfResponses =>
+                MobilityStatusResponse(listOfResponses.collect {
+                  case MobilityStatusResponse(vehicles) =>
+                    vehicles
+                }.flatten)
+            ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>
           self ! MobilityStatusResponse(Vector())
@@ -207,8 +213,11 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = willRequestDrivingRoute)
             requestId = None
           }
-          parkingRequestId =
-            makeRequestWith(Vector(TRANSIT), beamVehicles.map(_.toStreetVehicle) :+ bodyStreetVehicle, withParking = willRequestDrivingRoute)
+          parkingRequestId = makeRequestWith(
+            Vector(TRANSIT),
+            beamVehicles.map(_.toStreetVehicle) :+ bodyStreetVehicle,
+            withParking = willRequestDrivingRoute
+          )
         case Some(WALK) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle), withParking = false)
@@ -281,7 +290,8 @@ trait ChoosesMode {
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               parkingRequestId = makeRequestWith(
                 Vector(TRANSIT),
-                beamVehicles.map(_.toStreetVehicle)
+                beamVehicles
+                  .map(_.toStreetVehicle)
                   .filter(_.id == currentTourPersonalVehicle.id) :+ bodyStreetVehicle,
                 streetVehiclesIntermodalUse = Egress,
                 withParking = true
