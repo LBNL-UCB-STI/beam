@@ -9,7 +9,7 @@ import scala.util.Random
 
 class SwitchModalityStyle @Inject()(config: Config) extends PlansStrategyAdopter {
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
-    ReplanningUtil.updateAndAddExperiencedPlan(person)
+    ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)
 
     val plan = person.getSelectedPlan
