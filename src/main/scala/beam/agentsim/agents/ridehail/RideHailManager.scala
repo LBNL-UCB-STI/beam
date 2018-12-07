@@ -317,7 +317,7 @@ class RideHailManager(
       val vehId = vId.asInstanceOf[Id[Vehicle]]
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
-    case ev @ NotifyVehicleResourceIdle(
+    case ev @ NotifyVehicleIdle(
           vId,
           whenWhere,
           passengerSchedule,

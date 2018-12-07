@@ -13,7 +13,7 @@ object Resource {
 
   case class CheckInResource(resourceId: Id[_], whenWhere: Option[SpaceTime])
 
-  case class NotifyVehicleResourceIdle(
+  case class NotifyVehicleIdle(
     resourceId: Id[_],
     whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,

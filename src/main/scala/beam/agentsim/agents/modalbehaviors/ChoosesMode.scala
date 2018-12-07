@@ -7,7 +7,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusInquiry,
   MobilityStatusResponse,
-  ReleaseVehicleReservation
+  ReleaseVehicle
 }
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
@@ -789,7 +789,7 @@ trait ChoosesMode {
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
       personVehiclesNotUsed.foreach { veh =>
-        context.parent ! ReleaseVehicleReservation(veh)
+        context.parent ! ReleaseVehicle(veh)
       }
       scheduler ! CompletionNotice(
         triggerId,

@@ -2,7 +2,7 @@ package beam.agentsim.agents.household
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
-import beam.agentsim.Resource.NotifyVehicleResourceIdle
+import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -14,7 +14,6 @@ import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
@@ -65,7 +64,7 @@ object HouseholdActor {
   }
 
   case class MobilityStatusInquiry()
-  case class ReleaseVehicleReservation(vehicle: BeamVehicle)
+  case class ReleaseVehicle(vehicle: BeamVehicle)
 
   case class MobilityStatusResponse(streetVehicle: Vector[BeamVehicle])
 
@@ -147,6 +146,7 @@ object HouseholdActor {
         None,
         BeamVehicleType.defaultHumanBodyBeamVehicleType
       )
+      newBodyVehicle.taken = true
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
 
@@ -161,18 +161,20 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case NotifyVehicleResourceIdle(vId, whenWhere, _, _, _) =>
+      case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
-      case ReleaseVehicleReservation(vehicle) =>
+      case ReleaseVehicle(vehicle) =>
+        vehicle.taken = false
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, id)
 
       case MobilityStatusInquiry() =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
+            firstVehicle.taken = true
             sender() ! MobilityStatusResponse(Vector(firstVehicle))
             rest
           case Nil =>

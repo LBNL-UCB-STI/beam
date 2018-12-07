@@ -2,10 +2,10 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{NotifyVehicleResourceIdle, RegisterResource}
+import beam.agentsim.Resource.{NotifyVehicleIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -208,7 +208,7 @@ class PersonAgent(
       stay
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyVehicleResourceIdle(_, _, _, _, _), _) =>
+    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
@@ -554,9 +554,9 @@ class PersonAgent(
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          if (nextLeg.beamVehicleId != bodyId && !data.currentTourPersonalVehicle.map(_.id).contains(nextLeg.beamVehicleId)) {
+          if (!vehicle.taken) {
             throw new RuntimeException(
-              "I don't have access to that vehicle. I can only drive my body and my currentTourPersonalVehicle."
+              "I don't have access to that vehicle."
             )
           }
           vehicle.becomeDriver(self)
@@ -710,7 +710,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVeh) =>
                 if (activity.getType.equals("Home")) {
-                  context.parent ! ReleaseVehicleReservation(personalVeh)
+                  context.parent ! ReleaseVehicle(personalVeh)
                   None
                 } else {
                   currentTourPersonalVehicle

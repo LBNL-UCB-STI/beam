@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle, RegisterResource}
+import beam.agentsim.Resource.{CheckInResource, NotifyVehicleIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
@@ -212,7 +212,7 @@ class RideHailAgentSpec
       // expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[NotifyVehicleResourceIdle]
+      expectMsgType[NotifyVehicleIdle]
       //expectMsgType[NotifyVehicleResourceIdleReply]
 //      expectMsgType[CheckInResource]
 
@@ -286,7 +286,7 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
 //      expectMsgType[CheckInResource]
 
-      expectMsgType[NotifyVehicleResourceIdle]
+      expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)

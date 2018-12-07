@@ -38,6 +38,8 @@ class BeamVehicle(
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
+  var taken = false
+
   var spaceTime: SpaceTime = _
 
   var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)

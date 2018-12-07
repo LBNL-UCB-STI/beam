@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyVehicleResourceIdle}
+import beam.agentsim.Resource.{CheckInResource, NotifyVehicleIdle}
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -98,7 +98,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     }
   }
 
-  var nextNotifyVehicleResourceIdle: Option[NotifyVehicleResourceIdle] = None
+  var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
   when(Driving) {
     case ev @ Event(
@@ -120,7 +120,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       if (isLastLeg) {
         val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
         nextNotifyVehicleResourceIdle = Some(
-          NotifyVehicleResourceIdle(
+          NotifyVehicleIdle(
             currentVehicleUnderControl,
             beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
             data.passengerSchedule,
@@ -304,7 +304,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val fuelConsumed = theVehicle.useFuel(updatedBeamLeg.travelPath.distanceInM)
 
       nextNotifyVehicleResourceIdle = Some(
-        NotifyVehicleResourceIdle(
+        NotifyVehicleIdle(
           currentVehicleUnderControl,
           beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
           data.passengerSchedule,
