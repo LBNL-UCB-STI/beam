@@ -131,7 +131,8 @@ object HouseholdActor {
           person.getId,
           household,
           person.getSelectedPlan,
-          bodyVehicleIdFromPerson
+          bodyVehicleIdFromPerson,
+          sharedVehicleFleets
         ),
         person.getId.toString
       )

@@ -59,7 +59,8 @@ object PersonAgent {
     personId: Id[PersonAgent],
     household: Household,
     plan: Plan,
-    humanBodyVehicleId: Id[Vehicle]
+    humanBodyVehicleId: Id[Vehicle],
+    sharedVehicleFleets: Vector[ActorRef]
   ): Props = {
     Props(
       new PersonAgent(
@@ -74,7 +75,8 @@ object PersonAgent {
         plan,
         humanBodyVehicleId,
         parkingManager,
-        tollCalculator
+        tollCalculator,
+        sharedVehicleFleets
       )
     )
   }
@@ -186,7 +188,8 @@ class PersonAgent(
   val matsimPlan: Plan,
   val bodyId: Id[Vehicle],
   val parkingManager: ActorRef,
-  val tollCalculator: TollCalculator
+  val tollCalculator: TollCalculator,
+  val sharedVehicleFleets: Vector[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking

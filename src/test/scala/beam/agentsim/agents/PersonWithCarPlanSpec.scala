@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.TestActors.ForwardActor
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -106,23 +105,6 @@ class PersonWithCarPlanSpec
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
   }
-
-  // Mock a transit driver (who has to be a child of a mock router)
-  private lazy val transitDriverProps = Props(new ForwardActor(self))
-
-  private val router = system.actorOf(
-    Props(
-      new Actor() {
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-
-        override def receive: Receive = {
-          case _ =>
-        }
-      }
-    ),
-    "router"
-  )
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager

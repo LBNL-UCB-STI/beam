@@ -57,7 +57,7 @@ trait ChoosesMode {
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
-          val vehicleManagers = Vector(context.parent)
+          val vehicleManagers = context.parent +: sharedVehicleFleets
           Future.sequence(vehicleManagers.map(_ ? MobilityStatusInquiry()))
             .map(listOfResponses => MobilityStatusResponse(listOfResponses.collect {
               case MobilityStatusResponse(vehicles) =>
@@ -175,7 +175,7 @@ trait ChoosesMode {
         choosesModeData.personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
-            streetVehicles.filter(_.id == personalVeh)
+            streetVehicles.filter(_.id == personalVeh.id)
           case None =>
             // Otherwise, filter by mode
             streetVehicles.filter(_.mode == byMode)
