@@ -40,6 +40,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
 
   logScenario(xmlScenario)
   logScenario(csvScenario)
+  logBeamVehicles(b1)
+  logBeamVehicles(b2)
 
   val scenarioEquality = compare(xmlScenario, csvScenario)
   println("Scenarios are equal " + scenarioEquality)
@@ -170,6 +172,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
         println("vId => " + vId + ", v => " + v.toString)
       }
     }
+
     println("--")
 
     println("Persons")
@@ -179,6 +182,15 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
       }
     }
     println("--")
+  }
+
+  def logBeamVehicles(beamServices: BeamServices) = {
+    println("BeamVehicles")
+    beamServices.vehicles.foreach{
+      case (vId: Id[BeamVehicle], v: BeamVehicle) => {
+        println("bvId => " + vId + ", bv => " + v.toString)
+      }
+    }
   }
 
 }
@@ -334,6 +346,8 @@ object PersonComparator extends Comparator[Person]{
       for (i <- 0 until pElements1.size()) {
         val pe1 = pElements1.get(i)
         val pe2 = pElements2.get(i)
+
+
         if (pe1.getAttributes.toString.equals(pe2.getAttributes.toString) == false) {
           flag = 1
         }
@@ -349,9 +363,7 @@ object PersonComparator extends Comparator[Person]{
 
   override def compare(p1: Person, p2: Person): Int = {
     if(p1.getId == p2.getId &&
-
-      //p1.getAttributes.toString.equals(p2.getAttributes.toString) &&
-      ///*p1.getCustomAttributes.equals(p2.getCustomAttributes) &&*/
+      p1.getPlans.size() == p2.getPlans.size() &&
       compareSelectedPlans(p1.getSelectedPlan, p2.getSelectedPlan)
     ) 0
     else 1
