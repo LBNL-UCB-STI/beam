@@ -100,10 +100,8 @@ class BeamVehicle(
     * @param destination destination coordinates
     * @return angle
     */
-  private def computeAngle(source: Coord, destination: Coord): Double = {
-    val angle: Double = Math.toDegrees(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
-    if (angle < 0) angle + 360 else angle
-  }
+  private def computeAngle(source: Coord, destination: Coord): Double =
+    Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
@@ -113,15 +111,18 @@ class BeamVehicle(
     */
   private def getDirection(source: Coord, destination: Coord): String = {
     if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val angle = this.computeAngle(source, destination)
-      angle match {
-        case r if angle > 0 & angle < 90       => "R"
-        case l if angle >= 90 & angle < 180    => "L"
-        case u if angle >= 180 && angle <= 360 => "U"
-        case s if angle == 90                  => "S"
-        case _                                 => "NA"
+      val radians = this.computeAngle(source, destination)
+      radians match {
+        case _ if radians < 0.174533 || radians >= 6.10865 => "R" // Right
+        case _ if radians >= 0.174533 & radians < 1.39626  => "SR" // Soft Right
+        case _ if radians >= 1.39626 & radians < 1.74533   => "S" // Straight
+        case _ if radians >= 1.74533 & radians < 2.96706   => "SL" // Soft Left
+        case _ if radians >= 2.96706 & radians < 3.31613   => "L" // Left
+        case _ if radians >= 3.31613 & radians < 3.32083   => "HL" // Hard Left
+        case _ if radians >= 3.32083 & radians < 6.10865   => "HR" // Hard Right
+        case _                                             => "S" // default => Straight
       }
-    } else "NA"
+    } else "S"
   }
 
   /**
