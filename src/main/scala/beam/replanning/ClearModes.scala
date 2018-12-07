@@ -15,7 +15,7 @@ class ClearModes @Inject()(config: Config) extends PlansStrategyAdopter {
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     log.debug("Before Replanning ClearModes: Person-" + person.getId + " - " + person.getPlans.size())
-    ReplanningUtil.updateAndAddExperiencedPlan(person)
+    ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)
 
     person.getSelectedPlan.getPlanElements.forEach {

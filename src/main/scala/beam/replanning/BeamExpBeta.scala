@@ -15,7 +15,7 @@ class BeamExpBeta @Inject()(config: Config) extends PlansStrategyAdopter {
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     log.debug("Before ExpBetaPlanSelector: Person-" + person.getId + " - " + person.getPlans.size())
 
-    ReplanningUtil.updateAndAddExperiencedPlan(person)
+    ReplanningUtil.makeExperiencedMobSimCompatible(person)
 
     val plan = new ExpBetaPlanSelector(1).selectPlan(person)
 
