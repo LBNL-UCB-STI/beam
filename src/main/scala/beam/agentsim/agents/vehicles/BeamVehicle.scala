@@ -12,7 +12,6 @@ import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import beam.router.Modes.BeamMode
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 

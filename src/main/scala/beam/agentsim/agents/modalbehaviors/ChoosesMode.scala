@@ -4,11 +4,7 @@ import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -35,6 +31,10 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
+import akka.pattern._
+
+import scala.concurrent.{ExecutionContext, Future}
+
 
 /**
   * BEAM
@@ -54,11 +54,17 @@ trait ChoosesMode {
     case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
         ProcessingNextLegOrStartActivity) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
+        // Only need to get available street vehicles from household if our mode requires such a vehicle
         case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
-          // Only need to get available street vehicles from household if our mode requires such a vehicle
-          context.parent ! MobilityStatusInquiry()
+          implicit val executionContext: ExecutionContext = context.system.dispatcher
+          val vehicleManagers = Vector(context.parent)
+          Future.sequence(vehicleManagers.map(_ ? MobilityStatusInquiry()))
+            .map(listOfResponses => MobilityStatusResponse(listOfResponses.collect {
+              case MobilityStatusResponse(vehicles) =>
+                vehicles
+            }.flatten)) pipeTo self
+        // Otherwise, send empty list to self
         case _ =>
-          // Otherwise, send empty list to self
           self ! MobilityStatusResponse(Vector())
       }
   }
@@ -789,7 +795,7 @@ trait ChoosesMode {
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
       personVehiclesNotUsed.foreach { veh =>
-        context.parent ! ReleaseVehicle(veh)
+        veh.manager.get ! ReleaseVehicle(veh)
       }
       scheduler ! CompletionNotice(
         triggerId,

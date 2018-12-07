@@ -156,6 +156,7 @@ object HouseholdActor {
 
     private var availableVehicles: List[BeamVehicle] = vehicles.values.toList
     for (veh <- vehicles.values) {
+      veh.manager = Some(self)
       veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
     }
 

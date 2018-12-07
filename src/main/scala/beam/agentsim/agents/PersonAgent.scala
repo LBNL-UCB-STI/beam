@@ -710,7 +710,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVeh) =>
                 if (activity.getType.equals("Home")) {
-                  context.parent ! ReleaseVehicle(personalVeh)
+                  personalVeh.manager.get ! ReleaseVehicle(personalVeh)
                   None
                 } else {
                   currentTourPersonalVehicle
