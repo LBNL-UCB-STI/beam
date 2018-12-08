@@ -55,10 +55,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 /**
- * AgentSim.
- *
- * Created by sfeygin on 2/8/17.
- */
+  * AgentSim.
+  *
+  * Created by sfeygin on 2/8/17.
+  */
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
@@ -69,8 +69,8 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory
 ) extends Mobsim
-  with LazyLogging
-  with MetricsSupport {
+    with LazyLogging
+    with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _
@@ -178,8 +178,7 @@ class BeamMobsim @Inject()(
 
           beamServices.vehicleTypes.get(vehicleTypeId) match {
             case Some(rhVehType) =>
-              if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType
-                .primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+              if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
                 log.error(
                   "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
                 )
@@ -218,8 +217,7 @@ class BeamMobsim @Inject()(
           Await.result(population ? Identify(0), timeout.duration)
 
           private val numRideHailAgents = math.round(
-            beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents
-              .rideHail.numDriversAsFractionOfPopulation
+            beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
           )
 
           val rand: Random =
@@ -238,7 +236,7 @@ class BeamMobsim @Inject()(
                     case z: Activity =>
                       activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
                     case _ =>
-                  }
+                }
               )
 
             scenario.getPopulation.getPersons
@@ -457,8 +455,7 @@ class BeamMobsim @Inject()(
           private def scheduleRideHailManagerTimerMessages(): Unit = {
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)
               scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
-            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager
-              .requestBufferTimeoutInSeconds > 0)
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
               scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
           }
 
@@ -489,10 +486,10 @@ object BeamMobsim extends OutputDataDescriptor {
   final val fileBaseName = "rideHailInitialLocation"
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, fileBaseName + ".csv")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath

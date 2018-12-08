@@ -18,30 +18,38 @@ object RealizedModeAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "drive_transit", "Drive to transit chosen as travel mode"
+          getClass.getSimpleName,
+          relativePath,
+          "drive_transit",
+          "Drive to transit chosen as travel mode"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "other", "Other modes of travel chosen"
+          getClass.getSimpleName,
+          relativePath,
+          "other",
+          "Other modes of travel chosen"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "ride_hail", "Ride Hail chosen as travel mode"
+          getClass.getSimpleName,
+          relativePath,
+          "ride_hail",
+          "Ride Hail chosen as travel mode"
         )
       )
     list.add(OutputDataDescription(getClass.getSimpleName, relativePath, "walk", "Walk chosen as travel mode"))
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "walk_transit", "Walk to transit chosen as travel mode"
+          getClass.getSimpleName,
+          relativePath,
+          "walk_transit",
+          "Walk to transit chosen as travel mode"
         )
       )
     list

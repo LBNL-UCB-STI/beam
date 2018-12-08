@@ -10,10 +10,10 @@ object RideHailingWaitingSingleAnalysisObject extends OutputDataDescriptor {
   private val fileName = "rideHailWaitingSingleStats"
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, fileName + ".csv")
@@ -23,8 +23,10 @@ object RideHailingWaitingSingleAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          this.getClass
-            .getSimpleName, relativePath, "WaitingTime(sec)", "Time spent by a passenger on waiting for a ride hail"
+          this.getClass.getSimpleName,
+          relativePath,
+          "WaitingTime(sec)",
+          "Time spent by a passenger on waiting for a ride hail"
         )
       )
     list.add(OutputDataDescription(this.getClass.getSimpleName, relativePath, "Hour*", "Hour of the day"))

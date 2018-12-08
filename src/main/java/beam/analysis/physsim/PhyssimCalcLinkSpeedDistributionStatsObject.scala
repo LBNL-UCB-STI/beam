@@ -9,11 +9,12 @@ import beam.utils.OutputDataDescriptor
 object PhyssimCalcLinkSpeedDistributionStatsObject extends OutputDataDescriptor {
 
   private val outputAsSpeedUnitFileName = PhyssimCalcLinkSpeedDistributionStats.outputAsSpeedUnitFileName
+
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, outputAsSpeedUnitFileName + ".csv")
@@ -27,29 +28,37 @@ object PhyssimCalcLinkSpeedDistributionStatsObject extends OutputDataDescriptor 
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistRelativePath, "freeSpeedInMetersPerSecond", "The possible full speed at which a vehicle can drive through the given link (in m/s)"
+          getClass.getSimpleName,
+          freeSpeedDistRelativePath,
+          "freeSpeedInMetersPerSecond",
+          "The possible full speed at which a vehicle can drive through the given link (in m/s)"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistRelativePath, "numberOfLinks", "Total number of links in the network that allow vehicles to travel with speeds up to the given free speed"
+          getClass.getSimpleName,
+          freeSpeedDistRelativePath,
+          "numberOfLinks",
+          "Total number of links in the network that allow vehicles to travel with speeds up to the given free speed"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistAsPercetnageRelativePath, "linkEfficiencyInPercentage", "Average speed efficiency recorded by the the given network link in a day"
+          getClass.getSimpleName,
+          freeSpeedDistAsPercetnageRelativePath,
+          "linkEfficiencyInPercentage",
+          "Average speed efficiency recorded by the the given network link in a day"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistAsPercetnageRelativePath, "numberOfLinks", "Total number of links having the corresponding link efficiency"
+          getClass.getSimpleName,
+          freeSpeedDistAsPercetnageRelativePath,
+          "numberOfLinks",
+          "Total number of links having the corresponding link efficiency"
         )
       )
     list

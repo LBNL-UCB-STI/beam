@@ -10,10 +10,10 @@ object FuelUsageAnalysisObject extends OutputDataDescriptor {
   private val fileBaseName = FuelUsageAnalysis.fileBaseName
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, fileBaseName + ".csv")
@@ -23,15 +23,19 @@ object FuelUsageAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "Modes", "Mode of travel chosen by the passenger"
+          getClass.getSimpleName,
+          relativePath,
+          "Modes",
+          "Mode of travel chosen by the passenger"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"
+          getClass.getSimpleName,
+          relativePath,
+          "Bin_*",
+          "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"
         )
       )
     list

@@ -19,8 +19,10 @@ object PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "Hour,*", "Average time taken to travel by the chosen mode during the given hour of the day"
+          getClass.getSimpleName,
+          relativePath,
+          "Hour,*",
+          "Average time taken to travel by the chosen mode during the given hour of the day"
         )
       )
     list

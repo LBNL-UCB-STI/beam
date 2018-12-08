@@ -10,10 +10,10 @@ import beam.utils.OutputDataDescriptor
 object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val freeSpeedDistOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, PhyssimCalcLinkSpeedStats.outputFileName + ".csv")
@@ -23,15 +23,19 @@ object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistRelativePath, "Bin", "A given time slot within a day"
+          getClass.getSimpleName,
+          freeSpeedDistRelativePath,
+          "Bin",
+          "A given time slot within a day"
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, freeSpeedDistRelativePath, "AverageLinkSpeed", "The average speed at which a vehicle can travel across the network during the given time bin"
+          getClass.getSimpleName,
+          freeSpeedDistRelativePath,
+          "AverageLinkSpeed",
+          "The average speed at which a vehicle can travel across the network during the given time bin"
         )
       )
     list
