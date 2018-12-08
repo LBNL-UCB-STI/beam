@@ -343,8 +343,7 @@ class BeamMobsim @Inject()(
               rideHailBeamVehicle,
               rideInitialLocation
             )
-            val rideHailAgentRef: ActorRef =
-              context.actorOf(rideHailAgentProps, rideHailName)
+            val rideHailAgentRef: ActorRef = context.actorOf(rideHailAgentProps, rideHailName)
             context.watch(rideHailAgentRef)
             scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
             rideHailAgents += rideHailAgentRef
@@ -395,7 +394,7 @@ class BeamMobsim @Inject()(
 
           val cancellable = system.scheduler.schedule(
             0.milliseconds,
-            (timeoutInSeconds * 1000).milliseconds,
+              (timeoutInSeconds * 1000).milliseconds,
             memoryLoggingTimerActorRef,
             Tick
           )
