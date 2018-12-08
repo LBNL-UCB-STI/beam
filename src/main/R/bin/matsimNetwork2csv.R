@@ -13,7 +13,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/physsim-network.xml'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/sfbay/r5-nolocal/physsim-network.xml'
   args <- parse_args(OptionParser(option_list = option_list,usage = "matsimNetwork2csv.R [file-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "matsimNetwork2csv.R [file-to-convert]"),positional_arguments=T)
