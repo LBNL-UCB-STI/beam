@@ -178,10 +178,13 @@ class BeamVehicle(
 
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
-    val scenario = beamServices.matsimServices.getScenario
-    val fuelConsumption: Option[List[FuelConsumption]] = Some(
-      this.generateFuelConsumptionData(beamLeg, scenario.getNetwork)
-    )
+    val scenario =
+      if (beamServices != null && beamServices.matsimServices != null)
+        Some(beamServices.matsimServices.getScenario)
+      else None
+    val fuelConsumption: Option[List[FuelConsumption]] = scenario map { s =>
+      this.generateFuelConsumptionData(beamLeg, s.getNetwork)
+    }
     fuelLevelInJoules match {
       case Some(fLevel) =>
         val energyConsumed = fuelConsumption match {
