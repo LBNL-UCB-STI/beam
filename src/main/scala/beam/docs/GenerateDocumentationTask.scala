@@ -19,7 +19,8 @@ object GenerateDocumentationTask extends App with StrictLogging {
 
   def runApp(): Unit = {
     logger.info("Generating Output data description started...")
-    val outputDirectory = FileSystems.getDefault.getPath(".", "docs")
+    val outputDirectory = FileSystems.getDefault
+      .getPath(".", "docs")
       .toAbsolutePath
       .normalize()
 
@@ -64,11 +65,14 @@ object GenerateDocumentationTask extends App with StrictLogging {
     val columnsSize: Map[String, Int] = calculateColumnSize(allValues, columns)
 
     val groups = allValues.map(_.outputFile).distinct
-    groups.map { groupFile =>
-      val groupValues = allValues.filter(_.outputFile == groupFile)
-        .map(descriptor => descriptor.copy(className = descriptor.className.dropRight(1)))
-      buildGroup(groupFile, groupValues, columns, columnsSize)
-    }.mkString(eol)
+    groups
+      .map { groupFile =>
+        val groupValues = allValues
+          .filter(_.outputFile == groupFile)
+          .map(descriptor => descriptor.copy(className = descriptor.className.dropRight(1)))
+        buildGroup(groupFile, groupValues, columns, columnsSize)
+      }
+      .mkString(eol)
   }
 
   private def calculateColumnSize(allValues: Seq[OutputDataDescription], columns: Seq[String]): Map[String, Int] = {
@@ -108,39 +112,49 @@ object GenerateDocumentationTask extends App with StrictLogging {
     columns: Seq[String],
     columnsSize: Map[String, Int]
   ): String = {
-    allValues.map { record =>
-      rowAsString(record, columns, columnsSize)
-    }.mkString(eol)
+    allValues
+      .map { record =>
+        rowAsString(record, columns, columnsSize)
+      }
+      .mkString(eol)
   }
 
   private def buildHeader(columns: Seq[String], columnsSize: Map[String, Int], theClassname: String): String = {
     val headerClassName = s"Classname: $theClassname $eol"
-    val headerTopBorder = columns.map { col =>
-      "".padTo(columnsSize(col), "-").mkString
-    }.mkString("+-", "-+-", "-+")
+    val headerTopBorder = columns
+      .map { col =>
+        "".padTo(columnsSize(col), "-").mkString
+      }
+      .mkString("+-", "-+-", "-+")
 
-    val headerTitle = columns.map { col =>
-      col.padTo(columnsSize(col), " ").mkString
-    }.mkString("| ", " | ", " |")
+    val headerTitle = columns
+      .map { col =>
+        col.padTo(columnsSize(col), " ").mkString
+      }
+      .mkString("| ", " | ", " |")
 
-
-    val headerBottomBorder = columns.map { col =>
-      "".padTo(columnsSize(col), "=").mkString
-    }.mkString("+=", "=+=", "=+")
-
+    val headerBottomBorder = columns
+      .map { col =>
+        "".padTo(columnsSize(col), "=").mkString
+      }
+      .mkString("+=", "=+=", "=+")
 
     eol + headerClassName + eol + headerTopBorder + eol + headerTitle + eol + headerBottomBorder + eol
   }
 
   def rowAsString(obj: OutputDataDescription, columns: Seq[String], sizes: Map[String, Int]): String = {
-    val bottomBorder = columns.map { col =>
-      "".padTo(sizes(col), "-").mkString
-    }.mkString("+-", "-+-", "-+")
+    val bottomBorder = columns
+      .map { col =>
+        "".padTo(sizes(col), "-").mkString
+      }
+      .mkString("+-", "-+-", "-+")
 
-    columns.map { column =>
-      val fieldValue = ReflectionUtil.getValue(obj, column).toString
-      fieldValue.padTo(sizes(column), " ").mkString
-    }.mkString("| ", " | ", " |" + eol + bottomBorder)
+    columns
+      .map { column =>
+        val fieldValue = ReflectionUtil.getValue(obj, column).toString
+        fieldValue.padTo(sizes(column), " ").mkString
+      }
+      .mkString("| ", " | ", " |" + eol + bottomBorder)
   }
 
   def appendToFile(topicContent: String, path: Path): Unit = {

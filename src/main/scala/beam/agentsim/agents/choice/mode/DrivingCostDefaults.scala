@@ -13,7 +13,7 @@ object DrivingCostDefaults {
   val zero: Double = 0
 
   def estimateFuelCost(leg: BeamLeg, vehicleId: Id[Vehicle], beamServices: BeamServices): Double = {
-    if (beamServices.vehicles !=null && beamServices.vehicles.contains(vehicleId)) {
+    if (beamServices.vehicles != null && beamServices.vehicles.contains(vehicleId)) {
       val vehicle = beamServices.vehicles(vehicleId)
       val distance = leg.travelPath.distanceInM
       if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {

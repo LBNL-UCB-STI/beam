@@ -8,10 +8,10 @@ import beam.utils.OutputDataDescriptor
 object GraphSurgePricingObject extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     val surgePricingOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(0, "rideHailSurgePriceLevel.csv")
@@ -27,8 +27,10 @@ object GraphSurgePricingObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, surgePricingRelativePath, "PriceLevel", "Travel fare charged by the ride hail in the given hour"
+          getClass.getSimpleName,
+          surgePricingRelativePath,
+          "PriceLevel",
+          "Travel fare charged by the ride hail in the given hour"
         )
       )
     list
@@ -36,7 +38,10 @@ object GraphSurgePricingObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass.getSimpleName, revenueRelativePath, "Revenue", "Revenue earned by ride hail in the given hour"
+          getClass.getSimpleName,
+          revenueRelativePath,
+          "Revenue",
+          "Revenue earned by ride hail in the given hour"
         )
       )
     list.add(OutputDataDescription(getClass.getSimpleName, revenueRelativePath, "Hour", "Hour of the day"))
@@ -47,15 +52,19 @@ object GraphSurgePricingObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, surgePricingAndRevenueRelativePath, "DataType", "Type of data , can be \"priceLevel\" or \"revenue\""
+          getClass.getSimpleName,
+          surgePricingAndRevenueRelativePath,
+          "DataType",
+          "Type of data , can be \"priceLevel\" or \"revenue\""
         )
       )
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, surgePricingAndRevenueRelativePath, "Value", "Value of the given data type , can indicate either price Level or revenue earned by the ride hail in the given hour"
+          getClass.getSimpleName,
+          surgePricingAndRevenueRelativePath,
+          "Value",
+          "Value of the given data type , can indicate either price Level or revenue earned by the ride hail in the given hour"
         )
       )
     list

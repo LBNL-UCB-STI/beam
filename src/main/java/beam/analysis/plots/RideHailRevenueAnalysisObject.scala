@@ -19,8 +19,10 @@ object RideHailRevenueAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass
-            .getSimpleName, relativePath, "revenue", "Revenue generated from ride hail"
+          getClass.getSimpleName,
+          relativePath,
+          "revenue",
+          "Revenue generated from ride hail"
         )
       )
     list

@@ -17,8 +17,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
 
 /**
- * Generate data descriptions table for all output file generating classes.
- */
+  * Generate data descriptions table for all output file generating classes.
+  */
 class BeamOutputDataDescriptionGenerator @Inject()(
   private val actorSystem: ActorSystem,
   private val transportNetwork: TransportNetwork,
@@ -32,13 +32,15 @@ class BeamOutputDataDescriptionGenerator @Inject()(
   private final val writeGraphs = beamServices.beamConfig.beam.outputs.writeGraphs
 
   /**
-   * Generates the data descriptors and writes them to the output file.
-   * @param event a controller event
-   */
+    * Generates the data descriptors and writes them to the output file.
+    * @param event a controller event
+    */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors: Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap { classRef =>
-      classRef.getOutputDataDescriptions.asScala.toList
+    val descriptors
+      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
+      classRef =>
+        classRef.getOutputDataDescriptions.asScala.toList
     }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
@@ -50,12 +52,12 @@ class BeamOutputDataDescriptionGenerator @Inject()(
   }
 
   /**
-   * Writes data to the output file at specified path.
-   * @param filePath path of the output file to write data to
-   * @param fileHeader an optional header to be appended (if any)
-   * @param data data to be written to the file
-   * @param fileFooter an optional footer to be appended (if any)
-   */
+    * Writes data to the output file at specified path.
+    * @param filePath path of the output file to write data to
+    * @param fileHeader an optional header to be appended (if any)
+    * @param data data to be written to the file
+    * @param fileFooter an optional footer to be appended (if any)
+    */
   private def writeToFile(
     filePath: String,
     fileHeader: Option[String],
@@ -82,9 +84,9 @@ class BeamOutputDataDescriptionGenerator @Inject()(
 object BeamOutputDataDescriptionGenerator {
 
   /**
-   * creates and collects instances of all output file generating classes
-   * @return collected class instances
-   */
+    * creates and collects instances of all output file generating classes
+    * @return collected class instances
+    */
   def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
     ModeChosenAnalysisObject,
     RealizedModeAnalysisObject,
@@ -115,10 +117,10 @@ object BeamOutputDataDescriptionGenerator {
 object ScoreStatsOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("scorestats.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -166,10 +168,10 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
 object StopWatchOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("stopwatch.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -337,10 +339,10 @@ object StopWatchOutputs extends OutputDataDescriptor {
 object SummaryStatsOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("summaryStats.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -620,10 +622,10 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
 object CountsCompareOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "countsCompare.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -688,10 +690,10 @@ object CountsCompareOutputs extends OutputDataDescriptor {
 object EventOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "events.csv")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -972,10 +974,10 @@ object EventOutputs extends OutputDataDescriptor {
 object LegHistogramOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "legHistogram.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -1185,10 +1187,10 @@ object LegHistogramOutputs extends OutputDataDescriptor {
 object RideHailTripDistanceOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath =
       GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "rideHailTripDistance.csv")
@@ -1219,10 +1221,10 @@ object RideHailTripDistanceOutputs extends OutputDataDescriptor {
 object TripDurationOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "tripDuration.txt")
     val outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
@@ -1237,10 +1239,10 @@ object TripDurationOutputs extends OutputDataDescriptor {
 object BiasErrorGraphDataOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath =
       GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "biasErrorGraphData.txt")
@@ -1266,10 +1268,10 @@ object BiasErrorGraphDataOutputs extends OutputDataDescriptor {
 object BiasNormalizedErrorGraphDataOutputs extends OutputDataDescriptor {
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
     val outputFilePath =
       GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0, "biasNormalizedErrorGraphData.txt")

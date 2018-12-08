@@ -12,10 +12,10 @@ object ExpectedMaxUtilityHeatMapObject extends OutputDataDescriptor {
 //  private val fileBaseName = ExpectedMaxUtilityHeatMap.fileBaseName
 
   /**
-   * Get description of fields written to the output files.
-   *
-   * @return list of data description objects
-   */
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
   def getOutputDataDescriptions: util.List[OutputDataDescription] = {
     Collections.emptyList()
     // TODO: what should be the value of controlerIO?
