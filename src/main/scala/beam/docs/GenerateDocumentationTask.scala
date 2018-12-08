@@ -60,7 +60,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
   def buildDocument(descriptor: OutputDataDescriptor): String = {
     val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions.asScala
 
-    val columns: Seq[String] = Seq("field", "description", "className")
+    val columns: Seq[String] = Seq("field", "description")
     val columnsSize: Map[String, Int] = calculateColumnSize(allValues, columns)
 
     val groups = allValues.map(_.outputFile).distinct
@@ -95,8 +95,9 @@ object GenerateDocumentationTask extends App with StrictLogging {
     columns: Seq[String],
     columnsSize: Map[String, Int]
   ): String = {
+    val theClassname = allValues.head.className
     new StringBuilder(formatTitle(title))
-      .append(buildHeader(columns, columnsSize))
+      .append(buildHeader(columns, columnsSize, theClassname))
       .append(buildTableBody(allValues, columns, columnsSize))
       .append(eol)
       .toString
@@ -112,7 +113,8 @@ object GenerateDocumentationTask extends App with StrictLogging {
     }.mkString(eol)
   }
 
-  private def buildHeader(columns: Seq[String], columnsSize: Map[String, Int]): String = {
+  private def buildHeader(columns: Seq[String], columnsSize: Map[String, Int], theClassname: String): String = {
+    val headerClassName = s"Classname: $theClassname $eol"
     val headerTopBorder = columns.map { col =>
       "".padTo(columnsSize(col), "-").mkString
     }.mkString("+-", "-+-", "-+")
@@ -127,7 +129,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
     }.mkString("+=", "=+=", "=+")
 
 
-    eol + headerTopBorder + eol + headerTitle + eol + headerBottomBorder + eol
+    eol + headerClassName + eol + headerTopBorder + eol + headerTitle + eol + headerBottomBorder + eol
   }
 
   def rowAsString(obj: OutputDataDescription, columns: Seq[String], sizes: Map[String, Int]): String = {
