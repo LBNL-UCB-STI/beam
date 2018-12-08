@@ -44,7 +44,7 @@ class HouseholdPlansToMSR(plans: ArrayBuffer[BeamPlan]) {
         requests = requests :+ new MSRPickup(Some(plan.getPerson), activity.getCoord, activity.getEndTime, 0.0)
     }
   }
-  requests.sortWith(_.time < _.time)
+  requests = requests.sortWith(_.time < _.time)
   def apply(): List[MobilityServiceRequest] = { requests }
   override def toString = s"${requests}"
 }
@@ -94,7 +94,7 @@ class HouseholdCAVPlanning(
     }
     override def toString = {
       var output = s"\tcav-id:${cav.id} | cost:$cost | occupancy:$occupancy\n\t\t"
-      for (i <- schedule) {
+      for (i <- schedule.sortWith(_.time < _.time)) {
         output += s"${i}\n\t\t"
       }
       output
@@ -171,7 +171,7 @@ class HouseholdCAVPlanning(
       var household_schedules_to_delete = new ArrayBuffer[HouseholdCAVSchedule]
       for (schedule <- feasible_schedules) {
         household_schedules_to_add ++= schedule.check(request)
-        if(!schedule.feasible) {household_schedules_to_delete += schedule}
+        if (!schedule.feasible) { household_schedules_to_delete += schedule }
       }
       feasible_schedules = feasible_schedules.diff(household_schedules_to_delete) ++ household_schedules_to_add
     }
@@ -184,11 +184,11 @@ object Demo {
 
   def main(args: Array[String]): Unit = {
 
-    val plans = scenario1
-    val time_window = 10 * 3600
+    val plans = scenario2
+    val time_window = 15 * 60
     val skim = computeSkim(plans)
     //println(plans)
-    //println(skim)
+    printSkim(skim)
     val algo = new HouseholdCAVPlanning(plans, time_window, skim)
     for (i <- algo(1).sortWith(_.cost < _.cost)) {
       println(i)
@@ -200,7 +200,7 @@ object Demo {
     val P: Person = population.getFactory.createPerson(Id.createPersonId("P1"))
     val HOME_COORD = new Coord(0, 0)
     val H11: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
-    H11.setEndTime(8 * 3600)
+    H11.setEndTime(8.5 * 3600)
     val W1: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(30, 0))
     W1.setStartTime(9 * 3600)
     W1.setEndTime(17 * 3600)
@@ -214,17 +214,66 @@ object Demo {
     ArrayBuffer[BeamPlan](BeamPlan(plan))
   }
 
+  def scenario2: ArrayBuffer[BeamPlan] = {
+    val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+    val HOME_COORD = new Coord(0, 0)
+
+    val P1: Person = population.getFactory.createPerson(Id.createPersonId("P1"))
+    val H11: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H11.setEndTime(8.5 * 3600)
+    val W1: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(30, 0))
+    W1.setStartTime(9 * 3600)
+    W1.setEndTime(17 * 3600)
+    val H12: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H12.setStartTime(17.5 * 3600)
+    val plan1: Plan = population.getFactory.createPlan()
+    plan1.setPerson(P1)
+    plan1.addActivity(H11)
+    plan1.addActivity(W1)
+    plan1.addActivity(H12)
+
+    val P2: Person = population.getFactory.createPerson(Id.createPersonId("P2"))
+    val H21: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H21.setEndTime(8.5 * 3600)
+    val W2: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(30, 10))
+    W2.setStartTime(9 * 3600)
+    W2.setEndTime(17 * 3600)
+    val H22: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H22.setStartTime(17.5 * 3600)
+    val plan2: Plan = population.getFactory.createPlan()
+    plan2.setPerson(P2)
+    plan2.addActivity(H21)
+    plan2.addActivity(W2)
+    plan2.addActivity(H22)
+
+    ArrayBuffer[BeamPlan](BeamPlan(plan1), BeamPlan(plan2))
+  }
+
   def computeSkim(plans: ArrayBuffer[BeamPlan]): Map[Coord, Map[Coord, Double]] = {
     val skim = Map[Coord, Map[Coord, Double]]()
+    var activity_set = Set[Coord]()
     for (plan <- plans) {
-      for (act_src <- plan.activities) {
-        skim(act_src.getCoord) = Map[Coord, Double]()
-        for (act_dst <- plan.activities) {
-          skim(act_src.getCoord)(act_dst.getCoord) =
-            CoordUtils.calcEuclideanDistance(act_src.getCoord, act_dst.getCoord)
-        }
+      for (act <- plan.activities) {
+        activity_set += act.getCoord
       }
     }
+
+    for (act_src <- activity_set) {
+      skim(act_src) = Map[Coord, Double]()
+      for (act_dst <- activity_set) {
+        skim(act_src)(act_dst) = CoordUtils.calcEuclideanDistance(act_src, act_dst) * 60
+      }
+    }
+
     skim
+  }
+
+  def printSkim(skim: Map[Coord, Map[Coord, Double]]): Unit = {
+    for (row <- skim.keySet) {
+      print(s"${row}\t")
+      for (col <- skim(row).keySet) {
+        print(s"${skim(row)(col)}\t")
+      }
+    }
   }
 }
