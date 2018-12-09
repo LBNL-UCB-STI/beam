@@ -1,17 +1,16 @@
 package beam.sim
 
 import java.util.Random
-import java.util.stream.Stream
 
 import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.utils.RandomUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.{FileUtils, RandomUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 
 import scala.collection.JavaConverters._
@@ -21,11 +20,15 @@ class RideHailFleetInitializer @Inject()
  beamServices: BeamServices,
  actorSystem: ActorSystem) extends LazyLogging {
 
+  val outputFileBaseName = "ride-hail-fleet"
+
+  //todo where and when to invoke this ?
   def init(): Unit = {
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
       scenario.getPopulation.getPersons
         .values()
         .stream()
+        .toArray()
     )
     val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
     val numRideHailAgents = math.round(
@@ -33,7 +36,7 @@ class RideHailFleetInitializer @Inject()
         beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
     )
     val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-    persons.view.take(numRideHailAgents.toInt).foreach {
+    val fleetData = persons.view.take(numRideHailAgents.toInt) map {
       person =>
         val personInitialLocation: Coord =
           person.getSelectedPlan.getPlanElements
@@ -76,8 +79,7 @@ class RideHailFleetInitializer @Inject()
           Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
         val vehicleType = beamServices.vehicleTypes
           .getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-        val rideHailAgentPersonId: Id[RideHailAgent] =
-          Id.create(rideHailName, classOf[RideHailAgent])
+        val rideHailManagerId: Id[RideHailAgent] = Id.create(rideHailName, classOf[RideHailAgent])
         val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
@@ -87,33 +89,57 @@ class RideHailFleetInitializer @Inject()
           None,
           vehicleType
         )
+        // todo how to generate these ?
+        val shift = ""
+        val geoFenceX = 0.0
+        val geoFenceY = 0.0
+        val geoFenceRadius = 0.0
+        (id.toString,rideHailManagerId.toString,vehicleType,initialLocation.getX,initialLocation.getY,shift,geoFenceX,geoFenceY,geoFenceRadius)
     }
+    //write fleet data to an external csv file
+    val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
+    val data = fleetData map { f => f.productIterator mkString ", " } mkString "\n"
+    val fileHeader = "id, rideHailManagerId, vehicleType, initialLocationX, initialLocationY, shifts, geoFenceX, geoFenceY, geoFenceRadius"
+    FileUtils.writeToFile(filePath,Some(fileHeader),data,None)
   }
 
-  private def getQuadTreeBound[p <: Person](persons: Stream[p]): QuadTreeBounds = {
-    var minX: Double = null
-    var maxX: Double = null
-    var minY: Double = null
-    var maxY: Double = null
-    persons.forEach { person =>
-      val planElementsIterator =
-        person.getSelectedPlan.getPlanElements.iterator()
-      while (planElementsIterator.hasNext) {
-        val planElement = planElementsIterator.next()
-        planElement match {
-          case activity: Activity =>
-            val coord = activity.getCoord
-            minX = if (minX == null || minX > coord.getX) coord.getX else minX
-            maxX = if (maxX == null || maxX < coord.getX) coord.getX else maxX
-            minY = if (minY == null || minY > coord.getY) coord.getY else minY
-            maxY = if (maxY == null || maxY < coord.getY) coord.getY else maxY
-          case _ =>
-        }
-      }
-    }
-
-    QuadTreeBounds(minX, minY, maxX, maxY)
+  /**
+    * Initializes [[beam.agentsim.agents.ridehail.RideHailAgent]] fleet
+    * @param beamServices beam services instance
+    * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
+    */
+  def generateRideHailFleet(beamServices: BeamServices): List[RideHailAgent] = {
+    val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
+    readCSVAsRideHailAgent(filePath)
   }
 
+  /**
+    * Reads the ride hail fleet csv as [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
+    * @param filePath path to the csv file
+    * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
+    */
+  private def readCSVAsRideHailAgent(filePath: String): List[RideHailAgent] = {
+    /*todo Read data from csv and generate the RideHailAgent objects.
+    todo Ref : https://alvinalexander.com/scala/csv-file-how-to-process-open-read-parse-in-scala*/
+    List.empty[RideHailAgent]
+  }
+
+  /**
+    * Generated the
+    * @param persons an array of person objects
+    * @tparam p an abstract class that is sub type of [[org.matsim.api.core.v01.population.Person]]
+    * @return [[beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds]] object
+    */
+  private def getQuadTreeBound[p <: Person](persons: Array[p]): QuadTreeBounds = {
+    val coordinates: Seq[Coord] = persons.toList.flatMap(_.getSelectedPlan.getPlanElements.asScala) flatMap {
+      case activity: Activity => Some(activity.getCoord)
+      case _ => None
+    }
+    val x_coordinates = coordinates.map(_.getX)
+    val y_coordinates = coordinates.map(_.getY)
+    QuadTreeBounds(x_coordinates.min,y_coordinates.min,x_coordinates.max,y_coordinates.max)
+  }
+
+  type FleetData = (String,String,BeamVehicleType,Double,Double,String,Double,Double,Double)
 
 }
