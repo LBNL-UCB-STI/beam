@@ -1,6 +1,20 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, BUS, CABLE_CAR, CAR, FERRY, FUNICULAR, GONDOLA, RAIL, RIDE_HAIL, SUBWAY, TRAM, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  BUS,
+  CABLE_CAR,
+  CAR,
+  FERRY,
+  FUNICULAR,
+  GONDOLA,
+  RAIL,
+  RIDE_HAIL,
+  SUBWAY,
+  TRAM,
+  TRANSIT,
+  WALK
+}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._

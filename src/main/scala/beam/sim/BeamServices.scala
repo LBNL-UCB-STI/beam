@@ -80,14 +80,17 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
 
-  val rideHailTransitModes = if(beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")){
-    BeamMode.transitModes.toSeq
-  }else if(beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")){
-    BeamMode.massTransitModes.toSeq
-  }else{
-    beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase.split(",").map(BeamMode.fromString(_)).toSeq
-  }
-
+  val rideHailTransitModes =
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) {
+      BeamMode.transitModes.toSeq
+    } else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) {
+      BeamMode.massTransitModes.toSeq
+    } else {
+      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
+        .split(",")
+        .map(BeamMode.fromString(_))
+        .toSeq
+    }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
