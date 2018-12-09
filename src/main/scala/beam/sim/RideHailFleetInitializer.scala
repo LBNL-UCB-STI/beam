@@ -121,10 +121,12 @@ class RideHailFleetInitializer @Inject()
     */
   private def readCSVAsRideHailAgent(filePath: String,scheduler: ActorRef,parkingManager:ActorRef): List[RideHailAgent] = {
     val bufferedSource = Source.fromFile(filePath)
+    //read the data from the external CSV file.
     bufferedSource.getLines().toList.drop(1).
       map(s => s.split(", ")).
       map { case fleetData : FleetData =>
-        val rideHailAgentPersonId: Id[RideHailAgent] =
+        // for each data row
+        val rideHailAgentId: Id[RideHailAgent] =
           Id.create(s"rideHailAgent-${fleetData.rideHailManagerId}", classOf[RideHailAgent])
         val rideHailBeamVehicleTypeId =
           Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
@@ -139,11 +141,16 @@ class RideHailFleetInitializer @Inject()
           None,
           rideHailBeamVehicleType
         )
-        new RideHailAgent(rideHailAgentPersonId,
+        new RideHailAgent(
+          rideHailAgentId,
           scheduler,
           rideHailBeamVehicle,
           new Coord(fleetData.initialLocationX,fleetData.initialLocationY),
-          eventsManager,parkingManager,beamServices,transportNetwork,tollCalculator)
+          eventsManager,
+          parkingManager,
+          beamServices,
+          transportNetwork,
+          tollCalculator)
       }
   }
 
