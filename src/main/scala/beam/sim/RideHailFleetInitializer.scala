@@ -2,27 +2,34 @@ package beam.sim
 
 import java.util.Random
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.router.osm.TollCalculator
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.{FileUtils, RandomUtils}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.JavaConverters._
+import scala.io.Source
 
 class RideHailFleetInitializer @Inject()
 (scenario: Scenario,
  beamServices: BeamServices,
+ transportNetwork: TransportNetwork,
+ tollCalculator: TollCalculator,
+ eventsManager: EventsManager,
  actorSystem: ActorSystem) extends LazyLogging {
 
   val outputFileBaseName = "ride-hail-fleet"
 
-  //todo where and when to invoke this ?
+  //todo learn where and when to invoke this initializer
   def init(): Unit = {
     val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
       scenario.getPopulation.getPersons
@@ -72,34 +79,28 @@ class RideHailFleetInitializer @Inject()
               logger.error(s"unknown rideHail.initialLocation $unknown")
               null
           }
-        val rideHailName = s"rideHailAgent-${person.getId}"
         //CSV data
         val id = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
         val vehicleTypeId =
           Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-        val vehicleType = beamServices.vehicleTypes
+        val beamVehicleType = beamServices.vehicleTypes
           .getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-        val rideHailManagerId: Id[RideHailAgent] = Id.create(rideHailName, classOf[RideHailAgent])
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-          .map(new Powertrain(_))
-          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-        val rideHailBeamVehicle = new BeamVehicle(
-          id,
-          powertrain,
-          None,
-          vehicleType
-        )
-        // todo how to generate these ?
+        // todo learn how to generate these values ?
         val shift = ""
+        // todo ask if the 'person' is the ride hail manager here ?
+        val rideHailManagerId = person.getId.toString
         val geoFenceX = 0.0
         val geoFenceY = 0.0
         val geoFenceRadius = 0.0
-        (id.toString,rideHailManagerId.toString,vehicleType,initialLocation.getX,initialLocation.getY,shift,geoFenceX,geoFenceY,geoFenceRadius)
+        // todo vehicle type is an object , ask what value of it should be written to csv ?
+        val vehicleType = beamVehicleType
+        //generate fleet data
+        FleetData(id.toString,rideHailManagerId,vehicleType.vehicleTypeId,initialLocation.getX,initialLocation.getY,shift,geoFenceX,geoFenceY,geoFenceRadius)
     }
     //write fleet data to an external csv file
     val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
+    val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
     val data = fleetData map { f => f.productIterator mkString ", " } mkString "\n"
-    val fileHeader = "id, rideHailManagerId, vehicleType, initialLocationX, initialLocationY, shifts, geoFenceX, geoFenceY, geoFenceRadius"
     FileUtils.writeToFile(filePath,Some(fileHeader),data,None)
   }
 
@@ -108,9 +109,9 @@ class RideHailFleetInitializer @Inject()
     * @param beamServices beam services instance
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
-  def generateRideHailFleet(beamServices: BeamServices): List[RideHailAgent] = {
+  def generateRideHailFleet(beamServices: BeamServices,scheduler: ActorRef,parkingManager:ActorRef): List[RideHailAgent] = {
     val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
-    readCSVAsRideHailAgent(filePath)
+    readCSVAsRideHailAgent(filePath,scheduler,parkingManager)
   }
 
   /**
@@ -118,10 +119,32 @@ class RideHailFleetInitializer @Inject()
     * @param filePath path to the csv file
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
-  private def readCSVAsRideHailAgent(filePath: String): List[RideHailAgent] = {
-    /*todo Read data from csv and generate the RideHailAgent objects.
-    todo Ref : https://alvinalexander.com/scala/csv-file-how-to-process-open-read-parse-in-scala*/
-    List.empty[RideHailAgent]
+  private def readCSVAsRideHailAgent(filePath: String,scheduler: ActorRef,parkingManager:ActorRef): List[RideHailAgent] = {
+    val bufferedSource = Source.fromFile(filePath)
+    bufferedSource.getLines().toList.drop(1).
+      map(s => s.split(", ")).
+      map { case fleetData : FleetData =>
+        val rideHailAgentPersonId: Id[RideHailAgent] =
+          Id.create(s"rideHailAgent-${fleetData.rideHailManagerId}", classOf[RideHailAgent])
+        val rideHailBeamVehicleTypeId =
+          Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+        val rideHailBeamVehicleType = beamServices.vehicleTypes
+          .getOrElse(rideHailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+        val powertrain = Option(rideHailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          .map(new Powertrain(_))
+          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+        val rideHailBeamVehicle = new BeamVehicle(
+          Id.create(fleetData.id, classOf[BeamVehicle]),
+          powertrain,
+          None,
+          rideHailBeamVehicleType
+        )
+        new RideHailAgent(rideHailAgentPersonId,
+          scheduler,
+          rideHailBeamVehicle,
+          new Coord(fleetData.initialLocationX,fleetData.initialLocationY),
+          eventsManager,parkingManager,beamServices,transportNetwork,tollCalculator)
+      }
   }
 
   /**
@@ -140,6 +163,14 @@ class RideHailFleetInitializer @Inject()
     QuadTreeBounds(x_coordinates.min,y_coordinates.min,x_coordinates.max,y_coordinates.max)
   }
 
-  type FleetData = (String,String,BeamVehicleType,Double,Double,String,Double,Double,Double)
+  case class FleetData(id: String,
+                       rideHailManagerId: String,
+                       vehicleType: String,
+                       initialLocationX: Double,
+                       initialLocationY: Double,
+                       shifts: String,
+                       geoFenceX: Double,
+                       geoFenceY: Double,
+                       geoFenceRadius: Double)
 
 }
