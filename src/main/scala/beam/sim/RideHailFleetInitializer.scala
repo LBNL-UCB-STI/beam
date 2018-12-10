@@ -40,7 +40,7 @@ class RideHailFleetInitializer @Inject()
       val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
       val numRideHailAgents = math.round(
         beamServices.beamConfig.beam.agentsim.numAgents.toDouble *
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
       )
       val persons: Iterable[Person] = RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
       val fleetData = persons.view.take(numRideHailAgents.toInt) map {
@@ -52,10 +52,10 @@ class RideHailFleetInitializer @Inject()
               .asInstanceOf[Activity]
               .getCoord
           val initialLocation: Coord =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
               case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
                 val radius =
-                  beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
+                  beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
                 new Coord(
                   personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
                   personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -81,7 +81,7 @@ class RideHailFleetInitializer @Inject()
           //CSV data
           val id = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
           val vehicleTypeId =
-            Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+            Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
           val beamVehicleType = beamServices.vehicleTypes
             .getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
           // todo learn how to generate these values ?
@@ -133,7 +133,7 @@ class RideHailFleetInitializer @Inject()
             val rideHailAgentId =
               Id.create(s"rideHailAgent-${fleetData.rideHailManagerId}", classOf[RideHailAgent])
             val rideHailBeamVehicleTypeId =
-              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
             val rideHailBeamVehicleType = beamServices.vehicleTypes
               .getOrElse(rideHailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
             val powertrain = Option(rideHailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)

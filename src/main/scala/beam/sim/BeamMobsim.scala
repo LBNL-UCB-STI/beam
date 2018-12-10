@@ -174,7 +174,7 @@ class BeamMobsim @Inject()(
         context.watch(rideHailManager)
 
         private val vehicleTypeId: Id[BeamVehicleType] = Id
-          .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+          .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
 
         beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
@@ -185,7 +185,7 @@ class BeamMobsim @Inject()(
             }
           case None =>
             log.error(
-              "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
+              "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId) could not be found"
             )
         }
 
@@ -216,7 +216,7 @@ class BeamMobsim @Inject()(
         Await.result(population ? Identify(0), timeout.duration)
 
         private val numRideHailAgents = math.round(
-          beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
+          beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
         )
 
         val rand: Random =
@@ -273,10 +273,10 @@ class BeamMobsim @Inject()(
                 .asInstanceOf[Activity]
                 .getCoord
             val rideInitialLocation: Coord =
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
+              beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
                 case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
                   val radius =
-                    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
+                    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
                   new Coord(
                     personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
                     personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -306,7 +306,7 @@ class BeamMobsim @Inject()(
             //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
             val ridehailBeamVehicleTypeId =
-              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
 
             val ridehailBeamVehicleType = beamServices.vehicleTypes
               .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
