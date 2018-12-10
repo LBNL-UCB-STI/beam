@@ -424,26 +424,22 @@ class PersonAgent(
      */
     case Event(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-        data @ BasePersonData(_, _, _ :: _, currentVehicle, _, _, _, _, _, _)
+        data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
-      val rawCost = data.currentTrip.get.costEstimate
-      val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, mode)
-      val netCost = Math.max(rawCost - subsidy, 0)
 
-      if (rawCost > 0.0 || subsidy > 0.0 || netCost > 0.0)
+      if (currentLeg.cost > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             id,
             mode.value,
-            rawCost,
-            subsidy,
-            0.0,
-            netCost
+            0.0, // subsidy applies to a whole trip and is accounted for at Arrival
+            0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
+            currentLeg.cost
           )
         )
 
@@ -473,17 +469,16 @@ class PersonAgent(
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val rawCost = data.restOfCurrentTrip.head.cost + data.currentTripCosts
-      if (toll > 0.0 || rawCost > 0.0)
+      val netTripCosts = data.currentTripCosts // This inlcudes tolls because it comes from leg.cost
+      if (toll > 0.0 || netTripCosts > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             matsimPlan.getPerson.getId,
             data.restOfCurrentTrip.head.beamLeg.mode.value,
-            rawCost,
             0.0,
             toll,
-            rawCost + toll
+            netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
           )
         )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
@@ -721,6 +716,19 @@ class PersonAgent(
           eventsManager.processEvent(
             new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           )
+          val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, currentTrip.tripClassifier)
+          if (subsidy > 0.0)
+            eventsManager.processEvent(
+              new PersonCostEvent(
+                tick,
+                id,
+                currentTrip.tripClassifier.value,
+                subsidy,
+                0.0,
+                0.0 // the cost as paid by person has already been accounted for, this event is just about the subsidy
+              )
+            )
+
           eventsManager.processEvent(
             new ActivityStartEvent(
               tick,
