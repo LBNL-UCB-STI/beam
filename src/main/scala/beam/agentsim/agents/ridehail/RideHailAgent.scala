@@ -38,21 +38,21 @@ object RideHailAgent {
   val idPrefix: String = "rideHailAgent"
 
   def props(
-             shifts : List[String],
-             geoFenceX: Double,
-             geoFenceY: Double,
-             geoFenceRadius  : Double,
-             services: BeamServices,
-             scheduler: ActorRef,
-             transportNetwork: TransportNetwork,
-             tollCalculator: TollCalculator,
-             eventsManager: EventsManager,
-             parkingManager: ActorRef,
-             rideHailAgentId: Id[RideHailAgent],
-             rideHailManagerId: String,
-             vehicle: BeamVehicle,
-             location: Coord
-           ) =
+    shifts: List[String],
+    geoFenceX: Double,
+    geoFenceY: Double,
+    geoFenceRadius: Double,
+    services: BeamServices,
+    scheduler: ActorRef,
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
+    eventsManager: EventsManager,
+    parkingManager: ActorRef,
+    rideHailAgentId: Id[RideHailAgent],
+    rideHailManagerId: String,
+    vehicle: BeamVehicle,
+    location: Coord
+  ) =
     Props(
       new RideHailAgent(
         rideHailAgentId,
@@ -81,36 +81,36 @@ object RideHailAgent {
   }
 
   case class RideHailAgentData(
-                                currentVehicle: VehicleStack = Vector(),
-                                passengerSchedule: PassengerSchedule = PassengerSchedule(),
-                                currentLegPassengerScheduleIndex: Int = 0
-                              ) extends DrivingData {
+    currentVehicle: VehicleStack = Vector(),
+    passengerSchedule: PassengerSchedule = PassengerSchedule(),
+    currentLegPassengerScheduleIndex: Int = 0
+  ) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 
     override def withCurrentLegPassengerScheduleIndex(
-                                                       currentLegPassengerScheduleIndex: Int
-                                                     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+      currentLegPassengerScheduleIndex: Int
+    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
   }
 
   // triggerId is included to facilitate debugging
   case class NotifyVehicleResourceIdleReply(
-                                             triggerId: Option[Long],
-                                             newTriggers: Seq[ScheduleTrigger]
-                                           )
+    triggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+  )
 
   case class ModifyPassengerSchedule(
-                                      updatedPassengerSchedule: PassengerSchedule,
-                                      reservationRequestId: Option[Int] = None
-                                    )
+    updatedPassengerSchedule: PassengerSchedule,
+    reservationRequestId: Option[Int] = None
+  )
 
   case class ModifyPassengerScheduleAck(
-                                         reservationRequestId: Option[Int] = None,
-                                         triggersToSchedule: Vector[ScheduleTrigger],
-                                         vehicleId: Id[Vehicle]
-                                       )
+    reservationRequestId: Option[Int] = None,
+    triggersToSchedule: Vector[ScheduleTrigger],
+    vehicleId: Id[Vehicle]
+  )
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Double)
 
@@ -123,15 +123,15 @@ object RideHailAgent {
   }
 
   case class InterruptedWhileDriving(
-                                      interruptId: Id[Interrupt],
-                                      vehicleId: Id[Vehicle],
-                                      tick: Double,
-                                      passengerSchedule: PassengerSchedule,
-                                      currentPassengerScheduleIndex: Int,
-                                    ) extends InterruptReply
+    interruptId: Id[Interrupt],
+    vehicleId: Id[Vehicle],
+    tick: Double,
+    passengerSchedule: PassengerSchedule,
+    currentPassengerScheduleIndex: Int,
+  ) extends InterruptReply
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
-    extends InterruptReply
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -140,23 +140,23 @@ object RideHailAgent {
 }
 
 class RideHailAgent(
-                     override val id: Id[RideHailAgent],
-                     rideHailManagerId: String,
-                     val scheduler: ActorRef,
-                     vehicle: BeamVehicle,
-                     initialLocation: Coord,
-                     shifts : List[String],
-                     geoFenceX: Double,
-                     geoFenceY: Double,
-                     geoFenceRadius  : Double,
-                     val eventsManager: EventsManager,
-                     val parkingManager: ActorRef,
-                     val beamServices: BeamServices,
-                     val transportNetwork: TransportNetwork,
-                     val tollCalculator: TollCalculator
-                   ) extends BeamAgent[RideHailAgentData]
-  with DrivesVehicle[RideHailAgentData]
-  with Stash {
+  override val id: Id[RideHailAgent],
+  rideHailManagerId: String,
+  val scheduler: ActorRef,
+  vehicle: BeamVehicle,
+  initialLocation: Coord,
+  shifts: List[String],
+  geoFenceX: Double,
+  geoFenceY: Double,
+  geoFenceRadius: Double,
+  val eventsManager: EventsManager,
+  val parkingManager: ActorRef,
+  val beamServices: BeamServices,
+  val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator
+) extends BeamAgent[RideHailAgentData]
+    with DrivesVehicle[RideHailAgentData]
+    with Stash {
 
   val myUnhandled: StateFunction = {
 
@@ -195,7 +195,7 @@ class RideHailAgent(
           stop(
             Failure(
               s"RideHailAgent $self attempted to become driver of vehicle ${vehicle.id} " +
-                s"but driver ${vehicle.driver.get} already assigned."
+              s"but driver ${vehicle.driver.get} already assigned."
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
@@ -214,18 +214,18 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
     case ev @ Event(
-    NotifyVehicleResourceIdleReply(
-    triggerId: Option[Long],
-    newTriggers: Seq[ScheduleTrigger]
-    ),
-    _
-    ) =>
+          NotifyVehicleResourceIdleReply(
+            triggerId: Option[Long],
+            newTriggers: Seq[ScheduleTrigger]
+          ),
+          _
+        ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
     case ev @ Event(
-    TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
-    data
-    ) =>
+          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+          data
+        ) =>
       log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       data.currentVehicle.headOption match {
@@ -317,12 +317,12 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
     case ev @ Event(
-    NotifyVehicleResourceIdleReply(
-    triggerId: Option[Long],
-    newTriggers: Seq[ScheduleTrigger]
-    ),
-    _
-    ) =>
+          NotifyVehicleResourceIdleReply(
+            triggerId: Option[Long],
+            newTriggers: Seq[ScheduleTrigger]
+          ),
+          _
+        ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
   }
@@ -364,9 +364,9 @@ class RideHailAgent(
   override def logPrefix(): String = s"RideHailAgent $id: "
 
   def handleNotifyVehicleResourceIdleReply(
-                                            receivedtriggerId: Option[Long],
-                                            newTriggers: Seq[ScheduleTrigger]
-                                          ): State = {
+    receivedtriggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+  ): State = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()

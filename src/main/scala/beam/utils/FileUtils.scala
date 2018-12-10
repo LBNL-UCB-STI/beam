@@ -43,10 +43,10 @@ object FileUtils extends LazyLogging {
   }
 
   def getConfigOutputFile(
-                           outputDirectoryBasePath: String,
-                           simulationName: String,
-                           addTimestampToOutputDirectory: Boolean
-                         ): String = {
+    outputDirectoryBasePath: String,
+    simulationName: String,
+    addTimestampToOutputDirectory: Boolean
+  ): String = {
     val baseOutputDir = Paths.get(outputDirectoryBasePath)
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
@@ -113,10 +113,7 @@ object FileUtils extends LazyLogging {
     * @param data data to be written to the file
     * @param fileFooter an optional footer to be appended (if any)
     */
-  def writeToFile(filePath: String,
-                  fileHeader: Option[String],
-                  data: String,
-                  fileFooter: Option[String]): Unit = {
+  def writeToFile(filePath: String, fileHeader: Option[String], data: String, fileFooter: Option[String]): Unit = {
     val bw = new BufferedWriter(new FileWriter(filePath))
     try {
       if (fileHeader.isDefined)
@@ -126,7 +123,7 @@ object FileUtils extends LazyLogging {
         bw.append(fileFooter.get)
     } catch {
       case e: IOException =>
-        logger.error(s"Error while writing data to file - $filePath : " + e.getMessage,e)
+        logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)
     } finally {
       bw.close()
     }

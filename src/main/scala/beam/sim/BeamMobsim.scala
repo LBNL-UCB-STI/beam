@@ -174,7 +174,10 @@ class BeamMobsim @Inject()(
         context.watch(rideHailManager)
 
         private val vehicleTypeId: Id[BeamVehicleType] = Id
-          .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
+          .create(
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
 
         beamServices.vehicleTypes.get(vehicleTypeId) match {
           case Some(rhVehType) =>
@@ -306,7 +309,10 @@ class BeamMobsim @Inject()(
             //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
 
             val ridehailBeamVehicleTypeId =
-              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
+              Id.create(
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+                classOf[BeamVehicleType]
+              )
 
             val ridehailBeamVehicleType = beamServices.vehicleTypes
               .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
@@ -399,7 +405,7 @@ class BeamMobsim @Inject()(
 
           val cancellable = system.scheduler.schedule(
             0.milliseconds,
-              (timeoutInSeconds * 1000).milliseconds,
+            (timeoutInSeconds * 1000).milliseconds,
             memoryLoggingTimerActorRef,
             Tick
           )
