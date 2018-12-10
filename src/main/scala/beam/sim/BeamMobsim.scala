@@ -333,6 +333,10 @@ class BeamMobsim @Inject()(
             )
 
             val rideHailAgentProps = RideHailAgent.props(
+              scala.List(),
+              0.0,
+              0.0,
+              0.0,
               beamServices,
               scheduler,
               transportNetwork,
@@ -340,6 +344,7 @@ class BeamMobsim @Inject()(
               eventsManager,
               parkingManager,
               rideHailAgentPersonId,
+              "",
               rideHailBeamVehicle,
               rideInitialLocation
             )

@@ -174,9 +174,14 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          "",
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          List(),
+          0.0,
+          0.0,
+          0.0,
           eventsManager,
           zonalParkingManager,
           services,
@@ -252,9 +257,14 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          "",
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          List(),
+          0.0,
+          0.0,
+          0.0,
           eventsManager,
           zonalParkingManager,
           services,
@@ -319,9 +329,14 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          "",
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          List(),
+          0.0,
+          0.0,
+          0.0,
           eventsManager,
           zonalParkingManager,
           services,
