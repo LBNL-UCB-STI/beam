@@ -3,7 +3,7 @@ package beam.router
 import java.util.concurrent.TimeUnit
 
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.TravelTimeCalculatorHelper
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
@@ -26,13 +26,8 @@ object FreeFlowTravelTime {
 
     val travelTime = new FreeFlowTravelTime
     beamRouter ! UpdateTravelTimeLocal(travelTime)
-    val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
-      scenario.getNetwork.getLinks.values(),
-      travelTime,
-      maxHour
-    )
-    beamRouter ! UpdateTravelTimeRemote(map)
-    // TODO: this is code which was used during warmstart to initialize remote router, confirm if needed and refactor to avoid duplication.to
+
+    BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
   }
 
 }
