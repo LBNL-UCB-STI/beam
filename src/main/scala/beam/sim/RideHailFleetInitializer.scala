@@ -28,8 +28,6 @@ class RideHailFleetInitializer @Inject()
  eventsManager: EventsManager,
  actorSystem: ActorSystem) extends LazyLogging {
 
-  val outputFileBaseName = "ride-hail-fleet"
-
   //todo learn where and when to invoke this initializer
   def init(): Unit = {
     try {
@@ -84,20 +82,20 @@ class RideHailFleetInitializer @Inject()
             Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
           val beamVehicleType = beamServices.vehicleTypes
             .getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-          // todo learn how to generate these values ?
-          val shift = ""
           // todo ask if the 'person' is the ride hail manager here ?
           val rideHailManagerId = person.getId.toString
-          val geoFenceX = 0.0
-          val geoFenceY = 0.0
-          val geoFenceRadius = 0.0
+          // todo learn how to generate these values ?
+          val shift = ""
+          val geoFenceX = 0.0 //tentatively initialized
+          val geoFenceY = 0.0 //tentatively initialized
+          val geoFenceRadius = 0.0 //tentatively initialized
           // todo vehicle type is an object , ask what value of it should be written to csv ?
-          val vehicleType = beamVehicleType
+          val vehicleType = beamVehicleType // tentatively writing vehicleTypeId to CSV
           //generate fleet data
           FleetData(id.toString, rideHailManagerId, vehicleType.vehicleTypeId, initialLocation.getX, initialLocation.getY, shift, geoFenceX, geoFenceY, geoFenceRadius)
       }
       //write fleet data to an external csv file
-      val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
+      val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
       val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
       val data = fleetData map { f => f.productIterator mkString ", " } mkString "\n"
       FileUtils.writeToFile(filePath, Some(fileHeader), data, None)
@@ -113,7 +111,7 @@ class RideHailFleetInitializer @Inject()
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
   def generateRideHailFleet(beamServices: BeamServices,scheduler: ActorRef,parkingManager:ActorRef): List[RideHailAgent] = {
-    val filePath = beamServices.matsimServices.getControlerIO.getOutputFilename(outputFileBaseName + ".csv")
+    val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
     readCSVAsRideHailAgent(filePath,scheduler,parkingManager)
   }
 
@@ -190,6 +188,10 @@ class RideHailFleetInitializer @Inject()
     val x_coordinates = coordinates.map(_.getX)
     val y_coordinates = coordinates.map(_.getY)
     QuadTreeBounds(x_coordinates.min,y_coordinates.min,x_coordinates.max,y_coordinates.max)
+  }
+
+  private def generateRange(pattern: String) : List[Range] = {
+    List.empty
   }
 
   case class FleetData(id: String,
