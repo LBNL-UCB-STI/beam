@@ -131,6 +131,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
         override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
+        override val rideHailTransitModes = BeamMode.massTransitModes
 
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
