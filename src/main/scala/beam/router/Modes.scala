@@ -1,6 +1,20 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, FERRY, RAIL, RIDE_HAIL, SUBWAY, TRAM, WALK}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  BUS,
+  CABLE_CAR,
+  CAR,
+  FERRY,
+  FUNICULAR,
+  GONDOLA,
+  RAIL,
+  RIDE_HAIL,
+  SUBWAY,
+  TRAM,
+  TRANSIT,
+  WALK
+}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -101,8 +115,10 @@ object Modes {
     val chainBasedModes = Seq(CAR, EV, BIKE)
 
     val transitModes =
-      Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY, TRAM)
+      Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
     val availableModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
+
+    val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 
     def fromString(stringMode: String): BeamMode = {
       if (stringMode.equals("")) {
