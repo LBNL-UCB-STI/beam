@@ -326,22 +326,33 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
       val finalLegs = if (mustParkAtEnd) {
         val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
-        val fuelAndTollCostPerLeg = legPair.map{beamLeg =>
+        val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
           val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.toVector.map{
-                e =>
-                  transportNetwork.streetLayer.edgeStore
-                    .getCursor(e)
-                    .getOSMID
-              }
+            val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
+              transportNetwork.streetLayer.edgeStore
+                .getCursor(e)
+                .getOSMID
+            }
             tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(beamLeg.travelPath)
           } else 0.0
           fuelCost + toll
         }
         val embodiedPair = Vector(
-          EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, fuelAndTollCostPerLeg.head, unbecomeDriverOnCompletion = false),
-          EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, fuelAndTollCostPerLeg.last, unbecomeDriverOnCompletion = true)
+          EmbodiedBeamLeg(
+            legPair.head,
+            vehicleId,
+            asDriver = true,
+            fuelAndTollCostPerLeg.head,
+            unbecomeDriverOnCompletion = false
+          ),
+          EmbodiedBeamLeg(
+            legPair.last,
+            vehicleId,
+            asDriver = true,
+            fuelAndTollCostPerLeg.last,
+            unbecomeDriverOnCompletion = true
+          )
         )
         if (legPair.size == 1) {
           Vector(embodiedPair.head)
@@ -720,7 +731,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       routingRequest.streetVehicles.find(_.mode == WALK).get
                     EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
-                    if(beamLeg.mode == CAR) {
+                    if (beamLeg.mode == CAR) {
                       cost = cost + DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.id, beamServices)
                     }
                     EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, cost, unbecomeDriverAtComplete)
