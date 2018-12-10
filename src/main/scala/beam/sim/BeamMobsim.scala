@@ -388,7 +388,7 @@ class BeamMobsim @Inject()(
             val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
             warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
 
-            if (beamServices.beamConfig.beam.warmStart.enabled) {
+            if (!beamServices.beamConfig.beam.warmStart.enabled) {
               FreeFlowTravelTime.initializeRouterFreeFlow(beamServices, scenario)
             }
           }
