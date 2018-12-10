@@ -25,7 +25,7 @@ object FreeFlowTravelTime {
     val beamRouter = beamServices.beamRouter
 
     val travelTime = new FreeFlowTravelTime
-    beamRouter ! UpdateTravelTimeLocal(travelTime)
+    // beamRouter ! UpdateTravelTimeLocal(travelTime)
 
     BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
   }
