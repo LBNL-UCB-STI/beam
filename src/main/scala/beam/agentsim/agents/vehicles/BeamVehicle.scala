@@ -33,12 +33,12 @@ import scala.collection.JavaConverters._
 
 // TODO: safety for
 class BeamVehicle(
-  val id: Id[BeamVehicle],
-  val powerTrain: Powertrain,
-  val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType
-) extends Resource[BeamVehicle]
-    with StrictLogging {
+                   val id: Id[BeamVehicle],
+                   val powerTrain: Powertrain,
+                   val initialMatsimAttributes: Option[ObjectAttributes],
+                   val beamVehicleType: BeamVehicleType
+                 ) extends Resource[BeamVehicle]
+  with StrictLogging {
 
   var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
@@ -70,8 +70,8 @@ class BeamVehicle(
     * @param newDriverRef incoming driver
     */
   def becomeDriver(
-    newDriverRef: ActorRef
-  ): BecomeDriverResponse = {
+                    newDriverRef: ActorRef
+                  ): BecomeDriverResponse = {
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
       BecomeDriverOfVehicleSuccess
@@ -178,13 +178,8 @@ class BeamVehicle(
 
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
-    val scenario =
-      if (beamServices != null && beamServices.matsimServices != null)
-        Some(beamServices.matsimServices.getScenario)
-      else None
-    val fuelConsumption: Option[List[FuelConsumption]] = scenario map { s =>
-      this.generateFuelConsumptionData(beamLeg, s.getNetwork)
-    }
+    val network = if(beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
+    val fuelConsumption: Option[List[FuelConsumption]] = network map (n => this.generateFuelConsumptionData(beamLeg, n))
     fuelLevelInJoules match {
       case Some(fLevel) =>
         val energyConsumed = fuelConsumption match {
@@ -250,22 +245,22 @@ object BeamVehicle {
   }
 
   case class BeamVehicleState(
-    fuelLevel: Double,
-    remainingRangeInM: Double,
-    driver: Option[ActorRef],
-    stall: Option[ParkingStall]
-  )
+                               fuelLevel: Double,
+                               remainingRangeInM: Double,
+                               driver: Option[ActorRef],
+                               stall: Option[ParkingStall]
+                             )
 
   case class FuelConsumption(
-    linkId: Int,
-    linkCapacity: Double,
-    averageSpeed: Double,
-    freeFlowSpeed: Double,
-    linkArrivalTime: Long,
-    vehicleId: String,
-    vehicleType: String,
-    turnAtLinkEnd: String,
-    numberOfStops: Int
-  )
+                              linkId: Int,
+                              linkCapacity: Double,
+                              averageSpeed: Double,
+                              freeFlowSpeed: Double,
+                              linkArrivalTime: Long,
+                              vehicleId: String,
+                              vehicleType: String,
+                              turnAtLinkEnd: String,
+                              numberOfStops: Int
+                            )
 
 }
