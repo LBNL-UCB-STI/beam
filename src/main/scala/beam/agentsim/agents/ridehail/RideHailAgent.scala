@@ -6,6 +6,7 @@ import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
   EndLegTrigger,
@@ -38,10 +39,6 @@ object RideHailAgent {
   val idPrefix: String = "rideHailAgent"
 
   def props(
-    shifts: List[String],
-    geoFenceX: Double,
-    geoFenceY: Double,
-    geoFenceRadius: Double,
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
@@ -51,7 +48,11 @@ object RideHailAgent {
     rideHailAgentId: Id[RideHailAgent],
     rideHailManagerId: String,
     vehicle: BeamVehicle,
-    location: Coord
+    location: Coord,
+    shifts: Option[List[Range]],
+    geoFenceX: Option[Double],
+    geoFenceY: Option[Double],
+    geoFenceRadius: Option[Double]
   ) =
     Props(
       new RideHailAgent(
@@ -145,10 +146,10 @@ class RideHailAgent(
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   initialLocation: Coord,
-  shifts: List[String],
-  geoFenceX: Double,
-  geoFenceY: Double,
-  geoFenceRadius: Double,
+  shifts: Option[List[Range]],
+  geoFenceX: Option[Double],
+  geoFenceY: Option[Double],
+  geoFenceRadius: Option[Double],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
