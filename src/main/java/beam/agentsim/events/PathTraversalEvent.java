@@ -33,7 +33,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_END_COORDINATE_X = "endX";
     public final static String ATTRIBUTE_END_COORDINATE_Y = "endY";
     public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "endLegFuelLevel";
-    public final static String ATTRIBUTE_AMOUNT_PAID = "amountPaid";
+    public final static String ATTRIBUTE_TOLL_PAID = "tollPaid";
     public final static String ATTRIBUTE_SEATING_CAPACITY = "seatingCapacity";
 
     private final AtomicReference<Map<String, String>> attributes;
@@ -113,7 +113,7 @@ public class PathTraversalEvent extends Event {
                     Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
                     Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
                     Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
+                    Double.parseDouble(attr.get(ATTRIBUTE_TOLL_PAID))
             );
         }
         return (PathTraversalEvent) event;
@@ -145,7 +145,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(endY));
         attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
         attr.put(ATTRIBUTE_SEATING_CAPACITY, Integer.toString(seatingCapacity));
-        attr.put(ATTRIBUTE_AMOUNT_PAID, Double.toString(amountPaid));
+        attr.put(ATTRIBUTE_TOLL_PAID, Double.toString(amountPaid));
 
         attributes.set(attr);
 
