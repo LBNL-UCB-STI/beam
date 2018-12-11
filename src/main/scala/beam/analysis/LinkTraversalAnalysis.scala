@@ -208,6 +208,21 @@ class LinkTraversalAnalysis @Inject()(
   }
 
   /**
+    * Computes the angle between two coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return angle between the coordinates (in radians).
+    */
+  private def computeAngle(source: Coord, destination: Coord): Double = {
+    val rad = Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+    if (rad < 0) {
+      rad + 3.141593 * 2.0
+    } else {
+      rad
+    }
+  }
+
+  /**
     * Get the desired direction to be taken , based on the angle between the coordinates
     * @param source source coordinates
     * @param destination destination coordinates
@@ -215,7 +230,7 @@ class LinkTraversalAnalysis @Inject()(
     */
   private def getDirection(source: Coord, destination: Coord): String = {
     if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val radians = Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+      val radians = computeAngle(source, destination)
       radians match {
         case _ if radians < 0.174533 || radians >= 6.10865 => "R" // Right
         case _ if radians >= 0.174533 & radians < 1.39626  => "SR" // Soft Right
