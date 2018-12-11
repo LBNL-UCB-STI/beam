@@ -122,7 +122,7 @@ class TransitDriverAgent(
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
           eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver")
+            new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
           )
           eventsManager
             .processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))

@@ -122,11 +122,6 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     }
 
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        RealizedModeAnalysis realizedModeStats = (RealizedModeAnalysis) statsFactory.getAnalysis(StatsType.RealizedMode);
-        if (realizedModeStats != null) realizedModeStats.notifyShutdown(event);
-    }
-
     @Override
     public Map<String, Double> getSummaryStats() {
         return statsFactory.getSummaryAnalysis().stream()
