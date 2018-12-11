@@ -20,19 +20,35 @@ abstract class MobilityServiceRequest extends Ordered[MobilityServiceRequest] {
   def getRequestTime(): Unit = { return (time) }
   def getServiceTime(): Unit = { return (time + delta_time) }
   def compare(that: MobilityServiceRequest) = { Ordering.Double.compare(this.time, that.time) }
-  override def toString =
-    s"${person match {
-      case Some(x) => x.getId
-      case None    => "None"
-    }}|${coord}|${time}|${delta_time}"
 }
 
 // Mobility Service Request is either a pickup or a dropoff
 class MSRPickup(val person: Option[Person], val coord: Coord, val time: Double, val delta_time: Double)
-    extends MobilityServiceRequest
+    extends MobilityServiceRequest {
+  override def toString =
+    s"Pickup { ${person match {
+      case Some(x) => x.getId
+      case None    => "NA"
+    }}|${coord}|${time}|${delta_time} }"
+}
 
 class MSRDropoff(val person: Option[Person], val coord: Coord, val time: Double, val delta_time: Double)
-    extends MobilityServiceRequest
+    extends MobilityServiceRequest {
+  override def toString =
+    s"Dropoff { ${person match {
+      case Some(x) => x.getId
+      case None    => "NA"
+    }}|${coord}|${time}|${delta_time} }"
+}
+
+class MSRRelocation(val person: Option[Person], val coord: Coord, val time: Double, val delta_time: Double)
+    extends MobilityServiceRequest {
+  override def toString =
+    s"Relocation { ${person match {
+      case Some(x) => x.getId
+      case None    => "NA"
+    }}|${coord}|${time}|${delta_time} }"
+}
 
 class HouseholdPlansToMSR(plans: ArrayBuffer[BeamPlan]) {
   var requests = List[MobilityServiceRequest]()
@@ -51,6 +67,7 @@ class HouseholdPlansToMSR(plans: ArrayBuffer[BeamPlan]) {
 
 class HouseholdCAVPlanning(
   val plans: ArrayBuffer[BeamPlan],
+  val fleet_size: Int,
   val time_window: Double,
   val skim: Map[Coord, Map[Coord, Double]]
 ) {
@@ -67,24 +84,36 @@ class HouseholdCAVPlanning(
       val travel_time = skim(schedule.last.coord)(request.coord)
       val arrival_time = schedule.last.time + schedule.last.delta_time + travel_time
       val new_delta_time = arrival_time - request.time
+      val new_cost = cost + new_delta_time
       var new_cav_schedule: Option[CAVSchedule] = None
       if (request.isInstanceOf[MSRPickup]) {
-        if (occupancy == cav.max_occupancy || math.abs(new_delta_time) > time_window) {
-          println(s"Failed to pickup => ${request} | ${new_delta_time} | ${occupancy}")
+        if (occupancy == cav.max_occupancy) {
+          println(s"Vehicle capacity limit, not possible to pickup=> ${request} | ${new_delta_time} | ${occupancy}")
+        } else if (occupancy != 0 && math.abs(new_delta_time) > time_window) {
+          println(s"Unfeasible timing, not possible to pickup=> ${request} | ${new_delta_time} | ${occupancy}")
+        } else if (occupancy == 0 && math.abs(new_delta_time) > time_window) {
+          // *** THIS IS A RELOCATION TASK
+          // NOT SUPPOSED TO BE HARD CODED HERE, SINCE IT DEPENDS ON THE OP MODEL
+          val relocation_request = new MSRRelocation(None, request.coord, request.time - 1, new_delta_time)
+          val new_request = new MSRPickup(request.person, request.coord, request.time, 0)
+          new_cav_schedule = Some(
+            CAVSchedule(schedule :+ relocation_request :+ new_request, new_cost, occupancy + 1, cav)
+          )
         } else {
           val new_request = new MSRPickup(request.person, request.coord, request.time, new_delta_time)
-          new_cav_schedule = Some(CAVSchedule(schedule :+ new_request, cost + new_delta_time, occupancy + 1, cav))
+          new_cav_schedule = Some(CAVSchedule(schedule :+ new_request, new_cost, occupancy + 1, cav))
         }
       } else if (request.isInstanceOf[MSRDropoff]) {
         val index = schedule.lastIndexWhere(_.person == request.person)
         if (index < 0 || !schedule(index).isInstanceOf[MSRPickup]) {
-          println(s"!!! Not supposed to dropoff before pickup => ${request} | ${new_delta_time} | ${occupancy}")
+          // no dropoff without picking up
+          //println(s"!!! Not supposed to dropoff before pickup => ${request} | ${new_delta_time} | ${occupancy}")
         } else if (math.abs(new_delta_time) > time_window) {
-          println("unfeasible dropoff. Schedule will be dropped => ${request} | ${new_delta_time} | ${occupancy}")
+          println(s"unfeasible dropoff. Schedule will be dropped => ${request} | ${new_delta_time} | ${occupancy}")
           feasible = false
         } else {
           val new_request = new MSRDropoff(request.person, request.coord, request.time, new_delta_time)
-          new_cav_schedule = Some(CAVSchedule(schedule :+ new_request, cost + new_delta_time, occupancy - 1, cav))
+          new_cav_schedule = Some(CAVSchedule(schedule :+ new_request, new_cost, occupancy - 1, cav))
           feasible = false
         }
       } else {
@@ -101,26 +130,22 @@ class HouseholdCAVPlanning(
     }
   }
 
-  case class HouseholdCAVSchedule(val cav_fleet_schedule: ArrayBuffer[CAVSchedule], val cost: Double)
+  case class HouseholdCAVSchedule(val cav_fleet_schedule: ArrayBuffer[CAVSchedule])
       extends Ordered[HouseholdCAVSchedule] {
     var feasible: Boolean = true
+    var cost: Double = 0
+    cav_fleet_schedule.foreach(x => cost += x.cost)
     override def compare(that: HouseholdCAVSchedule): Int = { Ordering.Double.compare(this.cost, that.cost) }
 
     def check(request: MobilityServiceRequest): ArrayBuffer[HouseholdCAVSchedule] = {
       val new_household_schedule = new ArrayBuffer[HouseholdCAVSchedule]()
-      scala.util.control.Breaks.breakable {
-        for (cav_schedule <- cav_fleet_schedule) {
-          cav_schedule
-            .check(request)
-            .foreach(
-              x =>
-                new_household_schedule += HouseholdCAVSchedule(
-                  ArrayBuffer[CAVSchedule](x) ++= (cav_fleet_schedule - cav_schedule),
-                  cost + x.cost
-              )
-            )
-          feasible = feasible && cav_schedule.feasible
+      for (cav_schedule <- cav_fleet_schedule) {
+        cav_schedule.check(request) match {
+          case Some(x) =>
+            new_household_schedule += HouseholdCAVSchedule((cav_fleet_schedule - cav_schedule) :+ x)
+          case None => //Nothing to do here
         }
+        feasible = feasible && cav_schedule.feasible
       }
       new_household_schedule
     }
@@ -137,7 +162,7 @@ class HouseholdCAVPlanning(
     new Coord(c.getX, c.getY)
   }
 
-  def apply(fleet_size: Int): List[HouseholdCAVSchedule] = {
+  def apply(): List[HouseholdCAVSchedule] = {
 
     // extract potential household CAV requests from plans
     val household_requests = new HouseholdPlansToMSR(plans);
@@ -152,18 +177,20 @@ class HouseholdCAVPlanning(
     fleet.foreach(
       x =>
         empty_fleet_schedule += CAVSchedule(
-          List[MobilityServiceRequest](new MobilityServiceRequest {
-            def person: Option[Person] = None
-            def coord: Coord = copyCoord(household_requests.requests.head.coord)
-            def time: Double = household_requests.requests.head.time - 1 // so to be ranked before end time
-            def delta_time: Double = 1 // to recover the subtracted second
-          }),
+          List[MobilityServiceRequest](
+            new MSRRelocation(
+              None,
+              copyCoord(household_requests.requests.head.coord),
+              household_requests.requests.head.time - 1,
+              1
+            )
+          ),
           0,
           0,
           x
       ) // initial Cost and Occupancy
     )
-    feasible_schedules = feasible_schedules :+ HouseholdCAVSchedule(empty_fleet_schedule, 0)
+    feasible_schedules = feasible_schedules :+ HouseholdCAVSchedule(empty_fleet_schedule)
 
     // extract all possible schedule combinations
     for (request <- household_requests()) {
@@ -180,6 +207,9 @@ class HouseholdCAVPlanning(
 
 }
 
+// ************
+// MAIN
+
 object Demo {
 
   def main(args: Array[String]): Unit = {
@@ -189,8 +219,8 @@ object Demo {
     val skim = computeSkim(plans)
     //println(plans)
     printSkim(skim)
-    val algo = new HouseholdCAVPlanning(plans, time_window, skim)
-    for (i <- algo(1).sortWith(_.cost < _.cost)) {
+    val algo = new HouseholdCAVPlanning(plans, 1, time_window, skim)
+    for (i <- algo().sortWith(_.cost < _.cost)) {
       println(i)
     }
   }
@@ -275,5 +305,6 @@ object Demo {
         print(s"${skim(row)(col)}\t")
       }
     }
+    println("")
   }
 }
