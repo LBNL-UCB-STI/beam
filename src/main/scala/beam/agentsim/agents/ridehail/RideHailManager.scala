@@ -716,19 +716,23 @@ class RideHailManager(
       .addPassenger(request.customer, beamLegs.tail)
   }
 
-  def calcFare(request: RideHailRequest, trip: PassengerSchedule, embodiedBeamTrip: Option[EmbodiedBeamTrip]): Map[Id[Person], Double] = {
+  def calcFare(
+    request: RideHailRequest,
+    trip: PassengerSchedule,
+    embodiedBeamTrip: Option[EmbodiedBeamTrip]
+  ): Map[Id[Person], Double] = {
     val farePerSecond = DefaultCostPerSecond * surgePricingManager
       .getSurgeLevel(
         request.pickUpLocation,
         request.departAt
       )
     val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond)
-              + (embodiedBeamTrip match {
-                  case ebt: Option[EmbodiedBeamTrip] => {
-                    ebt.map(_.costEstimate).sum
-                  }
-                  case _ => 0
-                })
+    +(embodiedBeamTrip match {
+      case ebt: Option[EmbodiedBeamTrip] => {
+        ebt.map(_.costEstimate).sum
+      }
+      case _ => 0
+    })
 
     Map(request.customer.personId -> fare)
   }
