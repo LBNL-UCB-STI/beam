@@ -1,4 +1,5 @@
 
+library(colinmisc)
 load.libraries(c('Hmisc','sqldf','GEOquery','stringr'))
 
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/debug.R')
@@ -18,7 +19,7 @@ out.dirs <- list()
 
 # Base
 out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
+#out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
 #out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
@@ -240,6 +241,20 @@ for(scen in scens){
     save(ev,vmt,file=pp(out.dir,'ev',tou.str,'.Rdata'))
   }
 
+  ### Making an optional plot of sessions and their flexibility
+  if(F){
+    sessions.all <- ev[,.(start = hr[1], plugTime = tail(hr,1) - head(hr,1),chargeTime = hr[2]-hr[1],energy = energy.level[3] - energy.level[1], power=kw[1], final.type=final.type[1]),by=c('scenario','person','decisionEventId')]
+    sessions <- sessions.all[start>49 & start<=73]
+    sessions[,hour:=floor(start-48)]
+    sessions[,flex:=plugTime-chargeTime]
+    flex.bins <- c('beg'=0,'0-2'=2,'2-4'=4,'4-8'=8,'8-12'=12,'12+'=1000)
+    sessions[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
+    sessions[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
+    setkey(sessions,hour,flex.bin,final.type)
+    ggplot(sessions[,.(n=.N),by=c('hour','flex.bin','final.type')],aes(x=hour,y=n,fill=flex.bin))+geom_bar(stat='identity')+facet_wrap(~final.type)+labs(x="Charging Start Hour",y="# of Sessions Initiated",fill="Hours of flexibility")
+    dev.new();ggplot(sessions[,.(n=.N,energy=sum(energy)),by=c('hour','flex.bin','final.type')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+facet_wrap(~final.type)+labs(x="Charging Start Hour",y="Energy Demanded in Session (MWh)",fill="Hours of flexibility")
+  }
+
   ##################################################################
   # First aggregate for plexos
   ##################################################################
@@ -418,11 +433,15 @@ for(scen in scens){
   # Join in the VMT based scaling factors
   plexos.constraints <- join.on(plexos.constraints,vmt,'veh.type','veh.type','scale')
 
+  if(scen=='base'){
+    plexos.constraints.base <- copy(plexos.constraints[hour<6])
+  }
+
   # Finally, scale according to the scenarios developed by Julia
   scenarios <- load.scenarios()
   scenarios <- scenarios[veh.type.split=='6040']
 
-  results.dir.base <- '/Users/critter/odrive/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v11'
+  results.dir.base <- '/Users/critter/odrive/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v13'
   make.dir(results.dir.base)
   make.dir(pp(results.dir.base,'/',scen))
   the.utility <- scenarios$Electric.Utility[3]
@@ -449,6 +468,16 @@ for(scen in scens){
           make.dir(pp(results.dir.base,'/base-annual-energy-for-scaling'))
           save(energy.for.scale.to.base,file=pp(results.dir.base,'/base-annual-energy-for-scaling/',the.utility,'-',pen,'-',veh.split,'.Rdata'))
         }else{
+          if(do.tou){
+            to.write[,Day:=mday(to.posix('2024-01-01',tz='GMT')+(hour-1)*3600)]
+            to.write[,Period:=(hour-1)%%24+1]
+            to.write <- join.on(to.write,plexos.constraints.base,c('veh.type','Period'),c('veh.type','hour'),'pev.inflexible.load.mw','base.')
+            to.write[Day==1 & Period<6,pev.inflexible.load.mw:=base.pev.inflexible.load.mw]
+            to.write[,base.pev.inflexible.load.mw:=NULL]
+            to.write[,Period:=NULL]
+            to.write[,Day:=NULL]
+            setkey(to.write,hour)
+          }
           rm('energy.for.scale.to.base')
           load(file=pp(results.dir.base,'/base-annual-energy-for-scaling/',the.utility,'-',pen,'-',veh.split,'.Rdata'))
           scale.to.base <- energy.for.scale.to.base / sum(to.write$value * to.write$pev.inflexible.load.mw * to.write$scale)
