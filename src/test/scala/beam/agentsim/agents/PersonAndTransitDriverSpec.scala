@@ -394,14 +394,9 @@ class PersonAndTransitDriverSpec
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[PersonCostEvent]
 
-      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
-
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
-      personEvents.expectMsgType[PersonCostEvent]
-
-      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
-
+      //Fare of second leg is 0.0 so not person cost event is thrown
       personEvents.expectMsgType[PersonLeavesVehicleEvent]
       personEvents.expectMsgType[VehicleEntersTrafficEvent]
       personEvents.expectMsgType[VehicleLeavesTrafficEvent]

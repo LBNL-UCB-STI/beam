@@ -26,7 +26,7 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescriptor {
+public class RideHailWaitingAnalysis implements GraphAnalysis {
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
@@ -119,8 +119,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    private static final String fileName = "rideHailWaitingStats";
-    private static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
+    static final String fileName = "rideHailWaitingStats";
+    static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
@@ -338,29 +338,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
         }
         //Collections.sort(legends);
         return legends;
-    }
-
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String rideHailWaitingStatsOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileName + ".csv");
-        String rideHailIndividualWaitingTimesOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,rideHailIndividualWaitingTimesFileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String rideHailWaitingStatsRelativePath = rideHailWaitingStatsOutputFilePath.replace(outputDirPath, "");
-        String rideHailIndividualWaitingTimesRelativePath = rideHailIndividualWaitingTimesOutputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailWaitingStatsRelativePath, "Waiting Time", "The time spent by a passenger waiting for a ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailWaitingStatsRelativePath, "Hour", "Hour of the day"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailWaitingStatsRelativePath, "Count", "Frequencies of times spent waiting for a ride hail during the entire day"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailIndividualWaitingTimesRelativePath, "timeOfDayInSeconds", "Time of a day in seconds"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailIndividualWaitingTimesRelativePath, "personId", "Unique id of the passenger travelling by the ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailIndividualWaitingTimesRelativePath, "rideHailVehicleId", "Unique id of the ride hail vehicle"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), rideHailIndividualWaitingTimesRelativePath, "waitingTimeInSeconds", "Time spent by the given passenger waiting for the arrival of the given ride hailing vehicle"));
-        return list;
     }
 
     private double getRoundedCategoryUpperBound(double category) {
