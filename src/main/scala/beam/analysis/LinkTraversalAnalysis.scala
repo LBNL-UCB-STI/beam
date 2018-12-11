@@ -24,11 +24,11 @@ import scala.collection.mutable
   * @param outputDirectoryHierarchy output directory hierarchy.
   */
 class LinkTraversalAnalysis @Inject()(
-                                       private val scenario: Scenario,
-                                       private val beamServices: BeamServices,
-                                       outputDirectoryHierarchy: OutputDirectoryHierarchy
-                                     ) extends BasicEventHandler
-  with OutputDataDescriptor {
+  private val scenario: Scenario,
+  private val beamServices: BeamServices,
+  outputDirectoryHierarchy: OutputDirectoryHierarchy
+) extends BasicEventHandler
+    with OutputDataDescriptor {
 
   private val outputFileBaseName = "linkTraversalAnalysis"
   private var analysisData: Array[LinkTraversalData] = Array()
@@ -77,7 +77,7 @@ class LinkTraversalAnalysis @Inject()(
                   case _: Exception => 0.0
                 }
                 val turnAtLinkEnd =
-                  getDirection(vectorFromLink(currentLink),vectorFromLink(nextLink.getOrElse(currentLink)))
+                  getDirection(vectorFromLink(currentLink), vectorFromLink(nextLink.getOrElse(currentLink)))
                 val numberOfStops = if (turnAtLinkEnd.equalsIgnoreCase("NA")) 0 else 1
                 (
                   id,
@@ -125,7 +125,7 @@ class LinkTraversalAnalysis @Inject()(
         "linkId,linkCapacity, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
       bw.append(heading + "\n")
       val content = (data.distinct
-        map { e =>
+      map { e =>
         e._1 + ", " + e._2 + ", " + e._3 + ", " + e._4 + ", " + e._5 + ", " + e._6 + ", " + e._7 + ", " + e._8 + ", " + e._9
       }).mkString("\n")
       bw.append(content)
