@@ -226,10 +226,10 @@ object Demo {
       val algo = new HouseholdCAVPlanning(plans, 2, time_window, skim)
       val schedules = algo().sortWith(_.cost < _.cost)
       tot += schedules.size
-      //println(s"iteration $i - # combination ${schedules.size}")
-      //      for (i <- algo().sortWith(_.cost < _.cost)) {
-      //        println(i)
-      //      }
+//      println(s"iteration $i - # combination ${schedules.size}")
+//            for (j <- schedules) {
+//              println(j)
+//            }
     }
     val t1 = System.nanoTime()
     println(s"Elapsed time: ${(t1 - t0)/1.0E9} seconds - number of objects: $tot")
