@@ -743,7 +743,7 @@ class RideHailManager(
       case NoVehiclesAvailable =>
         log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
         inquiry.customer.personRef.get ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
-      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, None, poolingInfo) =>
+      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, inquiry.requestId))

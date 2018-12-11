@@ -24,7 +24,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       )
       .headOption match {
       case Some(agentETA) =>
-        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None, Some(PoolingInfo(1.1, 0.6)))
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(1.1, 0.6)))
       case None =>
         NoVehiclesAvailable
     }
