@@ -201,7 +201,7 @@ class RideHailAgent(
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
           vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
           eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
+            new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
           )
           eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
           goto(Idle) replying CompletionNotice(triggerId) using data

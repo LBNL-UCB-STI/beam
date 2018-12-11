@@ -105,8 +105,7 @@ public class PlanReaderCsv {
 
     public void printRow(String[] dRow){
         log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
-                        "x => {} , y => {} , endTime => {} , mode => {}",
-                dRow);
+                        "x => {} , y => {} , endTime => {} , mode => {}", dRow);
     }
 
 
