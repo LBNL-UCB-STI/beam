@@ -100,8 +100,14 @@ class BeamVehicle(
     * @param destination destination coordinates
     * @return angle between the coordinates (in radians).
     */
-  private def computeAngle(source: Coord, destination: Coord): Double =
-    Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+  private def computeAngle(source: Coord, destination: Coord): Double = {
+    val rad = Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+    if (rad < 0) {
+      rad + 3.141593 * 2.0
+    } else {
+      rad
+    }
+  }
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
@@ -111,7 +117,7 @@ class BeamVehicle(
     */
   private def getDirection(source: Coord, destination: Coord): String = {
     if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val radians = this.computeAngle(source, destination)
+      val radians = computeAngle(source, destination)
       radians match {
         case _ if radians < 0.174533 || radians >= 6.10865 => "R" // Right
         case _ if radians >= 0.174533 & radians < 1.39626  => "SR" // Soft Right
@@ -123,6 +129,18 @@ class BeamVehicle(
         case _                                             => "S" // default => Straight
       }
     } else "S"
+  }
+
+  /**
+    * Generate the vector coordinates from the link nodes
+    * @param link link in the network
+    * @return vector coordinates
+    */
+  private def vectorFromLink(link: Link): Coord = {
+    new Coord(
+      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
+      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
+    )
   }
 
   /**
@@ -158,7 +176,7 @@ class BeamVehicle(
         }
         // get the next link , and calculate the direction to be taken based on the angle between the two links
         val nextLink: Option[Link] = networkLinks.find(x => x.getId.toString.toInt == nextId)
-        val turnAtLinkEnd = getDirection(currentLink.getCoord, nextLink.map(_.getCoord).getOrElse(new Coord(0.0, 0.0)))
+        val turnAtLinkEnd = getDirection(vectorFromLink(currentLink), vectorFromLink(nextLink.getOrElse(currentLink)))
         FuelConsumption(
           linkId = id,
           linkCapacity = currentLink.getCapacity,
