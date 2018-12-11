@@ -478,23 +478,21 @@ class RideHailManager(
         // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
         // for a simple single-occupant trip sequence, we know that first
         // itin is RH2Customer and second is Pickup2Destination.
-        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(
-          request,
-          EmbodiedBeamTrip(
-            responses
-              .map { response =>
-                response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
-              }
-              .flatten
-              .flatMap(_.legs)
-              .toIndexedSeq
-          )
+        val embodiedBeamTrip = EmbodiedBeamTrip(
+          responses
+            .map { response =>
+              response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
+            }
+            .flatten
+            .flatMap(_.legs)
+            .toIndexedSeq
         )
+        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
           driverPassengerSchedule,
-          calcFare(request, driverPassengerSchedule),
+          calcFare(request, driverPassengerSchedule, Option(embodiedBeamTrip)),
           singleOccupantQuoteAndPoolingInfo.poolingInfo
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -718,13 +716,20 @@ class RideHailManager(
       .addPassenger(request.customer, beamLegs.tail)
   }
 
-  def calcFare(request: RideHailRequest, trip: PassengerSchedule): Map[Id[Person], Double] = {
+  def calcFare(request: RideHailRequest, trip: PassengerSchedule, embodiedBeamTrip: Option[EmbodiedBeamTrip]): Map[Id[Person], Double] = {
     val farePerSecond = DefaultCostPerSecond * surgePricingManager
       .getSurgeLevel(
         request.pickUpLocation,
         request.departAt
       )
-    val fare = trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond
+    val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond)
+              + (embodiedBeamTrip match {
+                  case ebt: Option[EmbodiedBeamTrip] => {
+                    ebt.map(_.costEstimate).sum
+                  }
+                  case _ => 0
+                })
+
     Map(request.customer.personId -> fare)
   }
 
@@ -1201,7 +1206,7 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request, passSched),
+      calcFare(alloc.request, passSched, None),
       None
     )
   }
