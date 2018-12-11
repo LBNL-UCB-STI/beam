@@ -33,7 +33,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_END_COORDINATE_X = "endX";
     public final static String ATTRIBUTE_END_COORDINATE_Y = "endY";
     public final static String ATTRIBUTE_END_LEG_FUEL_LEVEL = "endLegFuelLevel";
-    public final static String ATTRIBUTE_AMOUNT_PAID = "amountPaid";
+    public final static String ATTRIBUTE_TOLL_PAID = "tollPaid";
     public final static String ATTRIBUTE_SEATING_CAPACITY = "seatingCapacity";
 
     private final AtomicReference<Map<String, String>> attributes;
@@ -95,34 +95,6 @@ public class PathTraversalEvent extends Event {
         this.amountPaid = amountPaid;
     }
 
-//    public static PathTraversalEvent apply(Event event) {
-//        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-//            Map<String, String> attr = event.getAttributes();
-//            return new PathTraversalEvent(event.getTime(),
-//                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
-//                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
-//                    attr.get(ATTRIBUTE_MODE),
-//                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
-//                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
-//                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
-//                    attr.get(ATTRIBUTE_FUEL_TYPE),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
-//                    attr.get(ATTRIBUTE_LINK_IDS),
-//                    getLinkTravelTimes(),
-//                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
-//                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-//                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
-//                    Double.parseDouble(attr.get(ATTRIBUTE_AMOUNT_PAID))
-//            );
-//        }
-//        return (PathTraversalEvent) event;
-//    }
-
     @Override
     public Map<String, String> getAttributes() {
         Map<String, String> attr = attributes.get();
@@ -149,7 +121,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(endY));
         attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, Double.toString(endLegFuelLevel));
         attr.put(ATTRIBUTE_SEATING_CAPACITY, Integer.toString(seatingCapacity));
-        attr.put(ATTRIBUTE_AMOUNT_PAID, Double.toString(amountPaid));
+        attr.put(ATTRIBUTE_TOLL_PAID, Double.toString(amountPaid));
 
         attributes.set(attr);
 
