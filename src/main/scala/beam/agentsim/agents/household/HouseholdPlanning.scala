@@ -11,6 +11,8 @@ import org.matsim.core.utils.geometry.CoordUtils
 
 import scala.collection.mutable.Map
 import scala.collection.immutable.List
+import java.lang.instrument.Instrumentation
+
 
 abstract class MobilityServiceRequest extends Ordered[MobilityServiceRequest] {
   def person: Option[Person]
@@ -213,21 +215,29 @@ class HouseholdCAVPlanning(
 object Demo {
 
   def main(args: Array[String]): Unit = {
-
-    val plans = scenario2
-    val time_window = 15 * 60
-    val skim = computeSkim(plans)
-    //println(plans)
-    printSkim(skim)
-    val algo = new HouseholdCAVPlanning(plans, 1, time_window, skim)
-    for (i <- algo().sortWith(_.cost < _.cost)) {
-      println(i)
+    var tot = 0
+    val t0 = System.nanoTime()
+    for(i <- 0 until 50000) {
+      val plans = scenario3(s"$i")
+      val time_window = 15 * 60
+      val skim = computeSkim(plans)
+      //println(plans)
+      //printSkim(skim)
+      val algo = new HouseholdCAVPlanning(plans, 2, time_window, skim)
+      val schedules = algo().sortWith(_.cost < _.cost)
+      tot += schedules.size
+      //println(s"iteration $i - # combination ${schedules.size}")
+      //      for (i <- algo().sortWith(_.cost < _.cost)) {
+      //        println(i)
+      //      }
     }
+    val t1 = System.nanoTime()
+    println(s"Elapsed time: ${(t1 - t0)/1.0E9} seconds - number of objects: $tot")
   }
 
-  def scenario1: ArrayBuffer[BeamPlan] = {
+  def scenario1(household_id: String): ArrayBuffer[BeamPlan] = {
     val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-    val P: Person = population.getFactory.createPerson(Id.createPersonId("P1"))
+    val P: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_1"))
     val HOME_COORD = new Coord(0, 0)
     val H11: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
     H11.setEndTime(8.5 * 3600)
@@ -244,11 +254,11 @@ object Demo {
     ArrayBuffer[BeamPlan](BeamPlan(plan))
   }
 
-  def scenario2: ArrayBuffer[BeamPlan] = {
+  def scenario2(household_id: String): ArrayBuffer[BeamPlan] = {
     val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
     val HOME_COORD = new Coord(0, 0)
 
-    val P1: Person = population.getFactory.createPerson(Id.createPersonId("P1"))
+    val P1: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_1"))
     val H11: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
     H11.setEndTime(8.5 * 3600)
     val W1: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(30, 0))
@@ -262,7 +272,7 @@ object Demo {
     plan1.addActivity(W1)
     plan1.addActivity(H12)
 
-    val P2: Person = population.getFactory.createPerson(Id.createPersonId("P2"))
+    val P2: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_2"))
     val H21: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
     H21.setEndTime(8.5 * 3600)
     val W2: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(30, 10))
@@ -277,6 +287,91 @@ object Demo {
     plan2.addActivity(H22)
 
     ArrayBuffer[BeamPlan](BeamPlan(plan1), BeamPlan(plan2))
+  }
+
+  def scenario3(household_id: String): ArrayBuffer[BeamPlan] = {
+    val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+    val HOME_COORD = new Coord(0, 0)
+
+    val P1: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_1"))
+    val H11: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H11.setEndTime(9 * 3600)
+    val W1: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(60, 0))
+    W1.setStartTime(10 * 3600)
+    W1.setEndTime(19.5 * 3600)
+    val H12: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H12.setStartTime(20.5 * 3600)
+    val plan1: Plan = population.getFactory.createPlan()
+    plan1.setPerson(P1)
+    plan1.addActivity(H11)
+    plan1.addActivity(W1)
+    plan1.addActivity(H12)
+
+    val P2: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_2"))
+    val H21: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H21.setEndTime(7.5 * 3600)
+    val W2: Activity = PopulationUtils.createActivityFromCoord("W", new Coord(10, 40))
+    W2.setStartTime(8.5 * 3600)
+    W2.setEndTime(16 * 3600)
+    val Sh21: Activity = PopulationUtils.createActivityFromCoord("Sh", new Coord(10, 0))
+    Sh21.setStartTime(17 * 3600)
+    Sh21.setEndTime(19 * 3600)
+    val H22: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H22.setStartTime(19.5 * 3600)
+    val plan2: Plan = population.getFactory.createPlan()
+    plan2.setPerson(P2)
+    plan2.addActivity(H21)
+    plan2.addActivity(W2)
+    plan2.addActivity(Sh21)
+    plan2.addActivity(H22)
+
+    val P3: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_3"))
+    val H31: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H31.setEndTime(7.5 * 3600)
+    val Sc3: Activity = PopulationUtils.createActivityFromCoord("Sc", new Coord(0, 10))
+    Sc3.setStartTime(8 * 3600)
+    Sc3.setEndTime(16 * 3600)
+    val H32: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H32.setStartTime(16.5 * 3600)
+    val plan3: Plan = population.getFactory.createPlan()
+    plan3.setPerson(P3)
+    plan3.addActivity(H31)
+    plan3.addActivity(Sc3)
+    plan3.addActivity(H32)
+
+    val P4: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_4"))
+    val H41: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H41.setEndTime(7.5 * 3600)
+    val Sc4: Activity = PopulationUtils.createActivityFromCoord("Sc", new Coord(0, 10))
+    Sc4.setStartTime(8 * 3600)
+    Sc4.setEndTime(16 * 3600)
+    val H42: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H42.setStartTime(16.5 * 3600)
+    val plan4: Plan = population.getFactory.createPlan()
+    plan4.setPerson(P4)
+    plan4.addActivity(H41)
+    plan4.addActivity(Sc4)
+    plan4.addActivity(H42)
+
+    val P5: Person = population.getFactory.createPerson(Id.createPersonId("P_"+household_id+"_5"))
+    val H51: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H51.setEndTime(8.5 * 3600)
+    val Sc5: Activity = PopulationUtils.createActivityFromCoord("Sc", new Coord(50, 10))
+    Sc5.setStartTime(9.5 * 3600)
+    Sc5.setEndTime(17 * 3600)
+    val Ho5: Activity = PopulationUtils.createActivityFromCoord("Ho", new Coord(50, 0))
+    Ho5.setStartTime(17.5 * 3600)
+    Ho5.setEndTime(19.5 * 3600)
+    val H52: Activity = PopulationUtils.createActivityFromCoord("H", HOME_COORD)
+    H52.setStartTime(20.5 * 3600)
+    val plan5: Plan = population.getFactory.createPlan()
+    plan5.setPerson(P5)
+    plan5.addActivity(H51)
+    plan5.addActivity(Sc5)
+    plan5.addActivity(Ho5)
+    plan5.addActivity(H52)
+
+    ArrayBuffer[BeamPlan](BeamPlan(plan1), BeamPlan(plan2), BeamPlan(plan3), BeamPlan(plan4), BeamPlan(plan5))
   }
 
   def computeSkim(plans: ArrayBuffer[BeamPlan]): Map[Coord, Map[Coord, Double]] = {
@@ -300,7 +395,7 @@ object Demo {
 
   def printSkim(skim: Map[Coord, Map[Coord, Double]]): Unit = {
     for (row <- skim.keySet) {
-      print(s"${row}\t")
+      println(s"${row}\t")
       for (col <- skim(row).keySet) {
         print(s"${skim(row)(col)}\t")
       }
