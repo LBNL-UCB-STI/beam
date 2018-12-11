@@ -24,11 +24,11 @@ import scala.collection.mutable
   * @param outputDirectoryHierarchy output directory hierarchy.
   */
 class LinkTraversalAnalysis @Inject()(
-  private val scenario: Scenario,
-  private val beamServices: BeamServices,
-  outputDirectoryHierarchy: OutputDirectoryHierarchy
-) extends BasicEventHandler
-    with OutputDataDescriptor {
+                                       private val scenario: Scenario,
+                                       private val beamServices: BeamServices,
+                                       outputDirectoryHierarchy: OutputDirectoryHierarchy
+                                     ) extends BasicEventHandler
+  with OutputDataDescriptor {
 
   private val outputFileBaseName = "linkTraversalAnalysis"
   private var analysisData: Array[LinkTraversalData] = Array()
@@ -77,7 +77,7 @@ class LinkTraversalAnalysis @Inject()(
                   case _: Exception => 0.0
                 }
                 val turnAtLinkEnd =
-                  getDirection(currentLink.getCoord, nextLink.map(_.getCoord).getOrElse(new Coord(0.0, 0.0)))
+                  getDirection(vectorFromLink(currentLink),vectorFromLink(nextLink.getOrElse(currentLink)))
                 val numberOfStops = if (turnAtLinkEnd.equalsIgnoreCase("NA")) 0 else 1
                 (
                   id,
@@ -125,7 +125,7 @@ class LinkTraversalAnalysis @Inject()(
         "linkId,linkCapacity, averageSpeed, freeFlowSpeed, linkEnterTime, vehicleId, vehicleType, turnAtLinkEnd, numberOfStops"
       bw.append(heading + "\n")
       val content = (data.distinct
-      map { e =>
+        map { e =>
         e._1 + ", " + e._2 + ", " + e._3 + ", " + e._4 + ", " + e._5 + ", " + e._6 + ", " + e._7 + ", " + e._8 + ", " + e._9
       }).mkString("\n")
       bw.append(content)
@@ -196,13 +196,16 @@ class LinkTraversalAnalysis @Inject()(
   type LinkTraversalData = (String, Double, Double, Double, Long, String, String, String, Int)
 
   /**
-    * Computes the angle between two coordinates
-    * @param source source coordinates
-    * @param destination destination coordinates
-    * @return angle in radians
+    * Generates the direction vector for a given link
+    * @param link link in the network
+    * @return vector coordinates
     */
-  private def computeAngle(source: Coord, destination: Coord): Double =
-    Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+  private def vectorFromLink(link: Link): Coord = {
+    new Coord(
+      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
+      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
+    )
+  }
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
@@ -212,7 +215,7 @@ class LinkTraversalAnalysis @Inject()(
     */
   private def getDirection(source: Coord, destination: Coord): String = {
     if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val radians = this.computeAngle(source, destination)
+      val radians = Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
       radians match {
         case _ if radians < 0.174533 || radians >= 6.10865 => "R" // Right
         case _ if radians >= 0.174533 & radians < 1.39626  => "SR" // Soft Right
