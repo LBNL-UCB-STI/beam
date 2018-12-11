@@ -456,7 +456,7 @@ trait ChoosesMode {
     rideHail2TransitResult: Option[RideHailResponse]
   ): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs
-      .exists(_.beamLeg.mode.isMassTransit) &&
+      .exists(leg => beamServices.rideHailTransitModes.contains(leg.beamLeg.mode)) &&
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
@@ -552,18 +552,21 @@ trait ChoosesMode {
       itin.tripClassifier match {
         case CAR =>
           val newLegs = itin.legs.zipWithIndex.map {
-            case (leg, i) => if (i == 2) { leg.copy(cost = parkingResponse.stall.cost) } else { leg }
+            case (leg, i) => if (i == 2) { leg.copy(cost = leg.cost + parkingResponse.stall.cost) } else { leg }
           }
           itin.copy(legs = newLegs)
         case DRIVE_TRANSIT =>
           val newLegs = if (itin.legs.size > 2 && itin.legs(2).beamLeg.mode == CAR) {
             itin.legs.zipWithIndex.map {
-              case (leg, i) => if (i == 2) { leg.copy(cost = driveTransitParkingResponse.stall.cost) } else { leg }
+              case (leg, i) =>
+                if (i == 2) { leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost) } else { leg }
             }
           } else if (itin.legs.size > 2 && itin.legs.takeRight(2).head.beamLeg.mode == CAR) {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
-                if (i == itin.legs.size - 2) { leg.copy(cost = driveTransitParkingResponse.stall.cost) } else { leg }
+                if (i == itin.legs.size - 2) { leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.cost) } else {
+                  leg
+                }
             }
           } else {
             itin.legs
