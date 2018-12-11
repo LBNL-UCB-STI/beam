@@ -592,6 +592,14 @@ task matsimConversion(type: JavaExec) {
     }
 }
 
+task generateDocumentation(type: JavaExec) {
+    group 'Documentation'
+    description 'Format the data using Sphinx RST formats'
+
+    main = 'beam.docs.GenerateDocumentationTask'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 tasks.withType(ScalaCompile) {
     // Enable Scala warnings output
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
