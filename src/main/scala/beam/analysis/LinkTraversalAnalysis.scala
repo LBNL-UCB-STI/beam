@@ -196,7 +196,7 @@ class LinkTraversalAnalysis @Inject()(
   type LinkTraversalData = (String, Double, Double, Double, Long, String, String, String, Int)
 
   /**
-    * Generates the direction vector for a given link
+    * Generates the coordinates of direction vector for a given link
     * @param link link in the network
     * @return vector coordinates
     */
