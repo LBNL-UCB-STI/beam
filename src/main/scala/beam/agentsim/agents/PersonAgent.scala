@@ -21,7 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
 }
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.events.{AgencyRevenueEvent, PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -32,6 +32,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.DebugLib
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -431,7 +432,12 @@ class PersonAgent(
 
       val mode = data.currentTrip.get.tripClassifier
 
-      if (currentLeg.cost > 0.0)
+      if (currentLeg.cost > 0.0) {
+        if (beamServices.agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
+          val agencyId = beamServices.agencyAndRouteByVehicleIds.get(vehicleToEnter).get._1
+          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+        }
+
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
@@ -442,6 +448,7 @@ class PersonAgent(
             currentLeg.cost
           )
         )
+      }
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
