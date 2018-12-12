@@ -574,7 +574,7 @@ class PersonAgent(
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          vehicle.becomeDriver(self) match {
+          vehicle.becomeDriver(self,id.toString) match {
             case DriverAlreadyAssigned(currentDriver) =>
               log.error(
                 "I attempted to become driver of vehicle {} but driver {} already assigned.",

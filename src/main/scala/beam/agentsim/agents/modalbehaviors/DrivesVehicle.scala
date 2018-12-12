@@ -168,6 +168,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
@@ -339,6 +340,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
