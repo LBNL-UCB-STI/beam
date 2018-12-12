@@ -813,9 +813,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       Vector(leg)
     } else if (leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters) {
       val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
+//      val secondLeg = updateLegWithCurrentTravelTime(
+//        leg
+//          .updateLinks(theLinkIds.tail)
+//          .copy(startTime = firstLeg.startTime + firstLeg.duration)
+//      )
       val secondLeg = updateLegWithCurrentTravelTime(
         leg
-          .updateLinks(theLinkIds.tail)
+          .updateLinks(theLinkIds)
           .copy(startTime = firstLeg.startTime + firstLeg.duration)
       )
       Vector(firstLeg, secondLeg)
@@ -838,7 +843,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       )
       val secondLeg = updateLegWithCurrentTravelTime(
         leg
-          .updateLinks(theLinkIds.takeRight(indexFromEnd))
+//          .updateLinks(theLinkIds.takeRight(indexFromEnd))
+          .updateLinks(theLinkIds.takeRight(indexFromEnd+1))
           .copy(startTime = firstLeg.startTime + firstLeg.duration)
       )
       Vector(firstLeg, secondLeg)
