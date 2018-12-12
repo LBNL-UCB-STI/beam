@@ -17,7 +17,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.r5.R5RoutingWorker
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -135,7 +136,7 @@ trait ChoosesParking extends {
           StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
         val bodyStreetVeh =
           StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
-        val futureVehicle2StallResponse = router ? RoutingRequest(
+        val veh2StallRequest = RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
           currentPoint.time,
@@ -143,6 +144,7 @@ trait ChoosesParking extends {
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
+        val futureVehicle2StallResponse = router ? veh2StallRequest
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
         val futureStall2DestinationResponse = router ? RoutingRequest(
@@ -180,14 +182,36 @@ trait ChoosesParking extends {
 
       // If no car leg returned, then the person walks to the parking spot and we force an early exit
       // from the vehicle below.
-      val leg1 = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
-        logDebug(s"no CAR leg returned by router, walking car there instead")
-        routingResponse1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
+        logDebug(s"no CAR leg returned by router, creating dummy car leg instead")
+        val theWalkLeg = routingResponse1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+        val theDrivePath = BeamPath(Vector(nextLeg.travelPath.linkIds.last),
+          Vector(nextLeg.travelPath.linkTravelTime.last),
+          None,
+          nextLeg.travelPath.startPoint,
+          nextLeg.travelPath.startPoint,
+          0.0
+        )
+        (theWalkLeg.copy(
+          unbecomeDriverOnCompletion = true,
+          beamVehicleId = data.currentVehicle.head,
+          beamLeg = theWalkLeg.beamLeg.copy(mode = CAR,travelPath = theDrivePath))
+        ,
+          EmbodiedBeamLeg(
+          R5RoutingWorker.createBushwackingBeamLeg(nextLeg.startTime,
+            nextLeg.travelPath.startPoint.loc,
+            nextLeg.travelPath.endPoint.loc,
+            beamServices),
+          theWalkLeg.beamVehicleId,
+          true,
+          0.0,
+          true
+        ))
       } else {
-        routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1)
+        (routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
+          routingResponse2.itineraries.head.legs.head)
       }
       // Update start time of the second leg
-      var leg2 = routingResponse2.itineraries.head.legs.head
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
 
       // update person data with new legs

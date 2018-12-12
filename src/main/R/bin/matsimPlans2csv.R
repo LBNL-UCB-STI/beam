@@ -58,14 +58,14 @@ for(file.path in args$args){
   plans <- rbindlist(lapply(getNodeSet(dat,'/population/person'),function(person){ 
      person.id <- xmlGetAttr(person,'id') 
      sub.table <- rbindlist(lapply(getNodeSet(person,'./plan'),function(plan){
-      plan.score <-  xmlGetAttr(plan,'score')
-      is.selected <-  xmlGetAttr(plan,'selected')
+      plan.score <-  my.get(plan,'score')
+      is.selected <-  my.get(plan,'selected')
       sub.sub.table <- rbindlist(lapply(getNodeSet(plan,'./*'),function(plan.elem){
         if(xmlName(plan.elem)=='activity'){
           data.table('plan.element'='activity','type'=xmlGetAttr(plan.elem,'type'),'link'=my.get(plan.elem,'link'),'x'=my.get(plan.elem,'x'),'y'=my.get(plan.elem,'y'),'end_time'=parse.time(my.get(plan.elem,'end_time')))
         }else if(xmlName(plan.elem)=='leg'){
           route <- ifelse(length(getNodeSet(plan.elem,'route'))>0,xmlValue(getNodeSet(plan.elem,'route')[[1]]),"")
-          data.table('plan.element'='leg','mode'=my.get(plan.elem,'mode'),'',my.get(plan.elem,'mode'),'dep_time'=parse.time(xmlGetAttr(plan.elem,'dep_time')),'trav_time'=parse.time(xmlGetAttr(plan.elem,'trav_time')),'route'=route)
+          data.table('plan.element'='leg','mode'=my.get(plan.elem,'mode'),'',my.get(plan.elem,'mode'),'dep_time'=parse.time(my.get(plan.elem,'dep_time')),'trav_time'=parse.time(my.get(plan.elem,'trav_time')),'route'=route)
         }else{
           data.table()
         }
