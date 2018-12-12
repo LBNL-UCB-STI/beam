@@ -433,7 +433,9 @@ class PersonAgent(
       val mode = data.currentTrip.get.tripClassifier
 
       if (currentLeg.cost > 0.0) {
-        if (beamServices.agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
+        if (beamServices.agencyAndRouteByVehicleIds != null && beamServices.agencyAndRouteByVehicleIds.contains(
+              vehicleToEnter
+            )) {
           val agencyId = beamServices.agencyAndRouteByVehicleIds.get(vehicleToEnter).get._1
           eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
         }
