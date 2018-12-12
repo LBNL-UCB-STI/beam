@@ -2,30 +2,21 @@ package beam.sim
 
 import java.io.FileNotFoundException
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
 import beam.agentsim.agents.choice.mode.Range
-import beam.agentsim.agents.ridehail.RideHailAgent
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.osm.TollCalculator
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.io.Source
 
-class RideHailFleetInitializer @Inject()(
-  scenario: Scenario,
-  beamServices: BeamServices,
-  transportNetwork: TransportNetwork,
-  tollCalculator: TollCalculator,
-  eventsManager: EventsManager,
-  actorSystem: ActorSystem
-) extends LazyLogging {
+class RideHailFleetInitializer extends LazyLogging {
 
-  //todo learn where and when to invoke this initializer
   //  def init(): Unit = {
   //    try {
   //      val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(
@@ -117,14 +108,30 @@ class RideHailFleetInitializer @Inject()(
   //    }
   //  }
   //
+
   /**
     * Initializes [[beam.agentsim.agents.ridehail.RideHailAgent]] fleet
     * @param beamServices beam services instance
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
-  def init(beamServices: BeamServices, scheduler: ActorRef, parkingManager: ActorRef): List[RideHailAgent] = {
+  def init(
+    beamServices: BeamServices,
+    scheduler: ActorRef,
+    parkingManager: ActorRef,
+    eventsManager: EventsManager,
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator
+  ): List[RideHailAgent] = {
     val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
-    readCSVAsRideHailAgent(filePath, scheduler, parkingManager)
+    readCSVAsRideHailAgent(
+      filePath,
+      beamServices,
+      scheduler,
+      parkingManager,
+      eventsManager,
+      transportNetwork,
+      tollCalculator
+    )
   }
 
   /**
@@ -134,8 +141,12 @@ class RideHailFleetInitializer @Inject()(
     */
   private def readCSVAsRideHailAgent(
     filePath: String,
+    beamServices: BeamServices,
     scheduler: ActorRef,
-    parkingManager: ActorRef
+    parkingManager: ActorRef,
+    eventsManager: EventsManager,
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator
   ): List[RideHailAgent] = {
     try {
       val bufferedSource = Source.fromFile(filePath)
@@ -154,6 +165,7 @@ class RideHailFleetInitializer @Inject()(
               row(8).toDouble
             )
             val rideHailAgentId = Id.create("RideHailAgent", classOf[RideHailAgent])
+            val rideHailManagerId = Id.create(fleetData.rideHailManagerId, classOf[RideHailManager])
             val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
             val vehicleType =
               beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
@@ -169,7 +181,7 @@ class RideHailFleetInitializer @Inject()(
             Some(
               new RideHailAgent(
                 rideHailAgentId,
-                fleetData.rideHailManagerId,
+                rideHailManagerId,
                 scheduler,
                 beamVehicle,
                 new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
@@ -219,6 +231,18 @@ class RideHailFleetInitializer @Inject()(
     }
   }
 
+  /**
+    * An intermediary class to hold the ride hail fleet data read from the file.
+    * @param id id of the vehicle
+    * @param rideHailManagerId id of the ride hail manager
+    * @param vehicleType type of the beam vehicle
+    * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
+    * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
+    * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
+    * @param geoFenceX x-coordinate of the geo fence
+    * @param geoFenceY x-coordinate of the geo fence
+    * @param geoFenceRadius radius of the geo fence
+    */
   case class FleetData(
     id: String,
     rideHailManagerId: String,

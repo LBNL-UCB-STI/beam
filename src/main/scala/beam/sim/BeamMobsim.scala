@@ -349,7 +349,7 @@ class BeamMobsim @Inject()(
                 eventsManager,
                 parkingManager,
                 rideHailAgentPersonId,
-                "",
+                Id.create("RideHailManager", classOf[RideHailManager]),
                 rideHailBeamVehicle,
                 rideInitialLocation,
                 None,

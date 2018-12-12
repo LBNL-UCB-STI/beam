@@ -46,7 +46,7 @@ object RideHailAgent {
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
-    rideHailManagerId: String,
+    rideHailManagerId: Id[RideHailManager],
     vehicle: BeamVehicle,
     location: Coord,
     shifts: Option[List[Range]],
@@ -142,7 +142,7 @@ object RideHailAgent {
 
 class RideHailAgent(
   override val id: Id[RideHailAgent],
-  rideHailManagerId: String,
+  rideHailManagerId: Id[RideHailManager],
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   initialLocation: Coord,
