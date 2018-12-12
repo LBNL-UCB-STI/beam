@@ -412,7 +412,7 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
-                cost = 0.0,
+                cost = 1.0,
                 unbecomeDriverOnCompletion = true
               )
             )
@@ -437,8 +437,8 @@ class PersonAgentSpec
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[PersonCostEvent]
+      println(expectMsgType[PathTraversalEvent])
+      println(expectMsgType[PersonCostEvent])
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -541,7 +541,7 @@ class PersonAgentSpec
         ),
         beamVehicleId = tramId,
         asDriver = false,
-        cost = 0.0,
+        cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
       )
 
@@ -721,9 +721,7 @@ class PersonAgentSpec
       ) // My tram is late!
 
       events.expectMsgType[PersonEntersVehicleEvent]
-
-      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
-
+      events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       events.expectMsgType[VehicleEntersTrafficEvent]
