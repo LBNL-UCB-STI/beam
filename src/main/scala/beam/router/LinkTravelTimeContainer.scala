@@ -62,10 +62,10 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
         if (idx < traveTimePerHour.size) traveTimePerHour(idx)
         else {
           logger.warn("Got {} as index for traveTimePerHour with max size {}. Something might be wrong!", idx, maxHour)
-          link.getFreespeed
+          link.getLength / link.getFreespeed
         }
       case None =>
-        link.getFreespeed
+        link.getLength / link.getFreespeed
     }
   }
 
