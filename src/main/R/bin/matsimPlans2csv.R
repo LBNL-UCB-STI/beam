@@ -83,7 +83,9 @@ for(file.path in args$args){
   plans[,file:=file.path]
   all.plans[[length(all.plans)+1]] <- plans
 }
-all.plans <- rbindlist(all.plans,use.names=T,fill=T)
-all.plans[,iter:=unlist(lapply(str_split(file,"it\\."),function(ll){ as.numeric(str_split(ll[2],"\\/")[[1]][1])}))]
-all.plans[,file:=NULL]
-save(all.plans,file=pp(the.dir,'all-plans.Rdata'))
+if(length(all.plans)>1){
+  all.plans <- rbindlist(all.plans,use.names=T,fill=T)
+  all.plans[,iter:=unlist(lapply(str_split(file,"it\\."),function(ll){ as.numeric(str_split(ll[2],"\\/")[[1]][1])}))]
+  all.plans[,file:=NULL]
+  save(all.plans,file=pp(the.dir,'all-plans.Rdata'))
+}
