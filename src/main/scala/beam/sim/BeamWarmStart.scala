@@ -40,12 +40,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
           if (Files.exists(Paths.get(statsPath))) {
             val travelTime = getTravelTime(statsPath)
             beamRouter ! UpdateTravelTimeLocal(travelTime)
-            val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
-              scenario.getNetwork.getLinks.values(),
-              travelTime,
-              maxHour
-            )
-            beamRouter ! UpdateTravelTimeRemote(map)
+            BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
             logger.info("Travel times successfully warm started from {}.", statsPath)
           } else {
             logger.warn("Travel times failed to warm start, stats not found at path ( {} )", statsPath)
@@ -197,4 +192,14 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 object BeamWarmStart {
 
   def apply(beamConfig: BeamConfig, maxHour: Int): BeamWarmStart = new BeamWarmStart(beamConfig, maxHour)
+
+  def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
+    val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
+      scenario.getNetwork.getLinks.values(),
+      travelTime,
+      maxHour
+    )
+    beamRouter ! UpdateTravelTimeRemote(map)
+  }
+
 }
