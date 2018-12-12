@@ -481,10 +481,10 @@ class PersonAgent(
             netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
           )
         )
-      if(id.equals("010100-2012000564495-0-1184128")){
+      if (id.equals("010100-2012000564495-0-1184128")) {
         val i = 0
       }
-      if(data.currentTrip.get.tripClassifier==CAR){
+      if (data.currentTrip.get.tripClassifier == CAR) {
         val i = 0
       }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {

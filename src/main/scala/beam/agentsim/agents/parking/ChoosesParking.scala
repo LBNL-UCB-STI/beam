@@ -185,31 +185,38 @@ trait ChoosesParking extends {
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
         logDebug(s"no CAR leg returned by router, creating dummy car leg instead")
         val theWalkLeg = routingResponse1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
-        val theDrivePath = BeamPath(Vector(nextLeg.travelPath.linkIds.last),
+        val theDrivePath = BeamPath(
+          Vector(nextLeg.travelPath.linkIds.last),
           Vector(nextLeg.travelPath.linkTravelTime.last),
           None,
           nextLeg.travelPath.startPoint,
           nextLeg.travelPath.startPoint,
           0.0
         )
-        (theWalkLeg.copy(
-          unbecomeDriverOnCompletion = true,
-          beamVehicleId = data.currentVehicle.head,
-          beamLeg = theWalkLeg.beamLeg.copy(mode = CAR,travelPath = theDrivePath))
-        ,
+        (
+          theWalkLeg.copy(
+            unbecomeDriverOnCompletion = true,
+            beamVehicleId = data.currentVehicle.head,
+            beamLeg = theWalkLeg.beamLeg.copy(mode = CAR, travelPath = theDrivePath)
+          ),
           EmbodiedBeamLeg(
-          R5RoutingWorker.createBushwackingBeamLeg(nextLeg.startTime,
-            nextLeg.travelPath.startPoint.loc,
-            nextLeg.travelPath.endPoint.loc,
-            beamServices),
-          theWalkLeg.beamVehicleId,
-          true,
-          0.0,
-          true
-        ))
+            R5RoutingWorker.createBushwackingBeamLeg(
+              nextLeg.startTime,
+              nextLeg.travelPath.startPoint.loc,
+              nextLeg.travelPath.endPoint.loc,
+              beamServices
+            ),
+            theWalkLeg.beamVehicleId,
+            true,
+            0.0,
+            true
+          )
+        )
       } else {
-        (routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
-          routingResponse2.itineraries.head.legs.head)
+        (
+          routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
+          routingResponse2.itineraries.head.legs.head
+        )
       }
       // Update start time of the second leg
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))

@@ -634,7 +634,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 
-      if(vehicleId.equals("1")){
+      if (vehicleId.equals("1")) {
         val i = 0
       }
       var curTime = leg.startTime

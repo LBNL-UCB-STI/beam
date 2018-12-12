@@ -844,7 +844,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val secondLeg = updateLegWithCurrentTravelTime(
         leg
 //          .updateLinks(theLinkIds.takeRight(indexFromEnd))
-          .updateLinks(theLinkIds.takeRight(indexFromEnd+1))
+          .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
           .copy(startTime = firstLeg.startTime + firstLeg.duration)
       )
       Vector(firstLeg, secondLeg)
