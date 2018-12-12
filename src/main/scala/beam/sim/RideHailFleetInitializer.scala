@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.io.Source
+import scala.util.Random
 
 class RideHailFleetInitializer extends LazyLogging {
 
@@ -164,7 +165,7 @@ class RideHailFleetInitializer extends LazyLogging {
               row(7).toDouble,
               row(8).toDouble
             )
-            val rideHailAgentId = Id.create("RideHailAgent", classOf[RideHailAgent])
+            val rideHailAgentId = Id.create(s"RideHailAgent-${Random.nextInt(100)}", classOf[RideHailAgent])
             val rideHailManagerId = Id.create(fleetData.rideHailManagerId, classOf[RideHailManager])
             val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
             val vehicleType =
@@ -255,4 +256,9 @@ class RideHailFleetInitializer extends LazyLogging {
     geoFenceRadius: Double
   )
 
+}
+
+object RideHailFleetInitializationType extends Enumeration {
+  type RideHailFleetInitializationType = Value
+  val PROCEDURAL, FILE = Value
 }
