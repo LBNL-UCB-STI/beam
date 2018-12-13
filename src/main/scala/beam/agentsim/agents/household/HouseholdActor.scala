@@ -145,7 +145,7 @@ object HouseholdActor {
         None,
         BeamVehicleType.defaultHumanBodyBeamVehicleType
       )
-      newBodyVehicle.taken = true
+      newBodyVehicle.exclusiveAccess = true
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
 
@@ -167,14 +167,14 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        vehicle.taken = false
+        vehicle.exclusiveAccess = false
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
       case MobilityStatusInquiry() =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
-            firstVehicle.taken = true
+            firstVehicle.exclusiveAccess = true
             sender() ! MobilityStatusResponse(Vector(firstVehicle))
             rest
           case Nil =>

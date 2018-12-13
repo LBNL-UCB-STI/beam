@@ -37,7 +37,7 @@ class BeamVehicle(
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 
-  var taken = false
+  var exclusiveAccess = false
 
   var spaceTime: SpaceTime = _
 

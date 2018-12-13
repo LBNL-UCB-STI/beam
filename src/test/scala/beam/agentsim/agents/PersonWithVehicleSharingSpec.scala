@@ -194,7 +194,7 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
 
       // I give it a car to use.
-      beamVehicle.taken = true
+      beamVehicle.exclusiveAccess = true
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(beamVehicle))
 
       // The agent will ask for current travel times for a route it already knows.
@@ -340,7 +340,7 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
-      car1.taken = true
+      car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
@@ -368,7 +368,7 @@ class PersonWithVehicleSharingSpec
 
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
-      car2.taken = true
+      car2.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car2))
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>

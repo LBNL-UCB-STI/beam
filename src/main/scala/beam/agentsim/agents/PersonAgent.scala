@@ -542,22 +542,10 @@ class PersonAgent(
         Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
       )
 
-      val (stateToGo, currentTick) =
-        if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          (ReleasingParkingSpot, _currentTick.get)
-        } else {
-          val (currentTick, _) = releaseTickAndTriggerId()
-          (WaitingToDrive, currentTick)
-        }
-
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          if (!vehicle.taken) {
+          if (!vehicle.exclusiveAccess) {
             throw new RuntimeException(
               "I don't have access to that vehicle."
             )
@@ -565,7 +553,7 @@ class PersonAgent(
           vehicle.becomeDriver(self)
           eventsManager.processEvent(
             new PersonEntersVehicleEvent(
-              currentTick,
+              _currentTick.get,
               Id.createPersonId(id),
               nextLeg.beamVehicleId
             )
@@ -576,6 +564,17 @@ class PersonAgent(
         }
       if (currentVehicleForNextState.isDefined) {
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+        val stateToGo =
+          if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
+            log.debug(
+              "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+              legsToInclude
+            )
+            ReleasingParkingSpot
+          } else {
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
