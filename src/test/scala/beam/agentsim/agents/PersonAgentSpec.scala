@@ -715,7 +715,7 @@ class PersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
+            reservationRequestTram.passengerVehiclePersonId
           )
         ),
         TRANSIT
