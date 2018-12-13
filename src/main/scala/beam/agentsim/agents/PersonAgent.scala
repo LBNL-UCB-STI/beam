@@ -469,10 +469,9 @@ class PersonAgent(
   // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
       if (toll != 0.0)
         eventsManager.processEvent(
-          new PersonCostEvent(tick, matsimPlan.getPerson.getId, "car", "toll", toll)
+          new PersonCostEvent(_currentTick.get, matsimPlan.getPerson.getId, "car", "toll", toll)
         )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)
@@ -486,10 +485,9 @@ class PersonAgent(
           case None =>
         }
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head)
+          new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
       }
-      holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = data.restOfCurrentTrip.tail,
         currentVehicle = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
