@@ -7,8 +7,10 @@ import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.osm.TollCalculator
-import beam.utils.FileUtils
+import beam.sim.RideHailFleetInitializer.FleetData
+import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
@@ -17,29 +19,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.io.Source
 import scala.util.Random
 
-object RideHailFleetInitializer extends LazyLogging {
-
-  private val outputFileBaseName = "rideHailFleet"
-
-  /**
-    * A writer that writes the initialized fleet data to a csv on all iterations
-    * @param beamServices beam services isntance
-    * @param fleetData data to be written
-    */
-  def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
-    try {
-      val filePath = beamServices.matsimServices.getControlerIO
-        .getIterationFilename(beamServices.iterationNumber, outputFileBaseName + ".csv.gz")
-      val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
-      val data = fleetData map { f =>
-        f.productIterator.map(f => if (f == None) "" else f) mkString ", "
-      } mkString "\n"
-      FileUtils.writeToFile(filePath, Some(fileHeader), data, None)
-    } catch {
-      case e: Exception =>
-        logger.error("Error while writing procedurally initialized ride hail fleet data to csv ", e)
-    }
-  }
+class RideHailFleetInitializer extends LazyLogging {
 
   /**
     * Initializes [[beam.agentsim.agents.ridehail.RideHailAgent]] fleet
@@ -164,6 +144,32 @@ object RideHailFleetInitializer extends LazyLogging {
   }
 
   /**
+    * A writer that writes the initialized fleet data to a csv on all iterations
+    * @param beamServices beam services isntance
+    * @param fleetData data to be written
+    */
+  def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
+    try {
+      val filePath = beamServices.matsimServices.getControlerIO
+        .getIterationFilename(beamServices.iterationNumber, RideHailFleetInitializer.outputFileBaseName + ".csv.gz")
+      val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
+      val data = fleetData map { f =>
+        f.productIterator.map(f => if (f == None) "" else f) mkString ", "
+      } mkString "\n"
+      FileUtils.writeToFile(filePath, Some(fileHeader), data, None)
+    } catch {
+      case e: Exception =>
+        logger.error("Error while writing procedurally initialized ride hail fleet data to csv ", e)
+    }
+  }
+
+}
+
+object RideHailFleetInitializer extends OutputDataDescriptor {
+
+  val outputFileBaseName = "rideHailFleet"
+
+  /**
     * An intermediary class to hold the ride hail fleet data read from the file.
     * @param id id of the vehicle
     * @param rideHailManagerId id of the ride hail manager
@@ -186,5 +192,100 @@ object RideHailFleetInitializer extends LazyLogging {
     geoFenceY: Option[Double],
     geoFenceRadius: Option[Double]
   )
+
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: java.util.List[OutputDataDescription] = {
+    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+      .getIterationFilename(0, outputFileBaseName + ".csv.gz")
+    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath: String = filePath.replace(outputDirPath, "")
+    val list: java.util.List[OutputDataDescription] = new java.util.ArrayList[OutputDataDescription]
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "id",
+          "Id of the ride hail vehicle"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "rideHailManagerId",
+          "Id of the ride hail manager"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "vehicleType",
+          "Type of the beam vehicle"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "initialLocationX",
+          "X-coordinate of the initial location of the ride hail vehicle"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "initialLocationY",
+          "Y-coordinate of the initial location of the ride hail vehicle"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "shifts",
+          "Time shifts for the vehicle , usually a stringified collection of time ranges"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "geoFenceX",
+          "X-coordinate of the geo fence central point"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "geoFenceY",
+          "Y-coordinate of the geo fence central point"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "geoFenceRadius",
+          "Radius of the geo fence"
+        )
+      )
+    list
+  }
 
 }

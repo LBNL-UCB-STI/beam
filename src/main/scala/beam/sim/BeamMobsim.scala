@@ -388,10 +388,10 @@ class BeamMobsim @Inject()(
                     )
               }
 
-              RideHailFleetInitializer.writeFleetData(beamServices, fleetData)
+              new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
 
             case "FILE" =>
-              RideHailFleetInitializer.init(
+              new RideHailFleetInitializer().init(
                 beamServices,
                 scheduler,
                 parkingManager,

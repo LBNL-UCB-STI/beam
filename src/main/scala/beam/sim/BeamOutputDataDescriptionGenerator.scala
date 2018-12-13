@@ -109,7 +109,8 @@ object BeamOutputDataDescriptionGenerator {
     RideHailTripDistanceOutputs,
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
+    BiasNormalizedErrorGraphDataOutputs,
+    RideHailFleetInitializer
   )
 
 }

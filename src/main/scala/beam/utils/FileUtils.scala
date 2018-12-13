@@ -114,7 +114,7 @@ object FileUtils extends LazyLogging {
     * @param fileFooter an optional footer to be appended (if any)
     */
   def writeToFile(filePath: String, fileHeader: Option[String], data: String, fileFooter: Option[String]): Unit = {
-    val bw = IOUtils.getBufferedWriter(filePath)//new BufferedWriter(new FileWriter(filePath))
+    val bw = IOUtils.getBufferedWriter(filePath) //new BufferedWriter(new FileWriter(filePath))
     try {
       if (fileHeader.isDefined)
         bw.append(fileHeader.get + "\n")
