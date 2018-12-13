@@ -542,51 +542,42 @@ class PersonAgent(
         Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
       )
 
-      val currentVehicleForNextState =
-        if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          if (!vehicle.exclusiveAccess) {
-            throw new RuntimeException(
-              "I don't have access to that vehicle."
-            )
-          }
-          vehicle.becomeDriver(self)
-          eventsManager.processEvent(
-            new PersonEntersVehicleEvent(
-              _currentTick.get,
-              Id.createPersonId(id),
-              nextLeg.beamVehicleId
-            )
+      val currentVehicleForNextState = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+        val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+        if (!vehicle.exclusiveAccess) {
+          throw new RuntimeException(
+            "I don't have access to that vehicle."
           )
-          Some(nextLeg.beamVehicleId +: currentVehicle)
-        } else {
-          Some(currentVehicle)
         }
-      if (currentVehicleForNextState.isDefined) {
-        val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
-        val stateToGo =
-          if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
-            log.debug(
-              "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-              legsToInclude
-            )
-            ReleasingParkingSpot
-          } else {
-            releaseTickAndTriggerId()
-            WaitingToDrive
-          }
-        goto(stateToGo) using data.copy(
-          passengerSchedule = newPassengerSchedule,
-          currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState.get
-        )
-      } else {
-        stop(
-          Failure(
-            s"Person $id attempted to become driver of vehicle ${nextLeg.beamVehicleId} but driver already assigned."
+        vehicle.becomeDriver(self)
+        eventsManager.processEvent(
+          new PersonEntersVehicleEvent(
+            _currentTick.get,
+            Id.createPersonId(id),
+            nextLeg.beamVehicleId
           )
         )
+        nextLeg.beamVehicleId +: currentVehicle
+      } else {
+        currentVehicle
       }
+      val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+      val stateToGo =
+        if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
+          log.debug(
+            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+            legsToInclude
+          )
+          ReleasingParkingSpot
+        } else {
+          releaseTickAndTriggerId()
+          WaitingToDrive
+        }
+      goto(stateToGo) using data.copy(
+        passengerSchedule = newPassengerSchedule,
+        currentLegPassengerScheduleIndex = 0,
+        currentVehicle = currentVehicleForNextState
+      )
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
