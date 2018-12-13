@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
@@ -50,14 +50,13 @@ trait ChoosesMode {
   val bodyVehiclePersonId = VehiclePersonId(bodyId, id, Some(self))
 
   onTransition {
-    case (PerformingActivity | Waiting | WaitingForReservationConfirmation |
-        ProcessingNextLegOrStartActivity) -> ChoosingMode =>
-      stateData match {
+    case _ -> ChoosingMode =>
+      nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
-        case BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _) =>
+        case ChoosesModeData(BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _), _, _, _, _, _, _, _, _,_,_,_,_,_,_,_,_,_) =>
           self ! MobilityStatusResponse(Vector(vehicle))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
-        case BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _) =>
+        case ChoosesModeData(BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _), _, _, _, _, _, _, _, _,_,_,_,_,_,_,_,_,_) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
           Future
@@ -692,7 +691,7 @@ trait ChoosesMode {
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
 
-      modeChoiceCalculator(filteredItinerariesForChoice.toIndexedSeq, attributesOfIndividual) match {
+      modeChoiceCalculator(filteredItinerariesForChoice, attributesOfIndividual) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>

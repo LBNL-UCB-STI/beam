@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.Resource.{Boarded, TryToBoardVehicle}
+import beam.agentsim.Resource.{Boarded, NotAvailable, TryToBoardVehicle}
 import beam.agentsim.agents.PersonAgent.TryingToBoardVehicle
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
@@ -21,6 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -254,7 +255,7 @@ class PersonWithVehicleSharingSpec
       expectMsgType[CompletionNotice]
     }
 
-    it("should use another car when the car that was originally offered is taken") {
+    it("should replan when the car that was originally offered is taken") {
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val mockSharedVehicleFleet = TestProbe()
       val car1 = new BeamVehicle(
@@ -265,14 +266,6 @@ class PersonWithVehicleSharingSpec
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
       vehicles.put(car1.getId, car1)
-      val car2 = new BeamVehicle(
-        Id.createVehicleId("car-2"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType
-      )
-      car2.manager = Some(mockSharedVehicleFleet.ref)
-      vehicles.put(car2.getId, car2)
 
       val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId)
       population.addPerson(person1)
@@ -373,15 +366,15 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
       mockSharedVehicleFleet.lastSender ! Boarded
 
-      val person1EntersCar = person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
-
+      // car
+      person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
-      car2.exclusiveAccess = false
-      mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car2))
+      car1.exclusiveAccess = false
+      mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
-          assert(vehicleId == car2.id, "Agent should ask for route with the car I gave it.")
+          assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
@@ -398,15 +391,35 @@ class PersonWithVehicleSharingSpec
           )
       }
 
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+
       // body
       person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
-      mockSharedVehicleFleet.lastSender ! Boarded
+      mockSharedVehicleFleet.lastSender ! NotAvailable
 
-      val person2EntersCar = person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      person2EntersVehicleEvents.expectNoMessage()
 
-      assert(person1EntersCar.getVehicleId != person2EntersCar.getVehicleId, "Agents should get into different cars.")
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
+      mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
+
+      // agent has no car available, so will ask for new route
+      mockRouter.expectMsgPF() {
+        case RoutingRequest(_,_,_,_,streetVehicles,_,_,_) =>
+          val body = streetVehicles.find(_.mode == WALK).get
+          val embodiedLeg = EmbodiedBeamLeg(
+            beamLeg = BeamLeg(28820, BeamMode.WALK, 500, BeamPath(Vector(), Vector(), None, SpaceTime(0,0,28820), SpaceTime(0,0,28820), 0.0)),
+            beamVehicleId = body.id,
+            asDriver = true,
+            cost = 0.0,
+            unbecomeDriverOnCompletion = true
+          )
+          mockRouter.lastSender ! RoutingResponse(
+            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            staticRequestId = java.util.UUID.randomUUID().hashCode()
+          )
+      }
 
       expectMsgType[CompletionNotice]
     }
@@ -415,7 +428,7 @@ class PersonWithVehicleSharingSpec
 
   private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], departureTimeOffset: Int = 0, withRoute: Boolean = true) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
-    putDefaultBeamAttributes(person)
+    putDefaultBeamAttributes(person, Vector(CAR, WALK))
     val plan = PopulationUtils.getFactory.createPlan()
     val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
     homeActivity.setEndTime(28800 + departureTimeOffset) // 8:00:00 AM

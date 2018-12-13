@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -47,7 +48,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithCarPlanSpec
     extends TestKit(
@@ -621,7 +622,7 @@ class PersonWithCarPlanSpec
 
   private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], withRoute: Boolean = true) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
-    putDefaultBeamAttributes(person)
+    putDefaultBeamAttributes(person, Vector(CAR))
     val plan = PopulationUtils.getFactory.createPlan()
     val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
     homeActivity.setEndTime(28800) // 8:00:00 AM

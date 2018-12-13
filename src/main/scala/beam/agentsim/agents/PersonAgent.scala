@@ -519,8 +519,11 @@ class PersonAgent(
       val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
       vehicle.exclusiveAccess = true
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable, _) =>
-      throw new RuntimeException("I don't have access to that vehicle.")
+    case Event(NotAvailable, basePersonData: BasePersonData) =>
+      goto(ChoosingMode) using ChoosesModeData(basePersonData.copy(
+        currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
+        currentTourPersonalVehicle = None,
+      ))
   }
 
   /**
