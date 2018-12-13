@@ -117,10 +117,10 @@ object FileUtils extends LazyLogging {
     val bw = new BufferedWriter(new FileWriter(filePath))
     try {
       if (fileHeader.isDefined)
-        bw.append(fileHeader.get)
+        bw.append(fileHeader.get + "\n")
       bw.append(data)
       if (fileFooter.isDefined)
-        bw.append(fileFooter.get)
+        bw.append("\n" + fileFooter.get)
     } catch {
       case e: IOException =>
         logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)
