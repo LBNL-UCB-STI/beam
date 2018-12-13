@@ -533,15 +533,6 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(_, _, nextLeg :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
         ) if nextLeg.asDriver =>
-      val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(
-        _.beamVehicleId == nextLeg.beamVehicleId
-      )
-
-      scheduler ! CompletionNotice(
-        _currentTriggerId.get,
-        Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
-      )
-
       val currentVehicleForNextState = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
         val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
         if (!vehicle.exclusiveAccess) {
@@ -561,18 +552,26 @@ class PersonAgent(
       } else {
         currentVehicle
       }
+      val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
       val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
-      val stateToGo =
-        if (nextLeg.asDriver && nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          ReleasingParkingSpot
-        } else {
-          releaseTickAndTriggerId()
-          WaitingToDrive
-        }
+
+      // Really? Also in the ReleasingParkingSpot case? How can it be that only one case releases the trigger,
+      // but both of them send a CompletionNotice?
+      scheduler ! CompletionNotice(
+        _currentTriggerId.get,
+        Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
+      )
+
+      val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
+        log.debug(
+          "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+          legsToInclude
+        )
+        ReleasingParkingSpot
+      } else {
+        releaseTickAndTriggerId()
+        WaitingToDrive
+      }
       goto(stateToGo) using data.copy(
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
