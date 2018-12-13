@@ -53,10 +53,48 @@ trait ChoosesMode {
     case _ -> ChoosingMode =>
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
-        case ChoosesModeData(BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _), _, _, _, _, _, _, _, _,_,_,_,_,_,_,_,_,_) =>
+        case ChoosesModeData(
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _),
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+            ) =>
           self ! MobilityStatusResponse(Vector(vehicle))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
-        case ChoosesModeData(BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _), _, _, _, _, _, _, _, _,_,_,_,_,_,_,_,_,_) =>
+        case ChoosesModeData(
+            BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _),
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+            ) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
           Future

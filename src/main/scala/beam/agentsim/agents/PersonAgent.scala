@@ -520,10 +520,12 @@ class PersonAgent(
       vehicle.exclusiveAccess = true
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
-      goto(ChoosingMode) using ChoosesModeData(basePersonData.copy(
-        currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
-        currentTourPersonalVehicle = None,
-      ))
+      goto(ChoosingMode) using ChoosesModeData(
+        basePersonData.copy(
+          currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
+          currentTourPersonalVehicle = None,
+        )
+      )
   }
 
   /**

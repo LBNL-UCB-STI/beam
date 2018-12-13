@@ -51,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithVehicleSharingSpec
     extends TestKit(
@@ -406,10 +406,15 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_,_,_,_,streetVehicles,_,_,_) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
-            beamLeg = BeamLeg(28820, BeamMode.WALK, 500, BeamPath(Vector(), Vector(), None, SpaceTime(0,0,28820), SpaceTime(0,0,28820), 0.0)),
+            beamLeg = BeamLeg(
+              28820,
+              BeamMode.WALK,
+              500,
+              BeamPath(Vector(), Vector(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
+            ),
             beamVehicleId = body.id,
             asDriver = true,
             cost = 0.0,
@@ -426,7 +431,12 @@ class PersonWithVehicleSharingSpec
 
   }
 
-  private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], departureTimeOffset: Int = 0, withRoute: Boolean = true) = {
+  private def createTestPerson(
+    personId: Id[Person],
+    vehicleId: Id[Vehicle],
+    departureTimeOffset: Int = 0,
+    withRoute: Boolean = true
+  ) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(CAR, WALK))
     val plan = PopulationUtils.getFactory.createPlan()

@@ -107,7 +107,8 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    scenario.getPopulation.getPersons.values.asScala.foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.availableModes))
+    scenario.getPopulation.getPersons.values.asScala
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.availableModes))
     router = system.actorOf(
       BeamRouter.props(
         services,
