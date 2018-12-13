@@ -111,6 +111,12 @@ object HouseholdActor {
   ) extends VehicleManager
       with ActorLogging {
 
+    if(beamServices.beamConfig.beam.experimental.optimizer.enabled) {
+      val solver = context.actorOf(beam.agentsim.agents.household.HouseholdSolverActor.props)
+      solver ! beam.agentsim.agents.household.BeginSolving
+      context.watch(solver)
+    }
+
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
