@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.testkit.TestActor.RealMessage
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -43,6 +44,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -90,6 +92,12 @@ class PersonAndTransitDriverSpec
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
     when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+
+    var map = TrieMap[Id[Vehicle], (String, String)]()
+    map += (Id.createVehicleId("my_bus")  -> ("", ""))
+    map += (Id.createVehicleId("my_tram") -> ("", ""))
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
+
     theServices
   }
 
@@ -418,6 +426,7 @@ class PersonAndTransitDriverSpec
       tramEvents.expectMsgType[VehicleLeavesTrafficEvent]
       tramEvents.expectMsgType[PathTraversalEvent]
 
+      otherEvents.expectMsgType[AgencyRevenueEvent]
       otherEvents.expectNoMessage()
 
       expectMsgType[CompletionNotice]
