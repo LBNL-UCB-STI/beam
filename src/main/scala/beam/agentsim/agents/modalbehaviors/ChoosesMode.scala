@@ -232,14 +232,15 @@ trait ChoosesMode {
                   }
                   linkIds += r.getEndLinkId.toString.toInt
 
+                  val startLoc = R5RoutingWorker.linkIdToCoord(linkIds.head, transportNetwork)
+                  val endLoc = R5RoutingWorker.linkIdToCoord(linkIds.last, transportNetwork)
                   val leg = BeamLeg(
                     departTime,
                     mode,
                     l.getTravelTime.toInt,
-                    // TODO FIXME
-                    BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
+                    BeamPath(linkIds, Vector.empty, None, SpaceTime(startLoc,departTime), SpaceTime(endLoc,departTime + l.getTravelTime.toInt), r.getDistance)
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true, destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord)))
                   parkingRequestId = requestParkingCost(
                     leg.travelPath.endPoint.loc,
                     nextAct.getType,

@@ -180,37 +180,12 @@ trait ChoosesParking extends {
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-      // If no car leg returned, then the person walks to the parking spot and we force an early exit
-      // from the vehicle below.
+      // If no car leg returned, use previous route to destination (i.e. assume parking is at dest)
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
-        logDebug(s"no CAR leg returned by router, creating dummy car leg instead")
-        val theWalkLeg = routingResponse1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
-        val theDrivePath = BeamPath(
-          Vector(nextLeg.travelPath.linkIds.last),
-          Vector(nextLeg.travelPath.linkTravelTime.last),
-          None,
-          nextLeg.travelPath.startPoint,
-          nextLeg.travelPath.startPoint,
-          0.0
-        )
+        logDebug(s"no CAR leg returned by router, assuming parking spot is at destination")
         (
-          theWalkLeg.copy(
-            unbecomeDriverOnCompletion = true,
-            beamVehicleId = data.currentVehicle.head,
-            beamLeg = theWalkLeg.beamLeg.copy(mode = CAR, travelPath = theDrivePath)
-          ),
-          EmbodiedBeamLeg(
-            R5RoutingWorker.createBushwackingBeamLeg(
-              nextLeg.startTime,
-              nextLeg.travelPath.startPoint.loc,
-              nextLeg.travelPath.endPoint.loc,
-              beamServices
-            ),
-            theWalkLeg.beamVehicleId,
-            true,
-            0.0,
-            true
-          )
+          EmbodiedBeamLeg(nextLeg,data.currentVehicle.head,true,0.0,true),
+          routingResponse2.itineraries.head.legs.head
         )
       } else {
         (

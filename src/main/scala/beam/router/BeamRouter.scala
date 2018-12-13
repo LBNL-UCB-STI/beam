@@ -430,7 +430,8 @@ object BeamRouter {
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     id: Int = UUID.randomUUID().hashCode(),
-    mustParkAtEnd: Boolean = false
+    mustParkAtEnd: Boolean = false,
+    destinationForSplitting: Option[Coord] = None
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
