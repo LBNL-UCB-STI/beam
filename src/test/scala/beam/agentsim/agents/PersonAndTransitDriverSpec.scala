@@ -136,6 +136,7 @@ class PersonAndTransitDriverSpec
       val tramEvents = new TestProbe(system)
       val personEvents = new TestProbe(system)
       val otherEvents = new TestProbe(system)
+      val agencyEvents = new TestProbe(system)
 
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -144,7 +145,7 @@ class PersonAndTransitDriverSpec
             event match {
               case personEvent: HasPersonId if personEvent.getPersonId.toString == "my_bus" =>
                 busEvents.ref ! event
-              case personEvent: HasPersonId if personEvent.getPersonId.toString == "my_tram" =>
+              case event: HasPersonId if event.getPersonId.toString == "my_tram" =>
                 tramEvents.ref ! event
               case personEvent: HasPersonId if personEvent.getPersonId.toString == "dummyAgent" =>
                 personEvents.ref ! event
@@ -154,6 +155,8 @@ class PersonAndTransitDriverSpec
                 tramEvents.ref ! event
               case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "body-dummyAgent" =>
                 personEvents.ref ! event
+              case agencyRevenueEvent: AgencyRevenueEvent =>
+                agencyEvents.ref ! event
               case _ =>
                 otherEvents.ref ! event
             }
@@ -426,7 +429,8 @@ class PersonAndTransitDriverSpec
       tramEvents.expectMsgType[VehicleLeavesTrafficEvent]
       tramEvents.expectMsgType[PathTraversalEvent]
 
-      otherEvents.expectMsgType[AgencyRevenueEvent]
+      agencyEvents.expectMsgType[AgencyRevenueEvent]
+
       otherEvents.expectNoMessage()
 
       expectMsgType[CompletionNotice]
