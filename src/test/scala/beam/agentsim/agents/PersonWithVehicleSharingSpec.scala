@@ -5,6 +5,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
+import beam.agentsim.Resource.{Boarded, TryToBoardVehicle}
+import beam.agentsim.agents.PersonAgent.TryingToBoardVehicle
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
@@ -48,7 +50,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithVehicleSharingSpec
     extends TestKit(
@@ -254,12 +256,14 @@ class PersonWithVehicleSharingSpec
 
     it("should use another car when the car that was originally offered is taken") {
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val mockSharedVehicleFleet = TestProbe()
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
+      car1.manager = Some(mockSharedVehicleFleet.ref)
       vehicles.put(car1.getId, car1)
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
@@ -267,6 +271,7 @@ class PersonWithVehicleSharingSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
+      car2.manager = Some(mockSharedVehicleFleet.ref)
       vehicles.put(car2.getId, car2)
 
       val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId)
@@ -315,7 +320,6 @@ class PersonWithVehicleSharingSpec
       )
 
       val mockRouter = TestProbe()
-      val mockSharedVehicleFleet = TestProbe()
       val mockRideHailingManager = TestProbe()
 
       TestActorRef[HouseholdActor](
@@ -363,7 +367,12 @@ class PersonWithVehicleSharingSpec
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
+      // body
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+
+      mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
+      mockSharedVehicleFleet.lastSender ! Boarded
+
       val person1EntersCar = person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
 
@@ -389,8 +398,12 @@ class PersonWithVehicleSharingSpec
           )
       }
 
-
+      // body
       person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+
+      mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
+      mockSharedVehicleFleet.lastSender ! Boarded
+
       val person2EntersCar = person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       assert(person1EntersCar.getVehicleId != person2EntersCar.getVehicleId, "Agents should get into different cars.")

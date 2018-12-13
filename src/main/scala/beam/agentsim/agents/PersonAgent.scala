@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
-import beam.agentsim.Resource.{NotifyVehicleIdle, RegisterResource}
+import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
@@ -157,6 +157,8 @@ object PersonAgent {
   case object Waiting extends Traveling
 
   case object ProcessingNextLegOrStartActivity extends Traveling
+
+  case object TryingToBoardVehicle extends Traveling
 
   case object WaitingToDrive extends Traveling
 
@@ -512,6 +514,15 @@ class PersonAgent(
       unstashAll()
   }
 
+  when(TryingToBoardVehicle) {
+    case Event(Boarded, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _)) =>
+      val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+      vehicle.exclusiveAccess = true
+      goto(ProcessingNextLegOrStartActivity)
+    case Event(NotAvailable, _) =>
+      throw new RuntimeException("I don't have access to that vehicle.")
+  }
+
   /**
     * processNextLegOrStartActivity
     *
@@ -531,50 +542,56 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(_, _, nextLeg :: restOfCurrentTrip, currentVehicle, _, _, _, _, _)
         ) if nextLeg.asDriver =>
-      val currentVehicleForNextState = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-        val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-        if (!vehicle.exclusiveAccess) {
-          throw new RuntimeException(
-            "I don't have access to that vehicle."
+      // Declaring a function here because this case is already so convoluted that I require a return
+      // statement from within.
+      // TODO: Refactor.
+      def nextState: FSM.State[BeamAgentState, PersonData] = {
+        val currentVehicleForNextState = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+          if (!vehicle.exclusiveAccess) {
+            vehicle.manager.get ! TryToBoardVehicle(vehicle.getId, self)
+            return goto(TryingToBoardVehicle)
+          }
+          vehicle.becomeDriver(self)
+          eventsManager.processEvent(
+            new PersonEntersVehicleEvent(
+              _currentTick.get,
+              Id.createPersonId(id),
+              nextLeg.beamVehicleId
+            )
           )
+          nextLeg.beamVehicleId +: currentVehicle
+        } else {
+          currentVehicle
         }
-        vehicle.becomeDriver(self)
-        eventsManager.processEvent(
-          new PersonEntersVehicleEvent(
-            _currentTick.get,
-            Id.createPersonId(id),
-            nextLeg.beamVehicleId
+        val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
+        val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+
+        // Really? Also in the ReleasingParkingSpot case? How can it be that only one case releases the trigger,
+        // but both of them send a CompletionNotice?
+        scheduler ! CompletionNotice(
+          _currentTriggerId.get,
+          Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
+        )
+
+        val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
+          log.debug(
+            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+            legsToInclude
           )
+          ReleasingParkingSpot
+        } else {
+          releaseTickAndTriggerId()
+          WaitingToDrive
+        }
+        goto(stateToGo) using data.copy(
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle = currentVehicleForNextState
         )
-        nextLeg.beamVehicleId +: currentVehicle
-      } else {
-        currentVehicle
       }
-      val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
-      val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+      nextState
 
-      // Really? Also in the ReleasingParkingSpot case? How can it be that only one case releases the trigger,
-      // but both of them send a CompletionNotice?
-      scheduler ! CompletionNotice(
-        _currentTriggerId.get,
-        Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
-      )
-
-      val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
-        log.debug(
-          "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-          legsToInclude
-        )
-        ReleasingParkingSpot
-      } else {
-        releaseTickAndTriggerId()
-        WaitingToDrive
-      }
-      goto(stateToGo) using data.copy(
-        passengerSchedule = newPassengerSchedule,
-        currentLegPassengerScheduleIndex = 0,
-        currentVehicle = currentVehicleForNextState
-      )
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
