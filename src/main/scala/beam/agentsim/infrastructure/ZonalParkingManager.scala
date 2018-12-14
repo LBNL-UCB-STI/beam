@@ -307,27 +307,6 @@ class ZonalParkingManager(
           )
           ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
       }.toVector
-//      val foundBefore = Vector(FlatFee, Block).flatMap { pricingModel =>
-//        val attrib =
-//          StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger, ParkingStall.Any)
-//        val stallValues = pooledResources(attrib)
-//        if (stallValues.numStalls > 0) {
-//          val stallLoc = sampleLocationForStall(taz._1, attrib)
-//          val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
-//          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
-//          val cost = calculateCost(
-//            attrib,
-//            stallValues.feeInCents,
-//            inquiry.arrivalTime,
-//            inquiry.parkingDuration
-//          )
-//          Vector(
-//            ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
-//          )
-//        } else {
-//          Vector[ParkingAlternative]()
-//        }
-//      }
       foundAfter
     }
     val chosenStall = allOptions.sortBy(_.rankingWeight).headOption match {
