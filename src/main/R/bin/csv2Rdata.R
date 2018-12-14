@@ -2,6 +2,7 @@
 ##############################################################################################################################################
 # Script to convert CSV files to an R data table and then save as Rdata. This is intended to be run from the project root directory.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 

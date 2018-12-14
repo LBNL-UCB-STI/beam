@@ -12,9 +12,9 @@ import org.matsim.vehicles.Vehicle
 case class RideHailRequest(
   requestType: RideHailRequestType,
   customer: VehiclePersonId,
-  pickUpLocation: Location,
+  pickUpLocationUTM: Location,
   departAt: Int,
-  destination: Location,
+  destinationUTM: Location,
   asPooled: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = UUID.randomUUID().hashCode()
@@ -25,7 +25,7 @@ case class RideHailRequest(
   override def equals(that: Any) = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
   override def toString: String =
-    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocation, time: $departAt, dest: $destination)"
+    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
 }
 
 object RideHailRequest {

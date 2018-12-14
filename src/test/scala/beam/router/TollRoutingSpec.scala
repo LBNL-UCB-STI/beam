@@ -93,8 +93,8 @@ class TollRoutingSpec
 
   "A time-dependent router with toll calculator" must {
     val time = 3000
-    val origin = new Location(0.00005, 0.01995)
-    val destination = new Location(0.02005, 0.01995)
+    val origin = new Location(166027.034662, 2208.12088093) // In WGS this would be Location(0.00005, 0.01995)
+    val destination = new Location(168255.58799, 2208.08034995) // In WGS Location(0.02005, 0.01995)
 
     "report a toll on a route where the fastest route has tolls" in {
       val request = RoutingRequest(
