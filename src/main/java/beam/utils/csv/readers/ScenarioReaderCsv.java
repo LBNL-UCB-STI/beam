@@ -2,31 +2,22 @@ package beam.utils.csv.readers;
 
 import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
-import beam.agentsim.agents.vehicles.BeamVehicleType$;
 import beam.sim.BeamServices;
 import beam.sim.vehicles.VehiclesAdjustment;
 import beam.sim.vehicles.VehiclesAdjustment$;
 import beam.utils.BeamVehicleUtils;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.*;
-import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.households.*;
-import org.matsim.utils.objectattributes.ObjectAttributes;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 import org.matsim.vehicles.VehicleTypeImpl;
 import org.matsim.vehicles.VehicleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.None;
-import scala.Option;
-import scala.Some;
 import scala.collection.concurrent.TrieMap;
 
 import java.io.*;
@@ -34,13 +25,12 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 
-public class PlanReaderCsv {
+public class ScenarioReaderCsv {
 
     private String csvScenarioFile;
-    private Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
+    private Logger log = LoggerFactory.getLogger(ScenarioReaderCsv.class);
 
     public String delimiter = ",";
     public static final String plansOutputFileName = "plans-output.xml";
@@ -72,17 +62,17 @@ public class PlanReaderCsv {
 
     public static void main(String[] args) throws IOException {
 
-        //PlanReaderCsv planReader = new PlanReaderCsv();
+        //ScenarioReaderCsv planReader = new ScenarioReaderCsv();
         //planReader.readGzipScenario();
     }
 
-    public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices){
+    public ScenarioReaderCsv(MutableScenario scenario, BeamServices beamServices){
 
         this(scenario, beamServices, null);
 
     }
 
-    public PlanReaderCsv(MutableScenario scenario, BeamServices beamServices, String delimiter) {
+    public ScenarioReaderCsv(MutableScenario scenario, BeamServices beamServices, String delimiter) {
 
         this.scenario = scenario;
         this.beamServices = beamServices;

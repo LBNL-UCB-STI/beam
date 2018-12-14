@@ -1,8 +1,7 @@
 package beam.utils;
 
-import beam.utils.csv.readers.PlanReaderCsv;
+import beam.utils.csv.readers.ScenarioReaderCsv;
 import org.junit.Before;
-import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Population;
 import org.matsim.core.config.ConfigUtils;
@@ -15,14 +14,14 @@ public class PlanReaderCsvTest {
 
     String path = "test/input/beamville/test-data/";
     String delimiter = ",";
-    PlanReaderCsv planReader;
+    ScenarioReaderCsv planReader;
 
     Population populationReadFromCsv;
     Population populationReadFromXml;
 
     @Before
     public void init() throws IOException {
-        /*planReader = new PlanReaderCsv(null, null, delimiter);
+        /*planReader = new ScenarioReaderCsv(null, null, delimiter);
 
         populationReadFromCsv = planReader.readPlansFromCSV(path + "/plans-input.csv");
 
