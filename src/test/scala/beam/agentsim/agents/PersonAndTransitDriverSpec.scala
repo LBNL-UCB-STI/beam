@@ -292,8 +292,8 @@ class PersonAndTransitDriverSpec
 
       val busDriver = router.getSingleChild("TransitDriverAgent-my_bus")
       val tramDriver = router.getSingleChild("TransitDriverAgent-my_tram")
-      bus.becomeDriver(busDriver,"TransitDriverAgent-my_bus")
-      tram.becomeDriver(tramDriver,"TransitDriverAgent-my_tram")
+      bus.becomeDriver(busDriver, "TransitDriverAgent-my_bus")
+      tram.becomeDriver(tramDriver, "TransitDriverAgent-my_tram")
       scheduler ! ScheduleTrigger(InitializeTrigger(0), busDriver)
       scheduler ! ScheduleTrigger(InitializeTrigger(10000), tramDriver)
 

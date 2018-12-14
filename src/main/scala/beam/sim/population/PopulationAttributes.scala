@@ -21,8 +21,8 @@ case class AttributesOfIndividual(
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
 }
 
-object AttributesOfIndividual{
-  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY,None,true,Seq(),0.0,None,None)
+object AttributesOfIndividual {
+  val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
 }
 
 case class HouseholdAttributes(

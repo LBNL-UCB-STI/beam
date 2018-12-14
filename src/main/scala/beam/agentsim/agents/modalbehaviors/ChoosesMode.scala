@@ -238,9 +238,21 @@ trait ChoosesMode {
                     departTime,
                     mode,
                     l.getTravelTime.toInt,
-                    BeamPath(linkIds, Vector.empty, None, SpaceTime(startLoc,departTime), SpaceTime(endLoc,departTime + l.getTravelTime.toInt), r.getDistance)
+                    BeamPath(
+                      linkIds,
+                      Vector.empty,
+                      None,
+                      SpaceTime(startLoc, departTime),
+                      SpaceTime(endLoc, departTime + l.getTravelTime.toInt),
+                      r.getDistance
+                    )
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true, destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord)))
+                  router ! EmbodyWithCurrentTravelTime(
+                    leg,
+                    vehicle.id,
+                    mustParkAtEnd = true,
+                    destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord))
+                  )
                   parkingRequestId = requestParkingCost(
                     leg.travelPath.endPoint.loc,
                     nextAct.getType,

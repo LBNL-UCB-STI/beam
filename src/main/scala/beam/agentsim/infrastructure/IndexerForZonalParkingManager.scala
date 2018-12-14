@@ -47,7 +47,8 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
       .map { pricingModel =>
         find(key(pricingModel))
       }
-      .filter(_.isDefined).map(_.get)
+      .filter(_.isDefined)
+      .map(_.get)
   }
 
   def filter(

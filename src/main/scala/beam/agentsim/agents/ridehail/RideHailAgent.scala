@@ -175,7 +175,7 @@ class RideHailAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle
-        .becomeDriver(self,id.toString) match {
+        .becomeDriver(self, id.toString) match {
         case DriverAlreadyAssigned(_) =>
           stop(
             Failure(

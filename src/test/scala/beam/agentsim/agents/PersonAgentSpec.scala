@@ -587,15 +587,15 @@ class PersonAgentSpec
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
           timeout.duration
-        )
-        ,"TransitDriverAgent-my_bus"
+        ),
+        "TransitDriverAgent-my_bus"
       )
       tram.becomeDriver(
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
           timeout.duration
-        )
-        ,"TransitDriverAgent-my_bus"
+        ),
+        "TransitDriverAgent-my_bus"
       )
 
       val householdActor = TestActorRef[HouseholdActor](

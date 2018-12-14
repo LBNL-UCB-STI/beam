@@ -184,7 +184,7 @@ trait ChoosesParking extends {
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
         logDebug(s"no CAR leg returned by router, assuming parking spot is at destination")
         (
-          EmbodiedBeamLeg(nextLeg,data.currentVehicle.head,true,0.0,true),
+          EmbodiedBeamLeg(nextLeg, data.currentVehicle.head, true, 0.0, true),
           routingResponse2.itineraries.head.legs.head
         )
       } else {

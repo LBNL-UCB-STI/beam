@@ -254,7 +254,7 @@ class ZonalParkingManager(
       resources.put(stall.id, stall)
       val stallValues = pooledResources(stall.attributes)
       totalStallsInUse += 1
-      if(totalStallsInUse % 1000 == 0)log.debug(s"Parking stalls in use: {}",totalStallsInUse)
+      if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
       stallValues._numStalls -= 1
     }
     sender() ! ParkingInquiryResponse(stall, requestId)
@@ -292,20 +292,20 @@ class ZonalParkingManager(
       findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTAZsWithDistances.flatMap { taz =>
       val found = indexer.find(taz._1.tazId, Public, ParkingStall.Any)
-      val foundAfter = found.map{
+      val foundAfter = found.map {
         case (indexForFind, stallValues) =>
           val attrib =
-            StallAttributes(indexForFind.tazId,indexForFind.parkingType, indexForFind.pricingModel, NoCharger, Any)
-            val stallLoc = sampleLocationForStall(taz._1, attrib)
-            val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
-            val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
-            val cost = calculateCost(
-              attrib,
-              stallValues.feeInCents,
-              inquiry.arrivalTime,
-              inquiry.parkingDuration
-            )
-            ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
+            StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, NoCharger, Any)
+          val stallLoc = sampleLocationForStall(taz._1, attrib)
+          val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
+          val cost = calculateCost(
+            attrib,
+            stallValues.feeInCents,
+            inquiry.arrivalTime,
+            inquiry.parkingDuration
+          )
+          ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
       }.toVector
 //      val foundBefore = Vector(FlatFee, Block).flatMap { pricingModel =>
 //        val attrib =

@@ -320,14 +320,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )).toInt
       }
       val linkEvents = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime)
-      val linkTimes = linkEvents.drop(1).grouped(2).map(pair => (pair.last.getTime - pair.head.getTime).toInt).toIndexedSeq :+ 0
+      val linkTimes = linkEvents
+        .drop(1)
+        .grouped(2)
+        .map(pair => (pair.last.getTime - pair.head.getTime).toInt)
+        .toIndexedSeq :+ 0
       val duration = linkEvents
         .maxBy(e => e.getTime)
         .getTime - leg.startTime
 
       val finalLegs = if (mustParkAtEnd) {
-        val legPair = splitLegForParking(leg.copy(duration = duration.toInt,
-          travelPath = leg.travelPath.copy(linkTravelTime = linkTimes)),destinationForSplitting)
+        val legPair = splitLegForParking(
+          leg.copy(duration = duration.toInt, travelPath = leg.travelPath.copy(linkTravelTime = linkTimes)),
+          destinationForSplitting
+        )
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
           val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
@@ -801,7 +807,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       travelPath = theTravelPath
     )
     var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
-      splitLegForParking(theLeg,None)
+      splitLegForParking(theLeg, None)
     } else {
       Vector(theLeg)
     }
@@ -814,13 +820,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (theLinkIds.length <= 1) {
       Vector(leg)
     } else {
-      val originWithinSplittingDistance = destinationForSplitting match{
+      val originWithinSplittingDistance = destinationForSplitting match {
         case Some(destForSplitting) =>
-          beamServices.geo.distLatLon2Meters(destForSplitting,leg.travelPath.startPoint.loc) < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+          beamServices.geo
+            .distLatLon2Meters(destForSplitting, leg.travelPath.startPoint.loc) < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
         case None =>
           leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
       }
-      if (originWithinSplittingDistance){
+      if (originWithinSplittingDistance) {
         val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
         val secondLeg = updateLegWithCurrentTravelTime(
           leg
@@ -833,8 +840,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           case Some(destForSplitting) =>
             Math.min(
               Math.max(
-                theLinkIds.reverse.indexWhere(link => beamServices.geo.distLatLon2Meters(R5RoutingWorker.linkIdToCoord(link,transportNetwork),destForSplitting) >
-                  beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+                theLinkIds.reverse.indexWhere(
+                  link =>
+                    beamServices.geo
+                      .distLatLon2Meters(R5RoutingWorker.linkIdToCoord(link, transportNetwork), destForSplitting) >
+                    beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
                 ),
                 1
               ),
@@ -1459,8 +1469,10 @@ object R5RoutingWorker {
 
   def linkIdToCoord(id: Int, transportNetwork: TransportNetwork): Coord = {
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(id)
-    new Coord((edge.getGeometry.getEndPoint.getX + edge.getGeometry.getStartPoint.getX)/2.0,
-      (edge.getGeometry.getEndPoint.getY + edge.getGeometry.getStartPoint.getY)/2.0)
+    new Coord(
+      (edge.getGeometry.getEndPoint.getX + edge.getGeometry.getStartPoint.getX) / 2.0,
+      (edge.getGeometry.getEndPoint.getY + edge.getGeometry.getStartPoint.getY) / 2.0
+    )
   }
 
   def createBushwackingBeamLeg(atTime: Int, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
