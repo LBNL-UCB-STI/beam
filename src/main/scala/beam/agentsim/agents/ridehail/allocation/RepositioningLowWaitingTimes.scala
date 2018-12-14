@@ -141,7 +141,7 @@ class RepositioningLowWaitingTimes(
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
               if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                    .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+                    .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(

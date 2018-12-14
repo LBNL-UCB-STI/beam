@@ -528,12 +528,13 @@ trait ChoosesMode {
   }
 
   def requestParkingCost(destination: Coord, activityType: String, arrivalTime: Int, duration: Int): Option[Int] = {
+    val destInUtm = beamServices.geo.wgs2Utm(destination)
     val inquiry = ParkingInquiry(
       id,
-      destination,
-      destination,
+      destInUtm,
+      destInUtm,
       activityType,
-      8.0,
+      attributes,
       NoNeed,
       arrivalTime,
       duration,

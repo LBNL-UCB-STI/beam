@@ -113,7 +113,7 @@ case class TNCIterationStats(
 
       listOfTazInRadius.forEach { tazInRadius =>
         val distanceInMeters =
-          beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+          beamServices.geo.distUTMInMeters(taz.coord, tazInRadius.coord)
 
         val distanceScore = -1 * distanceWeight * Math
           .pow(distanceInMeters, 2) /

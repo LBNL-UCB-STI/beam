@@ -15,6 +15,7 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
@@ -25,7 +26,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 
 class Population(
@@ -153,7 +154,7 @@ class Population(
                   homeCoord,
                   homeCoord,
                   "home",
-                  0,
+                  AttributesOfIndividual.EMPTY,
                   NoNeed,
                   0,
                   0

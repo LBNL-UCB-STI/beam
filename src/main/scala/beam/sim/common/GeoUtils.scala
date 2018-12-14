@@ -43,8 +43,7 @@ trait GeoUtils extends HasServices {
     }
   }
 
-  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their projection
-  def distInMeters(coord1: Coord, coord2: Coord): Double = {
+  def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
     distLatLon2Meters(utm2Wgs(coord1), utm2Wgs(coord2))
   }
 

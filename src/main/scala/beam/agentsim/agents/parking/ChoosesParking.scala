@@ -50,7 +50,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
-        attributes.valueOfTime,
+        attributes,
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
@@ -75,7 +75,7 @@ trait ChoosesParking extends {
           )
           //        val tick: Double = _currentTick.getOrElse(0)
           val nextLeg = data.passengerSchedule.schedule.head._1
-          val distance = beamServices.geo.distInMeters(
+          val distance = beamServices.geo.distUTMInMeters(
             stall.location,
             nextLeg.travelPath.endPoint.loc
           ) //nextLeg.travelPath.endPoint.loc
@@ -114,7 +114,7 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+      val distance = beamServices.geo.distUTMInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (_, triggerId) = releaseTickAndTriggerId()

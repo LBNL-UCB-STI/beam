@@ -27,7 +27,7 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
     tazId: Id[TAZ],
     parkingType: ParkingType,
     reservedFor: ReservedParkingType
-  ): Option[(IndexForFind, StallValues)] = {
+  ): Seq[(IndexForFind, StallValues)] = {
     def find(key: IndexForFind): Option[(IndexForFind, StallValues)] = {
       mapForFind.get(key).flatMap { arr =>
         arr
@@ -47,9 +47,7 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
       .map { pricingModel =>
         find(key(pricingModel))
       }
-      .filter(_.isDefined)
-      .headOption
-      .getOrElse(None)
+      .filter(_.isDefined).map(_.get)
   }
 
   def filter(

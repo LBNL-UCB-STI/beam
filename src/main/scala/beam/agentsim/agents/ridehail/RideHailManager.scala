@@ -923,7 +923,7 @@ class RideHailManager(
       val rideHailAgentLocation = getIdleVehicles(vehicleId)
 
       sumOfDistances += beamServices.geo
-        .distInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
+        .distUTMInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
       numberOfTrips += 1
     }
 
