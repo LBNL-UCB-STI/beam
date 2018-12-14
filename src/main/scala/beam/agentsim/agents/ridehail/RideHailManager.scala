@@ -478,7 +478,7 @@ class RideHailManager(
         // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
         // for a simple single-occupant trip sequence, we know that first
         // itin is RH2Customer and second is Pickup2Destination.
-        val embodiedBeamTrip = EmbodiedBeamTrip(
+        val embodiedBeamTrip: EmbodiedBeamTrip = EmbodiedBeamTrip(
           responses
             .map { response =>
               response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
@@ -489,10 +489,12 @@ class RideHailManager(
         )
         val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
 
+        val baseFare = embodiedBeamTrip.legs.map(_.cost).sum
+
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
           driverPassengerSchedule,
-          calcFare(request, driverPassengerSchedule, Option(embodiedBeamTrip)),
+          calcFare(request, driverPassengerSchedule, baseFare),
           singleOccupantQuoteAndPoolingInfo.poolingInfo
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -719,20 +721,14 @@ class RideHailManager(
   def calcFare(
     request: RideHailRequest,
     trip: PassengerSchedule,
-    embodiedBeamTrip: Option[EmbodiedBeamTrip]
+    baseFare: Double
   ): Map[Id[Person], Double] = {
     val farePerSecond = DefaultCostPerSecond * surgePricingManager
       .getSurgeLevel(
         request.pickUpLocation,
         request.departAt
       )
-    val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond)
-    +(embodiedBeamTrip match {
-      case ebt: Option[EmbodiedBeamTrip] => {
-        ebt.map(_.costEstimate).sum
-      }
-      case _ => 0
-    })
+    val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond) + baseFare
 
     Map(request.customer.personId -> fare)
   }
@@ -1210,7 +1206,7 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request, passSched, None),
+      calcFare(alloc.request, passSched, 0),
       None
     )
   }
