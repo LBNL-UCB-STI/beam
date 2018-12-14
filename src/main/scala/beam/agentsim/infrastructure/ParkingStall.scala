@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 case class ParkingStall(
   id: Id[ParkingStall],
   attributes: StallAttributes,
-  location: Location,
+  locationUTM: Location,
   cost: Double,
   stallValues: Option[StallValues]
 ) extends Resource[ParkingStall] {

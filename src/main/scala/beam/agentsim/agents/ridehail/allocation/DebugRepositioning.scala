@@ -17,7 +17,7 @@ object DebugRepositioning {
 
       for (veh <- rideHailManager.resources.values) {
         spatialPlot.addPoint(
-          PointToPlot(rideHailManager.getRideHailAgentLocation(veh.id).currentLocation.loc, Color.BLACK, 5)
+          PointToPlot(rideHailManager.getRideHailAgentLocation(veh.id).currentLocationUTM.loc, Color.BLACK, 5)
         )
       }
 

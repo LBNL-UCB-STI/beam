@@ -159,7 +159,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           startWithWaitBuffer,
           Vector(TRANSIT),
-          Vector(bodyStreetVehicle, dummyRHVehicle.copy(location = currentSpaceTime)),
+          Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
         router ! theRequest
@@ -232,16 +232,29 @@ trait ChoosesMode {
                   }
                   linkIds += r.getEndLinkId.toString.toInt
 
+                  val startLoc = R5RoutingWorker.linkIdToCoord(linkIds.head, transportNetwork)
+                  val endLoc = R5RoutingWorker.linkIdToCoord(linkIds.last, transportNetwork)
                   val leg = BeamLeg(
                     departTime,
                     mode,
                     l.getTravelTime.toInt,
-                    // TODO FIXME
-                    BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
+                    BeamPath(
+                      linkIds,
+                      Vector.empty,
+                      None,
+                      SpaceTime(startLoc, departTime),
+                      SpaceTime(endLoc, departTime + l.getTravelTime.toInt),
+                      r.getDistance
+                    )
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
+                  router ! EmbodyWithCurrentTravelTime(
+                    leg,
+                    vehicle.id,
+                    mustParkAtEnd = true,
+                    destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord))
+                  )
                   parkingRequestId = requestParkingCost(
-                    leg.travelPath.endPoint.loc,
+                    beamServices.geo.wgs2Utm(leg.travelPath.endPoint.loc),
                     nextAct.getType,
                     leg.endTime,
                     nextAct.getEndTime.intValue() - leg.endTime
@@ -337,7 +350,7 @@ trait ChoosesMode {
         val accessLeg = driveTransitTrip.get.legs.view.takeWhile(!_.beamLeg.mode.isTransit).last.beamLeg
         val dest = accessLeg.travelPath.endPoint.loc
         val driveTransitRequestId = requestParkingCost(
-          dest,
+          beamServices.geo.wgs2Utm(dest),
           "ParkAndRide",
           accessLeg.endTime,
           nextActivity(choosesModeData.personData).get.getEndTime.toInt - accessLeg.endTime
@@ -526,13 +539,18 @@ trait ChoosesMode {
     }
   }
 
-  def requestParkingCost(destination: Coord, activityType: String, arrivalTime: Int, duration: Int): Option[Int] = {
+  def requestParkingCost(
+    destinationInUTM: Coord,
+    activityType: String,
+    arrivalTime: Int,
+    duration: Int
+  ): Option[Int] = {
     val inquiry = ParkingInquiry(
       id,
-      destination,
-      destination,
+      destinationInUTM,
+      destinationInUTM,
       activityType,
-      8.0,
+      attributes,
       NoNeed,
       arrivalTime,
       duration,
