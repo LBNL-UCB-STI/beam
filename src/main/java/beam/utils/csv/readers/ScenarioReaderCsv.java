@@ -2,6 +2,7 @@ package beam.utils.csv.readers;
 
 import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
+import beam.agentsim.agents.vehicles.VehicleCategory;
 import beam.sim.BeamServices;
 import beam.sim.vehicles.VehiclesAdjustment;
 import beam.sim.vehicles.VehiclesAdjustment$;
@@ -243,9 +244,10 @@ public class ScenarioReaderCsv {
 
 
     public void printRow(String[] dRow){
-        log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
-                        "x => {} , y => {} , endTime => {} , mode => {}",
-                dRow);
+//        log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
+//                        "x => {} , y => {} , endTime => {} , mode => {}",
+//                dRow);
+        return;
     }
 
 
@@ -418,7 +420,7 @@ public class ScenarioReaderCsv {
             if(vehiclesFileAvailable == true) {
                 objHouseHold.setVehicleIds(vehiclesByHouseHoldId.get(Id.create(hhId, Household.class)));
             }else {
-                scala.collection.immutable.List<BeamVehicleType> vehicleTypes = vehiclesAdjustment.sampleVehicleTypesForHousehold(numberOfVehicles, BeamVehicleType.Car$.MODULE$,
+                scala.collection.immutable.List<BeamVehicleType> vehicleTypes = vehiclesAdjustment.sampleVehicleTypesForHousehold(numberOfVehicles, VehicleCategory.Car$.MODULE$,
                         objHouseHold.getIncome().getIncome(), objHouseHold.getMemberIds().size(),
                         null, houseHoldCoord);
                 scala.collection.Iterator<BeamVehicleType> iter = vehicleTypes.iterator();

@@ -7,7 +7,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, FuelTypeAndPrice}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
@@ -65,7 +65,7 @@ class SingleModeSpec
     beamConfig = BeamConfig(config)
 
     val vehicleTypes = {
-      val fuelTypes: TrieMap[Id[FuelType], FuelType] =
+      val fuelTypes: TrieMap[Id[FuelTypeAndPrice], FuelTypeAndPrice] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
     }

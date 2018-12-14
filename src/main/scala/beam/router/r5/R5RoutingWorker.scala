@@ -10,8 +10,9 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.FuelType.{FuelType, FuelTypeAndPrice}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
@@ -108,10 +109,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
-        val fuelTypes: TrieMap[Id[FuelType], FuelType] =
+        val fuelTypePrices: TrieMap[FuelType, Double] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-          BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =

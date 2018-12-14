@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.FuelType
+import beam.agentsim.agents.vehicles.FuelTypeAndPrice
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -65,7 +65,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
         )
     )
     val vehicleTypes = {
-      val fuelTypes: TrieMap[Id[FuelType], FuelType] =
+      val fuelTypes: TrieMap[Id[FuelTypeAndPrice], FuelTypeAndPrice] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
     }

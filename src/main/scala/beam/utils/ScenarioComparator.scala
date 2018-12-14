@@ -6,12 +6,13 @@ import java.util.{Collections, Comparator}
 import akka.actor.ActorRef
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.csv.readers.{ScenarioReaderCsv}
+import beam.utils.csv.readers.ScenarioReaderCsv
 import com.google.inject.Injector
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -126,10 +127,10 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
       override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
       override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
       override var personHouseholds: Map[Id[Person], Household] = Map()
-      val fuelTypes: TrieMap[Id[FuelType], FuelType] =
+      val fuelTypePrices: TrieMap[FuelType, Double] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-        BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+        BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
       override val modeSubsidies: ModeSubsidy =

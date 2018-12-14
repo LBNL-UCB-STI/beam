@@ -33,7 +33,7 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
-    case object NONE extends BeamMode(value = "none", None, "")
+    case object NO_MODE extends BeamMode(value = "no_mode", None, "")
 
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
@@ -103,7 +103,7 @@ object Modes {
 
     def fromString(stringMode: String): BeamMode = {
       if (stringMode.equals("")) {
-        NONE
+        NO_MODE
       } else {
         BeamMode.withValue(stringMode)
       }

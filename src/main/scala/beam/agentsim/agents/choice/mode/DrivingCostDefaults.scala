@@ -38,7 +38,7 @@ object DrivingCostDefaults {
 
           val cost =
             if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(vehicle.beamVehicleType.primaryFuelType)) / 1000000
             } else {
               0 //TODO
             }

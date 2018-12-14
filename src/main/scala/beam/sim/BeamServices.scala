@@ -9,9 +9,9 @@ import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.ModeSubsidy
 import beam.agentsim.agents.choice.mode.ModeSubsidy._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
-import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -23,7 +23,6 @@ import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
@@ -54,6 +53,7 @@ trait BeamServices extends ActorInject {
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  val fuelTypePrices: TrieMap[FuelType, Double]
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
@@ -83,11 +83,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  val fuelTypes: TrieMap[Id[FuelType], FuelType] =
+  val fuelTypePrices: TrieMap[FuelType, Double] =
     readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
 
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes))
+    maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices))
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
@@ -120,8 +120,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
           case (id, bvt) =>
             id -> (if (bvt.standingRoomCapacity > 0)
                      bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity * scalingFactor),
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity * scalingFactor)
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
                      )
                    else
                      bvt)
@@ -180,45 +180,32 @@ object BeamServices {
     }
   }
 
-  def readFuelTypeFile(filePath: String): TrieMap[Id[FuelType], FuelType] = {
-    readCsvFileByLine(filePath, TrieMap[Id[FuelType], FuelType]()) {
+  def readFuelTypeFile(filePath: String): TrieMap[FuelType, Double] = {
+    readCsvFileByLine(filePath, TrieMap[FuelType, Double]()) {
       case (line, z) =>
-        val fuelIdString = line.get("fuelTypeId")
-        val fuelTypeId = Id.create(fuelIdString, classOf[FuelType])
+        val fuelType = FuelType.fromString(line.get("fuelTypeId"))
         val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
-
-        val fuelType = FuelType(getFuelTypeId(fuelIdString), priceInDollarsPerMJoule)
-        z += ((fuelTypeId, fuelType))
-    }
-  }
-
-  private def getFuelTypeId(fuelType: String): FuelTypeId = {
-    fuelType match {
-      case "gasoline"    => BeamVehicleType.Gasoline
-      case "diesel"      => BeamVehicleType.Diesel
-      case "electricity" => BeamVehicleType.Electricity
-      case "biodiesel"   => BeamVehicleType.Biodiesel
-      case _             => throw new RuntimeException("Invalid fuel type id")
+        z += ((fuelType, priceInDollarsPerMJoule))
     }
   }
 
   def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypeMap: TrieMap[Id[FuelType], FuelType]
+                               filePath: String,
+                               fuelTypePrices: TrieMap[FuelType, Double]
   ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
         val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
-        val seatingCapacity = line.get("seatingCapacity").toDouble
-        val standingRoomCapacity = line.get("standingRoomCapacity").toDouble
+        val seatingCapacity = line.get("seatingCapacity").toInt
+        val standingRoomCapacity = line.get("standingRoomCapacity").toInt
         val lengthInMeter = line.get("lengthInMeter").toDouble
         val primaryFuelTypeId = line.get("primaryFuelType")
-        val primaryFuelType = fuelTypeMap(Id.create(primaryFuelTypeId, classOf[FuelType]))
+        val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").toDouble
         val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
-        val secondaryFuelType = secondaryFuelTypeId.flatMap(sid => fuelTypeMap.get(Id.create(sid, classOf[FuelType])))
+        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
         val secondaryFuelConsumptionInJoule =
           Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
         val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
@@ -227,8 +214,7 @@ object BeamServices {
         val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
         val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
-        val vehicleCategoryString = Option(line.get("vehicleCategory"))
-        val vehicleCategory = vehicleCategoryString.map(getVehicleCategory)
+        val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
         val bvt = BeamVehicleType(
           vIdString,
@@ -249,15 +235,6 @@ object BeamServices {
           vehicleCategory
         )
         z += ((vehicleTypeId, bvt))
-    }
-  }
-
-  private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
-    vehicleCategory match {
-      case "car"      => BeamVehicleType.Car
-      case "bike"     => BeamVehicleType.Bike
-      case "ridehail" => BeamVehicleType.RideHail
-      case _          => throw new RuntimeException("Invalid vehicleCategory")
     }
   }
 

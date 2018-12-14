@@ -42,7 +42,6 @@ object AvailableModeUtils {
 
   def isModeAvailableForPerson[T <: BeamMode](
     person: Person,
-    vehicleId: Id[Vehicle],
     mode: BeamMode
   ): Boolean = {
     AvailableModeUtils.availableModesForPerson(person).contains(mode)

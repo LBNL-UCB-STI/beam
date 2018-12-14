@@ -18,7 +18,6 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{DefaultPopulationAdjustment, PopulationAdjustment}
-import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils._
 import beam.utils.csv.readers.{ScenarioReaderCsv}
 import beam.utils.reflection.ReflectionUtils
