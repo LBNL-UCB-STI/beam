@@ -6,6 +6,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
+import beam.sim.population.AttributesOfIndividual
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -22,7 +23,7 @@ object ParkingManager {
     customerLocationUtm: Location,
     destinationUtm: Location,
     activityType: String,
-    valueOfTime: Double,
+    attributesOfIndividual: AttributesOfIndividual,
     chargingPreference: ChargingPreference,
     arrivalTime: Long,
     parkingDuration: Double,

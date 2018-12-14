@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+library(colinmisc)
 grep -n SUCCESS /Users/critter/Downloads/logs/batch1.log
 head -1350120 batch1.log > base.log
 
