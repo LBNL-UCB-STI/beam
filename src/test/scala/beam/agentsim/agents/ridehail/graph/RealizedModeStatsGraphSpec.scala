@@ -13,7 +13,6 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
