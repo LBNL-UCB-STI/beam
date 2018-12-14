@@ -733,6 +733,7 @@ class PersonAgentSpec
         personActor
       ) // My tram is late!
 
+      //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
 
       events.expectMsgType[AgencyRevenueEvent]
