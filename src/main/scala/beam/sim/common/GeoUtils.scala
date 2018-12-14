@@ -39,7 +39,7 @@ trait GeoUtils extends HasServices {
   }
 
   def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
-    Math.sqrt(Math.pow(coord1.getX - coord2.getX,2.0) + Math.pow(coord1.getY - coord2.getY,2.0))
+    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double =
@@ -63,10 +63,10 @@ trait GeoUtils extends HasServices {
   }
 
   def snapToR5Edge(
-                    streetLayer: StreetLayer,
-                    coordWGS: Coord,
-                    maxRadius: Double = 1E5,
-                    streetMode: StreetMode = StreetMode.WALK
+    streetLayer: StreetLayer,
+    coordWGS: Coord,
+    maxRadius: Double = 1E5,
+    streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
     if (theSplit == null) {

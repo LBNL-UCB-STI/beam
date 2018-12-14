@@ -10,14 +10,14 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 case class RideHailRequest(
-                            requestType: RideHailRequestType,
-                            customer: VehiclePersonId,
-                            pickUpLocationUTM: Location,
-                            departAt: Int,
-                            destinationUTM: Location,
-                            asPooled: Boolean = false,
-                            groupedWithOtherRequests: List[RideHailRequest] = List(),
-                            requestId: Int = UUID.randomUUID().hashCode()
+  requestType: RideHailRequestType,
+  customer: VehiclePersonId,
+  pickUpLocationUTM: Location,
+  departAt: Int,
+  destinationUTM: Location,
+  asPooled: Boolean = false,
+  groupedWithOtherRequests: List[RideHailRequest] = List(),
+  requestId: Int = UUID.randomUUID().hashCode()
 ) {
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =

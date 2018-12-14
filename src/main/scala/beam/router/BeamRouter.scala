@@ -453,14 +453,14 @@ object BeamRouter {
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-                             originUTM: Location,
-                             destinationUTM: Location,
-                             departureTime: Int,
-                             transitModes: IndexedSeq[BeamMode],
-                             streetVehicles: IndexedSeq[StreetVehicle],
-                             attributesOfIndividual: Option[AttributesOfIndividual] = None,
-                             streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-                             mustParkAtEnd: Boolean = false
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    transitModes: IndexedSeq[BeamMode],
+    streetVehicles: IndexedSeq[StreetVehicle],
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
+    streetVehiclesUseIntermodalUse: IntermodalUse = Access,
+    mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: Int = UUID.randomUUID().hashCode()

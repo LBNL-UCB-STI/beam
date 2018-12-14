@@ -143,9 +143,9 @@ object RideHailManager {
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
 
   case class RideHailAgentLocation(
-                                    rideHailAgent: ActorRef,
-                                    vehicleId: Id[Vehicle],
-                                    currentLocationUTM: SpaceTime
+    rideHailAgent: ActorRef,
+    vehicleId: Id[Vehicle],
+    currentLocationUTM: SpaceTime
   ) {
 
     def toStreetVehicle: StreetVehicle = {
