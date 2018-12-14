@@ -49,6 +49,7 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+  var driverId: Option[String] = None
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
@@ -60,6 +61,7 @@ class BeamVehicle(
     */
   def unsetDriver(): Unit = {
     driver = None
+    driverId = None
   }
 
   /**
@@ -70,10 +72,12 @@ class BeamVehicle(
     * @param newDriverRef incoming driver
     */
   def becomeDriver(
-    newDriverRef: ActorRef
+    newDriverRef: ActorRef,
+    newDriverId: String
   ): BecomeDriverResponse = {
     if (driver.isEmpty) {
       driver = Some(newDriverRef)
+      driverId = Some(newDriverId)
       BecomeDriverOfVehicleSuccess
     } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
       NewDriverAlreadyControllingVehicle

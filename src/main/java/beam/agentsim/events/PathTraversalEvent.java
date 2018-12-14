@@ -26,6 +26,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departureTime";
     public final static String ATTRIBUTE_ARRIVAL_TIME = "arrivalTime";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
+    public final static String ATTRIBUTE_DRIVER_ID = "driver";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicleType";
     public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
     public final static String ATTRIBUTE_START_COORDINATE_X = "startX";
@@ -40,6 +41,7 @@ public class PathTraversalEvent extends Event {
 
     private final String vehicleType;
     private final String vehicleId;
+    private final String driverId;
     private final String mode;
     private final String fuelType;
     private final Double fuel;
@@ -57,8 +59,8 @@ public class PathTraversalEvent extends Event {
     private final Integer seatingCapacity;
     private final double amountPaid;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
-        this(time, vehicleId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String driverId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
+        this(time, vehicleId, driverId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().fuelTypeId().toString(), fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
@@ -67,11 +69,12 @@ public class PathTraversalEvent extends Event {
                 amountPaid);
     }
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String driverId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
                               double legLength, String linkIds, long departureTime, long arrivalTime, double startX, double startY, double endX,
                               double endY, int seatingCapacity, double amountPaid) {
         super(time);
         this.vehicleType = vehicleType;
+        this.driverId = driverId;
         this.vehicleId = vehicleId.toString();
         this.mode = mode;
         this.numPass = numPass;
@@ -97,6 +100,7 @@ public class PathTraversalEvent extends Event {
             Map<String, String> attr = event.getAttributes();
             return new PathTraversalEvent(event.getTime(),
                     Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
+                    attr.get(ATTRIBUTE_DRIVER_ID),
                     attr.get(ATTRIBUTE_VEHICLE_TYPE),
                     attr.get(ATTRIBUTE_MODE),
                     Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
@@ -127,6 +131,7 @@ public class PathTraversalEvent extends Event {
         attr = super.getAttributes();
 
         attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId);
+        attr.put(ATTRIBUTE_DRIVER_ID, driverId);
         attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType);
         attr.put(ATTRIBUTE_LENGTH, Double.toString(legLength));
         attr.put(ATTRIBUTE_NUM_PASS, numPass.toString());

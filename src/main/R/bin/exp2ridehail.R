@@ -6,6 +6,7 @@
 # Argument: the path to the experiment directory containing the .yaml file defining the experiment *and* the runs directory containing the 
 # results.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)

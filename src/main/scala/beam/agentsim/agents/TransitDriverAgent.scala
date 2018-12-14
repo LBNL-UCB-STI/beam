@@ -112,7 +112,7 @@ class TransitDriverAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
-      vehicle.becomeDriver(self) match {
+      vehicle.becomeDriver(self, id.toString) match {
         case DriverAlreadyAssigned(_) =>
           stop(
             Failure(
