@@ -71,7 +71,7 @@ public class PathTraversalEvent extends Event {
                 amountPaid);
     }
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String vehicleType,String driverId, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId,String driverId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
                               double legLength, String linkIds, String linkTravelTimes, long departureTime, long arrivalTime, double startX, double startY, double endX,
                               double endY, int seatingCapacity, double amountPaid) {
         super(time);
