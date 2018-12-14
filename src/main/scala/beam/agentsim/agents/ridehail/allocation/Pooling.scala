@@ -62,9 +62,6 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               .getOrElse(PickDropIdAndLeg(request.customer, None))
               .copy(leg = rResp.itineraries.head.legs.headOption)
           }
-          if (routeResponses.size > 2) {
-            val i = 0
-          }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
             rideHailManager.getIdleVehicles(vehicleId),

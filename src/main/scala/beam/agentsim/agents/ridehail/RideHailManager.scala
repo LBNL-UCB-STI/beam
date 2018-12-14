@@ -436,14 +436,8 @@ class RideHailManager(
     case RoutingResponses(tick, responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       responses.foreach { routeResponse =>
-        if (responses.size > 10) {
-          val i = 0
-        }
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
-      }
-      if (tick >= 23400) {
-        val i = 0
       }
       self ! ContinueBufferedRideHailRequests(tick)
 
@@ -457,10 +451,6 @@ class RideHailManager(
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
       )
-
-      if (tick >= 23460) {
-        val i = 0
-      }
 
       // If any response contains no RIDE_HAIL legs, then the router failed
       if (responses.map(_.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL)).isEmpty).contains(true)) {

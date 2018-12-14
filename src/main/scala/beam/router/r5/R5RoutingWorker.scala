@@ -478,10 +478,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
 
-    if (!isRouteForPerson) {
-      val i = 0
-    }
-
     def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
       /*
        * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
@@ -732,9 +728,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
                   (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
-                    if (!routingRequest.streetVehicles.exists(_.mode == WALK)) {
-                      val i = 0
-                    }
                     val body =
                       routingRequest.streetVehicles.find(_.mode == WALK).get
                     EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, 0.0, unbecomeDriverAtComplete)
@@ -1325,9 +1318,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, routingRequest.mustParkAtEnd)
         if (isRouteForPerson && egress.mode != LegMode.WALK)
           legsWithFares += LegWithFare(dummyWalk(arrivalTime + egress.duration), 0.0)
-        if (egress.mode == LegMode.CAR && routingRequest.mustParkAtEnd) {
-          val i = 0
-        }
       }
     }
     maybeUseVehicleOnEgress.foreach { legWithFare =>
