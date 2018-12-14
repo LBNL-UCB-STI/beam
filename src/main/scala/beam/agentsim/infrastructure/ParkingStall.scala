@@ -7,11 +7,11 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class ParkingStall(
-  id: Id[ParkingStall],
-  attributes: StallAttributes,
-  location: Location,
-  cost: Double,
-  stallValues: Option[StallValues]
+                         id: Id[ParkingStall],
+                         attributes: StallAttributes,
+                         locationUTM: Location,
+                         cost: Double,
+                         stallValues: Option[StallValues]
 ) extends Resource[ParkingStall] {
   override def getId: Id[ParkingStall] = id
 }

@@ -211,7 +211,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distUTMInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
           }

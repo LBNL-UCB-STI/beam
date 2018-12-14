@@ -76,7 +76,7 @@ trait ChoosesParking extends {
           //        val tick: Double = _currentTick.getOrElse(0)
           val nextLeg = data.passengerSchedule.schedule.head._1
           val distance = beamServices.geo.distUTMInMeters(
-            stall.location,
+            stall.locationUTM,
             nextLeg.travelPath.endPoint.loc
           ) //nextLeg.travelPath.endPoint.loc
           val cost = stall.cost
@@ -114,7 +114,7 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      val distance = beamServices.geo.distUTMInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+      val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -129,16 +129,18 @@ trait ChoosesParking extends {
         // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
         import context.dispatcher
         val currentPoint = nextLeg.travelPath.startPoint
+        val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
+        val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
         val finalPoint = nextLeg.travelPath.endPoint
 
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
-          StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
+          StreetVehicle(data.currentVehicle.head, currentPointUTM, CAR, asDriver = true)
         val bodyStreetVeh =
-          StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
+          StreetVehicle(data.currentVehicle.last, currentPointUTM, WALK, asDriver = true)
         val veh2StallRequest = RoutingRequest(
-          currentPoint.loc,
-          beamServices.geo.utm2Wgs(stall.location),
+          currentLocUTM,
+          stall.locationUTM,
           currentPoint.time,
           Vector(),
           Vector(carStreetVeh, bodyStreetVeh),
@@ -148,14 +150,14 @@ trait ChoosesParking extends {
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
         val futureStall2DestinationResponse = router ? RoutingRequest(
-          beamServices.geo.utm2Wgs(stall.location),
-          finalPoint.loc,
+          stall.locationUTM,
+          beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
           Vector(),
           Vector(
             StreetVehicle(
               data.currentVehicle.last,
-              SpaceTime(stall.location, currentPoint.time),
+              SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
               asDriver = true
             )

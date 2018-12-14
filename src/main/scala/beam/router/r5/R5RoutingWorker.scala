@@ -504,15 +504,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val mainRouteRideHailTransit = routingRequest.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
 
       val maybeWalkToVehicle: Option[BeamLeg] = if (mainRouteFromVehicle) {
-        if (beamServices.geo.distUTMInMeters(vehicle.location.loc, routingRequest.origin) > distanceThresholdToIgnoreWalking) {
+        if (beamServices.geo.distUTMInMeters(vehicle.locationUTM.loc, routingRequest.originUTM) > distanceThresholdToIgnoreWalking) {
           val from = beamServices.geo.snapToR5Edge(
             transportNetwork.streetLayer,
-            beamServices.geo.utm2Wgs(routingRequest.origin),
+            beamServices.geo.utm2Wgs(routingRequest.originUTM),
             10E3
           )
           val to = beamServices.geo.snapToR5Edge(
             transportNetwork.streetLayer,
-            beamServices.geo.utm2Wgs(vehicle.location.loc),
+            beamServices.geo.utm2Wgs(vehicle.locationUTM.loc),
             10E3
           )
           val directMode = LegMode.WALK
@@ -563,17 +563,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         if (mainRouteToVehicle) {
           // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
           val estimateDurationToGetToVeh: Int = math
-            .round(beamServices.geo.distUTMInMeters(routingRequest.origin, vehicle.location.loc) / 5.8)
+            .round(beamServices.geo.distUTMInMeters(routingRequest.originUTM, vehicle.locationUTM.loc) / 5.8)
             .intValue()
           val time = routingRequest.departureTime + estimateDurationToGetToVeh
           val from = beamServices.geo.snapToR5Edge(
             transportNetwork.streetLayer,
-            beamServices.geo.utm2Wgs(vehicle.location.loc),
+            beamServices.geo.utm2Wgs(vehicle.locationUTM.loc),
             10E3
           )
           val to = beamServices.geo.snapToR5Edge(
             transportNetwork.streetLayer,
-            beamServices.geo.utm2Wgs(routingRequest.destination),
+            beamServices.geo.utm2Wgs(routingRequest.destinationUTM),
             10E3
           )
           val directMode = vehicle.mode.r5Mode.get.left.get
@@ -609,14 +609,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       maybeUseVehicleOnEgressTry match {
         case Success(maybeUseVehicleOnEgress) => {
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
-            routingRequest.origin
+            routingRequest.originUTM
           } else {
-            vehicle.location.loc
+            vehicle.locationUTM.loc
           }
           val theDestination = if (mainRouteToVehicle) {
-            vehicle.location.loc
+            vehicle.locationUTM.loc
           } else {
-            routingRequest.destination
+            routingRequest.destinationUTM
           }
           val from = beamServices.geo.snapToR5Edge(
             transportNetwork.streetLayer,
@@ -756,8 +756,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (maybeBody.isDefined) {
         //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY)),
+          beamServices.geo.utm2Wgs(new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY)),
           routingRequest.departureTime,
           maybeBody.get.id,
           beamServices

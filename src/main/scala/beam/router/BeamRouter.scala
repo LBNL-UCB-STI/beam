@@ -445,22 +445,22 @@ object BeamRouter {
   /**
     * It is use to represent a request object
     *
-    * @param origin                 start/from location of the route
-    * @param destination            end/to location of the route
+    * @param originUTM                 start/from location of the route
+    * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
     * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-    origin: Location,
-    destination: Location,
-    departureTime: Int,
-    transitModes: IndexedSeq[BeamMode],
-    streetVehicles: IndexedSeq[StreetVehicle],
-    attributesOfIndividual: Option[AttributesOfIndividual] = None,
-    streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false
+                             originUTM: Location,
+                             destinationUTM: Location,
+                             departureTime: Int,
+                             transitModes: IndexedSeq[BeamMode],
+                             streetVehicles: IndexedSeq[StreetVehicle],
+                             attributesOfIndividual: Option[AttributesOfIndividual] = None,
+                             streetVehiclesUseIntermodalUse: IntermodalUse = Access,
+                             mustParkAtEnd: Boolean = false
   ) {
     lazy val requestId: Int = this.hashCode()
     lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
