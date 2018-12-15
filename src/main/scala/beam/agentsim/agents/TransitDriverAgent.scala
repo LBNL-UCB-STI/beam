@@ -64,6 +64,7 @@ object TransitDriverAgent {
   }
 
   case class TransitDriverData(
+    currentVehicleToken: BeamVehicle,
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0
@@ -102,7 +103,7 @@ class TransitDriverAgent(
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
-  startWith(Uninitialized, TransitDriverData())
+  startWith(Uninitialized, TransitDriverData(null))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
@@ -114,7 +115,7 @@ class TransitDriverAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val schedule = data.passengerSchedule.addLegs(legs)
       goto(WaitingToDrive) using data
-        .copy(currentVehicle = Vector(vehicle.id))
+        .copy(currentVehicle = Vector(vehicle.id), currentVehicleToken = vehicle)
         .withPassengerSchedule(schedule)
         .asInstanceOf[TransitDriverData] replying
       CompletionNotice(

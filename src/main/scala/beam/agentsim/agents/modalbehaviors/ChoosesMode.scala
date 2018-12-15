@@ -47,14 +47,15 @@ trait ChoosesMode {
       CAR,
       asDriver = false
     )
-  val bodyVehiclePersonId = VehiclePersonId(bodyId, id, Some(self))
+
+  def bodyVehiclePersonId = VehiclePersonId(body.id, id, Some(self))
 
   onTransition {
     case _ -> ChoosingMode =>
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _),
+            BasePersonData(_, _, _, _, _, _, Some(vehicle),  _, _, _),
             _,
             _,
             _,
@@ -76,8 +77,8 @@ trait ChoosesMode {
           self ! MobilityStatusResponse(Vector(vehicle))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _),
-            _,
+            BasePersonData(_, _, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _),
+            currentLocation,
             _,
             _,
             _,
@@ -98,7 +99,7 @@ trait ChoosesMode {
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
           Future
-            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry()))
+            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(currentLocation)))
             .map(
               listOfResponses =>
                 MobilityStatusResponse(listOfResponses.collect {
@@ -114,9 +115,7 @@ trait ChoosesMode {
 
   when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusResponse(beamVehicles), choosesModeData: ChoosesModeData) =>
-      val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
-      )
+      val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
       )
@@ -129,7 +128,7 @@ trait ChoosesMode {
       }
 
       val bodyStreetVehicle = StreetVehicle(
-        bodyId,
+        body.id,
         currentPersonLocation,
         WALK,
         asDriver = true
@@ -452,7 +451,7 @@ trait ChoosesMode {
           if (trip.legs.head.beamLeg.mode != WALK) {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
-              bodyId,
+              body.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = false
@@ -464,7 +463,7 @@ trait ChoosesMode {
           if (trip.legs.last.beamLeg.mode != WALK) {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
-              bodyId,
+              body.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = true
@@ -564,9 +563,9 @@ trait ChoosesMode {
         }
         Some(
           EmbodiedBeamTrip(
-            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.head.beamLeg.startTime, bodyId, false) +:
+            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.head.beamLeg.startTime, body.id, false) +:
             fullTrip :+
-            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.last.beamLeg.endTime, bodyId, true)
+            EmbodiedBeamLeg.dummyWalkLegAt(fullTrip.last.beamLeg.endTime, body.id, true)
           )
         )
       }
@@ -651,9 +650,7 @@ trait ChoosesMode {
         _,
         _
         ) =>
-      val currentPersonLocation = choosesModeData.currentLocation.getOrElse(
-        SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get)
-      )
+      val currentPersonLocation = choosesModeData.currentLocation
       val nextAct = nextActivity(choosesModeData.personData).get
       val rideHail2TransitIinerary = createRideHail2TransitItin(
         rideHail2TransitAccessResult,
@@ -665,8 +662,8 @@ trait ChoosesMode {
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           val fullItin = EmbodiedBeamTrip(
             (EmbodiedBeamLeg
-              .dummyWalkLegAt(origLegs.head.beamLeg.startTime, bodyId, false) +: origLegs :+ EmbodiedBeamLeg
-              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, bodyId, true)).toIndexedSeq
+              .dummyWalkLegAt(origLegs.head.beamLeg.startTime, body.id, false) +: origLegs :+ EmbodiedBeamLeg
+              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, body.id, true)).toIndexedSeq
           )
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
@@ -744,7 +741,7 @@ trait ChoosesMode {
                     beamServices.geo.utm2Wgs(currentPersonLocation.loc),
                     beamServices.geo.utm2Wgs(nextAct.getCoord),
                     _currentTick.get,
-                    bodyId,
+                    body.id,
                     beamServices
                   )
                   .legs
@@ -867,7 +864,7 @@ object ChoosesMode {
 
   case class ChoosesModeData(
     personData: BasePersonData,
-    currentLocation: Option[SpaceTime] = None,
+    currentLocation: SpaceTime,
     pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
     routingResponse: Option[RoutingResponse] = None,
     parkingResponse: Option[ParkingInquiryResponse] = None,
@@ -904,6 +901,7 @@ object ChoosesMode {
       )
 
     override def hasParkingBehaviors: Boolean = true
+    override def currentVehicleToken: BeamVehicle = personData.currentVehicleToken
   }
 
   case class ChoosesModeResponsePlaceholders(

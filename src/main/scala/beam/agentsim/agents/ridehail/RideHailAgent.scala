@@ -64,6 +64,7 @@ object RideHailAgent {
   }
 
   case class RideHailAgentData(
+    currentVehicleToken: BeamVehicle,
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0
@@ -163,7 +164,7 @@ class RideHailAgent(
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
-  startWith(Uninitialized, RideHailAgentData())
+  startWith(Uninitialized, RideHailAgentData(vehicle))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>

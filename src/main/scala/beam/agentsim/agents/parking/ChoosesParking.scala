@@ -59,19 +59,16 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, data: BasePersonData) =>
       if (data.currentVehicle.isEmpty) {
         stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
       } else {
         val (tick, _) = releaseTickAndTriggerId()
-        val veh = beamServices
-          .vehicles(data.currentVehicle.head)
+        val veh = data.currentTourPersonalVehicle.get
+        assert(veh.id == data.currentVehicle.head)
 
         veh.stall.foreach { stall =>
-          parkingManager ! CheckInResource(
-            beamServices.vehicles(data.currentVehicle.head).stall.get.id,
-            None
-          )
+          parkingManager ! CheckInResource(data.currentTourPersonalVehicle.get.stall.get.id, None)
           //        val tick: Double = _currentTick.getOrElse(0)
           val nextLeg = data.passengerSchedule.schedule.head._1
           val distance = beamServices.geo.distInMeters(
@@ -103,7 +100,7 @@ trait ChoosesParking extends {
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      beamServices.vehicles(data.currentVehicle.head).setReservedParkingStall(Some(stall))
+      data.currentVehicleToken.setReservedParkingStall(Some(stall))
 
       data.currentVehicle.head
 
@@ -172,7 +169,7 @@ trait ChoosesParking extends {
       }
     case Event(
         (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
+        data: BasePersonData
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
@@ -201,16 +198,14 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val currVehicle = beamServices.vehicles(data.currentVehicle.head)
-
-      val newVehicle = if (leg1.beamLeg.mode == CAR || currVehicle.id == bodyId) {
-        data.currentVehicle
+      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || data.currentVehicleToken.id == body.id) {
+        (data.currentVehicle, data.currentVehicleToken)
       } else {
-        currVehicle.unsetDriver()
+        data.currentVehicleToken.unsetDriver()
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
-        data.currentVehicle.drop(1)
+        (data.currentVehicle.drop(1), beamServices.vehicles(data.currentVehicle.drop(1).head))
       }
 
       scheduler ! CompletionNotice(
@@ -228,7 +223,8 @@ trait ChoosesParking extends {
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle
+        currentVehicle = newVehicle,
+        currentVehicleToken = newVehicleToken
       )
   }
 

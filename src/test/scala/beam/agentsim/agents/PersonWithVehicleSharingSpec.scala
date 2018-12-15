@@ -194,7 +194,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
 
       // I give it a car to use.
       beamVehicle.exclusiveAccess = true
@@ -336,7 +336,7 @@ class PersonWithVehicleSharingSpec
 
       scheduler ! StartSchedule(0)
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
       car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
@@ -369,7 +369,7 @@ class PersonWithVehicleSharingSpec
       // car
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
       car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
@@ -401,7 +401,7 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry())
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 
       // agent has no car available, so will ask for new route

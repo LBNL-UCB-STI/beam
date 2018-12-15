@@ -460,7 +460,7 @@ class PersonWithCarPlanSpec
       expectMsgType[ActivityEndEvent]
       expectMsgType[PersonDepartureEvent]
 
-      expectMsgType[PersonEntersVehicleEvent]
+      println(expectMsgType[PersonEntersVehicleEvent])
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
@@ -475,7 +475,7 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
-      expectMsgType[PersonLeavesVehicleEvent]
+      println(expectMsgType[PersonLeavesVehicleEvent])
       expectMsgType[TeleportationArrivalEvent]
 
       expectMsgType[PersonArrivalEvent]

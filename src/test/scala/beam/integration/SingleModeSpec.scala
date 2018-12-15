@@ -10,6 +10,7 @@ import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
+import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -22,7 +23,7 @@ import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.handler.BasicEventHandler
@@ -310,17 +311,19 @@ class SingleModeSpec
           }
         }
       val eventsManager = EventsUtils.createEventsManager()
-      //          eventsManager.addHandler(
-      //            new BasicEventHandler {
-      //              override def handleEvent(event: Event): Unit = {
-      //                event match {
-      //                  case event: PathTraversalEvent if event.getAttributes.get("amount_paid").toDouble != 0.0 =>
-      //                    println(event)
-      //                  case _ =>
-      //                }
-      //              }
-      //            }
-      //          )
+      val events = mutable.ListBuffer[Event]()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            event match {
+              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent | _: PathTraversalEvent | _: PersonEntersVehicleEvent) =>
+                events += event
+              case _ =>
+            }
+          }
+        }
+      )
+
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
@@ -332,6 +335,10 @@ class SingleModeSpec
         new RideHailIterationHistory()
       )
       mobsim.run()
+      events.collect {
+        case event: PersonDepartureEvent =>
+          assert(event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+      }
     }
   }
 

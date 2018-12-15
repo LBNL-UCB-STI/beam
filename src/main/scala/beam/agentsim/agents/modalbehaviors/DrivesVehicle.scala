@@ -113,18 +113,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      val fuelConsumed = beamServices
-        .vehicles(currentVehicleUnderControl)
-        .useFuel(currentLeg.travelPath.distanceInM)
+      val fuelConsumed = data.currentVehicleToken.useFuel(currentLeg.travelPath.distanceInM)
 
       if (isLastLeg) {
-        val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleIdle(
             currentVehicleUnderControl,
             beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
             data.passengerSchedule,
-            theVehicle.getState,
+            data.currentVehicleToken.getState,
             Some(triggerId)
           )
         )
@@ -165,14 +162,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
-          beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
+          data.currentVehicleToken.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
           fuelConsumed,
-          beamServices
-            .vehicles(currentVehicleUnderControl)
-            .fuelLevelInJoules
-            .getOrElse(-1.0),
+          data.currentVehicleToken.fuelLevelInJoules.getOrElse(-1.0),
           tollOnCurrentLeg
         )
       )
@@ -197,11 +191,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         }
       } else {
         if (data.hasParkingBehaviors) {
-          //Throwing parkEvent after last PathTraversal
-          val vehId = data.currentVehicle.head
-          val theVehicle = beamServices.vehicles(data.currentVehicle.head)
-          theVehicle.reservedStall.foreach { stall =>
-            theVehicle.useParkingStall(stall)
+          data.currentVehicleToken.reservedStall.foreach { stall =>
+            data.currentVehicleToken.useParkingStall(stall)
             val nextLeg =
               data.passengerSchedule.schedule.keys.view
                 .drop(data.currentLegPassengerScheduleIndex)
@@ -209,9 +200,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             val distance =
               beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
             eventsManager
-              .processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
+              .processEvent(new ParkEvent(tick, stall, distance, data.currentVehicleToken.id)) // nextLeg.endTime -> to fix repeated path traversal
           }
-          theVehicle.setReservedParkingStall(None)
+          data.currentVehicleToken.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         self ! PassengerScheduleEmptyMessage(
@@ -383,7 +374,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         // Un-Park if necessary, this should only happen with RideHailAgents
         data.currentVehicle.headOption match {
           case Some(currentVehicleUnderControl) =>
-            val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
+            val theVehicle = data.currentVehicleToken
+            assert(theVehicle.id == currentVehicleUnderControl, theVehicle.id + " " + currentVehicleUnderControl)
             theVehicle.stall.foreach { theStall =>
               parkingManager ! CheckInResource(theStall.id, None)
             }

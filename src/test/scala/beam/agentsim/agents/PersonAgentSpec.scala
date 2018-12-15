@@ -182,7 +182,6 @@ class PersonAgentSpec
           eventsManager,
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
-          Id.create("dummyBody", classOf[Vehicle]),
           parkingManager,
           tollCalculator
         )

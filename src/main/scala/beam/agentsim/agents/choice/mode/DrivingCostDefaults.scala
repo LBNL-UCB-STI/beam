@@ -8,9 +8,6 @@ import beam.sim.BeamServices
   * BEAM
   */
 object DrivingCostDefaults {
-  val LITERS_PER_GALLON = 3.78541
-  val zero: Double = 0
-
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices
@@ -18,7 +15,7 @@ object DrivingCostDefaults {
 
     alternatives.map { alt =>
       alt.tripClassifier match {
-        case CAR if alt.costEstimate == zero =>
+        case CAR if alt.costEstimate == 0 =>
           val legs = alt.legs
           val neededLeg = legs
             .collectFirst {
@@ -44,7 +41,7 @@ object DrivingCostDefaults {
             }
           cost
         case _ =>
-          zero
+          0
       }
     }
   }

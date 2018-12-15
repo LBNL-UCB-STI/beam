@@ -3,7 +3,7 @@ package beam.sim
 import java.awt.Color
 import java.lang.Double
 import java.util
-import java.util.{ArrayList, List, Random}
+import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
@@ -13,17 +13,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  NotifyIterationEnds,
-  RideHailRepositioningTrigger
-}
-import beam.agentsim.agents.ridehail.{
-  RideHailAgent,
-  RideHailIterationHistory,
-  RideHailManager,
-  RideHailSurgePricingManager
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, NotifyIterationEnds, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -36,14 +27,17 @@ import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
+import beam.sim.vehiclesharing.InexhaustibleSharedVehicleFleet
 import beam.utils._
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
@@ -125,6 +119,7 @@ class BeamMobsim @Inject()(
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.startNewIteration()
+    eventsManager.addHandler(new BasicEventHandler { override def handleEvent(event: Event): Unit = println(event) })
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
@@ -198,6 +193,9 @@ class BeamMobsim @Inject()(
           )
         }
 
+        private val sharedVehicleFleets = Vector(context.actorOf(Props(new InexhaustibleSharedVehicleFleet), "inexhaustible-shared-vehicle-fleet"))
+        sharedVehicleFleets.foreach(context.watch)
+
         private val population = context.actorOf(
           Population.props(
             scenario,
@@ -208,6 +206,7 @@ class BeamMobsim @Inject()(
             beamServices.beamRouter,
             rideHailManager,
             parkingManager,
+            sharedVehicleFleets,
             eventsManager
           ),
           "population"
@@ -421,6 +420,7 @@ class BeamMobsim @Inject()(
             context.stop(scheduler)
             context.stop(errorListener)
             context.stop(parkingManager)
+            sharedVehicleFleets.foreach(context.stop)
             if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
               debugActorWithTimerCancellable.cancel()
               context.stop(debugActorWithTimerActorRef)

@@ -40,8 +40,9 @@ object HouseholdActor {
     population: org.matsim.api.core.v01.population.Population,
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
-  ): Props = {
+    homeCoord: Coord,
+    sharedVehicleFleets: Vector[ActorRef] = Vector()
+           ): Props = {
     Props(
       new HouseholdActor(
         beamServices,
@@ -56,12 +57,13 @@ object HouseholdActor {
         population,
         matSimHousehold,
         houseHoldVehicles,
-        homeCoord
+        homeCoord,
+        sharedVehicleFleets
       )
     )
   }
 
-  case class MobilityStatusInquiry()
+  case class MobilityStatusInquiry(whereWhen: SpaceTime)
   case class ReleaseVehicle(vehicle: BeamVehicle)
 
   case class MobilityStatusResponse(streetVehicle: Vector[BeamVehicle])
@@ -113,8 +115,6 @@ object HouseholdActor {
 
       val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
 
-      val bodyVehicleIdFromPerson = BeamVehicle.createId(person.getId, Some("body"))
-
       modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
 
       val personRef: ActorRef = context.actorOf(
@@ -131,23 +131,11 @@ object HouseholdActor {
           person.getId,
           household,
           person.getSelectedPlan,
-          bodyVehicleIdFromPerson,
           sharedVehicleFleets
         ),
         person.getId.toString
       )
       context.watch(personRef)
-
-      // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(
-        bodyVehicleIdFromPerson,
-        BeamVehicleType.powerTrainForHumanBody,
-        None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType
-      )
-      newBodyVehicle.exclusiveAccess = true
-      newBodyVehicle.registerResource(personRef)
-      beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
 
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
       beamServices.personRefs += ((person.getId, personRef))
@@ -171,7 +159,7 @@ object HouseholdActor {
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
-      case MobilityStatusInquiry() =>
+      case MobilityStatusInquiry(_) =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             firstVehicle.exclusiveAccess = true

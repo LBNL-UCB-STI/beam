@@ -37,7 +37,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
     tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
-//    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
   }
 
   private def tripsFromEvents(vehicleType: String) = {
