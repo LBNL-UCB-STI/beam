@@ -105,9 +105,6 @@ class ZonalParkingManager(
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
   override def receive: Receive = {
-    case RegisterResource =>
-    // For Zonal Parking, stalls are created internally
-
     case CheckInResource(resourceId, _) =>
       val stallId = resourceId.asInstanceOf[Id[ParkingStall]]
       if (stalls.contains(stallId)) {

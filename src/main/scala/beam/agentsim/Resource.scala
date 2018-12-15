@@ -9,8 +9,6 @@ import org.matsim.api.core.v01.{Id, Identifiable}
 
 object Resource {
 
-  case class RegisterResource(resourceId: Id[_])
-
   case class CheckInResource(resourceId: Id[_], whenWhere: Option[SpaceTime])
 
   case class NotifyVehicleIdle(
@@ -37,10 +35,5 @@ object Resource {
 trait Resource[R] extends Identifiable[R] {
 
   var manager: Option[ActorRef] = None
-
-  def registerResource(newManager: ActorRef): Unit = {
-    manager = Some(newManager)
-    manager.foreach(_ ! RegisterResource(getId))
-  }
 
 }

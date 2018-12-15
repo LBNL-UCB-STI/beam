@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -102,6 +103,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -154,6 +156,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -176,6 +179,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true

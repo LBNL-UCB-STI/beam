@@ -9,6 +9,6 @@ object VehicleProtocol {
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
-  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
+  case class StreetVehicle(id: Id[Vehicle], vehicleTypeId: Id[BeamVehicleType], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
 
 }

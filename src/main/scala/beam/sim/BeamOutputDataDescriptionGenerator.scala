@@ -3,11 +3,11 @@ package beam.sim
 import java.io.{BufferedWriter, FileWriter, IOException}
 
 import akka.actor.ActorSystem
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
 import beam.analysis.plots._
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.router.osm.TollCalculator
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -78,16 +78,7 @@ class BeamOutputDataDescriptionGenerator @Inject()(
       beamServices.beamConfig,
       new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation
     ),
-    new BeamMobsim(
-      beamServices,
-      transportNetwork,
-      new TollCalculator(beamServices.beamConfig),
-      scenario,
-      eventsManager,
-      actorSystem,
-      new RideHailSurgePricingManager(beamServices),
-      new RideHailIterationHistory
-    ),
+    new ridehail.RideHailManager.OutputData,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,

@@ -85,7 +85,6 @@ class PersonWithCarPlanSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
@@ -196,6 +195,7 @@ class PersonWithCarPlanSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -317,13 +317,14 @@ class PersonWithCarPlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, _) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
                 travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
               ),
               beamVehicleId = vehicleId,
+              BeamVehicleType.defaultTransitBeamVehicleType.id,
               asDriver = true,
               cost = 0.0,
               unbecomeDriverOnCompletion = true
@@ -426,6 +427,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -445,6 +447,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -572,6 +575,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -591,6 +595,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = car2.getId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true

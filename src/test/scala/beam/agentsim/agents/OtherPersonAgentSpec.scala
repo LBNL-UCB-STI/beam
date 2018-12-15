@@ -87,7 +87,6 @@ class OtherPersonAgentSpec
   lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
     val geo = new GeoUtilsImpl(theServices)
@@ -171,6 +170,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -190,6 +190,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -209,6 +210,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -228,6 +230,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -331,6 +334,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -353,6 +357,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -413,6 +418,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false

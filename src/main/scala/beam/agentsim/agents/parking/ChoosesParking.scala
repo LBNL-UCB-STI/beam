@@ -87,10 +87,10 @@ trait ChoosesParking extends {
 
     case Event(StateTimeout, data) =>
       parkingManager ! CheckInResource(
-        beamServices.vehicles(data.currentVehicle.head).stall.get.id,
+        data.currentVehicleToken.stall.get.id,
         None
       )
-      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+      data.currentVehicleToken.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -129,9 +129,9 @@ trait ChoosesParking extends {
 
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
-          StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
+          StreetVehicle(data.currentVehicleToken.id, data.currentVehicleToken.beamVehicleType.id, currentPoint, CAR, asDriver = true)
         val bodyStreetVeh =
-          StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
+          StreetVehicle(body.id, body.beamVehicleType.id, currentPoint, WALK, asDriver = true)
         val futureVehicle2StallResponse = router ? RoutingRequest(
           currentPoint.loc,
           beamServices.geo.utm2Wgs(stall.location),
@@ -149,7 +149,8 @@ trait ChoosesParking extends {
           Vector(),
           Vector(
             StreetVehicle(
-              data.currentVehicle.last,
+              body.id,
+              body.beamVehicleType.id,
               SpaceTime(stall.location, currentPoint.time),
               WALK,
               asDriver = true
@@ -205,7 +206,7 @@ trait ChoosesParking extends {
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
-        (data.currentVehicle.drop(1), beamServices.vehicles(data.currentVehicle.drop(1).head))
+        (data.currentVehicle.drop(1), body)
       }
 
       scheduler ! CompletionNotice(

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
@@ -27,15 +28,17 @@ object DrivingCostDefaults {
               )
             )
 
-          val vehicle = beamServices.vehicles(neededLeg.beamVehicleId)
+          // TODO: Why can this be empty?
+          val maybeBeamVehicleType = beamServices.vehicleTypes.get(neededLeg.beamVehicleTypeId)
+          val beamVehicleType = maybeBeamVehicleType.getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
 
           val distance = legs.view
             .map(_.beamLeg.travelPath.distanceInM)
             .sum
 
           val cost =
-            if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-              (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+            if (null != beamVehicleType && null != beamVehicleType.primaryFuelType && 0.0 != beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
+              (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
             } else {
               0 //TODO
             }

@@ -86,7 +86,6 @@ class PersonAndTransitDriverSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
@@ -187,6 +186,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -206,6 +206,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -225,6 +226,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = tramId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -348,6 +350,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -370,6 +373,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

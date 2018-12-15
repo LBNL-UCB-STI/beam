@@ -90,7 +90,6 @@ class PersonAgentSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
@@ -285,6 +284,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -364,6 +364,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -383,6 +384,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -402,6 +404,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = tramId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -491,6 +494,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -513,6 +517,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

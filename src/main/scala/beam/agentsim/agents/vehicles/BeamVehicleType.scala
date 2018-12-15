@@ -3,7 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, NONE, RIDE_HAIL}
+import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -14,7 +14,7 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-  vehicleTypeId: String,
+  id: Id[BeamVehicleType],
   seatingCapacity: Double,
   standingRoomCapacity: Double,
   lengthInMeter: Double,
@@ -41,7 +41,7 @@ object BeamVehicleType {
 
   //TODO
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "BIKE-TYPE-DEFAULT",
+    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
     0,
     0,
     0,
@@ -57,7 +57,7 @@ object BeamVehicleType {
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "BODY-TYPE-DEFAULT",
+      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
       0,
       0,
       0.5,
@@ -74,7 +74,7 @@ object BeamVehicleType {
   //TODO
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "TRANSIT-TYPE-DEFAULT",
+      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
       0,
       0,
       0,
@@ -84,7 +84,7 @@ object BeamVehicleType {
     )
 
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "CAR-TYPE-DEFAULT",
+    Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
     4,
     0,
     4.5,
@@ -104,11 +104,11 @@ object BeamVehicleType {
     beamVehicleId.toString.startsWith("bike")
 
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
-    beamVehicle.beamVehicleType.vehicleTypeId match {
+    beamVehicle.beamVehicleType.id match {
       //TODO complete list
-      case vid if vid.toLowerCase.contains("bike")     => BIKE
-      case vid if vid.toLowerCase.contains("ridehail") => RIDE_HAIL
-      case vid if vid.toLowerCase.contains("car")      => CAR
+      case vid if vid.toString.toLowerCase.contains("bike")     => BIKE
+      case vid if vid.toString.toLowerCase.contains("ridehail") => RIDE_HAIL
+      case vid if vid.toString.toLowerCase.contains("car")      => CAR
 
     }
 //

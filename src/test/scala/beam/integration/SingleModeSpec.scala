@@ -79,7 +79,6 @@ class SingleModeSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
-    when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.privateVehicles).thenReturn {
@@ -94,7 +93,6 @@ class SingleModeSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()

@@ -235,18 +235,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
     case ev @ Event(Interrupt(interruptId, tick), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
-      val currentVehicleUnderControl =
-        beamServices.vehicles(data.currentVehicle.head)
       goto(DrivingInterrupted) replying InterruptedWhileDriving(
         interruptId,
-        currentVehicleUnderControl.id,
+        data.currentVehicleToken.id,
         tick,
         data.passengerSchedule,
         data.currentLegPassengerScheduleIndex
       )
 
     case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
       data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption match {
@@ -290,16 +288,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           transportNetwork
         )
 
-      val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
-
-      val fuelConsumed = theVehicle.useFuel(updatedBeamLeg.travelPath.distanceInM)
+      val fuelConsumed = data.currentVehicleToken.useFuel(updatedBeamLeg.travelPath.distanceInM)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
           currentVehicleUnderControl,
           beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
           data.passengerSchedule,
-          theVehicle.getState,
+          data.currentVehicleToken.getState,
           _currentTriggerId
         )
       )
@@ -325,12 +321,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
-          beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
+          data.currentVehicleToken.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
           fuelConsumed,
-          beamServices
-            .vehicles(currentVehicleUnderControl)
+          data.currentVehicleToken
             .fuelLevelInJoules
             .getOrElse(-1.0),
           tollOnCurrentLeg
@@ -469,7 +464,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if !hasRoomFor(
           data.passengerSchedule,
           req,
-          beamServices.vehicles(data.currentVehicle.head)
+          data.currentVehicleToken
         ) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       stay() replying ReservationResponse(req.requestId, Left(VehicleFullError), TRANSIT)
@@ -569,9 +564,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
     case ev @ Event(AddFuel(fuelInJoules), data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
-      val currentVehicleUnderControl =
-        beamServices.vehicles(data.currentVehicle.head)
-      currentVehicleUnderControl.addFuel(fuelInJoules)
+      data.currentVehicleToken.addFuel(fuelInJoules)
       stay()
 
     case ev @ Event(GetBeamVehicleState, data) =>
@@ -579,15 +572,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
       // also position is not accurate (TODO: interpolate?)
-      val currentVehicleUnderControl =
-        beamServices.vehicles(data.currentVehicle.head)
 
       //      val lastLocationVisited = SpaceTime(new Coord(0, 0), 0) // TODO: don't ask for this here - TNC should keep track of it?
       // val lastLocationVisited = currentLeg.travelPath.endPoint
 
       sender() ! BeamVehicleStateUpdate(
-        currentVehicleUnderControl.id,
-        currentVehicleUnderControl.getState
+        data.currentVehicleToken.id,
+        data.currentVehicleToken.getState
       )
       stay()
 

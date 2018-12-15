@@ -5,23 +5,12 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -398,7 +387,6 @@ class BeamRouter(
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
-          services.vehicles += (tripVehId -> vehicle)
           services.agencyAndRouteByVehicleIds += (Id
             .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
@@ -429,6 +417,7 @@ object BeamRouter {
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
     id: Int = UUID.randomUUID().hashCode(),
     mustParkAtEnd: Boolean = false
   )

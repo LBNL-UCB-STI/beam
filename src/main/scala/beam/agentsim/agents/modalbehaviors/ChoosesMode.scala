@@ -43,6 +43,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
+      BeamVehicleType.defaultCarBeamVehicleType.id,
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
@@ -129,6 +130,7 @@ trait ChoosesMode {
 
       val bodyStreetVehicle = StreetVehicle(
         body.id,
+        BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
         currentPersonLocation,
         WALK,
         asDriver = true
@@ -211,16 +213,16 @@ trait ChoosesMode {
       }
 
       def filterStreetVehiclesForQuery(
-        streetVehicles: Vector[StreetVehicle],
+        streetVehicles: Vector[BeamVehicle],
         byMode: BeamMode
-      ): Vector[StreetVehicle] = {
+      ): Vector[BeamVehicle] = {
         choosesModeData.personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
             streetVehicles.filter(_.id == personalVeh.id)
           case None =>
             // Otherwise, filter by mode
-            streetVehicles.filter(_.mode == byMode)
+            streetVehicles.filter(_.toStreetVehicle.mode == byMode)
         }
       }
 
@@ -269,7 +271,7 @@ trait ChoosesMode {
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle =
-                filterStreetVehiclesForQuery(beamVehicles.map(_.toStreetVehicle), mode).headOption
+                filterStreetVehiclesForQuery(beamVehicles, mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
                   val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
@@ -286,7 +288,7 @@ trait ChoosesMode {
                     // TODO FIXME
                     BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, mustParkAtEnd = true)
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, vehicle.beamVehicleType.id, mustParkAtEnd = true)
                   parkingRequestId = requestParkingCost(
                     leg.travelPath.endPoint.loc,
                     nextAct.getType,
@@ -301,10 +303,10 @@ trait ChoosesMode {
             case _ =>
               parkingRequestId = makeRequestWith(
                 Vector(),
-                filterStreetVehiclesForQuery(beamVehicles.map(_.toStreetVehicle), mode) :+ bodyStreetVehicle,
-                withParking = (mode == CAR)
+                filterStreetVehiclesForQuery(beamVehicles, mode).map(_.toStreetVehicle) :+ bodyStreetVehicle,
+                withParking = mode == CAR
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = (mode == CAR))
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = mode == CAR)
           }
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
@@ -318,7 +320,7 @@ trait ChoosesMode {
               // actual location of transit station
               makeRequestWith(
                 Vector(TRANSIT),
-                filterStreetVehiclesForQuery(beamVehicles.map(_.toStreetVehicle), CAR) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(beamVehicles, CAR).map(_.toStreetVehicle) :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
@@ -452,6 +454,7 @@ trait ChoosesMode {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
               body.id,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = false
@@ -464,6 +467,7 @@ trait ChoosesMode {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
               body.id,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = true
@@ -741,7 +745,7 @@ trait ChoosesMode {
                     beamServices.geo.utm2Wgs(currentPersonLocation.loc),
                     beamServices.geo.utm2Wgs(nextAct.getCoord),
                     _currentTick.get,
-                    body.id,
+                    body.toStreetVehicle,
                     beamServices
                   )
                   .legs

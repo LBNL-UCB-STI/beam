@@ -88,7 +88,6 @@ class PersonWithVehicleSharingSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
@@ -212,6 +211,7 @@ class PersonWithVehicleSharingSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
+                beamVehicleTypeId = beamVehicle.beamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -340,7 +340,7 @@ class PersonWithVehicleSharingSpec
       car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -348,6 +348,7 @@ class PersonWithVehicleSharingSpec
               travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
             ),
             beamVehicleId = vehicleId,
+            beamVehicleTypeId = vehicleTypeId,
             asDriver = true,
             cost = 0.0,
             unbecomeDriverOnCompletion = true
@@ -373,7 +374,7 @@ class PersonWithVehicleSharingSpec
       car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -381,6 +382,7 @@ class PersonWithVehicleSharingSpec
               travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
             ),
             beamVehicleId = vehicleId,
+            beamVehicleTypeId = vehicleTypeId,
             asDriver = true,
             cost = 0.0,
             unbecomeDriverOnCompletion = true
@@ -416,6 +418,7 @@ class PersonWithVehicleSharingSpec
               BeamPath(Vector(), Vector(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
             ),
             beamVehicleId = body.id,
+            beamVehicleTypeId = body.vehicleTypeId,
             asDriver = true,
             cost = 0.0,
             unbecomeDriverOnCompletion = true

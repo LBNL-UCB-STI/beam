@@ -46,7 +46,6 @@ trait BeamServices {
 
   var beamRouter: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
@@ -79,7 +78,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
   val agencyAndRouteByVehicleIds = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
@@ -101,7 +99,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   def clearAll(): Unit = {
     personRefs.clear
-    vehicles.clear()
   }
 
   def startNewIteration(): Unit = {
@@ -206,8 +203,7 @@ object BeamServices {
   ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
-        val vIdString = line.get("vehicleTypeId")
-        val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+        val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
         val seatingCapacity = line.get("seatingCapacity").toDouble
         val standingRoomCapacity = line.get("standingRoomCapacity").toDouble
         val lengthInMeter = line.get("lengthInMeter").toDouble
@@ -229,7 +225,7 @@ object BeamServices {
         val vehicleCategory = vehicleCategoryString.map(getVehicleCategory)
 
         val bvt = BeamVehicleType(
-          vIdString,
+          vehicleTypeId,
           seatingCapacity,
           standingRoomCapacity,
           lengthInMeter,

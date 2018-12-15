@@ -206,8 +206,7 @@ class PersonAgent(
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.exclusiveAccess = true
-  body.registerResource(self)
-  beamServices.vehicles += body.id -> body
+  body.manager = Some(self)
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -223,8 +222,6 @@ class PersonAgent(
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
       stash()
       stay
-    case Event(RegisterResource(_), _) =>
-      stay()
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
     case Event(ParkingInquiryResponse(_, _), _) =>
@@ -554,7 +551,7 @@ class PersonAgent(
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val (currentVehicleForNextState, vehicleTokenForNextState) = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = if (nextLeg.beamVehicleId.toString.startsWith("body")) {
-            beamServices.vehicles(nextLeg.beamVehicleId)
+            body
           } else {
             currentTourPersonalVehicle.get
           }

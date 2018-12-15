@@ -3,7 +3,6 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.UUID
 import java.util.concurrent.Executors
 
 import akka.actor._
@@ -20,7 +19,7 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.model.BeamLeg._
-import beam.router.model.RoutingModel.{LinksTimesDistances}
+import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
@@ -107,7 +106,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         )
         override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
-        override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypes: TrieMap[Id[FuelType], FuelType] =
@@ -290,6 +288,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
+        vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int,
         mustParkAtEnd: Boolean
         ) =>
@@ -313,8 +312,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val finalLegs = if (mustParkAtEnd) {
         val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
         val embodiedPair = Vector(
-          EmbodiedBeamLeg(legPair.head, vehicleId, asDriver = true, 0, unbecomeDriverOnCompletion = false),
-          EmbodiedBeamLeg(legPair.last, vehicleId, asDriver = true, 0, unbecomeDriverOnCompletion = true)
+          EmbodiedBeamLeg(legPair.head, vehicleId, vehicleTypeId, asDriver = true, 0, unbecomeDriverOnCompletion = false),
+          EmbodiedBeamLeg(legPair.last, vehicleId, vehicleTypeId, asDriver = true, 0, unbecomeDriverOnCompletion = true)
         )
         if (legPair.size == 1) {
           Vector(embodiedPair.head)
@@ -326,6 +325,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamLeg(
             leg.copy(duration = duration.toInt),
             vehicleId,
+            vehicleTypeId,
             asDriver = true,
             0,
             unbecomeDriverOnCompletion = true
@@ -676,6 +676,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   EmbodiedBeamLeg(
                     beamLeg,
                     beamLeg.travelPath.transitStops.get.vehicleId,
+                    BeamVehicleType.defaultTransitBeamVehicleType.id,
                     asDriver = false,
                     cost,
                     unbecomeDriverOnCompletion = false
@@ -689,11 +690,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     if (!routingRequest.streetVehicles.exists(_.mode == WALK)) {
                       val i = 0
                     }
-                    val body =
-                      routingRequest.streetVehicles.find(_.mode == WALK).get
-                    EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, 0.0, unbecomeDriverAtComplete)
+                    val body = routingRequest.streetVehicles.find(_.mode == WALK).get
+                    EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
-                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, cost, unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.vehicleTypeId, vehicle.asDriver, cost, unbecomeDriverAtComplete)
                   }
                 }
               }
@@ -717,7 +717,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           beamServices.geo.utm2Wgs(new Coord(routingRequest.origin.getX, routingRequest.origin.getY)),
           beamServices.geo.utm2Wgs(new Coord(routingRequest.destination.getX, routingRequest.destination.getY)),
           routingRequest.departureTime,
-          maybeBody.get.id,
+          maybeBody.get,
           beamServices
         )
         RoutingResponse(
@@ -1413,14 +1413,15 @@ object R5RoutingWorker {
     origin: Location,
     dest: Location,
     atTime: Int,
-    bodyId: Id[Vehicle],
+    body: StreetVehicle,
     beamServices: BeamServices
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
           createBushwackingBeamLeg(atTime, origin, dest, beamServices),
-          bodyId,
+          body.id,
+          body.vehicleTypeId,
           asDriver = true,
           0,
           unbecomeDriverOnCompletion = false

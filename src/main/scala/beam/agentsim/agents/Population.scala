@@ -119,7 +119,6 @@ class Population(
               bvid -> beamServices.privateVehicles(bvid)
             }
             .toMap
-          householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
