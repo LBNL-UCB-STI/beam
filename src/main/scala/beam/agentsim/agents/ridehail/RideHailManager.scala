@@ -1023,18 +1023,9 @@ class RideHailManager(
   }
 
   def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
-    val preservedOrder = routingRequests.map(_.staticRequestId)
-    val theFutures = Future
-      .sequence(routingRequests.map { rRequest =>
-        akka.pattern.ask(router, rRequest).mapTo[RoutingResponse]
-      })
-      .foreach { responseList =>
-        val requestIdToResponse = responseList.map { response =>
-          response.staticRequestId -> response
-        }.toMap
-        val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
-        self ! RoutingResponses(tick, orderedResponses)
-      }
+    Future
+      .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+      .map(RoutingResponses(tick, _)) pipeTo self
   }
 
   def printRepositionDistanceSum(
