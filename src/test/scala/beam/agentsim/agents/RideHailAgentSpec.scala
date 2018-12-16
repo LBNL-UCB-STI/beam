@@ -82,7 +82,6 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgent)
       scheduler ! ScheduleTrigger(TestTrigger(28800), self)
       scheduler ! StartSchedule(0)
-      expectMsgType[CheckInResource] // Idle agent is idle
       expectMsgType[PersonDepartureEvent] // Departs..
       expectMsgType[PersonEntersVehicleEvent] // ..enters vehicle
 
@@ -196,8 +195,6 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-//      expectMsgType[NotifyResourceIdle]
-
       expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
@@ -206,12 +203,9 @@ class RideHailAgentSpec
       trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      // expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[NotifyVehicleIdle]
-      //expectMsgType[NotifyVehicleResourceIdleReply]
-//      expectMsgType[CheckInResource]
 
       trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
