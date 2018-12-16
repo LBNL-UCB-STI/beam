@@ -250,13 +250,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               firstMsgTime = None
               msgs = 0
             }
-            if(beamServices.beamConfig.beam.outputs.displayPerformanceTimings){
+            if (beamServices.beamConfig.beam.outputs.displayPerformanceTimings) {
               log.info(
                 "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
                 rate,
                 firstMsgTime
               )
-            }else{
+            } else {
               log.debug(
                 "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
                 rate,

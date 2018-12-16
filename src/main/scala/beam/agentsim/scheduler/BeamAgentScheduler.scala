@@ -333,9 +333,9 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        if(beamConfig.beam.outputs.displayPerformanceTimings){
+        if (beamConfig.beam.outputs.displayPerformanceTimings) {
           log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
-        }else{
+        } else {
           log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
         }
 
