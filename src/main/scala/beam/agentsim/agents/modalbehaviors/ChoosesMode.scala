@@ -585,7 +585,6 @@ trait ChoosesMode {
 
   def requestParkingCost(destination: Coord, activityType: String, arrivalTime: Int, duration: Int): Option[Int] = {
     val inquiry = ParkingInquiry(
-      id,
       destination,
       destination,
       activityType,

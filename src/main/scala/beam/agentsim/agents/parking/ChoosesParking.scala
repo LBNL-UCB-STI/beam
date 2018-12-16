@@ -45,7 +45,6 @@ trait ChoosesParking extends {
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
       parkingManager ! ParkingInquiry(
-        id,
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
@@ -60,30 +59,19 @@ trait ChoosesParking extends {
       stash()
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
-      if (data.currentVehicle.isEmpty) {
-        stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
-      } else {
-        val (tick, _) = releaseTickAndTriggerId()
-        val veh = data.currentTourPersonalVehicle.get
-        assert(veh.id == data.currentVehicle.head)
-
-        veh.stall.foreach { stall =>
-          parkingManager ! ReleaseParkingStall(data.currentTourPersonalVehicle.get.stall.get.id)
-          //        val tick: Double = _currentTick.getOrElse(0)
-          val nextLeg = data.passengerSchedule.schedule.head._1
-          val distance = beamServices.geo.distInMeters(
-            stall.location,
-            nextLeg.travelPath.endPoint.loc
-          ) //nextLeg.travelPath.endPoint.loc
-          val cost = stall.cost
-          val energyCharge: Double = 0.0 //TODO
-          val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
-          val score = calculateScore(distance, cost, energyCharge, timeCost)
-          eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
-        }
-        veh.unsetParkingStall()
-        goto(WaitingToDrive) using data
-      }
+      val (tick, _) = releaseTickAndTriggerId()
+      val veh = data.currentTourPersonalVehicle.get
+      assert(veh.id == data.currentVehicle.head)
+      val stall = veh.stall.getOrElse(throw new RuntimeException("My vehicle is not parked."))
+      parkingManager ! ReleaseParkingStall(stall.id)
+      val nextLeg = data.passengerSchedule.schedule.head._1
+      val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+      val energyCharge: Double = 0.0 //TODO
+      val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+      val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
+      eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
+      veh.unsetParkingStall()
+      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
       parkingManager ! ReleaseParkingStall(data.currentVehicleToken.stall.get.id)

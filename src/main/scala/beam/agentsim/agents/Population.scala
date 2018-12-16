@@ -147,7 +147,6 @@ class Population(
             vehicle =>
               val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
                 parkingManager ! ParkingInquiry(
-                  Id.createPersonId("atHome"),
                   homeCoord,
                   homeCoord,
                   "home",

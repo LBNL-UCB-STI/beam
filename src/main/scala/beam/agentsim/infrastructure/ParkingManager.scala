@@ -17,7 +17,6 @@ abstract class ParkingManager(
 object ParkingManager {
 
   case class ParkingInquiry(
-    customerId: Id[PersonAgent],
     customerLocationUtm: Location,
     destinationUtm: Location,
     activityType: String,

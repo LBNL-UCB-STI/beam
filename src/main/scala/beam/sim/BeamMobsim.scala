@@ -149,7 +149,10 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets =
-          Vector(context.actorOf(Props(new InexhaustibleSharedVehicleFleet), "inexhaustible-shared-vehicle-fleet"))
+          Vector(
+            context
+              .actorOf(Props(new InexhaustibleSharedVehicleFleet(parkingManager)), "inexhaustible-shared-vehicle-fleet")
+          )
         sharedVehicleFleets.foreach(context.watch)
 
         private val population = context.actorOf(
