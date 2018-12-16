@@ -51,7 +51,8 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class PersonWithVehicleSharingSpec
     extends TestKit(
@@ -187,6 +188,7 @@ class PersonWithVehicleSharingSpec
           )
         )
       )
+      beamVehicle.manager = Some(mockSharedVehicleFleet.ref)
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
@@ -370,7 +372,7 @@ class PersonWithVehicleSharingSpec
       // car
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
       car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
@@ -403,7 +405,7 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 
       // agent has no car available, so will ask for new route

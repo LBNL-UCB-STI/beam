@@ -376,7 +376,7 @@ class PersonAgent(
     eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None),
-      currentLocation = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint),
+      currentLocation = SpaceTime(beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc, _currentTick.get),
       isWithinTripReplanning = true
     )
   }
@@ -394,7 +394,7 @@ class PersonAgent(
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         data,
-        currentLocation = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint),
+        currentLocation = SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
         isWithinTripReplanning = true
       )
     // RIDE HAIL DELAY
@@ -514,7 +514,8 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded, _) =>
+    case Event(Boarded, basePersonData: BasePersonData) =>
+      basePersonData.currentTourPersonalVehicle.get.exclusiveAccess = true
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       goto(ChoosingMode) using ChoosesModeData(
@@ -522,7 +523,7 @@ class PersonAgent(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
           currentTourPersonalVehicle = None
         ),
-        basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint
+        SpaceTime(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc, _currentTick.get)
       )
   }
 
@@ -625,7 +626,7 @@ class PersonAgent(
 
       goto(ChoosingMode) using ChoosesModeData(
         personData = data.copy(currentTourMode = Some(WALK_TRANSIT)),
-        currentLocation = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint),
+        currentLocation = SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
         isWithinTripReplanning = true
       )
     // TRANSIT
