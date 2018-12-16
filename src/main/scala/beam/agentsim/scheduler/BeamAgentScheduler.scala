@@ -333,7 +333,11 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        if(beamConfig.beam.outputs.displayPerformanceTimings){
+          log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        }else{
+          log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        }
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
