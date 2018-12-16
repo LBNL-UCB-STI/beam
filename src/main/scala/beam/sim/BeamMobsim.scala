@@ -8,7 +8,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, NotifyIterationEnds, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  NotifyIterationEnds,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, Population}
@@ -100,19 +104,21 @@ class BeamMobsim @Inject()(
         context.watch(parkingManager)
 
         private val rideHailManager = context.actorOf(
-          Props(new RideHailManager(
-            beamServices,
-            transportNetwork,
-            tollCalculator,
-            scenario,
-            eventsManager,
-            scheduler,
-            beamServices.beamRouter,
-            parkingManager,
-            envelopeInUTM,
-            rideHailSurgePricingManager,
-            rideHailIterationHistory.oscillationAdjustedTNCIterationStats
-          )),
+          Props(
+            new RideHailManager(
+              beamServices,
+              transportNetwork,
+              tollCalculator,
+              scenario,
+              eventsManager,
+              scheduler,
+              beamServices.beamRouter,
+              parkingManager,
+              envelopeInUTM,
+              rideHailSurgePricingManager,
+              rideHailIterationHistory.oscillationAdjustedTNCIterationStats
+            )
+          ),
           "RideHailManager"
         )
         context.watch(rideHailManager)
@@ -142,7 +148,8 @@ class BeamMobsim @Inject()(
           )
         }
 
-        private val sharedVehicleFleets = Vector(context.actorOf(Props(new InexhaustibleSharedVehicleFleet), "inexhaustible-shared-vehicle-fleet"))
+        private val sharedVehicleFleets =
+          Vector(context.actorOf(Props(new InexhaustibleSharedVehicleFleet), "inexhaustible-shared-vehicle-fleet"))
         sharedVehicleFleets.foreach(context.watch)
 
         private val population = context.actorOf(

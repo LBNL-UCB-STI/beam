@@ -314,7 +314,8 @@ class SingleModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent | _: PathTraversalEvent | _: PersonEntersVehicleEvent) =>
+              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent | _: PathTraversalEvent |
+                  _: PersonEntersVehicleEvent) =>
                 events += event
               case _ =>
             }

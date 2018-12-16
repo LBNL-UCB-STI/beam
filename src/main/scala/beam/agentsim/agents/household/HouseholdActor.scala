@@ -42,7 +42,7 @@ object HouseholdActor {
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Vector[ActorRef] = Vector()
-           ): Props = {
+  ): Props = {
     Props(
       new HouseholdActor(
         beamServices,

@@ -9,6 +9,7 @@ import beam.sim.BeamServices
   * BEAM
   */
 object DrivingCostDefaults {
+
   def estimateDrivingCost(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     beamServices: BeamServices

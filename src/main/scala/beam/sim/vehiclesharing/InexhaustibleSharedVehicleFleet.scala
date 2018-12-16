@@ -12,7 +12,7 @@ class InexhaustibleSharedVehicleFleet extends Actor with ActorLogging {
   override def receive: Receive = {
     case MobilityStatusInquiry(whenWhere) =>
       val vehicle = new BeamVehicle(
-        Id.createVehicleId("inexhaustible-shared-vehicle-fleet-"+nextVehicleIndex),
+        Id.createVehicleId("inexhaustible-shared-vehicle-fleet-" + nextVehicleIndex),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
@@ -23,7 +23,7 @@ class InexhaustibleSharedVehicleFleet extends Actor with ActorLogging {
       vehicle.spaceTime = whenWhere
       sender ! MobilityStatusResponse(Vector(vehicle))
     case ReleaseVehicle(_) =>
-      // That's fine, nothing to do.
+    // That's fine, nothing to do.
   }
 
 }

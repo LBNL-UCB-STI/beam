@@ -161,8 +161,13 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       routeReqs = routeReqs :+ routeReq2Pickup
       tempPickDropStore.put(routeReq2Pickup.staticRequestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleTypeId, SpaceTime((req.pickUpLocation, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.pickUpLocation, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     // Dropoffs next
@@ -177,8 +182,13 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       routeReqs = routeReqs :+ routeReq2Dropoff
       tempPickDropStore.put(routeReq2Dropoff.staticRequestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleTypeId, SpaceTime((req.destination, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.destination, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     routeReqs

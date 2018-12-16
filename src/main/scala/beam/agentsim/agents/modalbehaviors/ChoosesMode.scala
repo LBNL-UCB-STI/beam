@@ -56,7 +56,7 @@ trait ChoosesMode {
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, _, Some(vehicle),  _, _, _),
+            BasePersonData(_, _, _, _, _, _, Some(vehicle), _, _, _),
             _,
             _,
             _,
@@ -288,7 +288,12 @@ trait ChoosesMode {
                     // TODO FIXME
                     BeamPath(linkIds, Vector.empty, None, SpaceTime.zero, SpaceTime.zero, r.getDistance)
                   )
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, vehicle.beamVehicleType.id, mustParkAtEnd = true)
+                  router ! EmbodyWithCurrentTravelTime(
+                    leg,
+                    vehicle.id,
+                    vehicle.beamVehicleType.id,
+                    mustParkAtEnd = true
+                  )
                   parkingRequestId = requestParkingCost(
                     leg.travelPath.endPoint.loc,
                     nextAct.getType,

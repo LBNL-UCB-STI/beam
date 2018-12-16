@@ -543,35 +543,47 @@ class PersonAgent(
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
         StateTimeout,
-        data @ BasePersonData(_, _, nextLeg :: restOfCurrentTrip, currentVehicle, _, _, currentTourPersonalVehicle, _, _, _)
+        data @ BasePersonData(
+          _,
+          _,
+          nextLeg :: restOfCurrentTrip,
+          currentVehicle,
+          _,
+          _,
+          currentTourPersonalVehicle,
+          _,
+          _,
+          _
+        )
         ) if nextLeg.asDriver =>
       // Declaring a function here because this case is already so convoluted that I require a return
       // statement from within.
       // TODO: Refactor.
       def nextState: FSM.State[BeamAgentState, PersonData] = {
-        val (currentVehicleForNextState, vehicleTokenForNextState) = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-          val vehicle = if (nextLeg.beamVehicleId.toString.startsWith("body")) {
-            body
-          } else {
-            currentTourPersonalVehicle.get
-          }
-          assert(vehicle.id == nextLeg.beamVehicleId)
-          if (!vehicle.exclusiveAccess) {
-            vehicle.manager.get ! TryToBoardVehicle(vehicle.getId, self)
-            return goto(TryingToBoardVehicle)
-          }
-          vehicle.becomeDriver(self)
-          eventsManager.processEvent(
-            new PersonEntersVehicleEvent(
-              _currentTick.get,
-              Id.createPersonId(id),
-              nextLeg.beamVehicleId
+        val (currentVehicleForNextState, vehicleTokenForNextState) =
+          if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+            val vehicle = if (nextLeg.beamVehicleId.toString.startsWith("body")) {
+              body
+            } else {
+              currentTourPersonalVehicle.get
+            }
+            assert(vehicle.id == nextLeg.beamVehicleId)
+            if (!vehicle.exclusiveAccess) {
+              vehicle.manager.get ! TryToBoardVehicle(vehicle.getId, self)
+              return goto(TryingToBoardVehicle)
+            }
+            vehicle.becomeDriver(self)
+            eventsManager.processEvent(
+              new PersonEntersVehicleEvent(
+                _currentTick.get,
+                Id.createPersonId(id),
+                nextLeg.beamVehicleId
+              )
             )
-          )
-          (nextLeg.beamVehicleId +: currentVehicle, vehicle)
-        } else {
-          (currentVehicle, data.currentVehicleToken)
-        }
+            (nextLeg.beamVehicleId +: currentVehicle, vehicle)
+          } else {
+            (currentVehicle, data.currentVehicleToken)
+          }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
 

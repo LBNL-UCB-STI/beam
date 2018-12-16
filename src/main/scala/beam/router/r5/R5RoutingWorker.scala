@@ -312,7 +312,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val finalLegs = if (mustParkAtEnd) {
         val legPair = splitLegForParking(leg.copy(duration = duration.toInt))
         val embodiedPair = Vector(
-          EmbodiedBeamLeg(legPair.head, vehicleId, vehicleTypeId, asDriver = true, 0, unbecomeDriverOnCompletion = false),
+          EmbodiedBeamLeg(
+            legPair.head,
+            vehicleId,
+            vehicleTypeId,
+            asDriver = true,
+            0,
+            unbecomeDriverOnCompletion = false
+          ),
           EmbodiedBeamLeg(legPair.last, vehicleId, vehicleTypeId, asDriver = true, 0, unbecomeDriverOnCompletion = true)
         )
         if (legPair.size == 1) {
@@ -693,7 +700,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     val body = routingRequest.streetVehicles.find(_.mode == WALK).get
                     EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
-                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.vehicleTypeId, vehicle.asDriver, cost, unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(
+                      beamLeg,
+                      vehicle.id,
+                      vehicle.vehicleTypeId,
+                      vehicle.asDriver,
+                      cost,
+                      unbecomeDriverAtComplete
+                    )
                   }
                 }
               }

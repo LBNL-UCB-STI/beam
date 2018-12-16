@@ -129,7 +129,13 @@ trait ChoosesParking extends {
 
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
-          StreetVehicle(data.currentVehicleToken.id, data.currentVehicleToken.beamVehicleType.id, currentPoint, CAR, asDriver = true)
+          StreetVehicle(
+            data.currentVehicleToken.id,
+            data.currentVehicleToken.beamVehicleType.id,
+            currentPoint,
+            CAR,
+            asDriver = true
+          )
         val bodyStreetVeh =
           StreetVehicle(body.id, body.beamVehicleType.id, currentPoint, WALK, asDriver = true)
         val futureVehicle2StallResponse = router ? RoutingRequest(
