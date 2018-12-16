@@ -2,7 +2,7 @@ package beam.agentsim.agents.parking
 
 import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
-import beam.agentsim.Resource.CheckInResource
+import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
@@ -68,7 +68,7 @@ trait ChoosesParking extends {
         assert(veh.id == data.currentVehicle.head)
 
         veh.stall.foreach { stall =>
-          parkingManager ! CheckInResource(data.currentTourPersonalVehicle.get.stall.get.id, None)
+          parkingManager ! ReleaseParkingStall(data.currentTourPersonalVehicle.get.stall.get.id)
           //        val tick: Double = _currentTick.getOrElse(0)
           val nextLeg = data.passengerSchedule.schedule.head._1
           val distance = beamServices.geo.distInMeters(
@@ -86,10 +86,7 @@ trait ChoosesParking extends {
       }
 
     case Event(StateTimeout, data) =>
-      parkingManager ! CheckInResource(
-        data.currentVehicleToken.stall.get.id,
-        None
-      )
+      parkingManager ! ReleaseParkingStall(data.currentVehicleToken.stall.get.id)
       data.currentVehicleToken.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data

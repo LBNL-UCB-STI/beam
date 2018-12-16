@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyVehicleIdle}
+import beam.agentsim.Resource.{ReleaseParkingStall, NotifyVehicleIdle}
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -371,7 +371,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             val theVehicle = data.currentVehicleToken
             assert(theVehicle.id == currentVehicleUnderControl, theVehicle.id + " " + currentVehicleUnderControl)
             theVehicle.stall.foreach { theStall =>
-              parkingManager ! CheckInResource(theStall.id, None)
+              parkingManager ! ReleaseParkingStall(theStall.id)
             }
             theVehicle.unsetParkingStall()
           case None =>

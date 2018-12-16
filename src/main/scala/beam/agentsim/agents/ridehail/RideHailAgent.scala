@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
-import beam.agentsim.Resource.{CheckInResource, NotifyVehicleIdle}
+import beam.agentsim.Resource.{ReleaseParkingStall, NotifyVehicleIdle}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
@@ -207,7 +207,7 @@ class RideHailAgent(
           vehicle.id
         )
       )
-      parkingManager ! CheckInResource(vehicle.stall.get.id, None)
+      parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
       vehicle.unsetParkingStall()
       vehicle.manager.foreach(
         _ ! NotifyVehicleIdle(
