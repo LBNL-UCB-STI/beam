@@ -346,8 +346,8 @@ class PersonAgentSpec
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
-      vehicles.put(bus.getId, bus)
-      vehicles.put(tram.getId, tram)
+      vehicles.put(bus.id, bus)
+      vehicles.put(tram.id, tram)
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(

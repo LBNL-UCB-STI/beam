@@ -34,8 +34,9 @@ class BeamVehicle(
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType
-) extends Resource[BeamVehicle]
-    with StrictLogging {
+) extends StrictLogging {
+
+  var manager: Option[ActorRef] = None
 
   var exclusiveAccess = false
 
@@ -53,8 +54,6 @@ class BeamVehicle(
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
-
-  override def getId: Id[BeamVehicle] = id
 
   /**
     * Called by the driver.

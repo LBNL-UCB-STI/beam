@@ -1,11 +1,10 @@
 package beam.agentsim
 
 import akka.actor.ActorRef
-import beam.agentsim.Resource._
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
-import org.matsim.api.core.v01.{Id, Identifiable}
+import org.matsim.api.core.v01.Id
 
 object Resource {
 
@@ -24,16 +23,5 @@ object Resource {
   case object Boarded
 
   case object NotAvailable
-
-}
-
-/**
-  *
-  * @author dserdiuk, saf
-  * @since 7/17/2017
-  */
-trait Resource[R] extends Identifiable[R] {
-
-  var manager: Option[ActorRef] = None
 
 }

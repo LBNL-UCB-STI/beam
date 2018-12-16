@@ -174,7 +174,7 @@ class PersonWithCarPlanSpec
             eventsManager,
             population,
             household,
-            Map(beamVehicle.getId -> beamVehicle),
+            Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0)
           )
         )
@@ -261,21 +261,21 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car1.getId, car1)
+      vehicles.put(car1.id, car1)
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car2.getId, car2)
+      vehicles.put(car2.id, car2)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
       population.addPerson(person)
-      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.getId)
+      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id)
       population.addPerson(otherPerson)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
@@ -307,7 +307,7 @@ class PersonWithCarPlanSpec
           eventsManager,
           population,
           household,
-          Map(car1.getId -> car1, car2.getId -> car2),
+          Map(car1.id -> car1, car2.id -> car2),
           new Coord(0.0, 0.0)
         )
       )
@@ -399,7 +399,7 @@ class PersonWithCarPlanSpec
           eventsManager,
           population,
           household,
-          Map(beamVehicle.getId -> beamVehicle),
+          Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0)
         )
       )
@@ -503,19 +503,19 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car1.getId, car1)
+      vehicles.put(car1.id, car1)
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car2.getId, car2)
+      vehicles.put(car2.id, car2)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId, false)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id, false)
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -547,7 +547,7 @@ class PersonWithCarPlanSpec
           eventsManager,
           population,
           household,
-          Map(car1.getId -> car1),
+          Map(car1.id -> car1),
           new Coord(0.0, 0.0)
         )
       )
@@ -594,7 +594,7 @@ class PersonWithCarPlanSpec
                     distanceInM = 1000D
                   )
                 ),
-                beamVehicleId = car2.getId,
+                beamVehicleId = car2.id,
                 BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,

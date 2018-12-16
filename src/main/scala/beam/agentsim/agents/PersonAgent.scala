@@ -569,7 +569,7 @@ class PersonAgent(
             }
             assert(vehicle.id == nextLeg.beamVehicleId)
             if (!vehicle.exclusiveAccess) {
-              vehicle.manager.get ! TryToBoardVehicle(vehicle.getId, self)
+              vehicle.manager.get ! TryToBoardVehicle(vehicle.id, self)
               return goto(TryingToBoardVehicle)
             }
             vehicle.becomeDriver(self)

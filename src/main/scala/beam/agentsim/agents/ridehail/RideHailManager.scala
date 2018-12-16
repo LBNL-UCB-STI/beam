@@ -410,7 +410,7 @@ class RideHailManager(
       resources += (rideHailVehicleId -> rideHailBeamVehicle)
 
       self ! BeamVehicleStateUpdate(
-        rideHailBeamVehicle.getId,
+        rideHailBeamVehicle.id,
         rideHailBeamVehicle.getState
       )
 

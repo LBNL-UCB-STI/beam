@@ -265,11 +265,11 @@ class PersonWithVehicleSharingSpec
         BeamVehicleType.defaultCarBeamVehicleType
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
-      vehicles.put(car1.getId, car1)
+      vehicles.put(car1.id, car1)
 
-      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.getId)
+      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
       population.addPerson(person1)
-      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.getId, 20)
+      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, 20)
       population.addPerson(person2)
 
       val modeChoiceEvents = TestProbe()
