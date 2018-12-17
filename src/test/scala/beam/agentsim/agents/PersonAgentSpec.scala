@@ -55,6 +55,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import org.mockito.ArgumentMatchers._
 
 class PersonAgentSpec
     extends TestKit(
@@ -96,6 +97,12 @@ class PersonAgentSpec
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
     when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+
+    var map = TrieMap[Id[Vehicle], (String, String)]()
+    map += (Id.createVehicleId("my_bus")  -> ("", ""))
+    map += (Id.createVehicleId("my_tram") -> ("", ""))
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
+
     theServices
   }
 
@@ -580,13 +587,15 @@ class PersonAgentSpec
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
       tram.becomeDriver(
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
 
       val householdActor = TestActorRef[HouseholdActor](
@@ -693,6 +702,8 @@ class PersonAgentSpec
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
 
       //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
@@ -706,7 +717,7 @@ class PersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
+            reservationRequestTram.passengerVehiclePersonId
           )
         ),
         TRANSIT
@@ -721,6 +732,8 @@ class PersonAgentSpec
       ) // My tram is late!
 
       events.expectMsgType[PersonEntersVehicleEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 

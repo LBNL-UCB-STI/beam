@@ -21,7 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.{
 }
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.events.{PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.events.{AgencyRevenueEvent, PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -32,6 +32,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.DebugLib
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -431,7 +432,14 @@ class PersonAgent(
 
       val mode = data.currentTrip.get.tripClassifier
 
-      if (currentLeg.cost > 0.0)
+      if (currentLeg.cost > 0.0) {
+        if (beamServices.agencyAndRouteByVehicleIds.contains(
+              vehicleToEnter
+            )) {
+          val agencyId = beamServices.agencyAndRouteByVehicleIds.get(vehicleToEnter).get._1
+          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+        }
+
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
@@ -442,6 +450,7 @@ class PersonAgent(
             currentLeg.cost
           )
         )
+      }
 
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(
         currentVehicle = vehicleToEnter +: currentVehicle
@@ -469,7 +478,7 @@ class PersonAgent(
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val netTripCosts = data.currentTripCosts // This inlcudes tolls because it comes from leg.cost
+      val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
@@ -568,7 +577,7 @@ class PersonAgent(
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          vehicle.becomeDriver(self) match {
+          vehicle.becomeDriver(self, id.toString) match {
             case DriverAlreadyAssigned(currentDriver) =>
               log.error(
                 "I attempted to become driver of vehicle {} but driver {} already assigned.",

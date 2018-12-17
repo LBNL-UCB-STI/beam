@@ -37,7 +37,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.getClosestIdleRideHailAgent(
-      inquiry.pickUpLocation,
+      inquiry.pickUpLocationUTM,
       rideHailManager.radiusInMeters
     ) match {
       case Some(agentLocation) =>
@@ -111,7 +111,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case (request, routingResponses) if (routingResponses.isEmpty) =>
         rideHailManager
           .getClosestIdleVehiclesWithinRadiusByETA(
-            request.pickUpLocation,
+            request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
             tick
           )
@@ -135,7 +135,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case (request, routingResponses) =>
         rideHailManager
           .getClosestIdleVehiclesWithinRadiusByETA(
-            request.pickUpLocation,
+            request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated

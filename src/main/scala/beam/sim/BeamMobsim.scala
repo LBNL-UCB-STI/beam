@@ -32,7 +32,8 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.BeamRouter.InitTransit
+import beam.router.BeamRouter.{InitTransit, UpdateTravelTimeLocal, UpdateTravelTimeRemote}
+import beam.router.FreeFlowTravelTime
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -44,6 +45,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
@@ -379,13 +381,17 @@ class BeamMobsim @Inject()(
 
           Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
+          log.info("Transit schedule has been initialized")
+
           if (beamServices.iterationNumber == 0) {
             val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
             val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
             warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
-          }
 
-          log.info("Transit schedule has been initialized")
+            if (!beamServices.beamConfig.beam.warmStart.enabled && beamServices.beamConfig.beam.physsim.initializeRouterWithFreeFlowTimes) {
+              FreeFlowTravelTime.initializeRouterFreeFlow(beamServices, scenario)
+            }
+          }
 
           scheduleRideHailManagerTimerMessages()
 

@@ -45,5 +45,5 @@ test/input/siouxfalls/*.conf
 test/input/siouxfalls/*.csv 
 /production/application-sfbay/calibration/experiments/
 /src/main/python/household_generator/.idea/
-
+*Rdata
 !/test/input/siouxfalls/r5/siouxareametro-sd-us.zip
