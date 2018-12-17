@@ -205,6 +205,9 @@ dependencies {
     }
     compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
 
+    compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
+    compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
+
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
