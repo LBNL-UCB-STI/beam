@@ -4,10 +4,11 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.PersonTestUtil
+import beam.agentsim.agents.{PersonTestUtil, vehicles}
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, FuelTypeAndPrice}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
@@ -65,7 +66,7 @@ class SingleModeSpec
     beamConfig = BeamConfig(config)
 
     val vehicleTypes = {
-      val fuelTypes: TrieMap[Id[FuelTypeAndPrice], FuelTypeAndPrice] =
+      val fuelTypes: TrieMap[FuelType, Double] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
     }
