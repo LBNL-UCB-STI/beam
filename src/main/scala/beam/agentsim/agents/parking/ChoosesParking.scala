@@ -1,6 +1,5 @@
 package beam.agentsim.agents.parking
 
-import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
@@ -62,7 +61,7 @@ trait ChoosesParking extends {
       val (tick, _) = releaseTickAndTriggerId()
       val veh = data.currentTourPersonalVehicle.get
       assert(veh.id == data.currentVehicle.head)
-      val stall = veh.stall.getOrElse(throw new RuntimeException("My vehicle is not parked."))
+      val stall = veh.stall.getOrElse(throw new RuntimeException(log.format("My vehicle {} is not parked.", veh.id)))
       parkingManager ! ReleaseParkingStall(stall.id)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
