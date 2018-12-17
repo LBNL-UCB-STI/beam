@@ -7,24 +7,39 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, TryToBoardVehicle}
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val vehicles: Seq[BeamVehicle])
+class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations: Iterable[Coord])
     extends Actor
     with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+
+  private val vehicles = locations.zipWithIndex map {
+    case (location, ix) =>
+      val vehicle = new BeamVehicle(
+        Id.createVehicleId("fixed-non-reserving-vehicle-fleet-" + ix),
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        exclusiveAccess = false
+      )
+      vehicle.manager = Some(self)
+      vehicle.spaceTime = SpaceTime(location, 0)
+      vehicle
+  }
 
   // Pipe my vehicles through the parking agent.
   // They will become available once they are parked.
@@ -33,7 +48,6 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val vehicles: 
     parkingManager ? parkingInquiry(veh.spaceTime) collect {
       case ParkingInquiryResponse(stall, _) =>
         veh.useParkingStall(stall)
-        veh.exclusiveAccess = false
         ReleaseVehicle(veh)
     } pipeTo self
   }
@@ -49,7 +63,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val vehicles: 
       boundingBox.expandBy(500.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
-      sender ! MobilityStatusResponse(nearbyVehicles)
+      sender ! MobilityStatusResponse(nearbyVehicles.take(5))
 
     case TryToBoardVehicle(vehicleId, who) =>
       availableVehicles.get(vehicleId) match {
@@ -63,17 +77,18 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val vehicles: 
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
           who ! Boarded
+          println("Checked out " + vehicleId)
         case None =>
           who ! NotAvailable
       }
 
     case ReleaseVehicle(vehicle) =>
-      vehicle.exclusiveAccess = false
       availableVehicles += vehicle.id -> vehicle
       availableVehiclesIndex.insert(
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
         vehicle
       )
+      println("Checked in " + vehicle.id)
 
   }
 

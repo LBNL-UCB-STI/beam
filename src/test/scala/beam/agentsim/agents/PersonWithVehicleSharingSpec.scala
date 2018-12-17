@@ -198,7 +198,6 @@ class PersonWithVehicleSharingSpec
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
-      vehicle.exclusiveAccess = true
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -272,7 +271,8 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        exclusiveAccess = false
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 
@@ -346,7 +346,6 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
-      car1.exclusiveAccess = false
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -387,7 +386,6 @@ class PersonWithVehicleSharingSpec
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
-      car1.exclusiveAccess = false
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _) =>

@@ -9,21 +9,18 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
@@ -173,6 +170,13 @@ object Population {
       })
       .toMap
   }
+
+  def personInitialLocation(person: Person): Coord =
+    person.getSelectedPlan.getPlanElements
+      .iterator()
+      .next()
+      .asInstanceOf[Activity]
+      .getCoord
 
   def props(
     scenario: Scenario,

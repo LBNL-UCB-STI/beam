@@ -355,20 +355,14 @@ class RideHailManager(
 
   RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand).take(numRideHailAgents.toInt).foreach {
     person =>
-      val personInitialLocation: Coord =
-        person.getSelectedPlan.getPlanElements
-          .iterator()
-          .next()
-          .asInstanceOf[Activity]
-          .getCoord
       val rideInitialLocation: Coord =
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
           case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
             val radius =
               beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
             new Coord(
-              personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
-              personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+              beam.agentsim.agents.Population.personInitialLocation(person).getX + radius * (rand.nextDouble() - 0.5),
+              beam.agentsim.agents.Population.personInitialLocation(person).getY + radius * (rand.nextDouble() - 0.5)
             )
           case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
             val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand

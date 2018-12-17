@@ -205,7 +205,6 @@ class PersonAgent(
     None,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
-  body.exclusiveAccess = true
   body.manager = Some(self)
 
   val attributes: AttributesOfIndividual =
@@ -243,7 +242,7 @@ class PersonAgent(
       stop
   }
 
-  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+  override def logDepth: Int = 30
 
   startWith(Uninitialized, BasePersonData())
 
@@ -517,9 +516,11 @@ class PersonAgent(
       unstashAll()
   }
 
+  var gotAccess = false
+
   when(TryingToBoardVehicle) {
     case Event(Boarded, basePersonData: BasePersonData) =>
-      basePersonData.currentTourPersonalVehicle.get.exclusiveAccess = true
+      gotAccess = true
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       goto(ChoosingMode) using ChoosesModeData(
@@ -573,7 +574,7 @@ class PersonAgent(
               currentTourPersonalVehicle.get
             }
             assert(vehicle.id == nextLeg.beamVehicleId)
-            if (!vehicle.exclusiveAccess) {
+            if (!vehicle.exclusiveAccess && !gotAccess) {
               vehicle.manager.get ! TryToBoardVehicle(vehicle.id, self)
               return goto(TryingToBoardVehicle)
             }
@@ -744,6 +745,8 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVeh) =>
                 if (activity.getType.equals("Home")) {
+                  assert(personalVeh.stall.nonEmpty)
+                  gotAccess = false
                   personalVeh.manager.get ! ReleaseVehicle(personalVeh)
                   None
                 } else {

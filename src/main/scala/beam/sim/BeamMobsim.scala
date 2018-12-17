@@ -8,13 +8,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  NotifyIterationEnds,
-  RideHailRepositioningTrigger
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -24,17 +19,17 @@ import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.sim.vehiclesharing.InexhaustibleReservingVehicleFleet
+import beam.sim.vehiclesharing.{FixedNonReservingVehicleFleet, InexhaustibleReservingVehicleFleet}
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
-
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -132,13 +127,24 @@ class BeamMobsim @Inject()(
           )
         }
 
+        def initialSharedVehicleLocations =
+          scenario.getPopulation.getPersons
+            .values()
+            .asScala
+            .map(Population.personInitialLocation)
+
         private val sharedVehicleFleets =
           Vector(
             context
               .actorOf(
                 Props(new InexhaustibleReservingVehicleFleet(parkingManager)),
                 "inexhaustible-shared-vehicle-fleet"
-              )
+              ),
+            context
+              .actorOf(
+                Props(new FixedNonReservingVehicleFleet(parkingManager, initialSharedVehicleLocations)),
+                "fixed-non-reserving-vehicle-fleet"
+              ),
           )
         sharedVehicleFleets.foreach(context.watch)
 

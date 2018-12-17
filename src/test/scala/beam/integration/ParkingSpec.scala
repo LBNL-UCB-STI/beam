@@ -150,7 +150,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
               ).foreach { k =>
-                evA.getAttributes.get(k) should equal (evB.getAttributes.get(k))
+                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
               }
               evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
                 .get("time")

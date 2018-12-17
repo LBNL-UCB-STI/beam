@@ -130,7 +130,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
             .get(experiencedPlan.getPlanElements.size - 2)
             .asInstanceOf[Leg]
             .getMode == "car",
-          "If I leave home by car, I must get home by car."
+          "If I leave home by car, I must get home by car: " + person.getId
         )
       }
     }

@@ -847,7 +847,9 @@ trait ChoosesMode {
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
       personVehiclesNotUsed.foreach { veh =>
-        veh.manager.get ! ReleaseVehicle(veh)
+        if (veh.exclusiveAccess) {
+          veh.manager.get ! ReleaseVehicle(veh)
+        }
       }
       scheduler ! CompletionNotice(
         triggerId,

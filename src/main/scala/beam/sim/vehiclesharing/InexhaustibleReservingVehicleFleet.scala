@@ -32,7 +32,6 @@ class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends A
       )
       nextVehicleIndex += 1
       vehicle.manager = Some(self)
-      vehicle.exclusiveAccess = true
       vehicle.spaceTime = whenWhere
       vehicle.becomeDriver(sender)
 

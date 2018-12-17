@@ -185,7 +185,6 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        vehicle.exclusiveAccess = false
         vehicle.unsetDriver()
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
@@ -193,7 +192,6 @@ object HouseholdActor {
       case MobilityStatusInquiry(_) =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
-            firstVehicle.exclusiveAccess = true
             firstVehicle.becomeDriver(sender)
             sender() ! MobilityStatusResponse(Vector(firstVehicle))
             rest
