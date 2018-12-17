@@ -57,11 +57,13 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
+
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
     if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
+
   def removeRequestFromBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests -= request
   }
@@ -175,7 +177,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Reason: If you cancel it during the reservation, the reservation will overwrite the cancellation.
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
-
 
   /*
    * This is deprecated.
