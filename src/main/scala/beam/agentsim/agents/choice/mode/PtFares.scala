@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
@@ -25,7 +26,7 @@ case class PtFares(ptFares: Map[String, List[FareRule]]) {
 }
 
 object PtFares {
-
+  val log = LoggerFactory.getLogger(classOf[PtFares])
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
   def loadPtFares(ptFaresFile: String): Map[String, List[FareRule]] = {
