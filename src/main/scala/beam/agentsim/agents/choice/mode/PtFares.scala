@@ -72,8 +72,10 @@ object PtFares {
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
   def loadPtFares(ptFaresFile: String): List[FareRule] = {
-    if (Files.notExists(Paths.get(ptFaresFile)))
+    if (Files.notExists(Paths.get(ptFaresFile))) {
+      log.error("PtFares file not found at location: {}", ptFaresFile)
       throw new FileNotFoundException(s"PtFares file not found at location: $ptFaresFile")
+    }
     val fareRules: ListBuffer[FareRule] = ListBuffer()
     val lines = Try(Source.fromFile(ptFaresFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
