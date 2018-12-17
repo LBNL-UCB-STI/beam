@@ -105,7 +105,8 @@ class BeamVehicle(
     * @return angle between the coordinates (in radians).
     */
   private def computeAngle(source: Coord, destination: Coord): Double = {
-    val rad = Math.toRadians(Math.atan2(destination.getY - source.getY, destination.getX - source.getX))
+    val angleInDegrees = (Math.atan2(destination.getY - source.getY, destination.getX - source.getX) * 180) / Math.PI
+    val rad = Math.toRadians(angleInDegrees)
     if (rad < 0) {
       rad + 3.141593 * 2.0
     } else {
