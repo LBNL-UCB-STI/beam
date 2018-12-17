@@ -6,7 +6,7 @@ import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
@@ -484,10 +484,14 @@ class RideHailManager(
           log.error("request not found: {}", ev)
       }
 
-    case NotifyIterationEnds() =>
+    case Finish =>
       surgePricingManager.incrementIteration()
       context.children.foreach(_ ! Finish)
-      sender ! Unit // return empty object to blocking caller
+      dieIfNoChildren()
+      context.become {
+        case Terminated(_) =>
+          dieIfNoChildren()
+      }
 
     case ev @ NotifyVehicleIdle(
           vId,
@@ -834,12 +838,17 @@ class RideHailManager(
     case ReleaseAgentTrigger(vehicleId) =>
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
-    case Finish =>
-      log.info("finish message received from BeamAgentScheduler")
-
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
 
+  }
+
+  def dieIfNoChildren(): Unit = {
+    if (context.children.isEmpty) {
+      context.stop(self)
+    } else {
+      log.debug("Remaining: {}", context.children)
+    }
   }
 
   def singleOccupantItinsToPassengerSchedule(

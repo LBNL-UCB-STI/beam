@@ -50,8 +50,6 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer()
-
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
@@ -59,7 +57,6 @@ class Population(
       .map(personId => personId -> householdId)
   }
 
-  // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
@@ -67,8 +64,6 @@ class Population(
     // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
-      initParkingVeh.foreach(context.stop)
-      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>

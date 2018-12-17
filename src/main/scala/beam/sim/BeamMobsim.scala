@@ -24,7 +24,7 @@ import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.sim.vehiclesharing.InexhaustibleSharedVehicleFleet
+import beam.sim.vehiclesharing.InexhaustibleReservingVehicleFleet
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -135,7 +135,10 @@ class BeamMobsim @Inject()(
         private val sharedVehicleFleets =
           Vector(
             context
-              .actorOf(Props(new InexhaustibleSharedVehicleFleet(parkingManager)), "inexhaustible-shared-vehicle-fleet")
+              .actorOf(
+                Props(new InexhaustibleReservingVehicleFleet(parkingManager)),
+                "inexhaustible-shared-vehicle-fleet"
+              )
           )
         sharedVehicleFleets.foreach(context.watch)
 
@@ -234,9 +237,7 @@ class BeamMobsim @Inject()(
             startSegment("agentsim-events", "agentsim")
 
             population ! Finish
-            val future = rideHailManager.ask(NotifyIterationEnds())
-            Await.ready(future, timeout.duration).value
-            context.stop(rideHailManager)
+            rideHailManager ! Finish
             context.stop(scheduler)
             context.stop(errorListener)
             context.stop(parkingManager)

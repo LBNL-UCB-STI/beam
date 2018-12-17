@@ -14,7 +14,7 @@ import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInqui
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import org.matsim.api.core.v01.Id
 
-class InexhaustibleSharedVehicleFleet(val parkingManager: ActorRef) extends Actor with ActorLogging {
+class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends Actor with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
