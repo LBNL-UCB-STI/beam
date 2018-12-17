@@ -26,7 +26,7 @@ case class PtFares(ptFares: Map[String, List[FareRule]]) {
 }
 
 object PtFares {
-  val log = LoggerFactory.getLogger(classOf[PtFares])
+  private val log = LoggerFactory.getLogger(classOf[PtFares])
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
   def loadPtFares(ptFaresFile: String): Map[String, List[FareRule]] = {
