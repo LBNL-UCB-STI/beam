@@ -22,7 +22,7 @@ class LinkTravelAnalysisSpec extends WordSpecLike with Matchers with BeforeAndAf
 
   override def beforeAll(): Unit = {
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
-    val config = testConfig("test/input/beam/beam.conf")
+    val config = testConfig("test/input/beamville/beam.conf")
     scenario = ScenarioUtils.loadScenario(new MatSimBeamConfigBuilder(config).buildMatSamConf())
     val overwriteExistingFiles =
       OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
