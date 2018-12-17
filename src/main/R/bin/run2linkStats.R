@@ -4,10 +4,11 @@
 # 
 # Argument: the path to the run output directory.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)
-load.libraries(c('maptools','sp','stringr'))
+load.libraries(c('maptools','sp','stringr','ggplot2'))
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -15,7 +16,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/sf-light-5k__2018-09-20_16-44-22/'
+  args<-'/Users/critter/Documents/beam/beam-output/sf-light-25k__2018-12-07_18-30-37/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2linkStats.R [run-outputs-dir]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2linkStats.R [run-outputs-dir]"),positional_arguments=T)

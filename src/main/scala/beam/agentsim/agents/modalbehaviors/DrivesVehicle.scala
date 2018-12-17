@@ -168,6 +168,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
@@ -210,7 +211,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
           }
@@ -339,6 +340,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,

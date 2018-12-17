@@ -478,7 +478,7 @@ class PersonAgent(
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val netTripCosts = data.currentTripCosts // This inlcudes tolls because it comes from leg.cost
+      val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
@@ -577,7 +577,7 @@ class PersonAgent(
       val currentVehicleForNextState =
         if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          vehicle.becomeDriver(self) match {
+          vehicle.becomeDriver(self, id.toString) match {
             case DriverAlreadyAssigned(currentDriver) =>
               log.error(
                 "I attempted to become driver of vehicle {} but driver {} already assigned.",
