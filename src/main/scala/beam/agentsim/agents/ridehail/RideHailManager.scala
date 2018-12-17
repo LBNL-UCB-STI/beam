@@ -158,10 +158,6 @@ object RideHailManager {
 
   case class RideHailRepositioningTrigger(tick: Int) extends Trigger
 
-  case object RideUnavailableAck
-
-  case object RideAvailableAck
-
   case object DebugRideHailManagerDuringExecution
 
   case class ContinueBufferedRideHailRequests(tick: Int)
@@ -245,6 +241,18 @@ class RideHailManager(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
+
+  private val ridehailBeamVehicleTypeId: Id[BeamVehicleType] = Id
+    .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+
+  val ridehailBeamVehicleType = beamServices.vehicleTypes
+    .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+
+  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= ridehailBeamVehicleType.primaryFuelCapacityInJoule / ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+    log.error(
+      "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+    )
+  }
 
   /**
     * Customer inquiries awaiting reservation confirmation.
@@ -385,12 +393,6 @@ class RideHailManager(
 
       val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
       //                Id.createVehicleId(s"rideHailVehicle-${person.getId}")
-
-      val ridehailBeamVehicleTypeId =
-        Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
-
-      val ridehailBeamVehicleType = beamServices.vehicleTypes
-        .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
 
       val rideHailAgentPersonId: Id[RideHailAgent] =
         Id.create(rideHailName, classOf[RideHailAgent])
@@ -597,7 +599,7 @@ class RideHailManager(
       }
 
       // If any response contains no RIDE_HAIL legs, then the router failed
-      if (responses.map(_.itineraries.filter(_.tripClassifier.equals(RIDE_HAIL)).isEmpty).contains(true)) {
+      if (responses.exists(!_.itineraries.exists(_.tripClassifier.equals(RIDE_HAIL)))) {
         log.debug(
           "Router could not find route to customer person={} for requestId={}",
           request.customer.personId,
@@ -616,10 +618,7 @@ class RideHailManager(
           request,
           EmbodiedBeamTrip(
             responses
-              .map { response =>
-                response.itineraries.filter(p => p.tripClassifier.equals(RIDE_HAIL)).headOption
-              }
-              .flatten
+              .flatMap(_.itineraries.find(p => p.tripClassifier.equals(RIDE_HAIL)))
               .flatMap(_.legs)
               .toIndexedSeq
           )

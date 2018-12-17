@@ -34,6 +34,7 @@ class InexhaustibleSharedVehicleFleet(val parkingManager: ActorRef) extends Acto
       vehicle.manager = Some(self)
       vehicle.exclusiveAccess = true
       vehicle.spaceTime = whenWhere
+      vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
       (parkingManager ? parkingInquiry(whenWhere))

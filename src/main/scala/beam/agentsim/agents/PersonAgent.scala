@@ -577,7 +577,6 @@ class PersonAgent(
               vehicle.manager.get ! TryToBoardVehicle(vehicle.id, self)
               return goto(TryingToBoardVehicle)
             }
-            vehicle.becomeDriver(self)
             eventsManager.processEvent(
               new PersonEntersVehicleEvent(
                 _currentTick.get,

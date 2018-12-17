@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.{ParkingStall, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -137,6 +137,7 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
+
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -215,7 +216,8 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
-      println(expectMsgType[PersonEntersVehicleEvent])
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
@@ -224,7 +226,7 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[PersonCostEvent]
-      println(expectMsgType[PersonLeavesVehicleEvent])
+      expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
@@ -336,13 +338,13 @@ class PersonWithCarPlanSpec
         }
       }
 
-      println(modeChoiceEvents.expectMsgType[ModeChoiceEvent])
-      println(modeChoiceEvents.expectMsgType[ModeChoiceEvent])
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
-      println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
-      println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
-      println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
-      println(personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent])
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
     }
@@ -463,22 +465,23 @@ class PersonWithCarPlanSpec
       expectMsgType[ActivityEndEvent]
       expectMsgType[PersonDepartureEvent]
 
-      println(expectMsgType[PersonEntersVehicleEvent])
+      expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
-      println(expectMsgType[PersonEntersVehicleEvent])
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      println(expectMsgType[PersonLeavesVehicleEvent])
+      expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
-      println(expectMsgType[PersonLeavesVehicleEvent])
+      expectMsgType[PersonLeavesVehicleEvent]
       expectMsgType[TeleportationArrivalEvent]
 
       expectMsgType[PersonArrivalEvent]

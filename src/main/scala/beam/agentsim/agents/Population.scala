@@ -139,33 +139,6 @@ class Population(
             household.getId.toString
           )
 
-          householdVehicles.values.foreach { veh =>
-            veh.manager = Some(householdActor)
-          }
-
-          householdVehicles.foreach {
-            vehicle =>
-              val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
-                parkingManager ! ParkingInquiry(
-                  homeCoord,
-                  homeCoord,
-                  "home",
-                  0,
-                  NoNeed,
-                  0,
-                  0
-                ) //TODO personSelectedPlan.getType is null
-
-                def receive: Receive = {
-                  case ParkingInquiryResponse(stall, _) =>
-                    vehicle._2.useParkingStall(stall)
-                    context.stop(self)
-                  //TODO deal with timeouts and errors
-                }
-              }))
-              initParkingVeh append initParkingVehicle
-          }
-
           context.watch(householdActor)
           householdActor ? Identify(0)
         })

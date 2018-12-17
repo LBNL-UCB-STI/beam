@@ -1,14 +1,21 @@
 package beam.agentsim.agents.household
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.pattern.ask
+import akka.pattern.pipe
+import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -18,6 +25,9 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
 
 object HouseholdActor {
 
@@ -100,6 +110,8 @@ object HouseholdActor {
   ) extends Actor
       with ActorLogging {
 
+    private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+    private implicit val executionContext: ExecutionContext = context.dispatcher
     override val supervisorStrategy: OneForOneStrategy =
       OneForOneStrategy(maxNrOfRetries = 0) {
         case _: Exception      => Stop
@@ -141,11 +153,29 @@ object HouseholdActor {
       beamServices.personRefs += ((person.getId, personRef))
     }
 
-    private var availableVehicles: List[BeamVehicle] = vehicles.values.toList
+    // Pipe the household's vehicles through the parking agent.
+    // They will become available once they are parked.
+    // In principle, agents at 0 in the morning may not find their
+    // household's vehicle yet for a split-second.
     for (veh <- vehicles.values) {
       veh.manager = Some(self)
       veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+      parkingManager ? ParkingInquiry(
+        homeCoord,
+        homeCoord,
+        "home",
+        0,
+        NoNeed,
+        0,
+        0
+      ) collect {
+        case ParkingInquiryResponse(stall, _) =>
+          veh.useParkingStall(stall)
+          ReleaseVehicle(veh)
+      } pipeTo self
     }
+
+    private var availableVehicles: List[BeamVehicle] = Nil
 
     override def receive: Receive = {
 
@@ -156,6 +186,7 @@ object HouseholdActor {
 
       case ReleaseVehicle(vehicle) =>
         vehicle.exclusiveAccess = false
+        vehicle.unsetDriver()
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
@@ -163,6 +194,7 @@ object HouseholdActor {
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             firstVehicle.exclusiveAccess = true
+            firstVehicle.becomeDriver(sender)
             sender() ! MobilityStatusResponse(Vector(firstVehicle))
             rest
           case Nil =>
