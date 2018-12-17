@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorLogging, Props}
 import akka.pattern.pipe
 import optimus.optimization._
 import optimus.optimization.enums.SolverLib
-import optimus.optimization.enums.{ PreSolve, SolutionStatus, SolverLib }
-import optimus.optimization.model.{ INFINITE, MPConstraint, MPFloatVar, MPIntVar }
+import optimus.optimization.enums.{PreSolve, SolutionStatus, SolverLib}
+import optimus.optimization.model.{INFINITE, MPConstraint, MPFloatVar, MPIntVar}
 
 import scala.concurrent.Future
 
@@ -13,19 +13,20 @@ case object BeginSolving
 case object SolutionComplete
 
 object HouseholdSolverActor {
+
   def props: Props = {
     Props(new HouseholdSolverActor)
   }
 }
 
-class HouseholdSolverActor extends Actor with ActorLogging{
+class HouseholdSolverActor extends Actor with ActorLogging {
   import context._
 
   override def receive: Receive = {
     case BeginSolving =>
       //println(self + ": Starting Solving")
       val ongoingSolver: Future[Unit] = Future { solve }
-      ongoingSolver.map(_ =>  SolutionComplete) pipeTo self
+      ongoingSolver.map(_ => SolutionComplete) pipeTo self
       //ongoingSolver.onComplete(println)
       context become solving
     case _ =>
@@ -48,10 +49,7 @@ class HouseholdSolverActor extends Actor with ActorLogging{
     val x2 = MPFloatVar("x2", 0, INFINITE)
     val x3 = MPFloatVar("x3", 0, INFINITE)
     maximize(10 * x1 + 6 * x2 + 4 * x3)
-    subjectTo(
-      (x1 + x2 + x3) <:= 100,
-      (10 * x1 + 4 * x2 + 5 * x3) <:= 600,
-      (2 * x1 + 2 * x2 + 6 * x3) <:= 300)
+    subjectTo((x1 + x2 + x3) <:= 100, (10 * x1 + 4 * x2 + 5 * x3) <:= 600, (2 * x1 + 2 * x2 + 6 * x3) <:= 300)
     start()
     //println(s"$self: objective: $objectiveValue")
     //println(s"$self: x1 = ${x1.value} x2 = ${x2.value} x3 = ${x3.value}")
@@ -78,7 +76,7 @@ class HouseholdSolverActor extends Actor with ActorLogging{
       println("** Free Memory:  " + runtime.freeMemory / mb)
       println("** Total Memory: " + runtime.totalMemory / mb)
       println("** Max Memory:   " + runtime.maxMemory / mb)
-      */
+       */
       val usedMemStart = (runtime.totalMemory - runtime.freeMemory) / mb
       implicit val lp: MPModel = MPModel(SolverLib.oJSolver)
 
@@ -87,7 +85,6 @@ class HouseholdSolverActor extends Actor with ActorLogging{
         val variable = MPFloatVar.positive(s"x_$x")
         (variable, add(variable >:= 0))
       })
-
 
       val x = MPFloatVar.positive("x")
       maximize(variableList.map(_._1).fold(x + 1)((curr, variable) => curr + variable))

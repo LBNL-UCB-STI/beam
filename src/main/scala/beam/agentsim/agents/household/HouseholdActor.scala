@@ -111,7 +111,7 @@ object HouseholdActor {
   ) extends VehicleManager
       with ActorLogging {
 
-    if(beamServices.beamConfig.beam.experimental.optimizer.enabled) {
+    if (beamServices.beamConfig.beam.experimental.optimizer.enabled) {
       //Create the solver actor
       val solver = context.actorOf(beam.agentsim.agents.household.HouseholdSolverActor.props)
       //Tell it to begin solving
