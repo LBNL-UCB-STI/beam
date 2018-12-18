@@ -11,11 +11,11 @@ import org.matsim.core.utils.geometry.CoordUtils
 import scala.collection.immutable.Map
 import scala.collection.immutable.List
 
-sealed trait MobilityServiceRequestType { def name: String }
-case object MSRPickup extends MobilityServiceRequestType { val name = "pickup" }
-case object MSRDropoff extends MobilityServiceRequestType { val name = "pickup" }
-case object MSRRelocation extends MobilityServiceRequestType { val name = "relocation" }
-case object MSRInit extends MobilityServiceRequestType { val name = "init" }
+sealed trait MobilityServiceRequestType
+case object MSRPickup extends MobilityServiceRequestType
+case object MSRDropoff extends MobilityServiceRequestType
+case object MSRRelocation extends MobilityServiceRequestType
+case object MSRInit extends MobilityServiceRequestType
 
 case class MobilityServiceRequest(
   person: Option[Person],
