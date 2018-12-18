@@ -376,6 +376,7 @@ object Demo {
     for (actSrc <- activitySet) {
       skim = skim + (actSrc -> Map[Coord, Double]())
       for (actDst <- activitySet) {
+        //TODO replace with BEAM GeoUtils
         val travelTime: Double = CoordUtils.calcEuclideanDistance(actSrc, actDst) * 60
         skim = skim + (actSrc -> (skim(actSrc) ++ Map(actDst -> travelTime)))
       }
