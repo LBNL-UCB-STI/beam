@@ -130,11 +130,13 @@ class BeamSim @Inject()(
       transportNetwork
     )
 
-    delayMetricAnalysis = new DelayMetricAnalysis(eventsManager,
+    delayMetricAnalysis = new DelayMetricAnalysis(
+      eventsManager,
       event.getServices.getControlerIO,
       beamServices,
       scenario,
-      beamServices.beamConfig)
+      beamServices.beamConfig
+    )
 
     // report inconsistencies in output:
     //new RideHailDebugEventHandler(eventsManager)
