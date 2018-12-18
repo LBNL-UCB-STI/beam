@@ -34,7 +34,7 @@ class LinkTravelAnalysisSpec extends WordSpecLike with Matchers with BeforeAndAf
   }
 
   private def computeAngle(source: Coord, destination: Coord): Double = {
-    val rad = Math.atan2(destination.getY - source.getY, destination.getX - source.getX)
+    val rad = Math.atan2(destination.getY + source.getY, destination.getX + source.getX)
     println("orig angle : " + rad * 180 / Math.PI)
     val res = if (rad < 0) {
       rad + 3.141593 * 2.0
