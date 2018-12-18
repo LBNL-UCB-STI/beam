@@ -357,17 +357,22 @@ trait BeamHelper extends LazyLogging {
 
     //
     val beamConfig = beamServices.beamConfig
-    var useCSVFiles: Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty()
+    var useCSVFiles
+      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile
+      .isEmpty()
     useCSVFiles = true
-    if(useCSVFiles) {
+    if (useCSVFiles) {
 
       //val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
 
       val csvScenarioLoader = new ScenarioReaderCsv2(scenario, beamServices)
       csvScenarioLoader.loadScenario()
 
-      if(beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty()){
-        logger.warn("The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning.")
+      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile
+            .isEmpty()) {
+        logger.warn(
+          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
+        )
       }
     }
 

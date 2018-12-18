@@ -189,11 +189,7 @@ public class ScenarioReaderCsv {
     }
 
 
-    public void writePlansToXml(Population population, String outputFile) {
-        new PopulationWriter(population).write(outputFile);
 
-        log.info("Written plans successfully to {}", outputFile);
-    }
 
     public void processPlans() {
 
@@ -243,12 +239,7 @@ public class ScenarioReaderCsv {
     }
 
 
-    public void printRow(String[] dRow){
-//        log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
-//                        "x => {} , y => {} , endTime => {} , mode => {}",
-//                dRow);
-        return;
-    }
+
 
 
     public void readGzipScenario(){
@@ -313,65 +304,12 @@ public class ScenarioReaderCsv {
     }
 
 
-    private void printMap(String mapName, Map<String, Map<String, String>> map){
 
-        System.out.println("=> => Map << "+ mapName + ">>");
-        for(String id : map.keySet()){
-            System.out.println("id -> " + id);
-            System.out.println(map.get(id));
-
-        }
-    }
-
-    private void printLines(BufferedReader br) throws IOException {
-        String line;
-        while ((line = br.readLine()) != null) {
-            System.out.println("line="+line);
-        }
-    }
 
     Map<String, List<Id<Person>>> houseHoldPersons = new HashMap<>();
 
 
-    private List<Id<Vehicle>> buildVehicles(int numberOfVehicles){
 
-        // We still want to do this but only if no vehicles file is specified
-
-        List<Id<Vehicle>> vehicles = new ArrayList<>();
-
-        for(int i=0; i< numberOfVehicles; i++){
-
-            int vehicleId = vehicleCounter + 1;
-            Id<Vehicle> vid = Id.createVehicleId(vehicleId);
-
-            VehicleType vehicleType = new VehicleTypeImpl(Id.create(1, VehicleType.class));
-
-            vehicles.add(vid);
-            allVehicles.add(VehicleUtils.getFactory().createVehicle(vid, vehicleType));
-        }
-
-
-        return vehicles;
-    }
-
-    private List<Id<Person>> buildPersons(int numberOfPersons){
-
-
-        List<Id<Person>> persons = new ArrayList<>();
-
-        for(int i=0; i< numberOfPersons; i++){
-
-            int personId = personCounter + 1;
-            Id<Person> pid = Id.createPersonId(personId);
-            Person person = population.getFactory().createPerson(pid);
-
-            persons.add(pid);
-            allPersons.add(person);
-        }
-
-
-        return persons;
-    }
 
     private void processHouseHolds(){
 

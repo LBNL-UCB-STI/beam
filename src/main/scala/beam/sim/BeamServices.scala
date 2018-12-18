@@ -97,7 +97,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
 
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices))
+    maybeScaleTransit(
+      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+    )
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
@@ -202,8 +204,8 @@ object BeamServices {
   }
 
   def readBeamVehicleTypeFile(
-                               filePath: String,
-                               fuelTypePrices: TrieMap[FuelType, Double]
+    filePath: String,
+    fuelTypePrices: TrieMap[FuelType, Double]
   ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
@@ -250,7 +252,11 @@ object BeamServices {
     }
   }
 
-  def readPersonsFile(filePath: String, population: Population, modes: String): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
+  def readPersonsFile(
+    filePath: String,
+    population: Population,
+    modes: String
+  ): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
     readCsvFileByLine(filePath, TrieMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
         val _personId: Id[Person] = Id.createPersonId(line.get("person_id"))
@@ -288,7 +294,7 @@ object BeamServices {
           case None =>
             ListBuffer[Id[Person]](_personId)
         }
-        acc += (( houseHoldId, list ))
+        acc += ((houseHoldId, list))
     }
   }
 
@@ -298,7 +304,7 @@ object BeamServices {
         val _line = new java.util.TreeMap[String, String]()
         _line.put("building_id", line.get("building_id"))
         //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
-        acc += (( line.get("unit_id"), _line ))
+        acc += ((line.get("unit_id"), _line))
     }
   }
 
@@ -309,7 +315,7 @@ object BeamServices {
         _line.put("x", line.get("x"))
         _line.put("y", line.get("y"))
         //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
-        acc += (( line.get("primary_id"), _line ))
+        acc += ((line.get("primary_id"), _line))
     }
   }
 
@@ -343,7 +349,7 @@ object BeamServices {
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }
-          
+
           /*val list = acc.get(_personId) match {
             case Some(planList: ListBuffer[java.util.Map[String, String]]) =>
               planList += line
@@ -357,17 +363,19 @@ object BeamServices {
           //acc += (( _personId, list ))
 
         }
-     Unit
+        Unit
     }
   }
 
-
-  def readHouseHoldsFile(filePath: String, scenario: MutableScenario,
-                         beamServices: BeamServices,
-                         houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
-                         units: ParTrieMap[String, java.util.Map[String, String]],
-                         buildings: ParTrieMap[String, java.util.Map[String, String]],
-                         parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]): Unit = {
+  def readHouseHoldsFile(
+    filePath: String,
+    scenario: MutableScenario,
+    beamServices: BeamServices,
+    houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
+    units: ParTrieMap[String, java.util.Map[String, String]],
+    buildings: ParTrieMap[String, java.util.Map[String, String]],
+    parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
+  ): Unit = {
 
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -375,7 +383,6 @@ object BeamServices {
     var counter = 0
 
     readCsvFileByLine(filePath, Unit) {
-
 
       case (line, acc) => {
 
@@ -440,8 +447,7 @@ object BeamServices {
           }
 
           case None =>
-
-            //logger.info("no persons for household")
+          //logger.info("no persons for household")
         }
 
         val vehicleTypes = VehiclesAdjustment
@@ -456,8 +462,7 @@ object BeamServices {
           )
 
         val vehicleIds = new util.ArrayList[Id[Vehicle]]
-        vehicleTypes.foreach{
-          bvt =>
+        vehicleTypes.foreach { bvt =>
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.vehicleTypeId, classOf[VehicleType]))
           val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
           vehicleIds.add(v.getId)
@@ -469,7 +474,6 @@ object BeamServices {
 
         objHouseHold.setVehicleIds(vehicleIds)
 
-
         scenarioHouseholds.put(objHouseHold.getId, objHouseHold)
         scenarioHouseholdAttributes
           .putAttribute(objHouseHold.getId.toString, "homecoordx", houseHoldCoord.getX)
@@ -477,7 +481,7 @@ object BeamServices {
           .putAttribute(objHouseHold.getId.toString, "homecoordy", houseHoldCoord.getY)
 
         counter = counter + 1
-        if(counter % 50000 == 0) logger.info(counter.toString)
+        if (counter % 50000 == 0) logger.info(counter.toString)
 
         //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
 
@@ -488,11 +492,9 @@ object BeamServices {
     }
   }
 
-
-
   def readBuildingsFile(
-                         filePath: String
-                       ): TrieMap[String, java.util.Map[String, String]] = {
+    filePath: String
+  ): TrieMap[String, java.util.Map[String, String]] = {
 
     readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
@@ -502,7 +504,6 @@ object BeamServices {
         acc += ((line.get("building_id"), _line))
     }
   }
-
 
   private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
     FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {
@@ -517,7 +518,5 @@ object BeamServices {
         res
     }
   }
-
-
 
 }
