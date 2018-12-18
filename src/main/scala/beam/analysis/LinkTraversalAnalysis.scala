@@ -214,8 +214,7 @@ class LinkTraversalAnalysis @Inject()(
     * @return angle between the coordinates (in radians).
     */
   private def computeAngle(source: Coord, destination: Coord): Double = {
-    val angleInDegrees = (Math.atan2(destination.getY - source.getY, destination.getX - source.getX) * 180) / Math.PI
-    val rad = Math.toRadians(angleInDegrees)
+    val rad = Math.atan2(destination.getY - source.getY, destination.getX - source.getX)
     if (rad < 0) {
       rad + 3.141593 * 2.0
     } else {
