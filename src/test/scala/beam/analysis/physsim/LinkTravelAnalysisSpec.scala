@@ -33,69 +33,49 @@ class LinkTravelAnalysisSpec extends WordSpecLike with Matchers with BeforeAndAf
     linkTravelAnalysis = new LinkTraversalAnalysis(scenario, services, outputDirectoryHierarchy)
   }
 
-  private def computeAngle(source: Coord, destination: Coord): Double = {
-    val rad = Math.atan2(destination.getY + source.getY, destination.getX + source.getX)
-    println("orig angle : " + rad * 180 / Math.PI)
-    val res = if (rad < 0) {
-      rad + 3.141593 * 2.0
-    } else {
-      rad
-    }
-    println("fin radians : " + res)
-    println("fin angle : " + res * 180 / Math.PI)
-    res
-  }
-
-  def printCond() = {
-    println("radians < " + (0.174533 * 180 / Math.PI) + " || radians >=" +  ( 6.10865 * 180 / Math.PI) + "=> R")
-    println("radians >=" +  ( 0.17453 * 180 / Math.PI) + "  & radians <" +   ( 1.39626  * 180 / Math.PI) + " => SR") // Soft Right
-    println("radians >=" +  ( 1.39626 * 180 / Math.PI) + " & radians <" +    (1.74533   * 180 / Math.PI) + " => S")// Straight
-    println("radians >=" +  ( 1.74533 * 180 / Math.PI) + " & radians <" +    (2.96706   * 180 / Math.PI) + " => SL") // Soft Left
-    println("radians >=" +  ( 2.96706 * 180 / Math.PI) + " & radians <" +    (3.31613   * 180 / Math.PI) + " => L")// Left
-    println("radians >=" +  ( 3.31613 * 180 / Math.PI) + " & radians <" +    (3.32083   * 180 / Math.PI) + " => HL") // Hard Left
-    println("radians >=" +  ( 3.32083 * 180 / Math.PI) + " & radians <" +    (6.10865   * 180 / Math.PI) + " => HR")// Hard Right
-  }
-
-
   "LinkTravelAnalysis" must {
     "generate the required direction to be taken by the vehicle to go to next link" in {
 
-      var currentLinkNodes = new Coord(0,0) -> new Coord(0,1)
-      var nextLinkNodes = new Coord(0,1) -> new Coord(1,1)
-
-      computeAngle(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      var currentLinkNodes = new Coord(0, 0) -> new Coord(0, 1)
+      var nextLinkNodes = new Coord(0, 1)    -> new Coord(1, 1)
       var direction =
         linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
-      println(direction)
-      //      direction shouldEqual "HR"
+      direction shouldEqual "R"
 
-      currentLinkNodes = new Coord(0,0) -> new Coord(0,-1)
-      nextLinkNodes = new Coord(0,0) -> new Coord(1,0)
-      computeAngle(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      currentLinkNodes = new Coord(0, 0) -> new Coord(-1, 0)
+      nextLinkNodes = new Coord(-1, 0)   -> new Coord(0, 1)
       direction =
         linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
-      println(direction)
-      //      direction shouldEqual "SR"
+      direction shouldEqual "HR"
 
-      currentLinkNodes = new Coord(0,0) -> new Coord(0,0)
-      nextLinkNodes = new Coord(0,0) -> new Coord(1,0)
-      computeAngle(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      currentLinkNodes = new Coord(0, 0) -> new Coord(1, 1)
+      nextLinkNodes = new Coord(1, 1)    -> new Coord(2, 1)
       direction =
         linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
-      println(direction)
-      //      direction shouldEqual "S"
+      direction shouldEqual "SR"
 
-      currentLinkNodes = new Coord(0,0) -> new Coord(1,1)
-      nextLinkNodes = new Coord(0,0) -> new Coord(0,0)
-      computeAngle(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      currentLinkNodes = new Coord(0, 0) -> new Coord(-1, 1)
+      nextLinkNodes = new Coord(-1, 1)   -> new Coord(-2, 1)
       direction =
         linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
-      println(direction)
-      //      direction shouldEqual "HL"
+      direction shouldEqual "SL"
+
+      currentLinkNodes = new Coord(0, 0) -> new Coord(1, 1)
+      nextLinkNodes = new Coord(1, 1)    -> new Coord(0, 2)
+      direction =
+        linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      direction shouldEqual "HL"
+
+      currentLinkNodes = new Coord(0, 0) -> new Coord(0, 1)
+      nextLinkNodes = new Coord(0, 1)    -> new Coord(-1, 1)
+      direction =
+        linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(nextLinkNodes))
+      direction shouldEqual "L"
+
     }
 
     "tell the vehicle to go straight if the current link is the last link" in {
-      val currentLinkNodes = new Coord(5.332546831852583E7, -176.98930964889) -> new Coord(5.332546831874883E7, 0.0)
+      val currentLinkNodes = new Coord(1, 1) -> new Coord(1, 1)
       val direction =
         linkTravelAnalysis.getDirection(vectorFromLinkNodes(currentLinkNodes), vectorFromLinkNodes(currentLinkNodes))
       direction shouldEqual "S"
@@ -114,13 +94,6 @@ class LinkTravelAnalysisSpec extends WordSpecLike with Matchers with BeforeAndAf
     new Coord(
       linkNodes._2.getX - linkNodes._1.getX,
       linkNodes._2.getY - linkNodes._1.getY
-    )
-  }
-
-  private def vectorFromLink(link: Link): Coord = {
-    new Coord(
-      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
-      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
     )
   }
 

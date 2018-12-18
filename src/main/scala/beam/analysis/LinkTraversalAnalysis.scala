@@ -214,8 +214,10 @@ class LinkTraversalAnalysis @Inject()(
     * @return angle between the coordinates (in radians).
     */
   private def computeAngle(source: Coord, destination: Coord): Double = {
-    val rad = Math.atan2(source.getX*destination.getY - source.getY * destination.getX,
-      source.getX*destination.getX - source.getY * destination.getY)
+    val rad = Math.atan2(
+      source.getX * destination.getY - source.getY * destination.getX,
+      source.getX * destination.getX - source.getY * destination.getY
+    )
     if (rad < 0) {
       rad + 3.141593 * 2.0
     } else {
@@ -230,19 +232,17 @@ class LinkTraversalAnalysis @Inject()(
     * @return Direction to be taken ( L / HL / SL / R / SR / HR / S )
     */
   def getDirection(source: Coord, destination: Coord): String = {
-    if (!((source.getX == destination.getX) || (source.getY == destination.getY))) {
-      val radians = computeAngle(source, destination)
-      radians match {
-        case _ if radians < 0.174533 || radians >= 6.10865 => "S" // Right
-        case _ if radians >= 0.174533 & radians < 1.39626  => "SL" // Soft Right
-        case _ if radians >= 1.39626 & radians < 1.74533   => "L" // Straight
-        case _ if radians >= 1.74533 & radians < 3.14159   => "HL" // Soft Left
-        case _ if radians >= 3.14159 & radians < 4.53785   => "HR" // Left
-        case _ if radians >= 4.53785 & radians < 4.88692   => "R" // Hard Left
-        case _ if radians >= 4.88692 & radians < 6.10865   => "SR" // Hard Right
-        case _                                             => "S" // default => Straight
-      }
-    } else "S"
+    val radians = computeAngle(source, destination)
+    radians match {
+      case _ if radians < 0.174533 || radians >= 6.10865 => "S" // Straight
+      case _ if radians >= 0.174533 & radians < 1.39626  => "SL" // Soft Left
+      case _ if radians >= 1.39626 & radians < 1.74533   => "L" // Left
+      case _ if radians >= 1.74533 & radians < 3.14159   => "HL" // Hard Left
+      case _ if radians >= 3.14159 & radians < 4.53785   => "HR" // Hard Right
+      case _ if radians >= 4.53785 & radians < 4.88692   => "R" // Right
+      case _ if radians >= 4.88692 & radians < 6.10865   => "SR" // Soft Right
+      case _                                             => "S" // default => Straight
+    }
   }
 
 }
