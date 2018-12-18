@@ -281,7 +281,7 @@ public class ScenarioReaderCsv {
                         persons = csvToMap.read(br);
                         //printMap("persons", persons);
                         break;
-                    case "plan.csv":
+                    case "plans.csv":
                         //processPlans(br);
 
                         plans = csvToMap.readListOfMaps(br);
