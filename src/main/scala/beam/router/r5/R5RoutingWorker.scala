@@ -112,7 +112,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val fuelTypePrices: TrieMap[FuelType, Double] =
           BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-          BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+          BeamServices
+            .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
         override val modeSubsidies: ModeSubsidy =

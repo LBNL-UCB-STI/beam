@@ -1,6 +1,5 @@
 package beam.router
 
-
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode

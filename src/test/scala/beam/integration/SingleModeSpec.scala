@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.{PersonTestUtil, vehicles}
+import beam.agentsim.agents.{vehicles, PersonTestUtil}
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicle

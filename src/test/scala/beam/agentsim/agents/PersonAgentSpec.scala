@@ -333,7 +333,8 @@ class PersonAgentSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType, null
+        BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -475,14 +476,16 @@ class PersonAgentSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, null
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType, None
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       vehicles.put(bus.getId, bus)

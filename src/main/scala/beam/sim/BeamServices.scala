@@ -2,6 +2,7 @@ package beam.sim
 
 import java.io.FileNotFoundException
 import java.time.ZonedDateTime
+import java.util
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
@@ -19,18 +20,27 @@ import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, FileUtils}
+import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.{BeamVehicleUtils, DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
+import org.matsim.core.population.PopulationUtils
+import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.Household
+import org.matsim.households._
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import scala.collection.JavaConverters._
+import scala.collection.Iterator
 import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -135,6 +145,8 @@ object BeamServices {
   private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
+  var vehicleCounter = 1;
+
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
@@ -238,6 +250,260 @@ object BeamServices {
     }
   }
 
+  def readPersonsFile(filePath: String, population: Population, modes: String): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
+    readCsvFileByLine(filePath, TrieMap[Id[Household], ListBuffer[Id[Person]]]()) {
+      case (line, acc) =>
+        val _personId: Id[Person] = Id.createPersonId(line.get("person_id"))
+        val person: Person = population.getFactory.createPerson(_personId)
+
+        val member_id: String = line.get("member_id")
+        val age: String = line.get("age")
+        val primary_commute_mode: String = line.get("primary_commute_mode")
+        val relate: String = line.get("relate")
+        val edu: String = line.get("edu")
+        val sex: String = line.get("sex")
+        val hours: String = line.get("hours")
+        val hispanic: String = line.get("hispanic")
+        val earning: String = line.get("earning")
+        val race_id: String = line.get("race_id")
+        val student: String = line.get("student")
+        val work_at_home: String = line.get("work_at_home")
+        val worker: String = line.get("worker")
+        val household_id: String = line.get("household_id")
+        val node_id_small: String = line.get("node_id_small")
+        val node_id_walk: String = line.get("node_id_walk")
+        val job_id: String = line.get("job_id")
+
+        population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
+        population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
+        population.getPersonAttributes.putAttribute(person.getId.toString, "available-modes", modes)
+        population.addPerson(person)
+
+        val houseHoldId: Id[Household] = Id.create(household_id, classOf[Household])
+
+        val list: ListBuffer[Id[Person]] = acc.get(houseHoldId) match {
+          case Some(personList: ListBuffer[Id[Person]]) =>
+            personList += _personId
+            personList
+          case None =>
+            ListBuffer[Id[Person]](_personId)
+        }
+        acc += (( houseHoldId, list ))
+    }
+  }
+
+  def readUnitsFile(filePath: String): TrieMap[String, java.util.Map[String, String]] = {
+    readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
+      case (line, acc) =>
+        val _line = new java.util.TreeMap[String, String]()
+        _line.put("building_id", line.get("building_id"))
+        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
+        acc += (( line.get("unit_id"), _line ))
+    }
+  }
+
+  def readParcelAttrFile(filePath: String): TrieMap[String, java.util.Map[String, String]] = {
+    readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
+      case (line, acc) =>
+        val _line = new java.util.TreeMap[String, String]()
+        _line.put("x", line.get("x"))
+        _line.put("y", line.get("y"))
+        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
+        acc += (( line.get("primary_id"), _line ))
+    }
+  }
+
+  def readPlansFile(filePath: String, population: Population): Unit = {
+    readCsvFileByLine(filePath, Unit) {
+      case (line, acc) =>
+        val personId = line.get("personId")
+        val planElement = line.get("planElement")
+        val planElementId = line.get("planElementId")
+        val activityType = line.get("activityType")
+        val x = line.get("x")
+        val y = line.get("y")
+        val endTime = line.get("endTime")
+        val mode = line.get("mode")
+
+        val _personId = Id.createPersonId(personId)
+        val person = population.getPersons.get(_personId)
+
+        if (person != null) {
+
+          var plan = person.getSelectedPlan
+          if (plan == null) {
+            plan = PopulationUtils.createPlan(person)
+            person.addPlan(plan)
+            person.setSelectedPlan(plan)
+          }
+
+          if (planElement.equalsIgnoreCase("leg")) PopulationUtils.createAndAddLeg(plan, mode)
+          else if (planElement.equalsIgnoreCase("activity")) {
+            val coord = new Coord(x.toDouble, y.toDouble)
+            val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+            if (endTime != null) act.setEndTime(endTime.toDouble)
+          }
+          
+          /*val list = acc.get(_personId) match {
+            case Some(planList: ListBuffer[java.util.Map[String, String]]) =>
+              planList += line
+              planList
+            case None =>
+              ListBuffer[java.util.Map[String, String]](line)
+          }*/
+
+          //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
+
+          //acc += (( _personId, list ))
+
+        }
+     Unit
+    }
+  }
+
+
+  def readHouseHoldsFile(filePath: String, scenario: MutableScenario,
+                         beamServices: BeamServices,
+                         houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
+                         units: ParTrieMap[String, java.util.Map[String, String]],
+                         buildings: ParTrieMap[String, java.util.Map[String, String]],
+                         parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]): Unit = {
+
+    val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
+    val scenarioHouseholds = scenario.getHouseholds.getHouseholds
+    val scenarioVehicles = beamServices.privateVehicles
+    var counter = 0
+
+    readCsvFileByLine(filePath, Unit) {
+
+
+      case (line, acc) => {
+
+        val _houseHoldId = line.get("household_id")
+        val houseHoldId = Id.create(_houseHoldId, classOf[Household])
+
+        val numberOfVehicles = java.lang.Double.parseDouble(line.get("cars")).intValue()
+        //val numberOfPersons = java.lang.Double.parseDouble(line.get("persons")).intValue()
+
+        val objHouseHold = new HouseholdsFactoryImpl().createHousehold(houseHoldId)
+
+        // Setting the coordinates
+        val houseHoldCoord: Coord = {
+
+          if (line.keySet().contains("homecoordx") && line.keySet().contains("homecoordy")) {
+            val x = line.get("homecoordx")
+            val y = line.get("homecoordy")
+            new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
+          } else {
+            val houseHoldUnitId = line.get("unit_id")
+            if (houseHoldUnitId != null) {
+              units.get(houseHoldUnitId) match {
+                case Some(unit) =>
+                  buildings.get(unit.get("building_id")) match {
+                    case Some(building) => {
+                      parcelAttrs.get(building.get("parcel_id")) match {
+                        case Some(parcelAttr) =>
+                          val x = parcelAttr.get("x")
+                          val y = parcelAttr.get("y")
+                          new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
+                        case None => new Coord(0, 0)
+                      }
+                    }
+                    case None => new Coord(0, 0)
+                  }
+                case None => new Coord(0, 0)
+              }
+
+            } else {
+              new Coord(0, 0)
+            }
+          }
+        }
+
+        val incomeStr = line.get("income")
+
+        if (incomeStr != null && !incomeStr.isEmpty) try {
+          val _income = java.lang.Double.parseDouble(incomeStr)
+          val income = new IncomeImpl(_income, Income.IncomePeriod.year)
+          income.setCurrency("usd")
+          objHouseHold.setIncome(income)
+        } catch {
+          case e: Exception =>
+            e.printStackTrace()
+        }
+
+        val p: Option[ListBuffer[Id[Person]]] = houseHoldPersons.get(houseHoldId)
+
+        p match {
+          case Some(p) => {
+            objHouseHold.setMemberIds(p.asJava)
+          }
+
+          case None =>
+
+            //logger.info("no persons for household")
+        }
+
+        val vehicleTypes = VehiclesAdjustment
+          .getVehicleAdjustment(beamServices)
+          .sampleVehicleTypesForHousehold(
+            numberOfVehicles,
+            VehicleCategory.Car,
+            objHouseHold.getIncome.getIncome,
+            objHouseHold.getMemberIds.size,
+            null,
+            houseHoldCoord
+          )
+
+        val vehicleIds = new util.ArrayList[Id[Vehicle]]
+        vehicleTypes.foreach{
+          bvt =>
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.vehicleTypeId, classOf[VehicleType]))
+          val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(v.getId)
+          val bv = BeamVehicleUtils.getBeamVehicle(v, objHouseHold, bvt)
+          scenarioVehicles.put(bv.getId, bv)
+
+          vehicleCounter = vehicleCounter + 1
+        }
+
+        objHouseHold.setVehicleIds(vehicleIds)
+
+
+        scenarioHouseholds.put(objHouseHold.getId, objHouseHold)
+        scenarioHouseholdAttributes
+          .putAttribute(objHouseHold.getId.toString, "homecoordx", houseHoldCoord.getX)
+        scenarioHouseholdAttributes
+          .putAttribute(objHouseHold.getId.toString, "homecoordy", houseHoldCoord.getY)
+
+        counter = counter + 1
+        if(counter % 50000 == 0) logger.info(counter.toString)
+
+        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
+
+        //acc += (( houseHoldId, houseHold ))
+      }
+
+      Unit
+    }
+  }
+
+
+
+  def readBuildingsFile(
+                         filePath: String
+                       ): TrieMap[String, java.util.Map[String, String]] = {
+
+    readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
+      case (line, acc) =>
+        val _line = new java.util.TreeMap[String, String]()
+        _line.put("parcel_id", line.get("parcel_id"))
+        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
+        acc += ((line.get("building_id"), _line))
+    }
+  }
+
+
   private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
     FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {
       mapReader =>
@@ -251,4 +517,7 @@ object BeamServices {
         res
     }
   }
+
+
+
 }

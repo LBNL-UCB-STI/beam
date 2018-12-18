@@ -26,7 +26,8 @@ object BeamVehicleUtils {
       beamVehicleId,
       powertrain,
       None,
-      bvt, null
+      bvt,
+      null
     )
   }
 
@@ -95,15 +96,17 @@ object BeamVehicleUtils {
       .headOption
   }
 
-  def prePopulateVehiclesByHouseHold(beamServices: BeamServices) : java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
+  def prePopulateVehiclesByHouseHold(
+    beamServices: BeamServices
+  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
 
-    val vehicles : java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
+    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
 
-    beamServices.privateVehicles.foreach{
+    beamServices.privateVehicles.foreach {
       case (k: Id[BeamVehicle], v: BeamVehicle) => {
 
-        var hVehicles : java.util.List[Id[Vehicle]] = vehicles.get(v.houseHoldId.get)
-        if(hVehicles == null){
+        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.houseHoldId.get)
+        if (hVehicles == null) {
           hVehicles = new java.util.ArrayList[Id[Vehicle]]()
         }
         hVehicles.add(Id.createVehicleId(k.toString))

@@ -13,41 +13,42 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-                            vehicleTypeId: String,
-                            seatingCapacity: Int,
-                            standingRoomCapacity: Int,
-                            lengthInMeter: Double,
-                            primaryFuelType: FuelType,
-                            primaryFuelConsumptionInJoulePerMeter: Double,
-                            primaryFuelCapacityInJoule: Double,
-                            secondaryFuelType: Option[FuelType] = None,
-                            secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
-                            secondaryFuelCapacityInJoule: Option[Double] = None,
-                            automationLevel: Option[String] = None,
-                            maxVelocity: Option[Double] = None,
-                            passengerCarUnit: Double = 1,
-                            rechargeLevel2RateLimitInWatts: Option[Double] = None,
-                            rechargeLevel3RateLimitInWatts: Option[Double] = None,
-                            vehicleCategory: VehicleCategory = Undefined
+  vehicleTypeId: String,
+  seatingCapacity: Int,
+  standingRoomCapacity: Int,
+  lengthInMeter: Double,
+  primaryFuelType: FuelType,
+  primaryFuelConsumptionInJoulePerMeter: Double,
+  primaryFuelCapacityInJoule: Double,
+  secondaryFuelType: Option[FuelType] = None,
+  secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
+  secondaryFuelCapacityInJoule: Option[Double] = None,
+  automationLevel: Option[String] = None,
+  maxVelocity: Option[Double] = None,
+  passengerCarUnit: Double = 1,
+  rechargeLevel2RateLimitInWatts: Option[Double] = None,
+  rechargeLevel3RateLimitInWatts: Option[Double] = None,
+  vehicleCategory: VehicleCategory = Undefined
 )
 
 object BeamVehicleType {
+
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
   // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
   // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
   // 85 calories / mile == 85k J/mi or 53 J/m
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
-  BeamVehicleType(
-    "BODY-TYPE-DEFAULT",
-    0,
-    0,
-    0.5,
-    Food,
-    53,
-    2.21e6,
-    None
-  )
+    BeamVehicleType(
+      "BODY-TYPE-DEFAULT",
+      0,
+      0,
+      0.5,
+      Food,
+      53,
+      2.21e6,
+      None
+    )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
     "BIKE-TYPE-DEFAULT",
@@ -98,7 +99,7 @@ object BeamVehicleType {
 
 }
 
-object FuelType{
+object FuelType {
   sealed trait FuelType
   case object Food extends FuelType
   case object Gasoline extends FuelType
@@ -106,13 +107,16 @@ object FuelType{
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
   case object Undefined extends FuelType
+
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Undefined).find(_.toString.equalsIgnoreCase(value)).getOrElse(Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Undefined)
+      .find(_.toString.equalsIgnoreCase(value))
+      .getOrElse(Undefined)
   }
   case class FuelTypeAndPrice(fuelTypeId: FuelType, priceInDollarsPerMJoule: Double)
 }
 
-object VehicleCategory{
+object VehicleCategory {
   sealed trait VehicleCategory
   case object Body extends VehicleCategory
   case object Bike extends VehicleCategory
@@ -121,8 +125,10 @@ object VehicleCategory{
   case object LightDutyTruck extends VehicleCategory
   case object HeavyDutyTruck extends VehicleCategory
   case object Undefined extends VehicleCategory
+
   def fromString(value: String): VehicleCategory = {
-    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck, Undefined).find(_.toString.equalsIgnoreCase(value)).getOrElse(Undefined)
+    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck, Undefined)
+      .find(_.toString.equalsIgnoreCase(value))
+      .getOrElse(Undefined)
   }
 }
-

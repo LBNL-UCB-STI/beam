@@ -59,7 +59,8 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
             bicycleId,
             powertrain,
             None,
-            beamVehicleType, Some(household.getId)
+            beamVehicleType,
+            Some(household.getId)
           )
         )
       )

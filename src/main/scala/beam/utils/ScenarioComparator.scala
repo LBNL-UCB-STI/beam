@@ -29,7 +29,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks
 
-object ScenarioComparator extends App with Comparator[MutableScenario]{
+object ScenarioComparator extends App with Comparator[MutableScenario] {
 
   val testOutputDir = "output/test/"
   val configFile = "test/input/beamville/beam.conf"
@@ -53,25 +53,24 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     var houseHoldsEqual = 0
     var vehiclesEqual = 0
     var personsEqual = 0
-    if(flag == 0 && HouseHoldComparator.compareHouseHolds(o1, o2) != 0)
+    if (flag == 0 && HouseHoldComparator.compareHouseHolds(o1, o2) != 0)
       houseHoldsEqual = 1
 
-    if(flag == 0 && VehicleComparator.compareVehicles(b1, b2) != 0)
+    if (flag == 0 && VehicleComparator.compareVehicles(b1, b2) != 0)
       vehiclesEqual = 1
 
-    if(flag == 0 && PersonComparator.comparePersons(o1, o2) != 0)
+    if (flag == 0 && PersonComparator.comparePersons(o1, o2) != 0)
       personsEqual = 1
 
     println("HouseHolds are equal " + houseHoldsEqual)
     println("Vehicles are equal " + vehiclesEqual)
     println("Persons are equal " + personsEqual)
 
-    if(houseHoldsEqual == 0 && personsEqual == 0 && vehiclesEqual == 0) flag = 0
+    if (houseHoldsEqual == 0 && personsEqual == 0 && vehiclesEqual == 0) flag = 0
     else flag = 1
 
     flag
   }
-
 
   def loadScenarioUsingXmlMode(): MutableScenario = {
 
@@ -95,7 +94,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     scenario
   }
 
-  def loadScenarioUsingCsvMode() : MutableScenario = {
+  def loadScenarioUsingCsvMode(): MutableScenario = {
 
     val config = BeamConfigUtils
       .parseFileSubstitutingInputDirectory(configFile)
@@ -106,14 +105,14 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
 
     val beamServices = getBeamServices(config)
 
-    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
+    val planReaderCsv: ScenarioReaderCsv2 = new ScenarioReaderCsv2(scenario, beamServices)
 
     b2 = beamServices
 
     scenario
   }
 
-  def getBeamServices(config: com.typesafe.config.Config):BeamServices = {
+  def getBeamServices(config: com.typesafe.config.Config): BeamServices = {
     val beamServices: BeamServices = new BeamServices {
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
@@ -130,7 +129,10 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
       val fuelTypePrices: TrieMap[FuelType, Double] =
         BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-        BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+        BeamServices.readBeamVehicleTypeFile(
+          beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
+          fuelTypePrices
+        )
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
       override val modeSubsidies: ModeSubsidy =
@@ -155,20 +157,21 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     beamServices
   }
 
-
   def logScenario(scenario: MutableScenario) = {
     println("Scenario is loaded " + scenario.toString)
 
     println("HouseHolds")
-    scenario.getHouseholds.getHouseholds.forEach{
+    scenario.getHouseholds.getHouseholds.forEach {
       case (hId: Id[Household], h: Household) => {
-        println("hId => " + hId + ", h => " + h.getMemberIds.toString + ", " + h.getVehicleIds.toString + ", " + h.getIncome.toString)
+        println(
+          "hId => " + hId + ", h => " + h.getMemberIds.toString + ", " + h.getVehicleIds.toString + ", " + h.getIncome.toString
+        )
       }
     }
     println("--")
 
     println("Vehicles")
-    scenario.getVehicles.getVehicles.forEach{
+    scenario.getVehicles.getVehicles.forEach {
       case (vId: Id[Vehicle], v: Vehicle) => {
         println("vId => " + vId + ", v => " + v.toString)
       }
@@ -177,8 +180,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
     println("--")
 
     println("Persons")
-    scenario.getPopulation.getPersons.forEach{
-      case(pId: Id[Person], p: Person) => {
+    scenario.getPopulation.getPersons.forEach {
+      case (pId: Id[Person], p: Person) => {
         println("pId => " + pId + ", p => " + p.toString)
       }
     }
@@ -187,7 +190,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
 
   def logBeamVehicles(beamServices: BeamServices) = {
     println("BeamVehicles")
-    beamServices.vehicles.foreach{
+    beamServices.vehicles.foreach {
       case (vId: Id[BeamVehicle], v: BeamVehicle) => {
         println("bvId => " + vId + ", bv => " + v.toString)
       }
@@ -196,16 +199,14 @@ object ScenarioComparator extends App with Comparator[MutableScenario]{
 
 }
 
-
-
-object HouseHoldComparator extends Comparator[Household]{
+object HouseHoldComparator extends Comparator[Household] {
 
   override def compare(o1: Household, o2: Household): Int = {
 
     var flag = 0
-    if(flag == 0 && o2 == null) flag = 1
+    if (flag == 0 && o2 == null) flag = 1
 
-    if(flag == 0) {
+    if (flag == 0) {
 
       Collections.sort(o1.getMemberIds)
       Collections.sort(o2.getMemberIds)
@@ -227,14 +228,13 @@ object HouseHoldComparator extends Comparator[Household]{
     flag
   }
 
-  def compareHouseHolds(o1: MutableScenario, o2: MutableScenario) : Int = {
+  def compareHouseHolds(o1: MutableScenario, o2: MutableScenario): Int = {
     var flag = 0
 
     val houseHolds1 = o1.getHouseholds.getHouseholds
     val houseHolds2 = o2.getHouseholds.getHouseholds
 
-    if(flag == 0 && houseHolds1.size() != houseHolds2.size()) flag = 1
-
+    if (flag == 0 && houseHolds1.size() != houseHolds2.size()) flag = 1
 
     Breaks.breakable {
       o1.getHouseholds.getHouseholds.forEach {
@@ -245,7 +245,7 @@ object HouseHoldComparator extends Comparator[Household]{
           val x2 = o2.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordx")
           val y2 = o2.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, "homecoordy")
 
-          if(x1 != x2 || y1 != y2) {
+          if (x1 != x2 || y1 != y2) {
             flag = 1
             Breaks.break
           }
@@ -256,11 +256,9 @@ object HouseHoldComparator extends Comparator[Household]{
     /*if(!o1.getHouseholds.getHouseholdAttributes.toString.equals(o2.getHouseholds.getHouseholdAttributes.toString))
       flag = 1*/
 
+    if (flag == 0) {
 
-
-    if(flag == 0) {
-
-      Breaks.breakable{
+      Breaks.breakable {
         houseHolds1.keySet().forEach {
           case (hhId1: Id[Household]) => {
 
@@ -284,29 +282,27 @@ object HouseHoldComparator extends Comparator[Household]{
 
 }
 
-object VehicleComparator extends Comparator[BeamVehicle]{
+object VehicleComparator extends Comparator[BeamVehicle] {
 
   override def compare(v1: BeamVehicle, v2: BeamVehicle): Int = {
-    if(
-      v1.getId == v2.getId
-      && v1.houseHoldId.get.equals(v2.houseHoldId.get)
-      && v1.beamVehicleType.equals(v2.beamVehicleType)
-    ) 0
+    if (v1.getId == v2.getId
+        && v1.houseHoldId.get.equals(v2.houseHoldId.get)
+        && v1.beamVehicleType.equals(v2.beamVehicleType)) 0
     else 1
   }
 
-  def compareVehicles(o1: BeamServices, o2: BeamServices) : Int = {
+  def compareVehicles(o1: BeamServices, o2: BeamServices): Int = {
     var flag = 0
 
     val vehicles1: TrieMap[Id[BeamVehicle], BeamVehicle] = o1.vehicles
     val vehicles2 = o2.vehicles
 
-    if(flag == 0 && vehicles1.keySet.size != vehicles2.keySet.size) flag = 1
+    if (flag == 0 && vehicles1.keySet.size != vehicles2.keySet.size) flag = 1
 
-    if(flag == 0) {
+    if (flag == 0) {
 
-      Breaks.breakable{
-        vehicles1.foreach{
+      Breaks.breakable {
+        vehicles1.foreach {
           case (vId1: Id[BeamVehicle], v: BeamVehicle) => {
 
             /*val v1 = vehicles1.get(vId1)
@@ -329,18 +325,16 @@ object VehicleComparator extends Comparator[BeamVehicle]{
 
 }
 
-object PersonComparator extends Comparator[Person]{
+object PersonComparator extends Comparator[Person] {
 
   def compareSelectedPlans(p1: Plan, p2: Plan): Boolean = {
 
     var flag = 0
-    if((p1 != null && p2 == null) || (p1 == null && p2 != null)) flag = 1
+    if ((p1 != null && p2 == null) || (p1 == null && p2 != null)) flag = 1
 
-    if(flag == 0 && p1.getPlanElements.size() != p2.getPlanElements.size()) flag = 1
+    if (flag == 0 && p1.getPlanElements.size() != p2.getPlanElements.size()) flag = 1
 
-
-
-    if(flag == 0) {
+    if (flag == 0) {
       val pElements1 = p1.getPlanElements
       val pElements2 = p2.getPlanElements
 
@@ -348,13 +342,11 @@ object PersonComparator extends Comparator[Person]{
         val pe1 = pElements1.get(i)
         val pe2 = pElements2.get(i)
 
-
         if (pe1.getAttributes.toString.equals(pe2.getAttributes.toString) == false) {
           flag = 1
         }
       }
     }
-
 
     flag match {
       case 0 => true
@@ -363,14 +355,13 @@ object PersonComparator extends Comparator[Person]{
   }
 
   override def compare(p1: Person, p2: Person): Int = {
-    if(p1.getId == p2.getId &&
-      p1.getPlans.size() == p2.getPlans.size() &&
-      compareSelectedPlans(p1.getSelectedPlan, p2.getSelectedPlan)
-    ) 0
+    if (p1.getId == p2.getId &&
+        p1.getPlans.size() == p2.getPlans.size() &&
+        compareSelectedPlans(p1.getSelectedPlan, p2.getSelectedPlan)) 0
     else 1
   }
 
-  def comparePersons(o1: MutableScenario, o2: MutableScenario) : Int = {
+  def comparePersons(o1: MutableScenario, o2: MutableScenario): Int = {
     var flag = 0
 
     /*if(!o1.getPopulation.getPersonAttributes.toString.equals(o2.getPopulation.getPersonAttributes.toString))
@@ -393,15 +384,14 @@ object PersonComparator extends Comparator[Person]{
       }
     }
 
-
     val persons1 = o1.getPopulation.getPersons
     val persons2 = o2.getPopulation.getPersons
 
-    if(flag == 0 && persons1.size() != persons2.size()) flag = 1
+    if (flag == 0 && persons1.size() != persons2.size()) flag = 1
 
-    if(flag == 0) {
+    if (flag == 0) {
 
-      Breaks.breakable{
+      Breaks.breakable {
         persons1.keySet().forEach {
           case (pId1: Id[Person]) => {
 
