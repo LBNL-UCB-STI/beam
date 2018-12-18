@@ -8,6 +8,7 @@
 # Result: a new directory with experient name will be created in the same directory as the first run directory processed. Data will be copied
 # and not moved.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)

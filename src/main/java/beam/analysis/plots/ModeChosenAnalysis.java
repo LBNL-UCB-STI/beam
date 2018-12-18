@@ -18,21 +18,33 @@ import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
+public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
 
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String modeChoiceFileBaseName = "modeChoice";
-    private static final String referenceModeChoiceFileBaseName = "referenceModeChoice";
+    static final String modeChoiceFileBaseName = "modeChoice";
+    static final String referenceModeChoiceFileBaseName = "referenceModeChoice";
 
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();

@@ -1,8 +1,7 @@
 package beam.analysis.plots;
 
 import beam.analysis.IterationSummaryAnalysis;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
+import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -22,7 +21,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
@@ -32,7 +37,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
     private static final  String carMode = "car";
-    private final String fileBaseName = "averageTravelTimes";
+    static String fileBaseName = "averageTravelTimes";
     private final String fileNameForRootGraph = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
@@ -44,17 +49,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
-    }
-
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Mode", "Travel mode chosen"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour,*", "Average time taken to travel by the chosen mode during the given hour of the day"));
-        return list;
     }
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {

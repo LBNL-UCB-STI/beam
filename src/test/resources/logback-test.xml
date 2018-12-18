@@ -31,4 +31,8 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
 </configuration>

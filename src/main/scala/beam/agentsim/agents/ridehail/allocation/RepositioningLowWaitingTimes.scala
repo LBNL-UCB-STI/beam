@@ -141,7 +141,7 @@ class RepositioningLowWaitingTimes(
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
               if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                    .distInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+                    .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(
@@ -158,7 +158,7 @@ class RepositioningLowWaitingTimes(
               val lineToPlot = LineToPlot(
                 rideHailManager
                   .getRideHailAgentLocation(vehToRepso._1)
-                  .currentLocation
+                  .currentLocationUTM
                   .loc,
                 vehToRepso._2,
                 Color.blue,
@@ -182,7 +182,7 @@ class RepositioningLowWaitingTimes(
               firstRepositionCoordsOfDay = Some(
                 rideHailManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
-                  .currentLocation
+                  .currentLocationUTM
                   .loc,
                 whichTAZToRepositionTo.head._2
               )
@@ -218,7 +218,7 @@ class RepositioningLowWaitingTimes(
         val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
           idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocation.loc))
+            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
             .toVector
         } else {
           whichTAZToRepositionTo
@@ -242,7 +242,7 @@ class RepositioningLowWaitingTimes(
           //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
           val result = idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocation.loc))
+            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
             .toVector
           result
         } else {

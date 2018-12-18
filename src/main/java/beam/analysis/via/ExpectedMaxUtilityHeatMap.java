@@ -25,7 +25,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataD
     private final OutputDirectoryHierarchy controlerIO;
     private final int writeEventsInterval;
     private CSVWriter csvWriter;
-    private final String fileBaseName= "expectedMaxUtilityHeatMap";
+    static final String fileBaseName = "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
 
@@ -35,7 +35,6 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataD
         this.writeEventsInterval = writeEventsInterval;
         eventsManager.addHandler(this);
     }
-
 
     @Override
     public void handleEvent(Event event) {
@@ -78,7 +77,6 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataD
 
     }
 
-
     @Override
     public void reset(int iteration) {
         if (this.csvWriter != null) {
@@ -94,21 +92,4 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataD
         }
     }
 
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = controlerIO.getIterationFilename(0, fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "time", "Time of the event occurrence"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "x", "X co-ordinate of the network link location"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "y", "Y co-ordinate of the network link location"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "expectedMaximumUtility", "Expected maximum utility of the network link for the event"));
-        return list;
-    }
 }

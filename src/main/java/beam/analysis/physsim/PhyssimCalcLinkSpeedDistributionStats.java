@@ -38,8 +38,8 @@ public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescript
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
-    private String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
+    static String outputAsSpeedUnitFileName = "physsimFreeFlowSpeedDistribution";
+    private static String outputAsPercentageFileName = "physsimFreeFlowSpeedDistributionAsPercentage";
 
     public PhyssimCalcLinkSpeedDistributionStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
         this.network = network;
@@ -278,23 +278,5 @@ public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescript
         }
     }
 
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputAsSpeedUnitFileName + ".csv");
-        String freeSpeedDistAsPercetnageOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputAsSpeedUnitFileName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "");
-        String freeSpeedDistAsPercetnageRelativePath = freeSpeedDistAsPercetnageOutputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "freeSpeedInMetersPerSecond", "The possible full speed at which a vehicle can drive through the given link (in m/s)"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "numberOfLinks", "Total number of links in the network that allow vehicles to travel with speeds up to the given free speed"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistAsPercetnageRelativePath, "linkEfficiencyInPercentage", "Average speed efficiency recorded by the the given network link in a day"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistAsPercetnageRelativePath, "numberOfLinks", "Total number of links having the corresponding link efficiency"));
-        return list;
-    }
+
 }

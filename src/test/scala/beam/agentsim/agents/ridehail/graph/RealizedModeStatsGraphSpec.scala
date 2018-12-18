@@ -13,7 +13,6 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.utils.collections.Tuple
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -111,8 +110,11 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
             util.Map[String, Integer]
           ], util.Set[String]]
         ): Array[Array[Double]] = {
-          promise.success(stat.getFirst)
+          //this check handle to exit from current function recursion
+          if (!promise.isCompleted)
+            promise.success(stat.getFirst)
           super.compute(stat)
+
         }
 
         override def eventFile(iteration: Int): Unit = {

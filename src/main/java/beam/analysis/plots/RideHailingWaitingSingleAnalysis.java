@@ -40,21 +40,6 @@ public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDa
     private Map<Integer, Double> hoursTimesMap = new HashMap<>();
     private final StatsComputation<Map<Integer, Double>, double[][]> statComputation;
     private final boolean writeGraph;
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "WaitingTime(sec)", "Time spent by a passenger on waiting for a ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Hour*", "Hour of the day"));
-        return list;
-    }
 
     public static class RideHailingWaitingSingleComputation implements StatsComputation<Map<Integer, Double>, double[][]> {
 

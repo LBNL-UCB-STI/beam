@@ -17,7 +17,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.r5.R5RoutingWorker
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -49,7 +50,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
-        attributes.valueOfTime,
+        attributes,
         NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
@@ -59,7 +60,7 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)) =>
       if (data.currentVehicle.isEmpty) {
         stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
       } else {
@@ -74,8 +75,8 @@ trait ChoosesParking extends {
           )
           //        val tick: Double = _currentTick.getOrElse(0)
           val nextLeg = data.passengerSchedule.schedule.head._1
-          val distance = beamServices.geo.distInMeters(
-            stall.location,
+          val distance = beamServices.geo.distUTMInMeters(
+            stall.locationUTM,
             nextLeg.travelPath.endPoint.loc
           ) //nextLeg.travelPath.endPoint.loc
           val cost = stall.cost
@@ -113,7 +114,7 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+      val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -128,32 +129,35 @@ trait ChoosesParking extends {
         // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
         import context.dispatcher
         val currentPoint = nextLeg.travelPath.startPoint
+        val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
+        val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
         val finalPoint = nextLeg.travelPath.endPoint
 
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
-          StreetVehicle(data.currentVehicle.head, currentPoint, CAR, asDriver = true)
+          StreetVehicle(data.currentVehicle.head, currentPointUTM, CAR, asDriver = true)
         val bodyStreetVeh =
-          StreetVehicle(data.currentVehicle.last, currentPoint, WALK, asDriver = true)
-        val futureVehicle2StallResponse = router ? RoutingRequest(
-          currentPoint.loc,
-          beamServices.geo.utm2Wgs(stall.location),
+          StreetVehicle(data.currentVehicle.last, currentPointUTM, WALK, asDriver = true)
+        val veh2StallRequest = RoutingRequest(
+          currentLocUTM,
+          stall.locationUTM,
           currentPoint.time,
           Vector(),
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
+        val futureVehicle2StallResponse = router ? veh2StallRequest
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
         val futureStall2DestinationResponse = router ? RoutingRequest(
-          beamServices.geo.utm2Wgs(stall.location),
-          finalPoint.loc,
+          stall.locationUTM,
+          beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
           Vector(),
           Vector(
             StreetVehicle(
               data.currentVehicle.last,
-              SpaceTime(stall.location, currentPoint.time),
+              SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
               asDriver = true
             )
@@ -172,22 +176,26 @@ trait ChoosesParking extends {
       }
     case Event(
         (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data @ BasePersonData(_, _, _, _, _, _, _, _, _)
+        data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-      // If no car leg returned, then the person walks to the parking spot and we force an early exit
-      // from the vehicle below.
-      val leg1 = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
-        logDebug(s"no CAR leg returned by router, walking car there instead")
-        routingResponse1.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+      // If no car leg returned, use previous route to destination (i.e. assume parking is at dest)
+      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
+        logDebug(s"no CAR leg returned by router, assuming parking spot is at destination")
+        (
+          EmbodiedBeamLeg(nextLeg, data.currentVehicle.head, true, 0.0, true),
+          routingResponse2.itineraries.head.legs.head
+        )
       } else {
-        routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1)
+        (
+          routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
+          routingResponse2.itineraries.head.legs.head
+        )
       }
       // Update start time of the second leg
-      var leg2 = routingResponse2.itineraries.head.legs.head
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
 
       // update person data with new legs

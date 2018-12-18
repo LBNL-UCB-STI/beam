@@ -17,14 +17,20 @@ import org.matsim.core.utils.collections.Tuple;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
-    private static final String fileBaseName = "energyUse.png";
+    static final String fileBaseName = "energyUse.png";
     private Set<String> modesFuel = new TreeSet<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
@@ -35,22 +41,6 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     public FuelUsageAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation, boolean writeGraph) {
         this.statsComputation = statsComputation;
         this.writeGraph = writeGraph;
-    }
-
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Modes", "Mode of travel chosen by the passenger"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "Bin_*", "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"));
-        return list;
     }
 
     public static class FuelUsageStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {

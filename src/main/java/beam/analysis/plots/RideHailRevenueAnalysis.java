@@ -28,7 +28,7 @@ import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
 
     private RideHailSurgePricingManager surgePricingManager;
-    private String fileBaseName = "rideHailRevenue";
+    static String fileBaseName = "rideHailRevenue";
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
@@ -126,14 +126,4 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         }
     }
 
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iteration #", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "revenue", "Revenue generated from ride hail"));
-        return list;
-    }
 }

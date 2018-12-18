@@ -175,7 +175,7 @@ class RideHailAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle
-        .becomeDriver(self) match {
+        .becomeDriver(self, id.toString) match {
         case DriverAlreadyAssigned(_) =>
           stop(
             Failure(
@@ -186,7 +186,7 @@ class RideHailAgent(
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
           vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
           eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
+            new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
           )
           eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
           goto(Idle) replying CompletionNotice(triggerId) using data
@@ -221,14 +221,14 @@ class RideHailAgent(
           eventsManager.processEvent(
             new RefuelEvent(
               tick,
-              theVehicle.stall.get.copy(location = beamServices.geo.utm2Wgs(theVehicle.stall.get.location)),
+              theVehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(theVehicle.stall.get.locationUTM)),
               energyInJoules,
               tick - sessionStart,
               theVehicle.id
             )
           )
           parkingManager ! CheckInResource(theVehicle.stall.get.id, None)
-          val whenWhere = Some(SpaceTime(theVehicle.stall.get.location, tick))
+          val whenWhere = Some(SpaceTime(theVehicle.stall.get.locationUTM, tick))
           theVehicle.unsetParkingStall()
           theVehicle.manager.foreach(
             _ ! NotifyVehicleResourceIdle(

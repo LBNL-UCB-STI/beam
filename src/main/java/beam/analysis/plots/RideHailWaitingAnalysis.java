@@ -119,8 +119,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, OutputDataDescrip
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    private static final String fileName = "rideHailWaitingStats";
-    private static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
+    static final String fileName = "rideHailWaitingStats";
+    static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();

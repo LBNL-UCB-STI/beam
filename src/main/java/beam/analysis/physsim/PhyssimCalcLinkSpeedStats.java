@@ -42,7 +42,7 @@ public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
     private BeamConfig beamConfig;
     private Network network;
     private OutputDirectoryHierarchy outputDirectoryHierarchy;
-    private String outputFileName = "physsimLinkAverageSpeedPercentage";
+    static String outputFileName = "physsimLinkAverageSpeedPercentage";
 
     //Public constructor for the PhyssimCalcLinkSpeedStats class
     public PhyssimCalcLinkSpeedStats(Network network, OutputDirectoryHierarchy outputDirectoryHierarchy, BeamConfig beamConfig) {
