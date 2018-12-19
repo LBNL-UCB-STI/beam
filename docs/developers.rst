@@ -110,7 +110,7 @@ To update the text pointers with the actual contents of files, run the following
    
 GIT-LFS timeout - how to proceed
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Some timeout issues can happen when trying to push huge files. The steps below can be followed in some exceptional cases:
+Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
 
 #. Connect to some EC2 server inside the same Amazon S3 region: us-east-2
 
