@@ -47,10 +47,8 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -74,8 +72,7 @@ class BeamMobsim @Inject()(
   val rideHailIterationHistory: RideHailIterationHistory
 ) extends Mobsim
     with LazyLogging
-    with MetricsSupport
-    {
+    with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _

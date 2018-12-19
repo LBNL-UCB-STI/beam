@@ -16,7 +16,6 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 
-import com.google.common.base.CaseFormat;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -30,7 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
+public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
     private static final int SECONDS_IN_MINUTE = 60;
     private static final String xAxisTitle = "Hour";
     private static final String xAxisRootTitle = "Iteration";

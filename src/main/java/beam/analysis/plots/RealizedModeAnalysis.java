@@ -2,9 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
-import beam.sim.OutputDataDescription;
 import beam.sim.metrics.MetricsSupport;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -26,7 +24,7 @@ import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 
-public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
+public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";

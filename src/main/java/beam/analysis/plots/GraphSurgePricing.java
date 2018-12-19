@@ -33,7 +33,7 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.IntStream.range;
 
 
-public class GraphSurgePricing implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
+public class GraphSurgePricing implements ControlerListener, IterationEndsListener {
 
     // The keys of the outer map represents binNumber
     // The inner map consists of category index to number of occurrence for each category

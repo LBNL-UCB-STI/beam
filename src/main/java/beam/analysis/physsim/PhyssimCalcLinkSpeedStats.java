@@ -28,7 +28,7 @@ import java.util.List;
  * @author Bhavya Latha Bandaru.
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
-public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
+public class PhyssimCalcLinkSpeedStats {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
@@ -218,19 +218,4 @@ public class PhyssimCalcLinkSpeedStats implements OutputDataDescriptor {
         return noOfBins;
     }
 
-    /**
-     * Get description of fields written to the output files.
-     *
-     * @return list of data description objects
-     */
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String freeSpeedDistOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(0,outputFileName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String freeSpeedDistRelativePath = freeSpeedDistOutputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "Bin", "A given time slot within a day"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), freeSpeedDistRelativePath, "AverageLinkSpeed", "The average speed at which a vehicle can travel across the network during the given time bin"));
-        return list;
-    }
 }

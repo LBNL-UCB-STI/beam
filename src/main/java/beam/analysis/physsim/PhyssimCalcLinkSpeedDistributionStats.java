@@ -32,7 +32,7 @@ import java.util.stream.Stream;
  * @author Bhavya Latha Bandaru.
  * This class computes the distribution of free flow speed (in both m/s and %) over the network.
  */
-public class PhyssimCalcLinkSpeedDistributionStats implements OutputDataDescriptor {
+public class PhyssimCalcLinkSpeedDistributionStats {
 
     private static int noOfBins = 24;
     private BeamConfig beamConfig;

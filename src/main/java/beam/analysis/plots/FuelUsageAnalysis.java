@@ -5,8 +5,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.via.CSVWriter;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -26,7 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis, OutputDataDescriptor {
+public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
     private static final String graphTitle = "Energy Use by Mode";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";

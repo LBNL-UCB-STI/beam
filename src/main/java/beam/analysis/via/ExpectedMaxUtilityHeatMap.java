@@ -1,9 +1,6 @@
 package beam.analysis.via;
 
 import beam.agentsim.events.ModeChoiceEvent;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
@@ -14,11 +11,9 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
-public class ExpectedMaxUtilityHeatMap implements BasicEventHandler, OutputDataDescriptor {
+public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
     private final String SEPERATOR = ",";
     private final Network network;

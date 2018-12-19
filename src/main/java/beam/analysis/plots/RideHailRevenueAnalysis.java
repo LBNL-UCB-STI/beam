@@ -2,8 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -20,12 +18,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
-public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
+public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
 
     private RideHailSurgePricingManager surgePricingManager;
     static String fileBaseName = "rideHailRevenue";

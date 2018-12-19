@@ -1,10 +1,8 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
@@ -19,15 +17,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  * @author abid
  */
-public class RideHailingWaitingSingleAnalysis implements GraphAnalysis, OutputDataDescriptor {
+public class RideHailingWaitingSingleAnalysis implements GraphAnalysis {
 
     private static final String graphTitle = "Ride Hail Waiting Time";
     private static final String xAxisTitle = "Hour";
