@@ -13,30 +13,35 @@ import scala.util.Try
 case class PtFares(ptFares: List[FareRule]) {
 
   def getPtFare(agencyId: Option[String], routeId: Option[String], age: Option[Int]): Option[Double] = {
-    val ageFilter = {
-      val ageMatch = ptFares
-        .filter(
-          f =>
-            age.fold(false)(f.age.has)
-        )
+    filterByAgency(agencyId, filterByRoute(routeId, filterByAge(age, ptFares)))
+      .map(_.amount)
+      .reduceOption(_ + _)
+  }
 
-      lazy val ageNoMatch = ptFares
-        .filter(
-          f =>
-            age.fold(f.age.isEmpty)(f.age.hasOrEmpty)
-        )
+  private def filterByAgency(agencyId: Option[String], ptFares: List[FareRule]) = {
+    val agencyMatch = ptFares
+      .filter(
+        f =>
+          agencyId.fold(false)(f.agencyId.equalsIgnoreCase)
+      )
 
-      if(ageMatch.isEmpty) ageNoMatch else ageMatch
-    }
+    lazy val agencyNotMatch = ptFares
+      .filter(
+        f =>
+          agencyId.fold(f.agencyId.isEmpty)(_ => f.agencyId.isEmpty)
+      )
 
-  val routeFilter = {
-    val routeMatch = ageFilter
+    if (agencyMatch.isEmpty) agencyNotMatch else agencyMatch
+  }
+
+  private def filterByRoute(routeId: Option[String], ptFares: List[FareRule]) = {
+    val routeMatch = ptFares
       .filter(
         f =>
           routeId.fold(false)(f.routeId.equalsIgnoreCase)
       )
 
-    lazy val routeNotMatch = ageFilter
+    lazy val routeNotMatch = ptFares
       .filter(
         f =>
           routeId.fold(f.routeId.isEmpty)(_ => f.routeId.isEmpty)
@@ -45,30 +50,28 @@ case class PtFares(ptFares: List[FareRule]) {
     if (routeMatch.isEmpty) routeNotMatch else routeMatch
   }
 
-    val agencyFilter = {
-      val agencyMatch = routeFilter
-        .filter(
-          f =>
-            agencyId.fold(false)(f.agencyId.equalsIgnoreCase)
-        )
+  private def filterByAge(age: Option[Int], ptFares: List[FareRule]) = {
 
-      lazy val agencyNotMatch = routeFilter
-        .filter(
-          f =>
-            agencyId.fold(f.agencyId.isEmpty)(_ => f.agencyId.isEmpty)
-        )
+    val ageMatch = ptFares
+      .filter(
+        f =>
+          age.fold(false)(f.age.has)
+      )
 
-      if (agencyMatch.isEmpty) agencyNotMatch else agencyMatch
-    }
+    lazy val ageNoMatch = ptFares
+      .filter(
+        f =>
+          age.fold(f.age.isEmpty)(f.age.hasOrEmpty)
+      )
 
-    agencyFilter
-      .map(_.amount)
-      .reduceOption(_ + _)
+    if (ageMatch.isEmpty) ageNoMatch else ageMatch
+
   }
 }
 
 object PtFares {
   private val log = LoggerFactory.getLogger(classOf[PtFares])
+
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
   def loadPtFares(ptFaresFile: String): List[FareRule] = {
@@ -97,4 +100,5 @@ object PtFares {
       Try(amount.toDouble).getOrElse(0D)
     )
   }
+
 }
