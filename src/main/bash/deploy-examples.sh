@@ -1,4 +1,7 @@
 
+## BASIC BASE PRODUCTION ON HEAD OF PROD BRANCH
+gradle deploy -PbeamBranch=production-sfbay -PbeamConfigs=production/sfbay/base.conf -PbeamCommit=6f68d4eff58b1a94c52c65c35ffc8b7fa7d70d70 -PdeployMode=config -Pbatch=false -PrunName=BaseSfbay
+
 gradle deploy -PbeamBranch=cs/pooling-production -PbeamConfigs=production/sfbay/base.conf -PbeamCommit=3a76a079a26a33c945e7c5fdaf1d0c8f9cf76fb8 -PdeployMode=config -Pbatch=false -PrunName=testPooling
 
 gradle deploy -PbeamConfigs=production/application-sfbay/diffusion-and-rh2transit-base.conf,production/application-sfbay/diffusion-ridehail.conf,production/application-sfbay/diffusion-av.conf -PbeamCommit=2ce2248ef3f2659c12ff6788b01eee1f0f806b43 -Pbatch=false -PrunName=diffusionExperiment

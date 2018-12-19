@@ -75,7 +75,7 @@ class BeamMobsim @Inject()(
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport
-    with OutputDataDescriptor {
+    {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _
