@@ -19,18 +19,21 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
       String mode = attributes.get(PersonCostEvent.ATTRIBUTE_MODE);
       Double cost = 0.0;
       for (String costType : costTypes) {
-        if (costType.equals("Cost")) {
-          cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
-        } else if (costType.equals("Subsidy")) {
-          cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_SUBSIDY));
-        } else if (costType.equals("Toll")) {
-          cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
+        switch (costType) {
+          case "Cost":
+            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
+            break;
+          case "Subsidy":
+            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_SUBSIDY));
+            break;
+          case "Toll":
+            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
+            break;
         }
         String statType = String.format("total%s_%s", costType, mode);
         personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
       }
     }
-
   }
 
   @Override

@@ -89,9 +89,9 @@ public class StatsFactory {
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
-                return new VehicleTravelTimeAnalysis();
+                return new VehicleTravelTimeAnalysis(beamServices.vehicleTypes().keySet());
             case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis();
+                return new VehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
