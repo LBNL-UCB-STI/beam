@@ -38,13 +38,14 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-  extends TestKit(
-    ActorSystem(
-      "single-mode-test",
-      ConfigFactory.load()
-        .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+    extends TestKit(
+      ActorSystem(
+        "single-mode-test",
+        ConfigFactory
+          .load()
+          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+      )
     )
-  )
     with WordSpecLike
     with Matchers
     with ImplicitSender
