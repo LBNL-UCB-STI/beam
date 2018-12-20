@@ -18,11 +18,11 @@ import scala.collection.JavaConverters._
   * @param eventTypeToLog type of event to log
   */
 class BeamEventsWriterXML(
-                           var outFileName: String,
-                           beamEventLogger: BeamEventsLogger,
-                           beamServices: BeamServices,
-                           eventTypeToLog: Class[_]
-                         ) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
+  var outFileName: String,
+  beamEventLogger: BeamEventsLogger,
+  beamServices: BeamServices,
+  eventTypeToLog: Class[_]
+) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
 
   writeHeaders()
 
