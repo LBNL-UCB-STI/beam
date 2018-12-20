@@ -18,11 +18,11 @@ import scala.collection.JavaConverters._
   * @param eventTypeToLog type of event to log
   */
 class BeamEventsWriterXML(
-  var outFileName: String,
-  beamEventLogger: BeamEventsLogger,
-  beamServices: BeamServices,
-  eventTypeToLog: Class[_]
-) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
+                           var outFileName: String,
+                           beamEventLogger: BeamEventsLogger,
+                           beamServices: BeamServices,
+                           eventTypeToLog: Class[_]
+                         ) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
 
   writeHeaders()
 
@@ -32,13 +32,11 @@ class BeamEventsWriterXML(
     */
   override protected def writeEvent(event: Event): Unit = {
     //get all the event attributes
-    val eventAttributes: util.Map[String, String] = event.getAttributes
-    //for each attribute, encode the values for special characters (if any) and append them to the event xml tag.
     try {
-      val attrKeys = beamEventLogger.getKeysToWrite(event, eventAttributes)
-      val keyValues = attrKeys.asScala map { key =>
-        val encodedString = encodeAttributeValue(eventAttributes.getOrDefault(key, ""))
-        key + "=\"" + encodedString + "\" "
+      val keyValues = event.getAttributes.asScala map { keyValue =>
+        //for each attribute, encode the values for special characters (if any) and append them to the event xml tag.
+        val encodedString = encodeAttributeValue(keyValue._2)
+        keyValue._1 + "=\"" + encodedString + "\" "
       }
       //write the event tag to the xml file
       val eventElem = s"\t<event ${keyValues.mkString(" ")}/>\n"
