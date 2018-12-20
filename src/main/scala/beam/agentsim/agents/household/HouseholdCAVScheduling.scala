@@ -17,7 +17,7 @@ case object MSRDropoff extends MobilityServiceRequestType
 case object MSRRelocation extends MobilityServiceRequestType
 case object MSRInit extends MobilityServiceRequestType
 
-case class MobilityServiceRequest(
+case class MobilityServiceRequest (
   person: Option[Person],
   activity: Activity,
   time: Double,
@@ -58,7 +58,7 @@ class HouseholdPlansToMSR(plans: List[BeamPlan]) {
   override def toString = s"${requests}"
 }
 
-case class HouseholdCAVScheduling(
+class HouseholdCAVScheduling(
   plans: List[BeamPlan],
   fleetSize: Int,
   timeWindow: Double,
@@ -69,7 +69,7 @@ case class HouseholdCAVScheduling(
 
   case class HouseholdCAV(id: Int, maxOccupancy: Int)
 
-  case class CAVSchedule(schedule: List[MobilityServiceRequest], cav: HouseholdCAV, cost: Double, occupancy: Int) {
+  class CAVSchedule(schedule: List[MobilityServiceRequest], cav: HouseholdCAV, val cost: Double, occupancy: Int) {
     var feasible: Boolean = true
 
     def check(request: MobilityServiceRequest): Option[CAVSchedule] = {
@@ -85,12 +85,12 @@ case class HouseholdCAVScheduling(
               new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, MSRRelocation)
             val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, MSRPickup)
             newCavSchedule = Some(
-              CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
+              new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
             )
           } else if (occupancy < cav.maxOccupancy && math.abs(newDeltaTime) <= timeWindow) {
             val newRequest =
               new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, MSRPickup)
-            newCavSchedule = Some(CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
+            newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
           } else {
             // Dead End, Not going down this branch
           }
@@ -104,7 +104,7 @@ case class HouseholdCAVScheduling(
           } else {
             val newRequest =
               new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, MSRDropoff)
-            newCavSchedule = Some(CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy - 1))
+            newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy - 1))
             feasible = false
           }
         case _ => // No Action
@@ -120,7 +120,7 @@ case class HouseholdCAVScheduling(
     }
   }
 
-  case class HouseholdSchedule(val cavFleetSchedule: List[CAVSchedule]) {
+  class HouseholdSchedule(val cavFleetSchedule: List[CAVSchedule]) {
     var feasible: Boolean = true
     var cost: Double = 0
     cavFleetSchedule.foreach { x =>
@@ -132,7 +132,7 @@ case class HouseholdCAVScheduling(
       for (cavSchedule <- cavFleetSchedule) {
         cavSchedule.check(request) match {
           case Some(x) =>
-            newHouseholdSchedule = newHouseholdSchedule :+ HouseholdSchedule(
+            newHouseholdSchedule = newHouseholdSchedule :+ new HouseholdSchedule(
               (cavFleetSchedule.filter(_ != cavSchedule)) :+ x
             )
           case None => //Nothing to do here
@@ -164,7 +164,7 @@ case class HouseholdCAVScheduling(
     var emptyFleetSchedule = List[CAVSchedule]()
     fleet.foreach(
       x =>
-        emptyFleetSchedule = emptyFleetSchedule :+ CAVSchedule(
+        emptyFleetSchedule = emptyFleetSchedule :+ new CAVSchedule(
           List[MobilityServiceRequest](
             new MobilityServiceRequest(
               None,
@@ -179,7 +179,7 @@ case class HouseholdCAVScheduling(
           0
       ) // initial Cost and Occupancy
     )
-    feasibleSchedules = feasibleSchedules :+ HouseholdSchedule(emptyFleetSchedule)
+    feasibleSchedules = feasibleSchedules :+ new HouseholdSchedule(emptyFleetSchedule)
 
     // extract all possible schedule combinations
     for (request <- householdRequests()) {
@@ -216,10 +216,10 @@ object Demo {
       val algo = new HouseholdCAVScheduling(plans, 1, timeWindow, skim)
       val schedules = algo().sortWith(_.cost < _.cost)
       tot += schedules.size
-//      println(s"iteration $i - # combination ${schedules.size}")
-//      for (j <- schedules) {
-//        println(j)
-//      }
+      println(s"iteration $i - # combination ${schedules.size}")
+      for (j <- schedules) {
+        println(j)
+      }
     }
     val t1 = System.nanoTime()
     println(s"Elapsed time: ${(t1 - t0) / 1.0E9} seconds - number of objects: $tot")
