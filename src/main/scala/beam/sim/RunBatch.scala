@@ -34,7 +34,7 @@ object RunBatch extends App with BeamHelper {
       .collect {
         case Array("--batch", filePath: String) if filePath.trim.nonEmpty =>
           (BATCH_OPT, filePath)
-        case arg@_ =>
+        case arg @ _ =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap
@@ -50,7 +50,6 @@ object RunBatch extends App with BeamHelper {
 
     for (plan <- plans.asScala) {
       val conf = plan.withFallback(baseConf).resolve()
-
 
       runBeamWithConfig(conf)
     }

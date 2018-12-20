@@ -271,7 +271,7 @@ trait BeamHelper extends LazyLogging {
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-      .equalsIgnoreCase("ModeChoiceLCCM")) {
+          .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
         Paths.get(
