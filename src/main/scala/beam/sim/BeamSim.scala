@@ -42,18 +42,18 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class BeamSim @Inject()(
-                         private val actorSystem: ActorSystem,
-                         private val transportNetwork: TransportNetwork,
-                         private val tollCalculator: TollCalculator,
-                         private val beamServices: BeamServices,
-                         private val eventsManager: EventsManager,
-                         private val scenario: Scenario,
-                         private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
-                       ) extends StartupListener
-  with IterationEndsListener
-  with ShutdownListener
-  with LazyLogging
-  with MetricsSupport {
+  private val actorSystem: ActorSystem,
+  private val transportNetwork: TransportNetwork,
+  private val tollCalculator: TollCalculator,
+  private val beamServices: BeamServices,
+  private val eventsManager: EventsManager,
+  private val scenario: Scenario,
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+) extends StartupListener
+    with IterationEndsListener
+    with ShutdownListener
+    with LazyLogging
+    with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -163,7 +163,7 @@ class BeamSim @Inject()(
       writeSummaryStats(summaryStatsFile)
 
       val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
-      fileNames.foreach(file => createSummaryStatsGraph(file,event))
+      fileNames.foreach(file => createSummaryStatsGraph(file, event))
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
@@ -259,7 +259,7 @@ class BeamSim @Inject()(
     val fileNamePath = event.getServices.getControlerIO.getOutputFilename(fileName + ".png")
     val index = fileNamePath.lastIndexOf("/")
     val outDir = new File(fileNamePath.substring(0, index) + "/summaryStats")
-    if (!outDir.isDirectory ) Files.createDirectories(outDir.toPath)
+    if (!outDir.isDirectory) Files.createDirectories(outDir.toPath)
     val newPath = outDir.getPath + fileNamePath.substring(index)
 
     val iteration = event.getIteration
@@ -269,12 +269,12 @@ class BeamSim @Inject()(
     val dataset = new DefaultCategoryDataset
 
     var data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
-    data += (iteration -> value)
+    data += (iteration      -> value)
     summaryData += fileName -> data
 
     val updateData = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
 
-    updateData.foreach(x => dataset.addValue( x._2,0, x._1))
+    updateData.foreach(x => dataset.addValue(x._2, 0, x._1))
 
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
@@ -311,7 +311,7 @@ class BeamSim @Inject()(
                 f.getName
                   .replace(event.getServices.getIterationNumber.toInt + ".", "")
                   .matches(_)
-              )
+            )
           )
       case _ if event.isInstanceOf[ShutdownEvent] =>
         val shutdownEvent = event.asInstanceOf[ShutdownEvent]
