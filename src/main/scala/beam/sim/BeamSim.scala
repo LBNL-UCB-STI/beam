@@ -277,10 +277,10 @@ class BeamSim @Inject()(
 
     updateData.foreach(x => dataset.addValue(x._2, 0, x._1))
 
-    val fileNameTokens= fileName.split("_")
+    val fileNameTokens = fileName.split("_")
     var header = StringUtils.splitByCharacterTypeCamelCase(fileNameTokens(0)).map(_.capitalize).mkString(" ")
-    if(fileNameTokens.size > 1){
-      header = header + "(" +fileNameTokens.slice(1, fileNameTokens.size).mkString("_")+")"
+    if (fileNameTokens.size > 1) {
+      header = header + "(" + fileNameTokens.slice(1, fileNameTokens.size).mkString("_") + ")"
     }
 
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
@@ -291,6 +291,7 @@ class BeamSim @Inject()(
       newPath,
       false
     )
+
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       newPath,
