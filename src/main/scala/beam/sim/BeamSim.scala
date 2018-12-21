@@ -27,6 +27,7 @@ import com.google.common.base.CaseFormat
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
@@ -276,11 +277,17 @@ class BeamSim @Inject()(
 
     updateData.foreach(x => dataset.addValue(x._2, 0, x._1))
 
+    val fileNameTokens= fileName.split("_")
+    var header = StringUtils.splitByCharacterTypeCamelCase(fileNameTokens(0)).map(_.capitalize).mkString(" ")
+    if(fileNameTokens.size > 1){
+      header = header + "(" +fileNameTokens.slice(1, fileNameTokens.size).mkString("_")+")"
+    }
+
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
-      "",
-      "",
-      "",
+      header,
+      "iteration",
+      header,
       newPath,
       false
     )
