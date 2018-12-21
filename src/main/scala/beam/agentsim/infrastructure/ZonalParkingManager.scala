@@ -346,7 +346,7 @@ class ZonalParkingManager(
         .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
         .asScala
         .toVector
-      searchRadius = searchRadius * 2.0
+      searchRadius = searchRadius * searchRadius
     }
     nearbyTAZs
       .zip(nearbyTAZs.map { taz =>

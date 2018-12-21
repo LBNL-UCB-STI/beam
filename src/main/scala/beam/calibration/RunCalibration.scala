@@ -43,18 +43,16 @@ object RunCalibration extends ExperimentApp with LazyLogging {
 
   // @Asif: TODO hide the checking into SigOptApiToken.getClientAPIToken
   try {
-    Sigopt.clientToken = SigOptApiToken.getClientAPIToken
+    if(sigoptApiToken!=null){
+      logger.info("The client token is set from the program arguments")
+      Sigopt.clientToken = sigoptApiToken
+    }
+    else{
+      Sigopt.clientToken = SigOptApiToken.getClientAPIToken
+    }
   } catch {
-
     case ex: APIConnectionError =>
       logger.info(ex.getMessage)
-
-      if (sigoptApiToken != null) {
-        Sigopt.clientToken = sigoptApiToken
-        logger.info("The client token is set from the program arguments")
-      } else {
-        throw new APIConnectionError("No client token is present in the program arguments")
-      }
   }
 
   // Aux Methods //

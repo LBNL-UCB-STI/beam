@@ -225,8 +225,14 @@ class LinkTraversalAnalysis @Inject()(
     }
   }
 
+
+  override def reset(iteration: Int): Unit = {
+    analysisData = Array()
+  }
+
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
+ *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return Direction to be taken ( L / HL / SL / R / SR / HR / S )
