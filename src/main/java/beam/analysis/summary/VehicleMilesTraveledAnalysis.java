@@ -1,5 +1,6 @@
 package beam.analysis.summary;
 
+import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import org.matsim.api.core.v01.events.Event;
@@ -19,7 +20,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase("BODY-TYPE-DEFAULT")) {
+            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.BIKE_TYPE_DEFAULT())) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
