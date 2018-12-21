@@ -2,11 +2,11 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.IterationStatsProvider;
 import beam.analysis.LinkTraversalAnalysis;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
-import beam.analysis.IterationStatsProvider;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -108,12 +107,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
-    }
+            }
 
 
     @Override
     public void reset(int iteration) {
-
+        linkTraversalAnalysis.reset(iteration);
     }
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
