@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
+public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
 
     @Override
@@ -20,7 +20,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.BIKE_TYPE_DEFAULT())) {
+            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.BODY_TYPE_DEFAULT()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.BIKE_TYPE_DEFAULT())) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
@@ -34,7 +34,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     @Override
     public Map<String, Double> getSummaryStats() {
         return milesTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
-                e -> "vehicleMilesTraveled_" + e.getKey(),
+                e -> "motorizedVehicleMilesTraveled_" + e.getKey(),
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
         )); 
     }
