@@ -39,9 +39,14 @@ case class BeamVehicleType(
 
 object BeamVehicleType {
 
+  val BODY_TYPE_DEFAULT = "BODY-TYPE-DEFAULT"
+  val BIKE_TYPE_DEFAULT = "BIKE-TYPE-DEFAULT"
+  val TRANSIT_TYPE_DEFAULT = "TRANSIT-TYPE-DEFAULT"
+  val CAR_TYPE_DEFAULT = "CAR-TYPE-DEFAULT"
+
   //TODO
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "BIKE-TYPE-DEFAULT",
+    BIKE_TYPE_DEFAULT,
     0,
     0,
     0,
@@ -57,7 +62,7 @@ object BeamVehicleType {
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "BODY-TYPE-DEFAULT",
+      BODY_TYPE_DEFAULT,
       0,
       0,
       0.5,
@@ -74,7 +79,7 @@ object BeamVehicleType {
   //TODO
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "TRANSIT-TYPE-DEFAULT",
+      TRANSIT_TYPE_DEFAULT,
       0,
       0,
       0,
@@ -84,7 +89,7 @@ object BeamVehicleType {
     )
 
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "CAR-TYPE-DEFAULT",
+    CAR_TYPE_DEFAULT,
     4,
     0,
     4.5,
