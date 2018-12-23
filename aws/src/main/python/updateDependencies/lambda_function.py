@@ -9,6 +9,9 @@ runcmd:
   - echo "send notification ..."
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Updating Dependencies" -b "Beam automated deployment image update started on $(ec2metadata --instance-id)."
   - echo "git checkout ..."
+  - sudo git reset origin/HEAD
+  - sudo git checkout -- .
+  - sudo git clean -df
   - git fetch
   - for bn in $BRANCH
   -  do

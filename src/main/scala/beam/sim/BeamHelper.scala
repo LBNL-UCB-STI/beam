@@ -259,31 +259,35 @@ trait BeamHelper extends LazyLogging {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
         val (_, outputDirectory) = runBeamWithConfig(config)
-        val props = new Properties()
-        props.setProperty("commitHash", BashUtils.getCommitHash)
-        props.setProperty("configFile", configLocation)
-        val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-        props.store(out, "Simulation out put props.")
-        val beamConfig = BeamConfig(config)
-        if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-              .equalsIgnoreCase("ModeChoiceLCCM")) {
-          Files.copy(
-            Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
-            Paths.get(
-              outputDirectory,
-              Paths
-                .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
-                .getFileName
-                .toString
-            )
-          )
-        }
-        Files.copy(
-          Paths.get(configLocation),
-          Paths.get(outputDirectory, "beam.conf"),
-          StandardCopyOption.REPLACE_EXISTING
-        )
+        postRunActivity(configLocation, config, outputDirectory)
     }
+  }
+
+  private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
+    val props = new Properties()
+    props.setProperty("commitHash", BashUtils.getCommitHash)
+    props.setProperty("configFile", configLocation)
+    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
+    props.store(out, "Simulation out put props.")
+    val beamConfig = BeamConfig(config)
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+          .equalsIgnoreCase("ModeChoiceLCCM")) {
+      Files.copy(
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(
+          outputDirectory,
+          Paths
+            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+            .getFileName
+            .toString
+        )
+      )
+    }
+    Files.copy(
+      Paths.get(configLocation),
+      Paths.get(outputDirectory, "beam.conf"),
+      StandardCopyOption.REPLACE_EXISTING
+    )
   }
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
