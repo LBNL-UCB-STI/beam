@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
+import org.matsim.households.{Household, HouseholdIncomeComparator}
 
 import scala.collection.mutable.ListBuffer
 
@@ -47,7 +48,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val persons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, defaultAvailableModes)
 
     logger.info("Reading plans...")
-    val plans = BeamServices.readPlansFile(planFilePath, scenario.getPopulation)
+    BeamServices.readPlansFile(planFilePath, scenario.getPopulation)
 
     logger.info("In case a person is not having a corresponding plan entry, just adding a dummy empty plan")
 
@@ -65,7 +66,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
 
     println("Total persons " + scenario.getPopulation.getPersons.size())
     println("Total Persons Persons without plan " + listOfPersonsWithoutPlan.size)
-
+    listOfPersonsWithoutPlan.take(100).map(p => println(p))
     listOfPersonsWithoutPlan.foreach{
       p => {
         scenario.getPopulation.removePerson(p.getId)
@@ -75,7 +76,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
 
     logger.info("Reading Households...")
 
-    val houseHolds = BeamServices.readHouseHoldsFile(
+    BeamServices.readHouseHoldsFile(
       householdFilePath,
       scenario,
       beamServices,
@@ -84,6 +85,24 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
       buildings.par,
       parcelAttrs.par
     )
+
+    val listOfHouseHoldsWithoutMembers: ListBuffer[Household] = ListBuffer()
+    scenario.getHouseholds.getHouseholds.forEach{
+      case(hId: Id[Household], h: Household) => {
+        if(h.getMemberIds.size() == 0){
+          listOfHouseHoldsWithoutMembers += h
+        }
+      }
+    }
+
+    logger.info("Removing households without members " + listOfHouseHoldsWithoutMembers.size)
+    listOfHouseHoldsWithoutMembers.take(100).map( l => println(l) )
+    listOfHouseHoldsWithoutMembers.foreach{
+      h =>
+        scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(h.getId.toString)
+        scenario.getHouseholds.getHouseholds.remove(h.getId)
+    }
+
     /*val houseHolds = BeamServices.readHouseHoldsFile(householdFilePath, scenario, beamServices,
       TrieMap[Id[Household], ListBuffer[Id[Person]]](),
       TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]]())*/
