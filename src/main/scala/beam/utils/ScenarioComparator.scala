@@ -105,7 +105,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
     val beamServices = getBeamServices(config)
 
-    val planReaderCsv: ScenarioReaderCsv2 = new ScenarioReaderCsv2(scenario, beamServices)
+    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
 
     b2 = beamServices
 
