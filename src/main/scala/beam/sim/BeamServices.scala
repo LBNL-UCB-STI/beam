@@ -396,7 +396,7 @@ object BeamServices {
         val objHouseHold = new HouseholdsFactoryImpl().createHousehold(houseHoldId)
 
         // Setting the coordinates
-        val houseHoldCoord: Coord = {
+        val originalCoord: Coord = {
 
           if (line.keySet().contains("homecoordx") && line.keySet().contains("homecoordy")) {
             val x = line.get("homecoordx")
@@ -413,6 +413,7 @@ object BeamServices {
                         case Some(parcelAttr) =>
                           val x = parcelAttr.get("x")
                           val y = parcelAttr.get("y")
+
                           new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
                         case None => new Coord(0, 0)
                       }
@@ -427,6 +428,9 @@ object BeamServices {
             }
           }
         }
+        val houseHoldCoord: Coord = beamServices.geo.wgs2Utm(originalCoord)
+
+
 
         val incomeStr = line.get("income")
 
@@ -499,10 +503,18 @@ object BeamServices {
 
     readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
+        val _bid = line.get("building_id")
+        val _pid = line.get("parcel_id")
+
+
+        val parcelId: String = if (_pid.indexOf(".") < 0) _pid else _pid.replaceAll("0*$", "").replaceAll("\\.$", "")
+
+        val buildingId: String = if (_bid.indexOf(".") < 0) _bid else _bid.replaceAll("0*$", "").replaceAll("\\.$", "")
+
         val _line = new java.util.TreeMap[String, String]()
-        _line.put("parcel_id", line.get("parcel_id"))
-        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
-        acc += ((line.get("building_id"), _line))
+        _line.put("parcel_id", parcelId)
+
+        acc += ((buildingId, _line))
     }
   }
 

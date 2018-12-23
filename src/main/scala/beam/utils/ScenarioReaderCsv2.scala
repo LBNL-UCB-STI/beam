@@ -125,6 +125,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
       }
     }
 
+    println("The scenario loading is completed..")
     /*val houseHolds = BeamServices.readHouseHoldsFile(householdFilePath, scenario, beamServices,
       TrieMap[Id[Household], ListBuffer[Id[Person]]](),
       TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]]())*/
