@@ -1,9 +1,10 @@
 package beam.tnctoday
 
+import com.typesafe.scalalogging.StrictLogging
 import json.converter.{TazOutput, TncToday}
 import org.scalatest.{Matchers, WordSpecLike}
 
-class TnctodayConversionSpec extends WordSpecLike with Matchers {
+class TnctodayConversionSpec extends WordSpecLike with Matchers with StrictLogging {
 
   lazy val completedStats = TncToday.completeStats(inputData)
   lazy val statsTotals = TncToday.generateTotals(completedStats)
@@ -24,6 +25,8 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
 
   "TncToday class " must {
     "Complete stats for all hours in a day and for all days in the week in completeStats method" in {
+      logger.info("@@@@:1 Dummy temporary log for testing purposes. It should be removed")
+
       completedStats.size shouldBe 168
 
       inputData.forall(completedStats.contains) shouldBe true
