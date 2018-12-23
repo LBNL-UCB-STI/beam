@@ -31,7 +31,6 @@ class DelayMetricAnalysis @Inject()(
   eventsManager.addHandler(this)
   private val networkLinks = scenario.getNetwork.getLinks
   private val cumulativeDelay: Map[String, Double] = Map()
-  private val cumulativeCapacity: Map[String, Double] = Map()
   private val cumulativeLength: Map[String, Double] = Map()
   private var linkTravelsCount: Map[String, Int] = Map()
   private var linkAverageDelay: Map[String, DelayInLength] = Map()
@@ -73,14 +72,11 @@ class DelayMetricAnalysis @Inject()(
               var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
 
               if (freeFlowDelay >= 0) {
-                val linkCapacity = networkLinks.get(Id.createLinkId(linkId)).getCapacity
 
                 val existingFreeFlowDelay = cumulativeDelay.getOrElse(linkId, 0.0)
-                val existingLinkCapacity = cumulativeCapacity.getOrElse(linkId, 0.0)
                 val existingLinkLength = cumulativeLength.getOrElse(linkId, 0.0)
 
                 cumulativeDelay(linkId) = freeFlowDelay + existingFreeFlowDelay
-                cumulativeCapacity(linkId) = linkCapacity + existingLinkCapacity
                 cumulativeLength(linkId) = freeLength + existingLinkLength
                 totalTravelTime += travelTime
 
@@ -107,7 +103,6 @@ class DelayMetricAnalysis @Inject()(
 
   override def reset(iteration: Int): Unit = {
     cumulativeDelay.clear
-    cumulativeCapacity.clear
     cumulativeLength.clear
     linkTravelsCount.clear
     linkAverageDelay.clear
@@ -116,9 +111,9 @@ class DelayMetricAnalysis @Inject()(
   }
 
   def categoryDelayCapacityDataset(): CategoryDataset = {
-    cumulativeCapacity.keySet foreach { linkId =>
+    cumulativeDelay.keySet foreach { linkId =>
       val delay = cumulativeDelay.get(linkId).getOrElse(0.0)
-      val capacity = cumulativeCapacity.get(linkId).getOrElse(0.0)
+      val capacity = networkLinks.get(Id.createLinkId(linkId)).getCapacity
       val bin = largeset(capacity)
       val capacityDelay = capacitiesDelay.get(bin).getOrElse(0.0)
       capacitiesDelay(bin) = delay + capacityDelay
