@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -73,9 +74,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
       }
     }
 
-
     logger.info("Reading Households...")
-
     BeamServices.readHouseHoldsFile(
       householdFilePath,
       scenario,
@@ -94,13 +93,16 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
         }
       }
     }
-
     logger.info("Removing households without members " + listOfHouseHoldsWithoutMembers.size)
     listOfHouseHoldsWithoutMembers.take(100).map( l => println(l) )
     listOfHouseHoldsWithoutMembers.foreach{
-      h =>
+      h => {
+
+        removeHouseHoldVehicles(h)
+
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(h.getId.toString)
         scenario.getHouseholds.getHouseholds.remove(h.getId)
+      }
     }
 
     /*val houseHolds = BeamServices.readHouseHoldsFile(householdFilePath, scenario, beamServices,
@@ -109,4 +111,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
 
   }
 
+  def removeHouseHoldVehicles(household: Household)= {
+    household.getVehicleIds.forEach(vehicleId => beamServices.privateVehicles.remove(Id.create(vehicleId.toString, classOf[BeamVehicle])))
+  }
 }
