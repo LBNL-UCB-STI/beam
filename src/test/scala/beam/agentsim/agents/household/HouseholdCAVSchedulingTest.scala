@@ -186,5 +186,4 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 //    List[BeamPlan](BeamPlan(plan1), BeamPlan(plan2), BeamPlan(plan3), BeamPlan(plan4), BeamPlan(plan5))
 //  }
 
-
 }
