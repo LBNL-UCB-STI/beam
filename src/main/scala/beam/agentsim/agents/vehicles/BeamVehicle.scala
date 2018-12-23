@@ -3,15 +3,20 @@ package beam.agentsim.agents.vehicles
 import akka.actor.ActorRef
 import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumption}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
+import beam.router.model.BeamLeg
+import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.JavaConverters._
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -93,10 +98,119 @@ class BeamVehicle(
     stall = None
   }
 
-  def useFuel(distanceInMeters: Double): Double = {
+  /**
+    * Computes the angle between two coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return angle between the coordinates (in radians).
+    */
+  private def computeAngle(source: Coord, destination: Coord): Double = {
+    val rad = Math.atan2(
+      source.getX * destination.getY - source.getY * destination.getX,
+      source.getX * destination.getX - source.getY * destination.getY
+    )
+    if (rad < 0) {
+      rad + 3.141593 * 2.0
+    } else {
+      rad
+    }
+  }
+
+  /**
+    * Get the desired direction to be taken , based on the angle between the coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
+    */
+  private def getDirection(source: Coord, destination: Coord): String = {
+    val radians = computeAngle(source, destination)
+    radians match {
+      case _ if radians < 0.174533 || radians >= 6.10865 => "S" // Straight
+      case _ if radians >= 0.174533 & radians < 1.39626  => "SL" // Soft Left
+      case _ if radians >= 1.39626 & radians < 1.74533   => "L" // Left
+      case _ if radians >= 1.74533 & radians < 3.14159   => "HL" // Hard Left
+      case _ if radians >= 3.14159 & radians < 4.53785   => "HR" // Hard Right
+      case _ if radians >= 4.53785 & radians < 4.88692   => "R" // Right
+      case _ if radians >= 4.88692 & radians < 6.10865   => "SR" // Soft Right
+      case _                                             => "S" // default => Straight
+    }
+  }
+
+  /**
+    * Generate the vector coordinates from the link nodes
+    * @param link link in the network
+    * @return vector coordinates
+    */
+  private def vectorFromLink(link: Link): Coord = {
+    new Coord(
+      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
+      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
+    )
+  }
+
+  /**
+    * Generates the fuel consumption data table
+    * @param beamLeg Instance of beam leg
+    * @param network the transport network instance
+    * @return list of fuel consumption objects generated
+    */
+  private def generateFuelConsumptionData(beamLeg: BeamLeg, network: Network): List[FuelConsumption] = {
+    val linkIds = beamLeg.travelPath.linkIds
+    val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
+    // generate the link arrival times for each link ,by adding cumulative travel times of previous links
+    val linkArrivalTimes: Seq[Int] = for (i <- linkTravelTimes.indices) yield {
+      i match {
+        case 0 => beamLeg.startTime
+        case _ =>
+          beamLeg.startTime + (try {
+            linkTravelTimes(i - 1)
+          } catch {
+            case _: Exception => 0
+          })
+      }
+    }
+    val networkLinks = network.getLinks.values().asScala
+    val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
+    (linkIds zip nextLinkIds zip linkTravelTimes zip linkArrivalTimes flatMap { tuple =>
+      val (((id, nextId), travelTime), arrivalTime) = tuple
+      networkLinks.find(x => x.getId.toString.toInt == id) map { currentLink =>
+        val averageSpeed = try {
+          if (travelTime > 0) currentLink.getLength / travelTime else 0
+        } catch {
+          case _: Exception => 0.0
+        }
+        // get the next link , and calculate the direction to be taken based on the angle between the two links
+        val nextLink: Option[Link] = networkLinks.find(x => x.getId.toString.toInt == nextId)
+        val turnAtLinkEnd = getDirection(vectorFromLink(currentLink), vectorFromLink(nextLink.getOrElse(currentLink)))
+        FuelConsumption(
+          linkId = id,
+          linkCapacity = currentLink.getCapacity,
+          linkLength = currentLink.getLength,
+          averageSpeed = averageSpeed,
+          freeFlowSpeed = currentLink.getFreespeed,
+          linkArrivalTime = arrivalTime,
+          vehicleId = id.toString,
+          vehicleType = beamVehicleType.vehicleTypeId,
+          turnAtLinkEnd = turnAtLinkEnd,
+          numberOfStops =
+            if (turnAtLinkEnd.equalsIgnoreCase("NA")) 0
+            else 1
+        )
+      }
+    }).toList
+  }
+
+  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
+    val distanceInMeters = beamLeg.travelPath.distanceInM
+    val network =
+      if (beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
+    val fuelConsumption: Option[List[FuelConsumption]] = network map (n => this.generateFuelConsumptionData(beamLeg, n))
     fuelLevelInJoules match {
       case Some(fLevel) =>
-        val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
+        val energyConsumed = fuelConsumption match {
+          case Some(consumption) => powerTrain.estimateConsumptionInJoules(consumption)
+          case None              => powerTrain.estimateConsumptionInJoules(distanceInMeters)
+        }
         if (fLevel < energyConsumed) {
           logger.warn(
             "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
@@ -161,4 +275,18 @@ object BeamVehicle {
     driver: Option[ActorRef],
     stall: Option[ParkingStall]
   )
+
+  case class FuelConsumption(
+    linkId: Int,
+    linkCapacity: Double,
+    linkLength: Double,
+    averageSpeed: Double,
+    freeFlowSpeed: Double,
+    linkArrivalTime: Long,
+    vehicleId: String,
+    vehicleType: String,
+    turnAtLinkEnd: String,
+    numberOfStops: Int
+  )
+
 }

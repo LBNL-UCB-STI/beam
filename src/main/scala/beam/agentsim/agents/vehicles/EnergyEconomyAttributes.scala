@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumption
 import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum._
 import org.matsim.vehicles.EngineInformation
@@ -39,6 +40,11 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
     def estimateConsumptionInJoules(distanceInMeters: Double): Double = {
       joulesPerMeter * distanceInMeters
     }
+
+    def estimateConsumptionInJoules(fuelConsumption: List[FuelConsumption]): Double = {
+      joulesPerMeter * fuelConsumption.map(_.linkLength).sum
+    }
+
   }
 
   case object Capacity extends EnergyEconomyAttributes with LowerCamelcase
