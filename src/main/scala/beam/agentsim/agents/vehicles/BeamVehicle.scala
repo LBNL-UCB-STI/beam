@@ -274,26 +274,30 @@ object BeamVehicle {
         val idx = idAndIdx._2
         val travelTime = linkTravelTimes(idx)
         val arrivalTime = linkArrivalTimes(idx)
-        val currentLink = network.getLinks.get(Id.createLinkId(id))
+        val currentLink: Option[Link] = Option(network.getLinks.get(Id.createLinkId(id)))
         val averageSpeed = try {
-          if (travelTime > 0) currentLink.getLength / travelTime else 0
+          if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
         } catch {
           case _: Exception => 0.0
         }
         // get the next link , and calculate the direction to be taken based on the angle between the two links
         val nextLink = if (idx < nextLinkIds.length) {
-          network.getLinks.get(Id.createLinkId(nextLinkIds(idx)))
+          Some(network.getLinks.get(Id.createLinkId(nextLinkIds(idx))))
         } else {
           currentLink
         }
-        val nextLinkCorrected = if (nextLink == null) { currentLink } else { nextLink }
-        val turnAtLinkEnd = getDirection(vectorFromLink(currentLink), vectorFromLink(nextLinkCorrected))
+        val turnAtLinkEnd = currentLink match {
+          case Some(curLink) =>
+            getDirection(vectorFromLink(curLink), vectorFromLink(nextLink.get))
+          case None =>
+            "S"
+        }
         FuelConsumptionData(
           linkId = id,
-          linkCapacity = currentLink.getCapacity,
-          linkLength = currentLink.getLength,
+          linkCapacity = currentLink.map(_.getCapacity).getOrElse(0),
+          linkLength = currentLink.map(_.getLength).getOrElse(0),
           averageSpeed = averageSpeed,
-          freeFlowSpeed = currentLink.getFreespeed,
+          freeFlowSpeed = currentLink.map(_.getFreespeed).getOrElse(0),
           linkArrivalTime = arrivalTime,
           vehicleId = id.toString,
           vehicleType = vehicleType,
