@@ -142,11 +142,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
-          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-          val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-          tt.toInt
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
+        tt.toInt
       }
-      val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles, defaultTravelTimeByLink)
+      val initializer =
+        new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles, defaultTravelTimeByLink)
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)

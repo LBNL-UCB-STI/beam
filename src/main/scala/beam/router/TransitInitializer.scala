@@ -80,7 +80,11 @@ class TransitInitializer(
                     )
                     BeamPath(
                       edges.map(_.intValue()).toVector,
-                      TravelTimeUtils.scaleTravelTime(streetSeg.getDuration,linksTimesAndDistances.travelTimes.sum,linksTimesAndDistances.travelTimes),
+                      TravelTimeUtils.scaleTravelTime(
+                        streetSeg.getDuration,
+                        linksTimesAndDistances.travelTimes.sum,
+                        linksTimesAndDistances.travelTimes
+                      ),
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
