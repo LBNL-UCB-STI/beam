@@ -2,6 +2,9 @@ package beam.utils
 
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 
 class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
@@ -43,6 +46,16 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
 
     logger.info("Reading plans...")
     val plans = BeamServices.readPlansFile(planFilePath, scenario.getPopulation)
+
+    logger.info("In case a person is not having a corresponding plan entry, just adding a dummy empty plan")
+    scenario.getPopulation.getPersons.forEach {
+      case (pk: Id[Person], pv: Person) => {
+        if(pv.getSelectedPlan == null){
+          val plan = PopulationUtils.createPlan(pv)
+          pv.setSelectedPlan(plan)
+        }
+      }
+    }
 
     logger.info("Reading Households...")
 
