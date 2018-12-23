@@ -52,6 +52,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
       case (pk: Id[Person], pv: Person) => {
         if(pv.getSelectedPlan == null){
           val plan = PopulationUtils.createPlan(pv)
+          pv.addPlan(plan)
           pv.setSelectedPlan(plan)
         }
       }
