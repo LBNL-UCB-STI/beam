@@ -7,6 +7,8 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 
+import scala.collection.mutable.ListBuffer
+
 class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
   extends LazyLogging {
 
@@ -48,15 +50,28 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val plans = BeamServices.readPlansFile(planFilePath, scenario.getPopulation)
 
     logger.info("In case a person is not having a corresponding plan entry, just adding a dummy empty plan")
+
+    val listOfPersonsWithoutPlan: ListBuffer[Person] = ListBuffer()
     scenario.getPopulation.getPersons.forEach {
       case (pk: Id[Person], pv: Person) => {
         if(pv.getSelectedPlan == null){
-          val plan = PopulationUtils.createPlan(pv)
+          /*val plan = PopulationUtils.createPlan(pv)
           pv.addPlan(plan)
-          pv.setSelectedPlan(plan)
+          pv.setSelectedPlan(plan)*/
+          listOfPersonsWithoutPlan += pv
         }
       }
     }
+
+    println("Persons without plan ")
+    println(listOfPersonsWithoutPlan)
+
+    listOfPersonsWithoutPlan.foreach{
+      p => {
+        scenario.getPopulation.removePerson(p.getId)
+      }
+    }
+
 
     logger.info("Reading Households...")
 
