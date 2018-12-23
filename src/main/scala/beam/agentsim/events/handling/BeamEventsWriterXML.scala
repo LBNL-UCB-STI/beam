@@ -50,7 +50,7 @@ class BeamEventsWriterXML(
   }
 
   private def checkForNull(v: String): String = {
-    if(null == v) "" else v
+    if (null == v) "" else v
   }
 
   /**
