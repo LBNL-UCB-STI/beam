@@ -25,7 +25,8 @@ object BeamGraphComparator {
     */
   private def generateHtml(
     files: mutable.HashMap[(String, String), Map[String, Array[(String, File)]]],
-    iterationsCount: Int , event: ControlerEvent
+    iterationsCount: Int,
+    event: ControlerEvent
   ): Elem = {
     val scriptToDisplayAllImages =
       """function displayAllGraphs(images){
@@ -188,7 +189,7 @@ object BeamGraphComparator {
     })
     //Generate graph comparison html element and write it to the html page at desired location
     val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(subGroups, numberOfIterations,event)
+    val htmlElem = this.generateHtml(subGroups, numberOfIterations, event)
     try {
       bw.write(htmlElem.mkString)
     } catch {

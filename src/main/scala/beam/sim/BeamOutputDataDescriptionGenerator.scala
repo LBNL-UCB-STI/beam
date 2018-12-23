@@ -2,20 +2,19 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
+import scala.collection.JavaConverters._
+
 import akka.actor.ActorSystem
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
-import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.router.osm.TollCalculator
+import beam.analysis.via.{ExpectedMaxUtilityHeatMap, ExpectedMaxUtilityHeatMapObject}
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
-
-import scala.collection.JavaConverters._
 
 /**
   * Generate data descriptions table for all output file generating classes.
@@ -38,8 +37,10 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors: Seq[OutputDataDescription] = getClassesGeneratingOutputs(event) flatMap { classRef =>
-      classRef.getOutputDataDescriptions.asScala.toList
+    val descriptors
+      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
+      classRef =>
+        classRef.getOutputDataDescriptions.asScala.toList
     }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
@@ -49,56 +50,6 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     val filePath = event.getServices.getControlerIO.getOutputPath + "/" + outputFileName
     writeToFile(filePath, Some(outputFileHeader), descriptionsAsCSV, None)
   }
-
-  /**
-    * creates and collects instances of all output file generating classes
-    * @return collected class instances
-    */
-  private def getClassesGeneratingOutputs(event: ControlerEvent): List[OutputDataDescriptor] = List(
-    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
-    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, writeGraphs),
-    new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation, writeGraphs),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation, writeGraphs),
-    new ExpectedMaxUtilityHeatMap(
-      this.eventsManager,
-      this.scenario.getNetwork,
-      event.getServices.getControlerIO,
-      this.beamServices.beamConfig.beam.outputs.writeEventsInterval
-    ),
-    new PhyssimCalcLinkSpeedStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
-    new PhyssimCalcLinkSpeedDistributionStats(
-      scenario.getNetwork,
-      event.getServices.getControlerIO,
-      beamServices.beamConfig
-    ),
-    new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig),
-    new GraphSurgePricing(new RideHailSurgePricingManager(beamServices)),
-    new RideHailingWaitingSingleAnalysis(
-      beamServices.beamConfig,
-      new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation
-    ),
-    new BeamMobsim(
-      beamServices,
-      transportNetwork,
-      new TollCalculator(beamServices.beamConfig),
-      scenario,
-      eventsManager,
-      actorSystem,
-      new RideHailSurgePricingManager(beamServices),
-      new RideHailIterationHistory
-    ),
-    StopWatchOutputs,
-    ScoreStatsOutputs,
-    SummaryStatsOutputs,
-    CountsCompareOutputs,
-    EventOutputs,
-    LegHistogramOutputs,
-    RideHailTripDistanceOutputs,
-    TripDurationOutputs,
-    BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
-  )
 
   /**
     * Writes data to the output file at specified path.
@@ -127,6 +78,39 @@ class BeamOutputDataDescriptionGenerator @Inject()(
       bw.close()
     }
   }
+
+}
+
+object BeamOutputDataDescriptionGenerator {
+
+  /**
+    * creates and collects instances of all output file generating classes
+    * @return collected class instances
+    */
+  def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
+    ModeChosenAnalysisObject,
+    RealizedModeAnalysisObject,
+    RideHailRevenueAnalysisObject,
+    PersonTravelTimeAnalysisObject,
+    FuelUsageAnalysisObject,
+//    ExpectedMaxUtilityHeatMapObject,
+    PhyssimCalcLinkSpeedStatsObject,
+    PhyssimCalcLinkSpeedDistributionStatsObject,
+    RideHailWaitingAnalysisObject,
+    GraphSurgePricingObject,
+    RideHailingWaitingSingleAnalysisObject,
+    BeamMobsim,
+    StopWatchOutputs,
+    ScoreStatsOutputs,
+    SummaryStatsOutputs,
+    CountsCompareOutputs,
+    EventOutputs,
+    LegHistogramOutputs,
+    RideHailTripDistanceOutputs,
+    TripDurationOutputs,
+    BiasErrorGraphDataOutputs,
+    BiasNormalizedErrorGraphDataOutputs
+  )
 
 }
 

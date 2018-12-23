@@ -51,10 +51,11 @@ class ReplanningExpBetaModeChoiceSpec
     }
 
     "increase test scores over iterations" in {
-      lazy val it2Score = getAvgAvgScore(2)
-      lazy val it10Score = getAvgBestScore(10)
+      val allAvgAvg = Range(0, 20).map(getAvgAvgScore(_).get)
+      val lowestOfFirst10 = allAvgAvg.take(10).min
+      val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5
 
-      it2Score should be < it10Score
+      lowestOfFirst10 should be < avgOfLast5
     }
   }
 

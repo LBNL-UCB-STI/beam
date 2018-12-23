@@ -2,9 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
-import beam.sim.OutputDataDescription;
 import beam.sim.metrics.MetricsSupport;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -13,7 +11,6 @@ import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,13 +24,13 @@ import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 
-public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
+public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String fileName = "realizedMode";
+    static final String fileName = "realizedMode";
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private HashSet<String> personIdList = new HashSet<>();
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
@@ -49,22 +46,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
     public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
-    }
-
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "car", "Car chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "drive_transit", "Drive to transit chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "other", "Other modes of travel chosen"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "ride_hail", "Ride Hail chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk", "Walk chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "walk_transit", "Walk to transit chosen as travel mode"));
-        return list;
     }
 
     public static class RealizedModesStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
@@ -120,6 +101,15 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         if (modesFrequencyDataset != null && writeGraph)
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName;
+        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
+        if (dataset != null && writeGraph){
+            fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
+            createRootRealizedModeChoosenGraph(dataset, fileName);
+        }
+
+        writeToRootCSV();
         writeToCSV(event);
     }
 
@@ -275,15 +265,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport , Out
         });
         cumulativeMode.addAll(modes);
         return modes;
-    }
-
-    public void notifyShutdown(ShutdownEvent event) throws Exception {
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
-        CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null && writeGraph)
-            createRootRealizedModeChoosenGraph(dataset, fileName);
-        writeToRootCSV();
     }
 
 

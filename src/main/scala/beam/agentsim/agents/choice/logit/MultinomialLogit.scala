@@ -40,12 +40,7 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
   }
 
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
-    //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    //    if(util == Double.NaN){
-    //      val i = 0
-    //    }
-    util
+    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
   }
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
