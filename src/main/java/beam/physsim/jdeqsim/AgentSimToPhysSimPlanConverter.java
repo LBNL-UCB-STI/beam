@@ -3,7 +3,6 @@ package beam.physsim.jdeqsim;
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
-import beam.analysis.LinkTraversalAnalysis;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
@@ -60,7 +59,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
-    private static LinkTraversalAnalysis linkTraversalAnalysis;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
@@ -101,7 +99,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 scenario.getConfig().travelTimeCalculator());
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
-        linkTraversalAnalysis = new LinkTraversalAnalysis(scenario,beamServices,controlerIO);
     }
 
 
@@ -109,11 +106,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
             }
 
-
-    @Override
-    public void reset(int iteration) {
-        linkTraversalAnalysis.reset(iteration);
-    }
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
@@ -253,9 +245,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
-        if(event instanceof PathTraversalEvent)
-            linkTraversalAnalysis.handleEvent(event);
-
         if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
@@ -346,10 +335,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
-    }
-
-    public void generateAnalysis(IterationEndsEvent iterationEndsEvent) {
-        linkTraversalAnalysis.generateAnalysis(iterationEndsEvent);
     }
 
     private void createLastActivityOfDayForPopulation() {
