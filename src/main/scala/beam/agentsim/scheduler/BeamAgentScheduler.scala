@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAllocationManagerTimeout
+import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -248,7 +248,7 @@ class BeamAgentScheduler(
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
           st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
-            .isInstanceOf[RideHailAllocationManagerTimeout]
+            .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
         canClean.foreach { stuckInfo =>
@@ -333,7 +333,11 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        if (beamConfig.beam.outputs.displayPerformanceTimings) {
+          log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        } else {
+          log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        }
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.

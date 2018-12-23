@@ -14,6 +14,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
@@ -48,6 +49,7 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
+  val rideHailTransitModes: Seq[BeamMode]
   var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
@@ -77,6 +79,18 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
+
+  val rideHailTransitModes =
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) {
+      BeamMode.transitModes.toSeq
+    } else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) {
+      BeamMode.massTransitModes.toSeq
+    } else {
+      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
+        .split(",")
+        .map(BeamMode.fromString(_))
+        .toSeq
+    }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _

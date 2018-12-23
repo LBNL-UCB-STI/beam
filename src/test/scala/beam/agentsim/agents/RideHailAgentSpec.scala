@@ -191,7 +191,7 @@ class RideHailAgentSpec
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
@@ -269,7 +269,7 @@ class RideHailAgentSpec
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
@@ -341,7 +341,7 @@ class RideHailAgentSpec
 
       trigger = expectMsgType[TriggerWithId] // 40000
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      val interruptedAt = expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()

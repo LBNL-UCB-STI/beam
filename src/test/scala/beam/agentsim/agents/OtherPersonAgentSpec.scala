@@ -34,11 +34,12 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
@@ -86,6 +87,9 @@ class OtherPersonAgentSpec
 
   lazy val beamSvc: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())
+    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -172,7 +176,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -192,7 +195,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_bus"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -212,7 +214,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -232,7 +233,6 @@ class OtherPersonAgentSpec
         ),
         Id.createVehicleId("my_tram"),
         asDriver = false,
-        None,
         0,
         unbecomeDriverOnCompletion = false
       )
@@ -274,7 +274,8 @@ class OtherPersonAgentSpec
             .actorSelection("/user/router/TransitDriverAgent-my_bus")
             .resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
       tram.becomeDriver(
         Await.result(
@@ -282,7 +283,8 @@ class OtherPersonAgentSpec
             .actorSelection("/user/router/TransitDriverAgent-my_tram")
             .resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
 
       val householdActor = TestActorRef[HouseholdActor](
@@ -337,7 +339,6 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -360,14 +361,13 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -421,16 +421,20 @@ class OtherPersonAgentSpec
                 ),
                 Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                None,
                 0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        java.util.UUID.randomUUID()
+        java.util.UUID.randomUUID().hashCode()
       )
       expectMsgType[ModeChoiceEvent]
+
+      // Person first does the dummy walk leg
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(
@@ -439,19 +443,22 @@ class OtherPersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
+            reservationRequestBus.passengerVehiclePersonId,
+            Vector(
+              ScheduleTrigger(
+                BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
+                personActor
+              ),
+              ScheduleTrigger(
+                AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
+                personActor
+              ) // My tram is late!
+            )
           )
         ),
         TRANSIT
       )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
-        personActor
-      ) // My tram is late!
+
       expectMsgType[PersonEntersVehicleEvent]
 
       //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent

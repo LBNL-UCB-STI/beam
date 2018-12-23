@@ -1,3 +1,4 @@
+library(colinmisc)
 load.libraries(c('XML','rgdal'))
 
 ##net <- xmlParse(pp(matsim.shared,"model-inputs/development/network_SF_Bay_detailed.xml"))

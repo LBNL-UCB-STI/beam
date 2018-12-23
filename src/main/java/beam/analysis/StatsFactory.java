@@ -23,12 +23,13 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        VehicleMilesTraveled,
+        MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
         AgentDelay,
         AboveCapacityPtUsageDuration,
-        TollRevenue
+        TollRevenue,
+        AgencyRevenue
     }
 
     private final BeamConfig beamConfig;
@@ -89,8 +90,8 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis();
-            case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis();
+            case MotorizedVehicleMilesTraveled:
+                return new MotorizedVehicleMilesTraveledAnalysis();
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
@@ -101,6 +102,8 @@ public class StatsFactory {
                 return new AboveCapacityPtUsageDurationAnalysis();
             case TollRevenue:
                 return new TollRevenueAnalysis();
+            case AgencyRevenue:
+                return new AgencyRevenueAnalysis();
             default:
                 return null;
         }
