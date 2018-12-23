@@ -64,7 +64,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     }
 
     println("Persons without plan ")
-    println(listOfPersonsWithoutPlan)
+    println(listOfPersonsWithoutPlan.size)
 
     listOfPersonsWithoutPlan.foreach{
       p => {
