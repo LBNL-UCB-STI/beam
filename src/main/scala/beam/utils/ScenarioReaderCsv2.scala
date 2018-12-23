@@ -12,13 +12,13 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
   private val defaultAvailableModes =
     "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram"
 
-  val buildingFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/buildings.csv"
-  val personFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/persons.csv"
-  val householdFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/households.csv"
+  val buildingFilePath = scenarioFolder + "/buildings.csv"
+  val personFilePath = scenarioFolder + "/persons.csv"
+  val householdFilePath = scenarioFolder + "/households.csv"
 
-  val planFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/plans.csv"
-  val unitFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/units.csv"
-  val parcelAttrFilePath = beamServices.beamConfig.beam.inputDirectory + scenarioFolder + "/parcel_attr.csv"
+  val planFilePath = scenarioFolder + "/plans.csv"
+  val unitFilePath = scenarioFolder + "/units.csv"
+  val parcelAttrFilePath = scenarioFolder + "/parcel_attr.csv"
 
   def loadScenario() = {
 
