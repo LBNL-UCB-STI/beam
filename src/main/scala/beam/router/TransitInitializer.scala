@@ -11,6 +11,7 @@ import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.BeamServices
+import beam.utils.TravelTimeUtils
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -79,7 +80,7 @@ class TransitInitializer(
                     )
                     BeamPath(
                       edges.map(_.intValue()).toVector,
-                      linksTimesAndDistances.travelTimes,
+                      TravelTimeUtils.scaleTravelTime(streetSeg.getDuration,linksTimesAndDistances.travelTimes.sum,linksTimesAndDistances.travelTimes),
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
