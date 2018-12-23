@@ -71,24 +71,25 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
 
     println("Total persons " + scenario.getPopulation.getPersons.size())
     println("Total Persons Persons without plan " + listOfPersonsWithoutPlan.size)
-    listOfPersonsWithoutPlan.take(100).map(p => println(p))
+    listOfPersonsWithoutPlan.take(5).map(p => println(p))
     listOfPersonsWithoutPlan.foreach{
       p => {
+
+        val _hId = scenario.getPopulation.getPersonAttributes.getAttribute(p.toString, "houseHoldId")
+
         scenario.getPopulation.getPersonAttributes.removeAllAttributes(p.toString)
 
         scenario.getPopulation.removePerson(p)
 
-        houseHoldPersons.foreach{
-          case (hId: Id[Household], personList: ListBuffer[Id[Person]]) => {
-            houseHoldPersons.get(hId) match {
-              case Some(persons: ListBuffer[Id[Person]]) => {
-                persons -= p
-                houseHoldPersons.put(hId, persons)
-              }
-              case None =>
-            }
-          }
+        val hId = Id.create(_hId.toString, classOf[Household])
+        houseHoldPersons.get(hId) match {
+          case Some(persons: ListBuffer[Id[Person]]) =>
+
+            persons -= p
+            //houseHoldPersons.put(hId, persons)
+          case None =>
         }
+
       }
     }
 
@@ -113,7 +114,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
       }
     }
     logger.info("Removing households without members " + listOfHouseHoldsWithoutMembers.size)
-    listOfHouseHoldsWithoutMembers.take(100).map( l => println(l.getId) )
+    listOfHouseHoldsWithoutMembers.take(5).map( l => println(l.getId) )
     listOfHouseHoldsWithoutMembers.foreach{
       h => {
 

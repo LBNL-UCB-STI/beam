@@ -280,6 +280,7 @@ object BeamServices {
         val node_id_walk: String = line.get("node_id_walk")
         val job_id: String = line.get("job_id")
 
+        population.getPersonAttributes.putAttribute(person.getId.toString, "houseHoldId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
         population.getPersonAttributes.putAttribute(person.getId.toString, "available-modes", modes)
