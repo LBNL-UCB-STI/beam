@@ -185,6 +185,7 @@ class BeamVehicle(
         FuelConsumption(
           linkId = id,
           linkCapacity = currentLink.getCapacity,
+          linkLength = currentLink.getLength,
           averageSpeed = averageSpeed,
           freeFlowSpeed = currentLink.getFreespeed,
           linkArrivalTime = arrivalTime,
@@ -207,7 +208,7 @@ class BeamVehicle(
     fuelLevelInJoules match {
       case Some(fLevel) =>
         val energyConsumed = fuelConsumption match {
-          case Some(consumption) => powerTrain.estimateConsumptionInJoules(distanceInMeters, consumption)
+          case Some(consumption) => powerTrain.estimateConsumptionInJoules(consumption)
           case None              => powerTrain.estimateConsumptionInJoules(distanceInMeters)
         }
         if (fLevel < energyConsumed) {
@@ -278,6 +279,7 @@ object BeamVehicle {
   case class FuelConsumption(
     linkId: Int,
     linkCapacity: Double,
+    linkLength: Double,
     averageSpeed: Double,
     freeFlowSpeed: Double,
     linkArrivalTime: Long,
