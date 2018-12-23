@@ -59,23 +59,25 @@ public class PathTraversalEvent extends Event {
     private final Integer seatingCapacity;
     private final double amountPaid;
 
+    private String linkTravelTimes;
+
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String driverId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
-        this(time, vehicleId, driverId, vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+        this(time, vehicleId, driverId,  vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().fuelTypeId().toString(), fuelConsumed,
-                beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
+                beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.travelPath().linkTravelTime().mkString(","), beamLeg.startTime(), beamLeg.endTime(),
                 beamLeg.travelPath().startPoint().loc().getX(), beamLeg.travelPath().startPoint().loc().getY(), beamLeg.travelPath().endPoint().loc().getX(),
                 beamLeg.travelPath().endPoint().loc().getY(),(int)vehicleType.seatingCapacity(),
                 amountPaid);
     }
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String driverId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
-                              double legLength, String linkIds, long departureTime, long arrivalTime, double startX, double startY, double endX,
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId,String driverId, String vehicleType, String mode, Integer numPass, double endLegFuelLevel, int capacity, String fuelType, double fuel,
+                              double legLength, String linkIds, String linkTravelTimes, long departureTime, long arrivalTime, double startX, double startY, double endX,
                               double endY, int seatingCapacity, double amountPaid) {
         super(time);
         this.vehicleType = vehicleType;
-        this.driverId = driverId;
         this.vehicleId = vehicleId.toString();
+        this.driverId = driverId;
         this.mode = mode;
         this.numPass = numPass;
         this.endLegFuelLevel = endLegFuelLevel;
@@ -84,6 +86,7 @@ public class PathTraversalEvent extends Event {
         this.fuel = fuel;
         this.legLength = legLength;
         this.linkIds = linkIds;
+        this.linkTravelTimes = linkTravelTimes;
         this.departureTime = departureTime;
         this.arrivalTime = arrivalTime;
         this.startX = startX;
@@ -93,34 +96,6 @@ public class PathTraversalEvent extends Event {
         this.attributes = new AtomicReference<>(Collections.emptyMap());
         this.seatingCapacity = seatingCapacity;
         this.amountPaid = amountPaid;
-    }
-
-    public static PathTraversalEvent apply(Event event) {
-        if (!(event instanceof PathTraversalEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            Map<String, String> attr = event.getAttributes();
-            return new PathTraversalEvent(event.getTime(),
-                    Id.createVehicleId(attr.get(ATTRIBUTE_VEHICLE_ID)),
-                    attr.get(ATTRIBUTE_DRIVER_ID),
-                    attr.get(ATTRIBUTE_VEHICLE_TYPE),
-                    attr.get(ATTRIBUTE_MODE),
-                    Integer.parseInt(attr.get(ATTRIBUTE_NUM_PASS)),
-                    Double.parseDouble(attr.getOrDefault(ATTRIBUTE_END_LEG_FUEL_LEVEL, "0")),
-                    Integer.parseInt(attr.get(ATTRIBUTE_VEHICLE_CAPACITY)),
-                    attr.get(ATTRIBUTE_FUEL_TYPE),
-                    Double.parseDouble(attr.get(ATTRIBUTE_FUEL)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_LENGTH)),
-                    attr.get(ATTRIBUTE_LINK_IDS),
-                    Long.parseLong(attr.get(ATTRIBUTE_DEPARTURE_TIME)),
-                    Long.parseLong(attr.get(ATTRIBUTE_ARRIVAL_TIME)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Integer.parseInt(attr.get(ATTRIBUTE_SEATING_CAPACITY)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_TOLL_PAID))
-            );
-        }
-        return (PathTraversalEvent) event;
     }
 
     @Override
@@ -159,6 +134,10 @@ public class PathTraversalEvent extends Event {
 
     public String getVehicleId() {
         return this.vehicleId;
+    }
+
+    public String getLinkTravelTimes() {
+        return this.linkTravelTimes;
     }
 
     @Override

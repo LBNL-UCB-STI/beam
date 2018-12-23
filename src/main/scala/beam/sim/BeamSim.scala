@@ -175,6 +175,8 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
+    agentSimToPhysSimPlanConverter.generateAnalysis(event)
+
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()

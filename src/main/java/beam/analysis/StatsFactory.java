@@ -23,7 +23,7 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        VehicleMilesTraveled,
+        MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
         AgentDelay,
@@ -90,8 +90,8 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis();
-            case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis();
+            case MotorizedVehicleMilesTraveled:
+                return new MotorizedVehicleMilesTraveledAnalysis();
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
