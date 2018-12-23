@@ -331,7 +331,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val linkTimes = linkEvents
         .drop(1)
         .grouped(2)
-        .map(pair => (pair.last.getTime - pair.head.getTime).toInt)
+        .map(pair => Math.round(pair.last.getTime - pair.head.getTime).toInt)
         .toIndexedSeq :+ 0
       val duration = linkEvents
         .maxBy(e => e.getTime)
@@ -1047,7 +1047,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        getTravelTime(time, linkId, matsimTravelTime).toInt
+        getTravelTime(time, linkId, matsimTravelTime).round.toInt
 
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)

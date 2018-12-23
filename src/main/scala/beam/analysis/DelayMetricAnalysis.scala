@@ -6,6 +6,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.api.core.v01.events.Event
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
@@ -29,7 +30,6 @@ class DelayMetricAnalysis @Inject()(
 
   eventsManager.addHandler(this)
   private val networkLinks = scenario.getNetwork.getLinks
-  private val carMode = "car"
   private val cumulativeDelay: Map[String, Double] = Map()
   private val cumulativeCapacity: Map[String, Double] = Map()
   private val cumulativeLength: Map[String, Double] = Map()
@@ -59,9 +59,9 @@ class DelayMetricAnalysis @Inject()(
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-        if (mode.equals(carMode)) {
+        if (mode.equals(CAR.value)) {
           val linkIds = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",")
-          val linkTravelTimes = pathTraversalEvent.getLinkTravelTimes.split(",")
+          val linkTravelTimes = pathTraversalEvent.getLinkTravelTimes.split(",").map(_.toInt)
           assert(linkIds.length == linkTravelTimes.length)
 
           if (linkIds.length > 0) {
@@ -69,10 +69,10 @@ class DelayMetricAnalysis @Inject()(
               val linkId = linkIds(index)
               val freeLength = networkLinks.get(Id.createLinkId(linkId)).getLength
               val freeSpeed = networkLinks.get(Id.createLinkId(linkId)).getFreespeed
-              val travelTime = linkTravelTimes(index).toDouble
-              var freeFlowDelay = travelTime - (freeLength / freeSpeed)
+              val travelTime = linkTravelTimes(index)
+              var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
 
-              if (freeFlowDelay > 0) {
+              if (freeFlowDelay >= 0) {
                 val linkCapacity = networkLinks.get(Id.createLinkId(linkId)).getCapacity
 
                 val existingFreeFlowDelay = cumulativeDelay.getOrElse(linkId, 0.0)
@@ -93,9 +93,9 @@ class DelayMetricAnalysis @Inject()(
                   linkTravelsCount.get(linkId).get
                 ) //calculate average of link delay for further calculating weighted average
 
-              } else if (freeFlowDelay < 0 && freeFlowDelay > -1) {
+              } else if (freeFlowDelay >= -1) {
                 freeFlowDelay = 0
-              } else if (freeFlowDelay < -1) {
+              } else {
                 logger.warn(" The delay is negative and the delay = " + freeFlowDelay)
               }
             }
