@@ -5,18 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -35,6 +24,7 @@ import beam.sim.BeamServices
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.Subscribe
 import beam.sim.population.AttributesOfIndividual
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -174,7 +164,7 @@ class BeamRouter(
       }
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
-        val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
+        val initializer = new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.zeroTravelTime)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
@@ -544,4 +534,6 @@ object BeamRouter {
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
+
+  def zeroTravelTime(a: Int, b: Int, c: StreetMode) = 0
 }
