@@ -320,7 +320,7 @@ object BeamServices {
     }
   }
 
-  def readPlansFile(filePath: String, population: Population): Unit = {
+  def readPlansFile(filePath: String, population: Population, beamServices: BeamServices): Unit = {
     readCsvFileByLine(filePath, Unit) {
       case (line, acc) =>
         val personId = line.get("personId")
@@ -346,7 +346,7 @@ object BeamServices {
 
           if (planElement.equalsIgnoreCase("leg")) PopulationUtils.createAndAddLeg(plan, mode)
           else if (planElement.equalsIgnoreCase("activity")) {
-            val coord = new Coord(x.toDouble, y.toDouble)
+            val coord = beamServices.geo.wgs2Utm(new Coord(x.toDouble, y.toDouble))
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }

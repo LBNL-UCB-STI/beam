@@ -49,7 +49,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val houseHoldPersons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, defaultAvailableModes)
 
     logger.info("Reading plans...")
-    BeamServices.readPlansFile(planFilePath, scenario.getPopulation)
+    BeamServices.readPlansFile(planFilePath, scenario.getPopulation, beamServices)
 
     logger.info("In case a person is not having a corresponding plan entry, just adding a dummy empty plan")
 
