@@ -35,8 +35,8 @@ class DelayMetricAnalysis @Inject()(
   private var linkTravelsCount: Map[String, Int] = Map()
   private var linkAverageDelay: Map[String, DelayInLength] = Map()
 
-  private val bins = Array(0, 100, 250, 500, 1000, 2000, 3000)
-  private val legends = Array("0-100", "100-250", "250-500", "500-1000", "1000-2000", "2000-3000", "3000+")
+  private val bins = Array(0, 500, 1000, 2000, 3000)
+  private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
   private val capacitiesDelay = scala.collection.mutable.Map[Int, Double]()
   val dataset = new DefaultCategoryDataset
 
