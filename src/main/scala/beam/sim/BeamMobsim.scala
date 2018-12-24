@@ -393,19 +393,41 @@ class BeamMobsim @Inject()(
               new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
 
             case "FILE" =>
-              new RideHailFleetInitializer().init(
-                beamServices,
-                scheduler,
-                parkingManager,
-                eventsManager,
-                transportNetwork,
-                tollCalculator
-              ) foreach { rideHailAgent =>
-                val rideHailAgentRef: ActorRef =
-                  context.actorOf(Props(rideHailAgent), rideHailAgent.id.toString)
-                context.watch(rideHailAgentRef)
-                scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
-                rideHailAgents += rideHailAgentRef
+              new RideHailFleetInitializer().init(beamServices) foreach {
+                tuple =>
+                  val (fleetData, beamVehicle) = tuple
+                  val rideHailAgentId = Id.create(
+                    fleetData.id.replace("rideHailVehicle", RideHailAgent.idPrefix),
+                    classOf[RideHailAgent]
+                  )
+                  val rideHailManagerId = Id.create(fleetData.rideHailManagerId, classOf[RideHailManager])
+                  beamServices.vehicles += (beamVehicle.id -> beamVehicle)
+                  beamVehicle.registerResource(rideHailManager)
+                  rideHailManager ! BeamVehicleStateUpdate(
+                    beamVehicle.getId,
+                    beamVehicle.getState
+                  )
+                  val props = RideHailAgent.props(
+                    beamServices,
+                    scheduler,
+                    transportNetwork,
+                    tollCalculator,
+                    eventsManager,
+                    parkingManager,
+                    rideHailAgentId,
+                    rideHailManagerId,
+                    beamVehicle,
+                    new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
+                    fleetData.shifts.map(RideHailFleetInitializer.generateRanges),
+                    fleetData.geoFenceX,
+                    fleetData.geoFenceY,
+                    fleetData.geoFenceRadius
+                  )
+                  val rideHailAgentRef: ActorRef =
+                    context.actorOf(props, rideHailAgentId.toString)
+                  context.watch(rideHailAgentRef)
+                  scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
+                  rideHailAgents += rideHailAgentRef
               }
             case _ =>
               logger.error(
