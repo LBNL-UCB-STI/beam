@@ -164,7 +164,7 @@ class BeamSim @Inject()(
       writeSummaryStats(summaryStatsFile)
 
       val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
-      fileNames.foreach(file => createSummaryStatsGraph(file, event))
+      fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration))
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
@@ -255,15 +255,16 @@ class BeamSim @Inject()(
     out.close()
   }
 
-  def createSummaryStatsGraph(fileName: String, event: IterationEndsEvent): Unit = {
 
-    val fileNamePath = event.getServices.getControlerIO.getOutputFilename(fileName + ".png")
+
+  def createSummaryStatsGraph(fileName: String, iteration: Int): Unit = {
+
+    val fileNamePath = beamServices.matsimServices.getControlerIO.getOutputFilename(fileName + ".png")
     val index = fileNamePath.lastIndexOf("/")
     val outDir = new File(fileNamePath.substring(0, index) + "/summaryStats")
     if (!outDir.isDirectory) Files.createDirectories(outDir.toPath)
     val newPath = outDir.getPath + fileNamePath.substring(index)
 
-    val iteration = event.getIteration
     val doubleOpt = iterationSummaryStats(iteration).get(fileName)
     val value: Double = doubleOpt.getOrElse(0.0).asInstanceOf[Double]
 
