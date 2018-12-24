@@ -255,8 +255,6 @@ class BeamSim @Inject()(
     out.close()
   }
 
-
-
   def createSummaryStatsGraph(fileName: String, iteration: Int): Unit = {
 
     val fileNamePath = beamServices.matsimServices.getControlerIO.getOutputFilename(fileName + ".png")
