@@ -35,9 +35,9 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
@@ -91,6 +91,8 @@ class PersonAgentSpec
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
@@ -731,6 +733,7 @@ class PersonAgentSpec
         personActor
       ) // My tram is late!
 
+      //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
 
       events.expectMsgType[AgencyRevenueEvent]

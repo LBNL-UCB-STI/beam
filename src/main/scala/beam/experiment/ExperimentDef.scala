@@ -13,43 +13,9 @@ case class ExperimentDef(
   @BeanProperty var runExperimentScript: String,
   @BeanProperty var batchRunScript: String,
   @BeanProperty var header: Header,
-  private val initialDefaultParams: JavaMap[String, Object],
-  private val initialFactors: JavaList[Factor]
+  @BeanProperty var defaultParams: java.util.Map[String, Object],
+  @BeanProperty var factors: java.util.List[Factor]
 ) {
-
-  private val _defaultParams: JavaMap[String, Object] = {
-    if (initialDefaultParams == null) {
-      new util.HashMap[String, Object]()
-    } else {
-      new util.HashMap[String, Object](initialDefaultParams)
-    }
-  }
-
-  def defaultParams_=(params: JavaMap[String, Object]): Unit = {
-    _defaultParams.clear()
-    if (params != null) {
-      _defaultParams.putAll(params)
-    }
-  }
-
-  def defaultParams: JavaMap[String, Object] = Collections.unmodifiableMap(_defaultParams)
-
-  private val _factors: JavaList[Factor] = {
-    if (initialFactors == null) {
-      new util.ArrayList[Factor]()
-    } else {
-      new util.ArrayList[Factor](initialFactors)
-    }
-  }
-
-  def factors_=(newFactors: JavaList[Factor]): Unit = {
-    _factors.clear()
-    if (newFactors != null) {
-      _factors.addAll(newFactors)
-    }
-  }
-
-  def factors: JavaList[Factor] = Collections.unmodifiableList(_factors)
 
   lazy val projectRoot: Path = {
     if (System.getenv("BEAM_ROOT") != null) {
