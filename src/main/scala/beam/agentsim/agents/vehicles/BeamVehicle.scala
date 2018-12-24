@@ -180,16 +180,16 @@ object BeamVehicle {
   )
 
   case class FuelConsumptionData(
-                                  linkId: Int,
-                                  linkCapacity: Double,
-                                  linkLength: Double,
-                                  averageSpeed: Double,
-                                  freeFlowSpeed: Double,
-                                  linkArrivalTime: Long,
-                                  vehicleId: String,
-                                  vehicleType: BeamVehicleType,
-                                  turnAtLinkEnd: TurningDirection,
-                                  numberOfStops: Int
+    linkId: Int,
+    linkCapacity: Double,
+    linkLength: Double,
+    averageSpeed: Double,
+    freeFlowSpeed: Double,
+    linkArrivalTime: Long,
+    vehicleId: String,
+    vehicleType: BeamVehicleType,
+    turnAtLinkEnd: TurningDirection,
+    numberOfStops: Int
   )
 
   /**
@@ -246,7 +246,7 @@ object BeamVehicle {
         }
         val numStops = turnAtLinkEnd match {
           case Straight => 0
-          case _ => 1
+          case _        => 1
         }
         FuelConsumptionData(
           linkId = id,
