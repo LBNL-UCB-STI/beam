@@ -43,10 +43,9 @@ class DelayMetricAnalysis @Inject()(
   private val delayAveragePerKMDataset = new DefaultCategoryDataset
   private val delayTotalByLinkCapacityDataset = new DefaultCategoryDataset
   private val fileName = "delayTotalByLinkCapacity"
-  private val xAxisName = "capacity bins"
-  private val yAxisName = "vehicle delay (hour)"
+  private val xAxisName = "Iteration(s)"
+  private val yAxisName = "Total Delay (hour)"
   private val graphTitle = "Delay Metric Analysis"
-  private val xAxisAverageGraphName = "Iteration(s)"
   private val yAxisAverageGraphName = " Average Delay Intensity (sec/km)"
   private val averageGraphTitle = "Delay Average per kilometer Analysis"
   var totalTravelTime = 0.0
@@ -157,7 +156,7 @@ class DelayMetricAnalysis @Inject()(
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       delayTotalByLinkCapacityDataset,
       graphTitle,
-      "iteration",
+      xAxisName,
       yAxisName,
       fileName + ".png",
       true
@@ -179,9 +178,9 @@ class DelayMetricAnalysis @Inject()(
   def createDelayAveragePerKilometerGraph(): Unit = {
     val fileName = controlerIO.getOutputFilename("delayAveragePerKilometer.png")
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
-      delayTotalByLinkCapacityDataset,
+      delayAveragePerKMDataset,
       averageGraphTitle,
-      xAxisAverageGraphName,
+      xAxisName,
       yAxisAverageGraphName,
       fileName,
       false
