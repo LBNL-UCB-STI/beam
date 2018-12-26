@@ -327,8 +327,8 @@ object BeamServices {
         val planElement = line.get("planElement")
         val planElementId = line.get("planElementId")
         val activityType = line.get("activityType")
-        val x = line.get("x")
-        val y = line.get("y")
+        val lng = line.get("x")
+        val lat = line.get("y")
         val endTime = line.get("endTime")
         val mode = line.get("mode")
 
@@ -346,7 +346,7 @@ object BeamServices {
 
           if (planElement.equalsIgnoreCase("leg")) PopulationUtils.createAndAddLeg(plan, mode)
           else if (planElement.equalsIgnoreCase("activity")) {
-            val coord = beamServices.geo.wgs2Utm(new Coord(x.toDouble, y.toDouble))
+            val coord = beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }
@@ -411,10 +411,10 @@ object BeamServices {
                     case Some(building) => {
                       parcelAttrs.get(building.get("parcel_id")) match {
                         case Some(parcelAttr) =>
-                          val x = parcelAttr.get("x")
-                          val y = parcelAttr.get("y")
+                          val lng = parcelAttr.get("x")
+                          val lat = parcelAttr.get("y")
 
-                          new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
+                          new Coord(lat.toDouble, lng.toDouble)
                         case None => new Coord(0, 0)
                       }
                     }
