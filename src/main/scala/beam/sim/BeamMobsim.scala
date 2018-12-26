@@ -302,6 +302,7 @@ class BeamMobsim @Inject()(
                   null
               }
 
+            println("BBox, rideHailInitLoc, personInitLoc, personInitLocOrigin " + quadTreeBounds.toString + ", " + rideInitialLocation.toString + ", " + personInitialLocation.toString + ", " + beamServices.geo.utm2Wgs(personInitialLocation).toString)
             val rideHailName = s"rideHailAgent-${person.getId}"
 
             val rideHailVehicleId = BeamVehicle.createId(person.getId, Some("rideHailVehicle"))
