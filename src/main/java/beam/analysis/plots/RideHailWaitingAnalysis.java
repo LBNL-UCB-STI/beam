@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
@@ -26,7 +27,7 @@ import java.util.*;
 /**
  * @author abid
  */
-public class RideHailWaitingAnalysis implements GraphAnalysis {
+public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
@@ -214,6 +215,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
+    }
+
+    @Override
+    public Map<String, Double> getSummaryStats(){
+        Map<String, Double> averageRidehailWaitTime = new HashMap();
+        averageRidehailWaitTime.put("averageRidehailWaitTime" , waitTimeSum / rideHailCount);
+        return averageRidehailWaitTime;
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
