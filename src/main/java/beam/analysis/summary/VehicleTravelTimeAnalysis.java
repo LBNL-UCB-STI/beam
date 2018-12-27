@@ -17,6 +17,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Scenario scenario;
     private int countOfVehicle = 0 ;
     double averageVehicleDelay = 0.0;
+    double totalVehicleTrafficDelay = 0.0;
 
     public VehicleTravelTimeAnalysis(Scenario scenario){
         this.scenario = scenario;
@@ -53,6 +54,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 }
                 if(hoursTraveled > freeFlowDuration ) { //discarding negative values
                     averageVehicleDelay += numOfPassangers * (hoursTraveled - freeFlowDuration);
+                    totalVehicleTrafficDelay += (hoursTraveled - freeFlowDuration);
                 }
             }
 
@@ -63,6 +65,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     public void resetStats() {
         countOfVehicle = 0;
         averageVehicleDelay = 0.0;
+        totalVehicleTrafficDelay = 0.0;
         secondsTraveledByVehicleType.clear();
     }
 
@@ -74,6 +77,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         ));
 
         summaryStats.put("averageVehicleDelayPerTrip" , (averageVehicleDelay / countOfVehicle));
+        summaryStats.put("totalHoursOfVehicleTrafficDelay" , totalVehicleTrafficDelay / 3600);
         return  summaryStats;
     }
 
