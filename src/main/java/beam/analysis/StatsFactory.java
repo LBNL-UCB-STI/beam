@@ -91,7 +91,7 @@ public class StatsFactory {
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.vehicleTypes().keySet());
             case MotorizedVehicleMilesTraveled:
-                return new MotorizedVehicleMilesTraveledAnalysis();
+                return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
