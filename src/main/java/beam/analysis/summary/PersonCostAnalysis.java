@@ -2,6 +2,7 @@ package beam.analysis.summary;
 
 import beam.agentsim.events.PersonCostEvent;
 import beam.analysis.IterationSummaryAnalysis;
+import beam.router.Modes;
 import org.matsim.api.core.v01.events.Event;
 
 import java.util.HashMap;
@@ -10,7 +11,6 @@ import java.util.Map;
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private Map<String, Double> personCostByCostType = new HashMap<>();
   private String[] costTypes = {"Cost", "Subsidy", "Toll"};
-  private String[] availableModes = {"car", "walk", "ride_hail", "transit", "drive_transit", "walk_transit", "ride_hail_transit"};
 
   @Override
   public void processStats(Event event) {
@@ -43,13 +43,14 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
   @Override
   public Map<String, Double> getSummaryStats() {
-    for (String availableMode : availableModes) {
+    Modes.BeamMode$.MODULE$.analysisModes().foreach(m -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, availableMode);
+        String statType = String.format("total%s_%s", costType, m.value());
         personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
       }
-    }
+      return null;
+    });
 
     return personCostByCostType;
   }
