@@ -125,9 +125,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
+    private Map<String, Double> ptWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
+    private double averagePTWaitingTime = 0.0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
     private static int numberOfTimeBins = 30;
@@ -149,6 +151,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     public void resetStats() {
         waitTimeSum = 0;
         rideHailCount = 0;
+        averagePTWaitingTime = 0.0;
         rideHailWaiting.clear();
         hoursTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
@@ -166,6 +169,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
+            if (mode.equalsIgnoreCase("walk_transit")) {
+
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                Id<Person> personId = modeChoiceEvent.getPersonId();
+                ptWaiting.put(personId.toString(), event.getTime());
+            }
+
         } else if (event instanceof PersonEntersVehicleEvent) {
 
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
@@ -195,6 +205,10 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 // Remove the personId from the list of ModeChoiceEvent
                 rideHailWaiting.remove(_personId);
             }
+            // added summary stats for averagePTWaitingTime
+            if(ptWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("body")) {
+                averagePTWaitingTime += event.getTime() - ptWaiting.get(personId.toString());
+            }
         }
     }
 
@@ -221,6 +235,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     public Map<String, Double> getSummaryStats(){
         return new HashMap<String, Double>() {{
             put("averageRideHailWaitTime" , waitTimeSum / rideHailCount);
+            put("averagePTWaitingTime" , averagePTWaitingTime / 3600);
         }};
     }
 
