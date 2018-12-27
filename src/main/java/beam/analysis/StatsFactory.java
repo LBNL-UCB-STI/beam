@@ -23,7 +23,7 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        VehicleMilesTraveled,
+        MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
         AgentDelay,
@@ -90,12 +90,12 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.vehicleTypes().keySet());
-            case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
+            case MotorizedVehicleMilesTraveled:
+                return new MotorizedVehicleMilesTraveledAnalysis();
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
-                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
+                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario(), beamServices.matsimServices().getControlerIO() , beamServices,beamConfig);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:
