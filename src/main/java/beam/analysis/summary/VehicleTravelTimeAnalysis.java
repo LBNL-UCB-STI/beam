@@ -18,6 +18,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private int countOfVehicle = 0 ;
     double averageVehicleDelay = 0.0;
     double totalVehicleTrafficDelay = 0.0;
+    double busCrowding = 0.0;
 
     public VehicleTravelTimeAnalysis(Scenario scenario){
         this.scenario = scenario;
@@ -30,13 +31,13 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
             double hoursTraveled = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
+            int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+            int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
 
             secondsTraveledByVehicleType.merge(mode, hoursTraveled, (d1, d2) -> d1 + d2);
 
-
             if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)){
                 countOfVehicle ++;
-                int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
 
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends  Link> linkslist ;
@@ -58,6 +59,10 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 }
             }
 
+            if(numOfPassangers > seatingCapacity){
+                int numOfStandingPeople = numOfPassangers - seatingCapacity;
+                busCrowding += hoursTraveled * numOfStandingPeople ;
+            }
         }
     }
 
@@ -78,6 +83,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
         summaryStats.put("averageVehicleDelayPerTrip" , (averageVehicleDelay / countOfVehicle));
         summaryStats.put("totalHoursOfVehicleTrafficDelay" , totalVehicleTrafficDelay / 3600);
+        summaryStats.put("busCrowding" , busCrowding/3600);
         return  summaryStats;
     }
 
