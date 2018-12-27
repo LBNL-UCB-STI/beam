@@ -239,7 +239,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
 
-    public boolean isPhyssimMode(String mode){
+    public static boolean isPhyssimMode(String mode){
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
 

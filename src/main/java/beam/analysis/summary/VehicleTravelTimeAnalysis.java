@@ -2,6 +2,7 @@ package beam.analysis.summary;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -32,7 +33,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             secondsTraveledByVehicleType.merge(mode, hoursTraveled, (d1, d2) -> d1 + d2);
 
 
-            if (mode.contains("Car") || mode.contains("BUS")){
+            if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)){
                 countOfVehicle ++;
                 int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
 
