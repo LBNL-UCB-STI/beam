@@ -71,6 +71,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         countOfVehicle = 0;
         averageVehicleDelay = 0.0;
         totalVehicleTrafficDelay = 0.0;
+        busCrowding = 0.0;
         secondsTraveledByVehicleType.clear();
     }
 
