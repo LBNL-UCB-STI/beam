@@ -83,6 +83,9 @@ object RoutingModel {
       .toVector
     val cumulDistance =
       linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
+    if (linkIds.head.toString.equalsIgnoreCase("217")) {
+      val i = 0
+    }
     LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
   }
 
