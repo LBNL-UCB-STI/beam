@@ -1,7 +1,6 @@
 package beam.analysis.summary;
 
 import beam.agentsim.events.AgencyRevenueEvent;
-import beam.agentsim.events.PersonCostEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import org.matsim.api.core.v01.events.Event;
 

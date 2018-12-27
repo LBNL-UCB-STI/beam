@@ -2,9 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
