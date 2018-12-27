@@ -25,14 +25,14 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
-            String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+            String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
             double hoursTraveled = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
 
-            secondsTraveledByVehicleType.merge(vehicleType, hoursTraveled, (d1, d2) -> d1 + d2);
+            secondsTraveledByVehicleType.merge(mode, hoursTraveled, (d1, d2) -> d1 + d2);
 
 
-            if (vehicleType.contains("Car") || vehicleType.contains("BUS")){
+            if (mode.contains("Car") || mode.contains("BUS")){
                 countOfVehicle ++;
                 int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
 
