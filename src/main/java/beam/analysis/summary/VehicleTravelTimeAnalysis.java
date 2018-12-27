@@ -37,14 +37,17 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
 
                 double freeFlowDuration = 0.0;
-                Map<Id<Link>, ? extends  Link> linkslist =  scenario.getNetwork().getLinks();
-                String links[] = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
-                for(String link:links ){
-                    Id id = Id.createLinkId(link);
-                    if(linkslist.containsKey(id)) {
-                        double freeFlowLength = linkslist.get(id).getLength();
-                        double freeFlowSpeed = linkslist.get(id).getFreespeed();
-                        freeFlowDuration += freeFlowLength / freeFlowSpeed;
+                Map<Id<Link>, ? extends  Link> linkslist ;
+                if(scenario != null){
+                    linkslist =  scenario.getNetwork().getLinks();
+                    String links[] = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
+                    for(String link:links ){
+                        Id id = Id.createLinkId(link);
+                        if(linkslist.containsKey(id)) {
+                            double freeFlowLength = linkslist.get(id).getLength();
+                            double freeFlowSpeed = linkslist.get(id).getFreespeed();
+                            freeFlowDuration += freeFlowLength / freeFlowSpeed;
+                        }
                     }
                 }
                 if(hoursTraveled > freeFlowDuration ) { //discarding negative values

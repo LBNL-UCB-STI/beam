@@ -219,9 +219,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     @Override
     public Map<String, Double> getSummaryStats(){
-        Map<String, Double> averageRidehailWaitTime = new HashMap();
-        averageRidehailWaitTime.put("averageRidehailWaitTime" , waitTimeSum / rideHailCount);
-        return averageRidehailWaitTime;
+        return new HashMap<String, Double>() {{
+            put("averageRideHailWaitTime" , waitTimeSum / rideHailCount);
+        }};
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
