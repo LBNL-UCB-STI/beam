@@ -238,6 +238,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
+
+    public boolean isPhyssimMode(String mode){
+        return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
+    }
+
     @Override
     public void handleEvent(Event event) {
 
@@ -259,7 +264,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
 
 
-            if (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS)) {
+            if (isPhyssimMode(mode)) {
 
                 String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
