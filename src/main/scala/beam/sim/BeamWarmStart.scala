@@ -43,10 +43,10 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
             BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
             logger.info("Travel times successfully warm started from {}.", statsPath)
           } else {
-            logger.warn("Travel times failed to warm start, stats not found at PATH ( {} )", statsPath)
+            logger.warn("Travel times failed to warm start, stats not found at path ( {} )", statsPath)
           }
         case None =>
-          logger.warn("Travel times failed to warm start, stats not found at PATH ( {} )", srcPath)
+          logger.warn("Travel times failed to warm start, stats not found at path ( {} )", srcPath)
       }
     }
   }
@@ -64,13 +64,13 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
             logger.info("Population successfully warm started from {}", statsPath)
           } else {
             logger.warn(
-              "Population failed to warm start, plans not found at PATH ( {} )",
+              "Population failed to warm start, plans not found at path ( {} )",
               statsPath
             )
           }
         case None =>
           logger.warn(
-            "Population failed to warm start, plans not found at PATH ( {} )",
+            "Population failed to warm start, plans not found at path ( {} )",
             srcPath
           )
       }
