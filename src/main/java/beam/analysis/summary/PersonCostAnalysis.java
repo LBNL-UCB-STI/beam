@@ -44,6 +44,8 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
     @Override
     public void resetStats() {
+        totalLinks = 0;
+        totalCost = 0;
         personCostByCostType.clear();
     }
 
