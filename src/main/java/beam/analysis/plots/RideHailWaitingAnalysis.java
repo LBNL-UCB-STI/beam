@@ -3,7 +3,6 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.router.Modes;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -35,7 +34,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         this.statComputation = statComputation;
     }
 
-   public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
+    public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
 
         @Override
         public Tuple<Map<Integer, Map<Double, Integer>>, double[][]> compute(Tuple<List<Double>, Map<Integer, List<Double>>> stat) {
@@ -138,7 +137,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private static int numberOfTimeBins = 30;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
-                                   BeamConfig beamConfig){
+                                   BeamConfig beamConfig) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
         final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
@@ -199,7 +198,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
                 rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
                 rideHailWaitingIndividualStat.personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-                rideHailWaitingIndividualStat.vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);;
+                rideHailWaitingIndividualStat.vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
                 rideHailWaitingIndividualStat.waitingTime = difference;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
@@ -208,7 +207,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 rideHailWaiting.remove(pId);
             }
             // added summary stats for totalPTWaitingTime
-            if(ptWaiting.containsKey(pId) && eventAttributes.get("vehicle").contains("body")) {
+            if (ptWaiting.containsKey(pId) && eventAttributes.get("vehicle").contains("body")) {
                 totalPTWaitingTime += event.getTime() - ptWaiting.get(pId);
                 numOfTrips++;
                 ptWaiting.remove(pId);
@@ -236,10 +235,10 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     }
 
     @Override
-    public Map<String, Double> getSummaryStats(){
+    public Map<String, Double> getSummaryStats() {
         return new HashMap<String, Double>() {{
-            put("averageRideHailWaitTimeInSec" , waitTimeSum / rideHailCount);
-            put("averagePTWaitingTimeInSec" , totalPTWaitingTime / numOfTrips);
+            put("averageRideHailWaitTimeInSec", waitTimeSum / rideHailCount);
+            put("averagePTWaitingTimeInSec", totalPTWaitingTime / numOfTrips);
         }};
     }
 
@@ -272,7 +271,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        waitingTime = waitingTime/60;
+        waitingTime = waitingTime / 60;
 
         List<Double> timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
@@ -356,9 +355,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         for (Double category : categories) {
 
             double legend = getRoundedCategoryUpperBound(category);
-            if(legend > 60 )
+            if (legend > 60)
                 legends.add("60+");
-            else{
+            else {
                 legends.add(category.intValue() + "min");
             }
 
