@@ -327,7 +327,8 @@ class BeamMobsim @Inject()(
                 rideHailVehicleId,
                 powertrain,
                 None,
-                ridehailBeamVehicleType
+                ridehailBeamVehicleType,
+                None
               )
               beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
               rideHailBeamVehicle.registerResource(rideHailManager)

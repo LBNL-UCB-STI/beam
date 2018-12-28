@@ -30,8 +30,8 @@ import org.matsim.core.controler._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
+import org.matsim.households.{Household, HouseholdsFactoryImpl, Income, IncomeImpl}
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference

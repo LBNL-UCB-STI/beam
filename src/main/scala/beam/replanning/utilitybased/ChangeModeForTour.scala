@@ -106,7 +106,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        BeamVehicleType.defaultCarBeamVehicleType.getCost(distance)
+        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34

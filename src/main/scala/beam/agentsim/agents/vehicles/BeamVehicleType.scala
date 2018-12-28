@@ -32,6 +32,10 @@ case class BeamVehicleType(
 )
 
 object BeamVehicleType {
+  val BODY_TYPE_DEFAULT = "BODY_TYPE_DEFAULT"
+  val BIKE_TYPE_DEFAULT = "BIKE_TYPE_DEFAULT"
+  val CAR_TYPE_DEFAULT = "CAR_TYPE_DEFAULT"
+  val TRANSIT_TYPE_DEFAULT = "TRANSIT_TYPE_DEFAULT"
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
   // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
@@ -51,7 +55,7 @@ object BeamVehicleType {
     )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "BIKE-TYPE-DEFAULT",
+    BIKE_TYPE_DEFAULT,
     1,
     0,
     1.5,
@@ -68,7 +72,7 @@ object BeamVehicleType {
   // Transit default based on Diesel Bus
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "TRANSIT-TYPE-DEFAULT",
+      TRANSIT_TYPE_DEFAULT,
       50,
       50,
       10,

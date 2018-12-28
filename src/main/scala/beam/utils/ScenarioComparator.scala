@@ -1,13 +1,13 @@
 package beam.utils
 import java.time.ZonedDateTime
-import java.util.function.Predicate
 import java.util.{Collections, Comparator}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.router.Modes
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -17,16 +17,12 @@ import com.google.inject.Injector
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Person, Plan, PlanElement}
-import org.matsim.contrib.socnetsim.utils.IdentifiableCollectionsUtils
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-import spark.utils.CollectionUtils
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
@@ -152,6 +148,10 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
       override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
+
+      override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
+      override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
+      override val ptFares: PtFares = ???
     }
 
     beamServices
