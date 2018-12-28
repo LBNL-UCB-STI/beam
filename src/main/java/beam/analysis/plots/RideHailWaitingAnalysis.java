@@ -28,6 +28,9 @@ import java.util.*;
  */
 public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
 
+    public static final String RIDE_HAIL = "ride_hail";
+    public static final String WALK_TRANSIT = "walk_transit";
+
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
     }
@@ -165,13 +168,13 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         if (event instanceof ModeChoiceEvent) {
             String mode = eventAttributes.get("mode");
 
-            if (Modes.BeamMode.RIDE_HAIL.value().equalsIgnoreCase(mode)) {
+            if (mode.equalsIgnoreCase(RIDE_HAIL)) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
-            if (Modes.BeamMode.WALK_TRANSIT.value().equalsIgnoreCase(mode)) {
+            if (mode.equalsIgnoreCase(WALK_TRANSIT)) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
