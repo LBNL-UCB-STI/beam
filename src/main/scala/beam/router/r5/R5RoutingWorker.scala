@@ -726,7 +726,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 val ids = beamServices.agencyAndRouteByVehicleIds.get(
                   beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
                 )
-                cost = ids.fold(cost)(id => beamServices.ptFares.getPtFare(id._1, Some(id._2), age).getOrElse(cost))
+                cost =
+                  ids.fold(cost)(id => beamServices.ptFares.getPtFare(Some(id._1), Some(id._2), age).getOrElse(cost))
 
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
