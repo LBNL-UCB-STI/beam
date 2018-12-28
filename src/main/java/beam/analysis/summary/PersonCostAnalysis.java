@@ -43,10 +43,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
   @Override
   public Map<String, Double> getSummaryStats() {
-    Modes.BeamMode$.MODULE$.analysisModes().foreach(m -> {
+    Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, m.value());
+        String statType = String.format("total%s_%s", costType, mode.value());
         personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
       }
       return null;
