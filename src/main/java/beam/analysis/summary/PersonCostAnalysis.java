@@ -11,8 +11,8 @@ import java.util.Map;
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
     private Map<String,Double> personCostByCostType = new HashMap<>();
     private String[] costTypes = {"Cost","Subsidy","Toll"};
-    int numberOfTrips = 0;
-    double totalCost = 0.0;
+    private int numberOfTrips = 0;
+    double totalNetCost = 0.0;
 
     @Override
     public void processStats(Event event) {
@@ -23,14 +23,14 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
             for(String costType : costTypes){
                 if(costType.equals("Cost")){
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
-                    totalCost += cost;
+                    totalNetCost += cost;
                 }else if(costType.equals("Subsidy")){
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_SUBSIDY));
                 }else if(costType.equals("Toll")) {
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
                 }
                 String statType = String.format("total%s_%s", costType, mode);
-                personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);           
+                personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
             }
         }
         if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)){
@@ -43,12 +43,12 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     public void resetStats() {
         personCostByCostType.clear();
         numberOfTrips = 0;
-        totalCost = 0;
+        totalNetCost = 0;
     }
 
     @Override
     public Map<String, Double> getSummaryStats() {
-        personCostByCostType.put("averageTripExpenditure", totalCost/numberOfTrips);
+        personCostByCostType.put("averageTripExpenditure", totalNetCost /numberOfTrips);
         return personCostByCostType;
     }
 }
