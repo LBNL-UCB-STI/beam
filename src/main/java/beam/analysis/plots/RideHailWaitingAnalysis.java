@@ -185,36 +185,33 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
-            String _personId = personId.toString();
+            String pId = personId.toString();
 
             // This rideHailVehicle check is put here again to remove the non rideHail vehicleId which were coming due the
             // another occurrence of modeChoice event because of replanning event.
             if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(pId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailWaitingTimes(modeChoiceEvent, difference);
 
                 // Building the RideHailWaitingIndividualStat List
-                String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
-                String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
                 rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
-                rideHailWaitingIndividualStat.personId = __personId;
-                rideHailWaitingIndividualStat.vehicleId = __vehicleId;
+                rideHailWaitingIndividualStat.personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+                rideHailWaitingIndividualStat.vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);;
                 rideHailWaitingIndividualStat.waitingTime = difference;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
 
                 // Remove the personId from the list of ModeChoiceEvent
-                rideHailWaiting.remove(_personId);
+                rideHailWaiting.remove(pId);
             }
             // added summary stats for totalPTWaitingTime
-            if(ptWaiting.containsKey(_personId) && eventAttributes.get("vehicle").contains("body")) {
-                totalPTWaitingTime += event.getTime() - ptWaiting.get(_personId);
+            if(ptWaiting.containsKey(pId) && eventAttributes.get("vehicle").contains("body")) {
+                totalPTWaitingTime += event.getTime() - ptWaiting.get(pId);
                 numOfTrips++;
-                ptWaiting.remove(_personId);
+                ptWaiting.remove(pId);
             }
         }
     }
