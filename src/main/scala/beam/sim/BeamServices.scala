@@ -430,8 +430,6 @@ object BeamServices {
         }
         val houseHoldCoord: Coord = beamServices.geo.wgs2Utm(originalCoord)
 
-
-
         val incomeStr = line.get("income")
 
         if (incomeStr != null && !incomeStr.isEmpty) try {
@@ -505,7 +503,6 @@ object BeamServices {
       case (line, acc) =>
         val _bid = line.get("building_id")
         val _pid = line.get("parcel_id")
-
 
         val parcelId: String = if (_pid.indexOf(".") < 0) _pid else _pid.replaceAll("0*$", "").replaceAll("\\.$", "")
 
