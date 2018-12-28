@@ -23,14 +23,14 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
             for(String costType : costTypes){
                 if(costType.equals("Cost")){
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
+                    totalCost += cost;
                 }else if(costType.equals("Subsidy")){
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_SUBSIDY));
                 }else if(costType.equals("Toll")) {
                     cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
                 }
                 String statType = String.format("total%s_%s", costType, mode);
-                personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
-                totalCost += cost;
+                personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);           
             }
         }
         if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)){
