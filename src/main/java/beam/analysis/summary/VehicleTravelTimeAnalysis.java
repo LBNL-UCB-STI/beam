@@ -89,7 +89,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
         summaryStats.put("averageVehicleDelayPerTrip", (averageVehicleDelay / countOfVehicle));
         summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
-        summaryStats.put("busCrowding", busCrowding / 3600 / numOfPathTraversalsWithBusMode);
+        summaryStats.put("busCrowding", busCrowding / numOfPathTraversalsWithBusMode);
         return summaryStats;
     }
 
