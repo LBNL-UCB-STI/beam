@@ -30,12 +30,12 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-            double hoursTraveled = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
+            double travelDurationInSec = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
             int numOfPassengers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
             int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
 
-            secondsTraveledByVehicleType.merge(mode, hoursTraveled, (d1, d2) -> d1 + d2);
+            secondsTraveledByVehicleType.merge(mode, travelDurationInSec, (d1, d2) -> d1 + d2);
 
             if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)) {
                 countOfVehicle++;
@@ -54,9 +54,9 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                         }
                     }
                 }
-                if (hoursTraveled > freeFlowDuration) { //discarding negative values
-                    averageVehicleDelay += numOfPassengers * (hoursTraveled - freeFlowDuration);
-                    totalVehicleTrafficDelay += (hoursTraveled - freeFlowDuration);
+                if (travelDurationInSec > freeFlowDuration) { //discarding negative values
+                    averageVehicleDelay += numOfPassengers * (travelDurationInSec - freeFlowDuration);
+                    totalVehicleTrafficDelay += (travelDurationInSec - freeFlowDuration);
                 }
             }
 
@@ -64,7 +64,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 numOfPathTraversalsWithBusMode++;
                 if (numOfPassengers > seatingCapacity) {
                     int numOfStandingPeople = numOfPassengers - seatingCapacity;
-                    busCrowding += hoursTraveled * numOfStandingPeople;
+                    busCrowding += travelDurationInSec * numOfStandingPeople;
                 }
             }
         }
