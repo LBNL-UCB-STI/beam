@@ -23,12 +23,13 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        VehicleMilesTraveled,
+        MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
         AgentDelay,
         AboveCapacityPtUsageDuration,
-        TollRevenue
+        TollRevenue,
+        AgencyRevenue
     }
 
     private final BeamConfig beamConfig;
@@ -88,19 +89,21 @@ public class StatsFactory {
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
-                return new VehicleTravelTimeAnalysis();
-            case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis();
+                return new VehicleTravelTimeAnalysis(beamServices.vehicleTypes().keySet());
+            case MotorizedVehicleMilesTraveled:
+                return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
             case AgentDelay:
-                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
+                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario(), beamServices.matsimServices().getControlerIO() , beamServices,beamConfig);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:
                 return new AboveCapacityPtUsageDurationAnalysis();
             case TollRevenue:
                 return new TollRevenueAnalysis();
+            case AgencyRevenue:
+                return new AgencyRevenueAnalysis();
             default:
                 return null;
         }

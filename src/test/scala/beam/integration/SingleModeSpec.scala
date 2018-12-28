@@ -4,12 +4,15 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.{vehicles, PersonTestUtil}
-import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy}
+import beam.agentsim.agents.PersonTestUtil
+import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.router.BeamRouter
+import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -21,11 +24,14 @@ import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -73,9 +79,14 @@ class SingleModeSpec
 
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
+//    when(services.matsimServices).thenReturn(mock[MatsimServices])
+//    when(services.matsimServices.getScenario).thenReturn(mock[Scenario])
+//    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.privateVehicles).thenReturn {
       BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
     }
@@ -93,8 +104,8 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map()))
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -102,6 +113,7 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
+
     scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
     router = system.actorOf(
       BeamRouter.props(

@@ -5,6 +5,8 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.integration.IntegrationSpecCommon
@@ -30,11 +32,13 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -80,6 +84,8 @@ class WarmStartRoutingSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.personHouseholds).thenReturn(Map[Id[Person], Household]())
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -156,7 +162,7 @@ class WarmStartRoutingSpec
   "A warmStart router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(3000)
+    val time = 3000
 
     "take given link traversal times into account" in {
       router ! RoutingRequest(
@@ -167,7 +173,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -188,7 +194,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -221,7 +227,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -241,7 +247,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -271,7 +277,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -290,7 +296,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -315,7 +321,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -346,7 +352,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(origin, time.atTime),
+            new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
           )

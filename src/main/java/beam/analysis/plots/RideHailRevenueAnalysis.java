@@ -2,8 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -20,15 +18,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
-public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener, OutputDataDescriptor {
+public class RideHailRevenueAnalysis implements ControlerListener, IterationEndsListener {
 
     private RideHailSurgePricingManager surgePricingManager;
-    private String fileBaseName = "rideHailRevenue";
+    static String fileBaseName = "rideHailRevenue";
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
@@ -126,14 +122,4 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         }
     }
 
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String outputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iteration #", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "revenue", "Revenue generated from ride hail"));
-        return list;
-    }
 }

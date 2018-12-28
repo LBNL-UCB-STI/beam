@@ -8,15 +8,17 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
-import beam.router.model.RoutingModel.{TransitStopsInfo, WindowTime}
-import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.model.RoutingModel.TransitStopsInfo
+import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.BeamServices
+import beam.utils.TravelTimeUtils
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
@@ -29,6 +31,7 @@ class TransitInitializer(
   services: BeamServices,
   transportNetwork: TransportNetwork,
   transitVehicles: Vehicles,
+  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
 ) extends LazyLogging {
   private var numStopsNotFound = 0
   private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
@@ -68,9 +71,20 @@ class TransitInitializer(
                   val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
                   val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
                   (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
+                    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
+                      edges.map(_.toInt).toIndexedSeq,
+                      departureTime,
+                      travelTimeByLinkCalculator,
+                      StreetMode.CAR,
+                      transportNetwork.streetLayer
+                    )
                     BeamPath(
                       edges.map(_.intValue()).toVector,
-                      Vector.empty, // TODO FIXME
+                      TravelTimeUtils.scaleTravelTime(
+                        streetSeg.getDuration,
+                        linksTimesAndDistances.travelTimes.sum,
+                        linksTimesAndDistances.travelTimes
+                      ),
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -93,7 +107,7 @@ class TransitInitializer(
                   (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
-                      Vector.empty, // TODO FIXME
+                      Vector.empty, // for non-street based paths we don't have link ids so no travel times
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -281,10 +295,8 @@ class TransitInitializer(
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    val time =
-      WindowTime(0, services.beamConfig.beam.routing.r5.departureWindow)
-    profileRequest.fromTime = time.fromTime
-    profileRequest.toTime = time.toTime
+    profileRequest.fromTime = 0
+    profileRequest.toTime = services.beamConfig.beam.routing.r5.departureWindow.toInt
     profileRequest.date = services.dates.localBaseDate
     profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
     profileRequest.transitModes = null

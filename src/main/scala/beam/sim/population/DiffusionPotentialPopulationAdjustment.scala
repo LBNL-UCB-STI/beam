@@ -79,7 +79,7 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
   }
 
   def activityDistanceInMiles(orig: Activity, dest: Activity): Double = {
-    geo.distInMeters(orig.getCoord, dest.getCoord) * 0.000621371
+    geo.distUTMInMeters(orig.getCoord, dest.getCoord) * 0.000621371
   }
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {

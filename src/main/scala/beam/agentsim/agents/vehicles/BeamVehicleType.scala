@@ -40,7 +40,7 @@ object BeamVehicleType {
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      "BODY-TYPE-DEFAULT",
+      BODY_TYPE_DEFAULT,
       0,
       0,
       0.5,
@@ -78,7 +78,7 @@ object BeamVehicleType {
     )
 
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    "CAR-TYPE-DEFAULT",
+    CAR_TYPE_DEFAULT,
     4,
     0,
     4.5,

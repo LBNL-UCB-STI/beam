@@ -18,13 +18,13 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.events.{
   LinkEnterEvent,
   LinkLeaveEvent,
@@ -70,6 +70,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
+  private var tollsAccumulated = 0.0
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
@@ -116,7 +117,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = beamServices
         .vehicles(currentVehicleUnderControl)
-        .useFuel(currentLeg.travelPath.distanceInM)
+        .useFuel(currentLeg, beamServices)
 
       if (isLastLeg) {
         val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
@@ -162,10 +163,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
@@ -208,7 +211,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, vehId)) // nextLeg.endTime -> to fix repeated path traversal
           }
@@ -224,8 +227,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .travelPath
               .endPoint
           ),
-          tollOnCurrentLeg
+          tollsAccumulated
         )
+        tollsAccumulated = 0.0
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
@@ -247,12 +251,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       val currentVehicleUnderControl =
         beamServices.vehicles(data.currentVehicle.head)
-      goto(DrivingInterrupted) replying InterruptedAt(
+      goto(DrivingInterrupted) replying InterruptedWhileDriving(
         interruptId,
-        data.passengerSchedule,
-        data.currentLegPassengerScheduleIndex,
         currentVehicleUnderControl.id,
-        tick
+        tick,
+        data.passengerSchedule,
+        data.currentLegPassengerScheduleIndex
       )
 
     case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
@@ -263,7 +267,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
             log.info("stopping vehicle: {}", id)
-
             goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
               success = true,
               requestId,
@@ -303,7 +306,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
 
-      val fuelConsumed = theVehicle.useFuel(updatedBeamLeg.travelPath.distanceInM)
+      val fuelConsumed = theVehicle.useFuel(updatedBeamLeg, beamServices)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleResourceIdle(
@@ -332,10 +335,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
+          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
           beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
@@ -357,8 +362,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .travelPath
             .endPoint
         ),
-        tollOnCurrentLeg
+        tollsAccumulated
       )
+      tollsAccumulated = 0.0
       goto(PassengerScheduleEmptyInterrupted) using data
         .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
         .asInstanceOf[T]
@@ -626,7 +632,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     if (path.linkTravelTime.nonEmpty) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
+      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 

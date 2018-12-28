@@ -4,6 +4,8 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -33,6 +35,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -57,6 +60,8 @@ class TimeDependentRoutingSpec
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
+    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -93,7 +98,7 @@ class TimeDependentRoutingSpec
   "A time-dependent router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(3000)
+    val time = 3000
 
     "give updated travel times for a given route" in {
       val leg = BeamLeg(
@@ -125,7 +130,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -145,7 +150,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -165,7 +170,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -194,7 +199,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             vehicleId,
-            new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
           )
@@ -228,7 +233,7 @@ class TimeDependentRoutingSpec
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
-              new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime),
+              new SpaceTime(new Coord(origin.getX, origin.getY), time),
               Modes.BeamMode.CAR,
               asDriver = true
             )

@@ -55,6 +55,8 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
 object TAZTreeMap {
 
+  val emptyTAZId = Id.create("NA", classOf[TAZ])
+
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
   }

@@ -8,6 +8,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProb
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeSubsidy
+import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -34,9 +35,9 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
@@ -54,6 +55,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import org.mockito.ArgumentMatchers._
 
 class PersonAgentSpec
     extends TestKit(
@@ -89,12 +91,20 @@ class PersonAgentSpec
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map()))
+    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+
+    var map = TrieMap[Id[Vehicle], (String, String)]()
+    map += (Id.createVehicleId("my_bus")  -> ("", ""))
+    map += (Id.createVehicleId("my_tram") -> ("", ""))
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
+
     theServices
   }
 
@@ -261,7 +271,7 @@ class PersonAgentSpec
       personActor ! RoutingResponse(
         itineraries = Vector(),
         requestId = Some(request1.requestId),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       // This is the regular routing request.
@@ -288,7 +298,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
               )
@@ -296,7 +305,7 @@ class PersonAgentSpec
           )
         ),
         requestId = Some(request2.requestId),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -413,14 +422,13 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = vehicleId,
                 asDriver = true,
-                passengerSchedule = None,
-                cost = 0.0,
+                cost = 1.0,
                 unbecomeDriverOnCompletion = true
               )
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -439,8 +447,8 @@ class PersonAgentSpec
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[PersonCostEvent]
+      println(expectMsgType[PathTraversalEvent])
+      println(expectMsgType[PersonCostEvent])
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -507,7 +515,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
       )
@@ -527,7 +534,6 @@ class PersonAgentSpec
         ),
         beamVehicleId = busId,
         asDriver = false,
-        passengerSchedule = None,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
@@ -547,8 +553,7 @@ class PersonAgentSpec
         ),
         beamVehicleId = tramId,
         asDriver = false,
-        passengerSchedule = None,
-        cost = 0.0,
+        cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
       )
 
@@ -587,13 +592,15 @@ class PersonAgentSpec
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
       tram.becomeDriver(
         Await.result(
           system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
           timeout.duration
-        )
+        ),
+        "TransitDriverAgent-my_bus"
       )
 
       val householdActor = TestActorRef[HouseholdActor](
@@ -638,7 +645,6 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
@@ -661,14 +667,13 @@ class PersonAgentSpec
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
                 asDriver = true,
-                passengerSchedule = None,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               )
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID()
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -702,8 +707,12 @@ class PersonAgentSpec
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
-      events.expectMsgType[PersonCostEvent]
+
+      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
@@ -713,7 +722,7 @@ class PersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
+            reservationRequestTram.passengerVehiclePersonId
           )
         ),
         TRANSIT
@@ -727,8 +736,10 @@ class PersonAgentSpec
         personActor
       ) // My tram is late!
 
+      //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[PersonCostEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 

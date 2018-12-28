@@ -33,6 +33,14 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(newSchedule)
   }
 
+  def legsBeforePassengerBoards(passenger: VehiclePersonId): List[BeamLeg] = {
+    schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
+  }
+
+  def legsWithPassenger(passenger: VehiclePersonId): List[BeamLeg] = {
+    schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
+  }
+
   override def toString: String = {
     schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")
   }

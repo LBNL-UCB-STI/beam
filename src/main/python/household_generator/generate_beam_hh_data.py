@@ -24,15 +24,13 @@ Instructions:
 """
 
 import os
+import random
 
 import dask.dataframe as dd
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import psutil
-import random
 from doppelganger import Configuration, allocation, Preprocessor, PumsData, Accuracy, inputs
-from joblib import Parallel, delayed
 from shapely.geometry import Point
 from tqdm import tnrange
 
@@ -56,7 +54,6 @@ puma_df = pd.read_csv('input/{}/puma_from_intersection.csv'.format(AOI_NAME), dt
 puma_df_clean = puma_df.PUMACE10
 PUMA = puma_df_clean.iloc[0]
 
-
 # Directory you will use for outputs
 OUTPUT_DIR = 'output'
 
@@ -71,12 +68,12 @@ gen_pumas = ['state_{}_puma_{}_generated.csv'.format(STATE, puma) for puma in pu
 
 def create_household_and_population_dfs():
     # Read __downloaded___ (see link above) population level PUMS (may take a while...)
-    person_pums_df = pd.read_csv('input/{}/ss16p{}.csv'.format(AOI_NAME,STATE_ABBREVIATION.lower()),
+    person_pums_df = pd.read_csv('input/{}/ss16p{}.csv'.format(AOI_NAME, STATE_ABBREVIATION.lower()),
                                  na_values=['N.A'],
                                  na_filter=True)
     # Read __downloaded__ (see link above) household level PUMS (may take a while...)
     household_pums_df = pd.read_csv(
-        'input/{}/ss16h{}.csv'.format(AOI_NAME,STATE_ABBREVIATION.lower()), na_values=['N.A'],
+        'input/{}/ss16h{}.csv'.format(AOI_NAME, STATE_ABBREVIATION.lower()), na_values=['N.A'],
         na_filter=True)
 
     # filter household data and population data to AOI
@@ -98,12 +95,12 @@ def create_household_and_population_dfs():
 
 configuration = Configuration.from_file('./input/sample_data/config.json')
 household_fields = tuple(set(
-        field.name for field in allocation.DEFAULT_HOUSEHOLD_FIELDS).union(
-        set(configuration.household_fields)
+    field.name for field in allocation.DEFAULT_HOUSEHOLD_FIELDS).union(
+    set(configuration.household_fields)
 ))
 persons_fields = tuple(set(
-        field.name for field in allocation.DEFAULT_PERSON_FIELDS).union(
-        set(configuration.person_fields)
+    field.name for field in allocation.DEFAULT_PERSON_FIELDS).union(
+    set(configuration.person_fields)
 ))
 
 
@@ -120,30 +117,30 @@ def _generate_for_puma_data(households_raw_data, persons_raw_data, preprocessor,
     print("{} input data loaded. Starting allocation/generation.".format(puma_id))
 
     household_model, person_model = create_bayes_net(
-            STATE, puma_id, OUTPUT_DIR,
-            households_data, persons_data, configuration,
-            person_segmenter, household_segmenter
+        STATE, puma_id, OUTPUT_DIR,
+        households_data, persons_data, configuration,
+        person_segmenter, household_segmenter
     )
 
     marginals, allocator = download_tract_data(
-            STATE, puma_id, OUTPUT_DIR, census_api_key, puma_tract_mappings,
-            households_data, persons_data
+        STATE, puma_id, OUTPUT_DIR, census_api_key, puma_tract_mappings,
+        households_data, persons_data
     )
 
     print('Allocated {}'.format(puma_id))
 
     population = generate_synthetic_people_and_households(
-            STATE, puma_id, OUTPUT_DIR, allocator,
-            person_model, household_model
+        STATE, puma_id, OUTPUT_DIR, allocator,
+        person_model, household_model
     )
 
     print('Generated synthetic people and households for {}'.format(puma_id))
 
     accuracy = Accuracy.from_doppelganger(
-            cleaned_data_persons=persons_data,
-            cleaned_data_households=households_data,
-            marginal_data=marginals,
-            population=population
+        cleaned_data_persons=persons_data,
+        cleaned_data_households=households_data,
+        marginal_data=marginals,
+        population=population
     )
 
     print('Absolute Percent Error for state {}, and puma {}: {}'.format(STATE, puma_id,
@@ -170,7 +167,7 @@ def population_generator():
     configuration = Configuration.from_file('input/sample_data/config.json')
     preprocessor = Preprocessor.from_config(configuration.preprocessing_config)
     households_raw_data = PumsData.from_csv('output/{}/household_pums_data.csv'.format(
-            AOI_NAME))
+        AOI_NAME))
     persons_raw_data = PumsData.from_csv('output/{}/person_pums_data.csv'.format(AOI_NAME))
     results = [_generate_for_puma_data(households_raw_data, persons_raw_data, preprocessor,
                                        puma_tract_mappings, puma_id) for puma_id in pumas_to_go]
@@ -237,7 +234,7 @@ def combine_and_synthesize():
     df.age = df.age.apply(fix_person_age)
 
     tract_gdf = gpd.read_file("input/{}/tl_2016_{}_tract/tl_2016_{}_tract.shp".format(
-            AOI_NAME,STATE, STATE))
+        AOI_NAME, STATE, STATE))
     tract_gdf.tract = tract_gdf['TRACTCE'].astype(int)
 
     df = df.drop(['Unnamed: 0', 'serial_number_x', 'repeat_index_x', 'tract_x'], axis=1)
@@ -248,7 +245,7 @@ def combine_and_synthesize():
         tract_no = row.tract_y
         pt = get_random_point_in_polygon(tract_gdf[(tract_no ==
                                                     tract_gdf.tract)].geometry.values[0])
-        ind_id = row.household_id+str(row['Unnamed: 0_x'])
+        ind_id = row.household_id + str(row['Unnamed: 0_x'])
         return np.array([str(ind_id), str(row.household_id), int(row.num_people),
                          int(row.num_vehicles),
                          int(row.household_income), int(row.individual_income), str(row.sex),
@@ -258,7 +255,7 @@ def combine_and_synthesize():
     for i in tnrange(df.shape[0], desc='1st loop'):
         res.append(compute_row(i))
     out_df = dd.from_array(np.array(res)).compute()
-    out_df.to_csv("output/ind_X_hh_out.csv.gz", header=False, index=False,compression='gzip')
+    out_df.to_csv("output/ind_X_hh_out.csv.gz", header=False, index=False, compression='gzip')
 
 
 if __name__ == '__main__':
@@ -267,7 +264,7 @@ if __name__ == '__main__':
 
     sys.path.append(osp.join(__file__, 'scripts'))
     sys.path.append(osp.dirname(osp.dirname(osp.abspath(__file__))))
-    from download_allocate_generate import create_bayes_net, download_tract_data, \
+    from .download_allocate_generate import create_bayes_net, download_tract_data, \
         generate_synthetic_people_and_households
 
     # Comment out next line if you have already run this once

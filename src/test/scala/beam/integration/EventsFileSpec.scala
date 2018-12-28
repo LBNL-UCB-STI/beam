@@ -2,8 +2,10 @@ package beam.integration
 
 import java.io.File
 
+import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -36,14 +38,14 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt")) ++
-    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
+//    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
   }
 
   private def tripsFromEvents(vehicleType: String) = {
     val trips = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
-      if event.getAttributes.get("vehicle_type") == vehicleType
+      if event.getAttributes.get("vehicleType") == vehicleType
       vehicleTag <- event.getAttributes.asScala.get("vehicle")
     } yield vehicleTag.split(":")(1).split("-").take(3).mkString("-")
     trips.toSet
@@ -71,7 +73,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val pathTraversals = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get("vehicle_type") == vehicleType
+      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
     val eventsByTrip =
       pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
@@ -93,7 +95,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val tollEvents = for {
       event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get("amount_paid").toDouble != 0.0
+      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
     tollEvents should not be empty
   }
@@ -102,7 +104,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val analysis = new TollRevenueAnalysis
     fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
       .foreach(analysis.processStats)
-    val tollRevenue = analysis.getSummaryStats.get("tollRevenue")
+    val tollRevenue = analysis.getSummaryStats.get(TollRevenueAnalysis.ATTRIBUTE_TOLL_REVENUE)
     tollRevenue should not equal 0.0
   }
 
@@ -120,7 +122,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           assert(activity.getEndTime == leg.getDepartureTime)
         case Seq(leg: Leg, activity: Activity) =>
           assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
-          if (leg.getMode == "car") {
+          if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
           }
       }

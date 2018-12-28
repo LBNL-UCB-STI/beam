@@ -82,7 +82,7 @@ case class TNCIterationStats(
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
       val vehicleTaz =
-        tazTreeMap.getTAZ(rhaLoc.currentLocation.loc.getX, rhaLoc.currentLocation.loc.getY)
+        tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
         case Some(lov: ListBuffer[Id[vehicles.Vehicle]]) =>
@@ -113,7 +113,7 @@ case class TNCIterationStats(
 
       listOfTazInRadius.forEach { tazInRadius =>
         val distanceInMeters =
-          beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+          beamServices.geo.distUTMInMeters(taz.coord, tazInRadius.coord)
 
         val distanceScore = -1 * distanceWeight * Math
           .pow(distanceInMeters, 2) /
@@ -276,8 +276,8 @@ case class TNCIterationStats(
 
       for (taz <- tazTreeMap
              .getTAZInRadius(
-               rhLoc.currentLocation.loc.getX,
-               rhLoc.currentLocation.loc.getY,
+               rhLoc.currentLocationUTM.loc.getX,
+               rhLoc.currentLocationUTM.loc.getY,
                maxDistanceInMeters
              )
              .asScala) {
@@ -348,7 +348,7 @@ case class TNCIterationStats(
       val startTimeBin = getTimeBin(tick)
       val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-      val taz = tazTreeMap.getTAZ(rhLoc.currentLocation.loc.getX, rhLoc.currentLocation.loc.getY)
+      val taz = tazTreeMap.getTAZ(rhLoc.currentLocationUTM.loc.getX, rhLoc.currentLocationUTM.loc.getY)
 
       val idleScore = (startTimeBin to endTimeBin)
         .map(
@@ -415,7 +415,7 @@ case class TNCIterationStats(
         logger.debug(
           "s{} -> {}",
           x.vehicleId,
-          tazTreeMap.getTAZ(x.currentLocation.loc.getX, x.currentLocation.loc.getY).tazId
+          tazTreeMap.getTAZ(x.currentLocationUTM.loc.getX, x.currentLocationUTM.loc.getY).tazId
       )
     )
   }
@@ -464,7 +464,7 @@ case class TNCIterationStats(
       .flatMap(
         vehicle =>
           tazTreeMap
-            .getTAZInRadius(vehicle.currentLocation.loc, circleSize)
+            .getTAZInRadius(vehicle.currentLocationUTM.loc, circleSize)
             .asScala
             .map(_.tazId)
       )

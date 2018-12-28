@@ -24,6 +24,7 @@ plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
+    id 'maven-publish'
 }
 
 //ext {
@@ -204,6 +205,9 @@ dependencies {
     }
     compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
 
+    compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
+    compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
+
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
@@ -263,6 +267,7 @@ configurations.all {
 }
 
 //compileScala.dependsOn(scalafmtAll)
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -592,7 +597,34 @@ task matsimConversion(type: JavaExec) {
     }
 }
 
+task generateDocumentation(type: JavaExec) {
+    group 'Documentation'
+    description 'Format the data using Sphinx RST formats'
+
+    main = 'beam.docs.GenerateDocumentationTask'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 tasks.withType(ScalaCompile) {
     // Enable Scala warnings output
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+}
+
+task fmt(dependsOn: scalafmtAll) 
+task checkScalaFmt() {
+    doLast {
+        try {
+            def workingDir = new File("${project.projectDir}")
+            def result = 'git diff --exit-code'.execute(null, workingDir)
+            result.waitFor()
+            if (result.exitValue() != 0) throw new Exception("""
+Please run ./gradlew scalaFmtAll and commit/push the subsequent results to fix this error.
+This happened because a git diff yielded a non-zero exit code. 
+This task was built to be run on the CI server AFTER scalaFmtAll
+It should only error if the results of scalaFmtAll resulted in code modifications.
+And that would only happen if the committed code is not formatted as expected.""")
+        } catch (e) {
+            throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
+        }
+    }
 }
