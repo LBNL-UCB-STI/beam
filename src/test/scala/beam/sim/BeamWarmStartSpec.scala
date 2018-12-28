@@ -259,7 +259,7 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
   private def getWarmStart(casePath: Path): BeamWarmStart = {
     val conf = baseConfig
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-      .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
+      .withValue("beam.warmStart.PATH", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
     BeamWarmStart(BeamConfig(conf), maxHour)

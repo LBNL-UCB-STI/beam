@@ -1235,7 +1235,7 @@ object BeamConfig {
             if (c.hasPathOrNull("populationFile")) c.getString("populationFile") else "Siouxfalls_population.xml",
           scenarioDirectory =
             if (c.hasPathOrNull("scenarioDirectory")) c.getString("scenarioDirectory")
-            else "/path/to/scenario/directory",
+            else "/PATH/to/scenario/directory",
           shapeConfig = BeamConfig.Matsim.Conversion.ShapeConfig(
             if (c.hasPathOrNull("shapeConfig")) c.getConfig("shapeConfig")
             else com.typesafe.config.ConfigFactory.parseString("shapeConfig{}")

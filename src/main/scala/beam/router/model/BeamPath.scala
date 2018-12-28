@@ -5,8 +5,8 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 
 /**
   *
-  * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
-  * @param transitStops start and end stop if this path is transit (partial) route
+  * @param linkIds      either matsim linkId or R5 edgeIds that describes whole PATH
+  * @param transitStops start and end stop if this PATH is transit (partial) route
   */
 case class BeamPath(
   linkIds: IndexedSeq[Int],

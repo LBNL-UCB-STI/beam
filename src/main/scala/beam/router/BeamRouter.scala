@@ -95,7 +95,7 @@ class BeamRouter(
     case RelativeActorPath(elements) => elements
     case _ =>
       throw new IllegalArgumentException(
-        "servicePath [%s] is not a valid relative actor path" format servicePath
+        "servicePath [%s] is not a valid relative actor PATH" format servicePath
       )
   }
 
