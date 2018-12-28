@@ -206,8 +206,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 rideHailWaiting.remove(_personId);
             }
             // added summary stats for averagePTWaitingTime
-            if(ptWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("body")) {
-                averagePTWaitingTime += event.getTime() - ptWaiting.get(personId.toString());
+            if(ptWaiting.containsKey(_personId) && eventAttributes.get("vehicle").contains("body")) {
+                averagePTWaitingTime += event.getTime() - ptWaiting.get(_personId);
+                ptWaiting.remove(_personId);
             }
         }
     }
