@@ -9,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
+import beam.router.Modes;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -53,8 +54,8 @@ import java.util.concurrent.TimeoutException;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStatsProvider {
 
-    public static final String CAR = "car";
-    public static final String BUS = "bus";
+    public static final String CAR = Modes.BeamMode.CAR.value();
+    public static final String BUS = Modes.BeamMode.BUS.value();
     private static final String DUMMY_ACTIVITY = "DummyActivity";
     private static PhyssimCalcLinkStats linkStatsGraph;
     private static PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;

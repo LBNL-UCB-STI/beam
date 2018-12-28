@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.router.Modes;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -163,13 +164,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent) {
             String mode = eventAttributes.get("mode");
-            if (mode.equalsIgnoreCase("ride_hail")) {
+
+            if (Modes.BeamMode.RIDE_HAIL.value().equalsIgnoreCase(mode)) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
-            if (mode.equalsIgnoreCase("walk_transit")) {
+            if (Modes.BeamMode.WALK_TRANSIT.value().equalsIgnoreCase(mode)) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
