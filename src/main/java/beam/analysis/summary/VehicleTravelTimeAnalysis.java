@@ -15,12 +15,13 @@ import java.util.stream.Collectors;
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
     private Scenario scenario;
-    private int countOfVehicle = 0 ;
-    double averageVehicleDelay = 0.0;
-    double totalVehicleTrafficDelay = 0.0;
-    double busCrowding = 0.0;
+    private int countOfVehicle = 0;
+    private double averageVehicleDelay = 0.0;
+    private double totalVehicleTrafficDelay = 0.0;
+    private double busCrowding = 0.0;
+    private long numOfPathTraversalsWithBusMode = 0;
 
-    public VehicleTravelTimeAnalysis(Scenario scenario){
+    public VehicleTravelTimeAnalysis(Scenario scenario) {
         this.scenario = scenario;
     }
 
@@ -31,43 +32,47 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
             double hoursTraveled = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
-            int numOfPassangers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+            int numOfPassengers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
             int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
 
             secondsTraveledByVehicleType.merge(mode, hoursTraveled, (d1, d2) -> d1 + d2);
 
-            if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)){
-                countOfVehicle ++;
+            if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)) {
+                countOfVehicle++;
 
                 double freeFlowDuration = 0.0;
-                Map<Id<Link>, ? extends  Link> linkslist ;
-                if(scenario != null){
-                    linkslist =  scenario.getNetwork().getLinks();
+                Map<Id<Link>, ? extends Link> linksMap;
+                if (scenario != null) {
+                    linksMap = scenario.getNetwork().getLinks();
                     String links[] = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
-                    for(String link:links ){
-                        Id id = Id.createLinkId(link);
-                        if(linkslist.containsKey(id)) {
-                            double freeFlowLength = linkslist.get(id).getLength();
-                            double freeFlowSpeed = linkslist.get(id).getFreespeed();
+                    for (String linkId : links) {
+                        Link link = linksMap.get(Id.createLinkId(linkId));
+                        if (link != null) {
+                            double freeFlowLength = link.getLength();
+                            double freeFlowSpeed = link.getFreespeed();
                             freeFlowDuration += freeFlowLength / freeFlowSpeed;
                         }
                     }
                 }
-                if(hoursTraveled > freeFlowDuration ) { //discarding negative values
-                    averageVehicleDelay += numOfPassangers * (hoursTraveled - freeFlowDuration);
+                if (hoursTraveled > freeFlowDuration) { //discarding negative values
+                    averageVehicleDelay += numOfPassengers * (hoursTraveled - freeFlowDuration);
                     totalVehicleTrafficDelay += (hoursTraveled - freeFlowDuration);
                 }
             }
 
-            if(numOfPassangers > seatingCapacity){
-                int numOfStandingPeople = numOfPassangers - seatingCapacity;
-                busCrowding += hoursTraveled * numOfStandingPeople ;
+            if(AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
+                numOfPathTraversalsWithBusMode++;
+                if (numOfPassengers > seatingCapacity) {
+                    int numOfStandingPeople = numOfPassengers - seatingCapacity;
+                    busCrowding += hoursTraveled * numOfStandingPeople;
+                }
             }
         }
     }
 
     @Override
     public void resetStats() {
+        numOfPathTraversalsWithBusMode = 0;
         countOfVehicle = 0;
         averageVehicleDelay = 0.0;
         totalVehicleTrafficDelay = 0.0;
@@ -77,15 +82,15 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
     @Override
     public Map<String, Double> getSummaryStats() {
-        Map<String, Double> summaryStats =  secondsTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
+        Map<String, Double> summaryStats = secondsTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
                 e -> "vehicleHoursTraveled_" + e.getKey(),
-                e -> e.getValue()/3600.0
+                e -> e.getValue() / 3600.0
         ));
 
-        summaryStats.put("averageVehicleDelayPerTrip" , (averageVehicleDelay / countOfVehicle));
-        summaryStats.put("totalHoursOfVehicleTrafficDelay" , totalVehicleTrafficDelay / 3600);
-        summaryStats.put("busCrowding" , busCrowding/3600);
-        return  summaryStats;
+        summaryStats.put("averageVehicleDelayPerTrip", (averageVehicleDelay / countOfVehicle));
+        summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
+        summaryStats.put("busCrowding", busCrowding / 3600 / numOfPathTraversalsWithBusMode);
+        return summaryStats;
     }
 
 }
