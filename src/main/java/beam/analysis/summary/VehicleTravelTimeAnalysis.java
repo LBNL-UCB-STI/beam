@@ -5,7 +5,9 @@ import beam.analysis.IterationSummaryAnalysis;
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.api.core.v01.network.Link;
 
 import java.util.HashMap;
@@ -15,11 +17,19 @@ import java.util.stream.Collectors;
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
     private Scenario scenario;
-    private int countOfVehicle = 0;
-    private double averageVehicleDelay = 0.0;
+    private int countOfHomeVehicle = 0;
+    private int countOfWorkVehicle = 0;
+    private int countOfSecondaryVehicle = 0;
     private double totalVehicleTrafficDelay = 0.0;
     private double busCrowding = 0.0;
+    private double averageVehicleDelayWork = 0.0;
+    private double averageVehicleDelayHome = 0.0;
+    private double averageVehicleDelaySecondary = 0.0;
     private long numOfPathTraversalsWithBusMode = 0;
+    private Map<String, Double> vehicleIdDelay = new HashMap<>();
+    private Map<String, Double> personIdDelay = new HashMap<>();
+    private static final String work = "Work";
+    private static final String home = "Home";
 
     public VehicleTravelTimeAnalysis(Scenario scenario) {
         this.scenario = scenario;
@@ -38,7 +48,6 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             secondsTraveledByVehicleType.merge(mode, travelDurationInSec, (d1, d2) -> d1 + d2);
 
             if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)) {
-                countOfVehicle++;
 
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends Link> linksMap;
@@ -55,12 +64,16 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                     }
                 }
                 if (travelDurationInSec > freeFlowDuration) { //discarding negative values
-                    averageVehicleDelay += numOfPassengers * (travelDurationInSec - freeFlowDuration);
+                    if(AgentSimToPhysSimPlanConverter.CAR.equalsIgnoreCase(mode)){
+                        String vehicleID = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                        double averageVehicleDelay = numOfPassengers * (travelDurationInSec - freeFlowDuration);
+                        vehicleIdDelay.put(vehicleID, averageVehicleDelay);
+                    }
                     totalVehicleTrafficDelay += (travelDurationInSec - freeFlowDuration);
                 }
             }
 
-            if(AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
+            if (AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
                 numOfPathTraversalsWithBusMode++;
                 if (numOfPassengers > seatingCapacity) {
                     int numOfStandingPeople = numOfPassengers - seatingCapacity;
@@ -68,16 +81,53 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 }
             }
         }
+
+        if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
+            Map<String, String> eventAttributes = event.getAttributes();
+            String vehicleID = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
+            if (vehicleIdDelay.containsKey(vehicleID)) {
+                String personID = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
+                personIdDelay.put(personID, vehicleIdDelay.get(vehicleID));
+                vehicleIdDelay.remove(vehicleID);
+            }
+        }
+
+        if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
+            Map<String, String> eventAttributes = event.getAttributes();
+            String personId = eventAttributes.get(ActivityStartEvent.ATTRIBUTE_PERSON);
+            if(personIdDelay.containsKey(personId)){
+                String actType = eventAttributes.get(ActivityStartEvent.ATTRIBUTE_ACTTYPE);
+                if(actType.equals(work)){
+                    averageVehicleDelayWork += personIdDelay.get(personId);
+                    countOfWorkVehicle++;
+                }
+                if(actType.equals(home)){
+                    averageVehicleDelayHome += personIdDelay.get(personId);
+                    countOfHomeVehicle++;
+                }
+                else{
+                    averageVehicleDelaySecondary += personIdDelay.get(personId);
+                    countOfSecondaryVehicle++;
+                }
+                personIdDelay.remove(personId);
+            }
+        }
     }
 
     @Override
     public void resetStats() {
         numOfPathTraversalsWithBusMode = 0;
-        countOfVehicle = 0;
-        averageVehicleDelay = 0.0;
+        countOfHomeVehicle = 0;
+        countOfWorkVehicle = 0;
+        countOfSecondaryVehicle = 0;
         totalVehicleTrafficDelay = 0.0;
         busCrowding = 0.0;
+        averageVehicleDelayWork = 0.0;
+        averageVehicleDelayHome = 0.0;
+        averageVehicleDelaySecondary = 0.0;
         secondsTraveledByVehicleType.clear();
+        vehicleIdDelay.clear();
+        personIdDelay.clear();
     }
 
     @Override
@@ -87,10 +137,11 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 e -> e.getValue() / 3600.0
         ));
 
-        summaryStats.put("averageVehicleDelayPerTrip", (averageVehicleDelay / countOfVehicle));
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_work", countOfWorkVehicle !=0 ? averageVehicleDelayWork/countOfWorkVehicle : 0);
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", countOfHomeVehicle !=0 ? averageVehicleDelayHome/countOfHomeVehicle : 0);
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_secondary", countOfSecondaryVehicle !=0 ? averageVehicleDelaySecondary/countOfSecondaryVehicle : 0);
         summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
         summaryStats.put("busCrowding", busCrowding / numOfPathTraversalsWithBusMode);
         return summaryStats;
     }
-
 }
