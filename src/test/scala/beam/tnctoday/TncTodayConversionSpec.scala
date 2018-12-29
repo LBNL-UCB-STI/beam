@@ -1,9 +1,10 @@
 package beam.tnctoday
 
+import com.typesafe.scalalogging.StrictLogging
 import json.converter.{TazOutput, TncToday}
 import org.scalatest.{Matchers, WordSpecLike}
 
-class TncTodayConversionSpec extends WordSpecLike with Matchers {
+class TncTodayConversionSpec extends WordSpecLike with Matchers with StrictLogging {
 
   private lazy val completedStats = TncToday.completeStats(inputData)
   private lazy val statsTotals = TncToday.generateTotals(completedStats)

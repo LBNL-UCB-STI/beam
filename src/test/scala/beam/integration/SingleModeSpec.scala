@@ -21,7 +21,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -34,7 +34,6 @@ import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
-
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -44,11 +43,9 @@ class SingleModeSpec
     extends TestKit(
       ActorSystem(
         "single-mode-test",
-        ConfigFactory.parseString(
-          """
-  akka.test.timefactor=10
-  """
-        )
+        ConfigFactory
+          .load()
+          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
       )
     )
     with WordSpecLike
