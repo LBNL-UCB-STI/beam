@@ -10,7 +10,9 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.api.core.v01.network.Link;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -25,11 +27,12 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private double averageVehicleDelayWork = 0.0;
     private double averageVehicleDelayHome = 0.0;
     private double averageVehicleDelaySecondary = 0.0;
-    private long numOfPathTraversalsWithBusMode = 0;
     private Map<String, Double> vehicleIdDelay = new HashMap<>();
     private Map<String, Double> personIdDelay = new HashMap<>();
     private static final String work = "Work";
     private static final String home = "Home";
+    private long numOfTimesBusTaken = 0;
+    private List<String> buses = new ArrayList<>();
 
     public VehicleTravelTimeAnalysis(Scenario scenario) {
         this.scenario = scenario;
@@ -73,26 +76,26 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 }
             }
 
-            if (AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
-                numOfPathTraversalsWithBusMode++;
+            if(AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
+                buses.add(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID));
                 if (numOfPassengers > seatingCapacity) {
                     int numOfStandingPeople = numOfPassengers - seatingCapacity;
                     busCrowding += travelDurationInSec * numOfStandingPeople;
                 }
             }
-        }
-
-        if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
+        } else if (event instanceof PersonLeavesVehicleEvent || event.getEventType().equalsIgnoreCase(PersonLeavesVehicleEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
-            String vehicleID = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
-            if (vehicleIdDelay.containsKey(vehicleID)) {
-                String personID = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
-                personIdDelay.put(personID, vehicleIdDelay.get(vehicleID));
-                vehicleIdDelay.remove(vehicleID);
+            String vehicleId = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
+            if(buses.contains(vehicleId)) {
+                numOfTimesBusTaken++;
             }
-        }
 
-        if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
+            if (vehicleIdDelay.containsKey(vehicleId)) {
+                String personID = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
+                personIdDelay.put(personID, vehicleIdDelay.get(vehicleId));
+                vehicleIdDelay.remove(vehicleId);
+            }
+        } else if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String personId = eventAttributes.get(ActivityStartEvent.ATTRIBUTE_PERSON);
             if(personIdDelay.containsKey(personId)){
@@ -116,7 +119,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
     @Override
     public void resetStats() {
-        numOfPathTraversalsWithBusMode = 0;
+        numOfTimesBusTaken = 0;
         countOfHomeVehicle = 0;
         countOfWorkVehicle = 0;
         countOfSecondaryVehicle = 0;
@@ -128,6 +131,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         secondsTraveledByVehicleType.clear();
         vehicleIdDelay.clear();
         personIdDelay.clear();
+        buses.clear();
     }
 
     @Override
@@ -141,7 +145,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", countOfHomeVehicle !=0 ? averageVehicleDelayHome/countOfHomeVehicle : 0);
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_secondary", countOfSecondaryVehicle !=0 ? averageVehicleDelaySecondary/countOfSecondaryVehicle : 0);
         summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
-        summaryStats.put("busCrowding", busCrowding / numOfPathTraversalsWithBusMode);
+        summaryStats.put("busCrowding", busCrowding / numOfTimesBusTaken);
         return summaryStats;
     }
 }
