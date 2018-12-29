@@ -10,10 +10,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
 import org.matsim.api.core.v01.network.Link;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
@@ -32,7 +29,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private static final String work = "Work";
     private static final String home = "Home";
     private long numOfTimesBusTaken = 0;
-    private List<String> buses = new ArrayList<>();
+    private Set<String> buses = new HashSet<>();
 
     public VehicleTravelTimeAnalysis(Scenario scenario) {
         this.scenario = scenario;
