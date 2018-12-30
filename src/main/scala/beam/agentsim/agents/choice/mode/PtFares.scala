@@ -21,14 +21,12 @@ case class PtFares(ptFares: List[FareRule]) {
   private def filterByAgency(agencyId: Option[String], ptFares: List[FareRule]) = {
     val agencyMatch = ptFares
       .filter(
-        f =>
-          agencyId.fold(false)(f.agencyId.equalsIgnoreCase)
+        f => agencyId.fold(false)(f.agencyId.equalsIgnoreCase)
       )
 
     lazy val agencyNotMatch = ptFares
       .filter(
-        f =>
-          agencyId.fold(f.agencyId.isEmpty)(_ => f.agencyId.isEmpty)
+        f => agencyId.fold(f.agencyId.isEmpty)(_ => f.agencyId.isEmpty)
       )
 
     if (agencyMatch.isEmpty) agencyNotMatch else agencyMatch
@@ -37,14 +35,12 @@ case class PtFares(ptFares: List[FareRule]) {
   private def filterByRoute(routeId: Option[String], ptFares: List[FareRule]) = {
     val routeMatch = ptFares
       .filter(
-        f =>
-          routeId.fold(false)(f.routeId.equalsIgnoreCase)
+        f => routeId.fold(false)(f.routeId.equalsIgnoreCase)
       )
 
     lazy val routeNotMatch = ptFares
       .filter(
-        f =>
-          routeId.fold(f.routeId.isEmpty)(_ => f.routeId.isEmpty)
+        f => routeId.fold(f.routeId.isEmpty)(_ => f.routeId.isEmpty)
       )
 
     if (routeMatch.isEmpty) routeNotMatch else routeMatch
@@ -54,14 +50,12 @@ case class PtFares(ptFares: List[FareRule]) {
 
     val ageMatch = ptFares
       .filter(
-        f =>
-          age.fold(false)(f.age.has)
+        f => age.fold(false)(f.age.has)
       )
 
     lazy val ageNoMatch = ptFares
       .filter(
-        f =>
-          age.fold(f.age.isEmpty)(f.age.hasOrEmpty)
+        f => age.fold(f.age.isEmpty)(f.age.hasOrEmpty)
       )
 
     if (ageMatch.isEmpty) ageNoMatch else ageMatch
