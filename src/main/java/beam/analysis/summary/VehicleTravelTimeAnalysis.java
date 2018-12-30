@@ -17,6 +17,8 @@ import org.matsim.api.core.v01.network.Link;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.lang.Math.max;
+
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
 	private scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
@@ -151,11 +153,11 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 		
 		vehicleTypes.foreach(vt -> summaryStats.merge("vehicleHoursTraveled_" + vt.toString(),0D, Double::sum));
 
-        summaryStats.put("averageVehicleDelayPerMotorizedLeg_work", countOfWorkVehicle !=0 ? totalVehicleDelayWork /countOfWorkVehicle : 0);
-        summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", countOfHomeVehicle !=0 ? totalVehicleDelayHome /countOfHomeVehicle : 0);
-        summaryStats.put("averageVehicleDelayPerMotorizedLeg_secondary", countOfSecondaryVehicle !=0 ? totalVehicleDelaySecondary /countOfSecondaryVehicle : 0);
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_work", totalVehicleDelayWork / max(countOfWorkVehicle, 1));
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", totalVehicleDelayHome / max(countOfHomeVehicle, 1));
+        summaryStats.put("averageVehicleDelayPerMotorizedLeg_secondary", totalVehicleDelaySecondary / max(countOfSecondaryVehicle, 1));
         summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
-        summaryStats.put("busCrowding", busCrowding / numOfTimesBusTaken);
+        summaryStats.put("busCrowding", busCrowding / max(numOfTimesBusTaken, 1));
         return summaryStats;
     }
 }
