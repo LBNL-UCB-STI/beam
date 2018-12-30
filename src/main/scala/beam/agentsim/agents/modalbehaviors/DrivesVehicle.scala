@@ -24,7 +24,7 @@ import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.events.{
   LinkEnterEvent,
   LinkLeaveEvent,
@@ -117,7 +117,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = beamServices
         .vehicles(currentVehicleUnderControl)
-        .useFuel(currentLeg.travelPath.distanceInM)
+        .useFuel(currentLeg, beamServices)
 
       if (isLastLeg) {
         val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
@@ -306,7 +306,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
 
-      val fuelConsumed = theVehicle.useFuel(updatedBeamLeg.travelPath.distanceInM)
+      val fuelConsumed = theVehicle.useFuel(updatedBeamLeg, beamServices)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleResourceIdle(
@@ -632,7 +632,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     if (path.linkTravelTime.nonEmpty) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
+      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 

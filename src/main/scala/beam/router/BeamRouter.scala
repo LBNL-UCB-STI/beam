@@ -35,6 +35,7 @@ import beam.sim.BeamServices
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.Subscribe
 import beam.sim.population.AttributesOfIndividual
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -174,7 +175,8 @@ class BeamRouter(
       }
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
-        val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
+        val initializer =
+          new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
@@ -544,4 +546,6 @@ object BeamRouter {
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
+
+  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
 }
