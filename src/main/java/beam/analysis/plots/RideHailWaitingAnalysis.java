@@ -22,6 +22,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+import static java.lang.Integer.max;
+
 /**
  * @author abid
  */
@@ -237,8 +239,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     @Override
     public Map<String, Double> getSummaryStats() {
         return new HashMap<String, Double>() {{
-            put("averageRideHailWaitTimeInSec", waitTimeSum / rideHailCount);
-            put("averagePTWaitingTimeInSec", totalPTWaitingTime / numOfTrips);
+            put("averageRideHailWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
+            put("averagePTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
         }};
     }
 
