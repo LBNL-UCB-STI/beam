@@ -1,5 +1,6 @@
 package beam.analysis.summary;
 
+import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
+	private scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
     private Scenario scenario;
     private int countOfHomeVehicle = 0;
     private int countOfWorkVehicle = 0;
@@ -35,8 +37,9 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Set<String> buses = new HashSet<>();
 
 
-    public VehicleTravelTimeAnalysis(Scenario scenario) {
+    public VehicleTravelTimeAnalysis(Scenario scenario, scala.collection.Set<Id<BeamVehicleType>> vehicleTypes) {
         this.scenario = scenario;
+		this.vehicleTypes = vehicleTypes;
     }
 
     @Override
@@ -145,6 +148,8 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 e -> "vehicleHoursTraveled_" +  e.getKey(),
                 e -> e.getValue() / 3600.0
         ));
+		
+		vehicleTypes.foreach(vt -> summaryStats.merge("vehicleHoursTraveled_" + vt.toString(),0D, Double::sum));
 
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_work", countOfWorkVehicle !=0 ? totalVehicleDelayWork /countOfWorkVehicle : 0);
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", countOfHomeVehicle !=0 ? totalVehicleDelayHome /countOfHomeVehicle : 0);
