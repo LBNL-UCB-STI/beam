@@ -5,9 +5,9 @@ import java.time.ZonedDateTime
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.router.BeamRouter
@@ -100,7 +100,7 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()

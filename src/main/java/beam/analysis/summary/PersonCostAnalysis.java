@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private Map<String, Double> personCostByCostType = new HashMap<>();
-  private String[] costTypes = {"Cost", "Subsidy", "Toll"};
+  private String[] costTypes = {"Cost", "Incentive", "Toll"};
 
   @Override
   public void processStats(Event event) {
@@ -23,8 +23,8 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
           case "Cost":
             cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
             break;
-          case "Subsidy":
-            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_SUBSIDY));
+          case "Incentive":
+            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_INCENTIVE));
             break;
           case "Toll":
             cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
