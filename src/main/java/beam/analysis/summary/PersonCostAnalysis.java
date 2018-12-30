@@ -12,7 +12,7 @@ import java.util.Map;
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> personCostByCostType = new HashMap<>();
     private String[] costTypes = {"Cost", "Subsidy", "Toll"};
-    private long totalLinks = 0;
+    private long totalTrips = 0;
     private double totalCost = 0;
 
     @Override
@@ -38,20 +38,20 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
                 personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
             }
         } else if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)) {
-            totalLinks++;
+            totalTrips++;
         }
     }
 
     @Override
     public void resetStats() {
-        totalLinks = 0;
+        totalTrips = 0;
         totalCost = 0;
         personCostByCostType.clear();
     }
 
     @Override
     public Map<String, Double> getSummaryStats() {
-        personCostByCostType.put("averageTripExpenditure", totalCost / totalLinks);
+        personCostByCostType.put("averageTripExpenditure", totalCost / totalTrips);
         Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
             Double cost = 0.0;
             for (String costType : costTypes) {
