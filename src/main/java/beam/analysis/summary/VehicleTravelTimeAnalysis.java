@@ -20,24 +20,27 @@ import java.util.stream.Collectors;
 import static java.lang.Math.max;
 
 public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
+
+    private static final String work = "Work";
+    private static final String home = "Home";
+
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
 	private scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
     private Scenario scenario;
+
+    private double totalVehicleTrafficDelay = 0.0;
+    private Set<String> buses = new HashSet<>();
+    private double busCrowding = 0.0;
+    private long numOfTimesBusTaken = 0;
+
     private int countOfHomeVehicle = 0;
     private int countOfWorkVehicle = 0;
     private int countOfSecondaryVehicle = 0;
-    private double totalVehicleTrafficDelay = 0.0;
-    private double busCrowding = 0.0;
     private double totalVehicleDelayWork = 0.0;
     private double totalVehicleDelayHome = 0.0;
     private double totalVehicleDelaySecondary = 0.0;
-    private Map<String, Double> personIdDelay = new HashMap<>();
+    private Map<String, List<Double>> personIdDelays = new HashMap<>();
     private Map<String, List<String>> personsByVehicleIds = new HashMap<>();
-    private static final String work = "Work";
-    private static final String home = "Home";
-    private long numOfTimesBusTaken = 0;
-    private Set<String> buses = new HashSet<>();
-
 
     public VehicleTravelTimeAnalysis(Scenario scenario, scala.collection.Set<Id<BeamVehicleType>> vehicleTypes) {
         this.scenario = scenario;
@@ -84,7 +87,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                     double averageVehicleDelay = travelDurationInSec - freeFlowDuration;
 
                     if(personsByVehicleIds.containsKey(vehicleID)) {
-                        personsByVehicleIds.get(vehicleID).forEach(personId -> personIdDelay.merge(personId, averageVehicleDelay, Double::sum));
+                        personsByVehicleIds.get(vehicleID).forEach(personId -> personIdDelays.merge(personId, Lists.newArrayList(averageVehicleDelay), ListUtils::union));
                     }
 
                     totalVehicleTrafficDelay += (travelDurationInSec - freeFlowDuration);
@@ -108,21 +111,23 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         } else if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String personId = eventAttributes.get(ActivityStartEvent.ATTRIBUTE_PERSON);
-            if(personIdDelay.containsKey(personId)){
+            if(personIdDelays.containsKey(personId)){
+                double totalDelay = personIdDelays.get(personId).stream().reduce(Double::sum).orElse(0D);
+                int totalVehicles = personIdDelays.get(personId).size();
                 String actType = eventAttributes.get(ActivityStartEvent.ATTRIBUTE_ACTTYPE);
                 if(actType.equals(work)){
-                    totalVehicleDelayWork += personIdDelay.get(personId);
-                    countOfWorkVehicle++;
+                    totalVehicleDelayWork += totalDelay;
+                    countOfWorkVehicle  += totalVehicles;
                 }
                 if(actType.equals(home)){
-                    totalVehicleDelayHome += personIdDelay.get(personId);
-                    countOfHomeVehicle++;
+                    totalVehicleDelayHome += totalDelay;
+                    countOfHomeVehicle += totalVehicles;
                 }
                 else{
-                    totalVehicleDelaySecondary += personIdDelay.get(personId);
-                    countOfSecondaryVehicle++;
+                    totalVehicleDelaySecondary += totalDelay;
+                    countOfSecondaryVehicle += totalVehicles;
                 }
-                personIdDelay.remove(personId);
+                personIdDelays.remove(personId);
             }
         }
     }
@@ -140,7 +145,6 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         totalVehicleDelaySecondary = 0.0;
         secondsTraveledByVehicleType.clear();
         personsByVehicleIds.clear();
-        personIdDelay.clear();
         buses.clear();
     }
 
