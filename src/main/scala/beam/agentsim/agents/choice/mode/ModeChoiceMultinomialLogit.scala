@@ -121,17 +121,17 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           altAndIdx._1.costEstimate
       }
 
-      val subsidy: Double = beamServices.modeSubsidies.computeSubsidy(attributesOfIndividual, mode)
+      val incentive: Double = beamServices.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-      val subsidisedCost =
-        Math.max(0, totalCost.toDouble - subsidy)
+      val incentivizedCost =
+        Math.max(0, totalCost.toDouble - incentive)
 
-      if (totalCost < subsidy)
+      if (totalCost < incentive)
         logger.warn(
-          "Mode subsidy is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Subsidy: {}",
+          "Mode incentive is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Incentive: {}",
           mode,
           totalCost,
-          subsidy
+          incentive
         )
 
       val numTransfers = mode match {
@@ -161,7 +161,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
         mode,
-        subsidisedCost,
+        incentivizedCost,
         scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
         numTransfers,
         altAndIdx._2
