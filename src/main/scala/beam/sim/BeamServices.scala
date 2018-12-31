@@ -43,6 +43,7 @@ import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Random
 
 /**
   */
@@ -119,7 +120,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     )
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+    beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
+      case true =>
+        TrieMap[Id[BeamVehicle], BeamVehicle]()
+      case false =>
+        readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+    }
 
   var matsimServices: MatsimServices = _
 
@@ -142,19 +148,19 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
   def maybeScaleTransit(
-    vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+                         vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+                       ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
         vehicleTypes.map {
           case (id, bvt) =>
             id -> (if (bvt.standingRoomCapacity > 0)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
+              bvt.copy(
+                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+              )
+            else
+              bvt)
         }
       case None => vehicleTypes
     }
@@ -190,26 +196,29 @@ object BeamServices {
     }
   }
 
-  def readVehiclesFile(
-    filePath: String,
-    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
-    readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
-      case (line, acc) =>
-        val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+  def readVehiclesFile(filePath: String,
+                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
 
-        val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-        val houseHoldIdString = line.get("houseHoldId")
-        val houseHoldId: Id[Household] = Id.create(houseHoldIdString, classOf[Household])
+        readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
+        case (line, acc) =>
+          val vehicleIdString = line.get("vehicleId")
+          val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
-        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val vehicleTypeIdString = line.get("vehicleTypeId")
+          val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, Some(houseHoldId))
-        acc += ((vehicleId, beamVehicle))
-    }
+          val houseHoldIdString = line.get("houseHoldId")
+          val houseHoldId: Id[Household] = Id.create(houseHoldIdString, classOf[Household])
+
+          val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+
+          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, Some(houseHoldId))
+          acc += ((vehicleId, beamVehicle))
+          acc
+      }
+
   }
 
   def readFuelTypeFile(filePath: String): TrieMap[FuelType, Double] = {
@@ -222,10 +231,11 @@ object BeamServices {
   }
 
   def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypePrices: TrieMap[FuelType, Double]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
-    readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
+                               filePath: String,
+                               fuelTypePrices: TrieMap[FuelType, Double]
+                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+
+    val vehicleTypes = readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>
         val vIdString = line.get("vehicleTypeId")
         val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
@@ -268,13 +278,15 @@ object BeamServices {
         )
         z += ((vehicleTypeId, bvt))
     }
+    println("vehicles types " + vehicleTypes)
+    vehicleTypes
   }
 
   def readPersonsFile(
-    filePath: String,
-    population: Population,
-    modes: String
-  ): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
+                       filePath: String,
+                       population: Population,
+                       modes: String
+                     ): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
     readCsvFileByLine(filePath, TrieMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
         val _personId: Id[Person] = Id.createPersonId(line.get("person_id"))
@@ -364,7 +376,15 @@ object BeamServices {
 
           if (planElement.equalsIgnoreCase("leg")) PopulationUtils.createAndAddLeg(plan, mode)
           else if (planElement.equalsIgnoreCase("activity")) {
-            val coord = beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
+            val coord =
+              beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
+                case true => beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
+                case false => new Coord(lat.toDouble, lng.toDouble)
+              }
+
+            if(personId.equals("2059")){
+              println("lat, lng, coord " + lat + ", " + lng + ", " + coord.toString)
+            }
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }
@@ -387,14 +407,14 @@ object BeamServices {
   }
 
   def readHouseHoldsFile(
-    filePath: String,
-    scenario: MutableScenario,
-    beamServices: BeamServices,
-    houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
-    units: ParTrieMap[String, java.util.Map[String, String]],
-    buildings: ParTrieMap[String, java.util.Map[String, String]],
-    parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
-  ): Unit = {
+                          filePath: String,
+                          scenario: MutableScenario,
+                          beamServices: BeamServices,
+                          houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
+                          units: ParTrieMap[String, java.util.Map[String, String]],
+                          buildings: ParTrieMap[String, java.util.Map[String, String]],
+                          parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
+                        ): Unit = {
 
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -414,7 +434,7 @@ object BeamServices {
         val objHouseHold = new HouseholdsFactoryImpl().createHousehold(houseHoldId)
 
         // Setting the coordinates
-        val originalCoord: Coord = {
+        val houseHoldCoord: Coord = {
 
           if (line.keySet().contains("homecoordx") && line.keySet().contains("homecoordy")) {
             val x = line.get("homecoordx")
@@ -432,7 +452,10 @@ object BeamServices {
                           val lng = parcelAttr.get("x")
                           val lat = parcelAttr.get("y")
 
-                          new Coord(lat.toDouble, lng.toDouble)
+                          beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
+                            case true => beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
+                            case false => new Coord(lat.toDouble, lng.toDouble)
+                          }
                         case None => new Coord(0, 0)
                       }
                     }
@@ -446,7 +469,6 @@ object BeamServices {
             }
           }
         }
-        val houseHoldCoord: Coord = beamServices.geo.wgs2Utm(originalCoord)
 
         val incomeStr = line.get("income")
 
@@ -470,6 +492,8 @@ object BeamServices {
           case None =>
           //logger.info("no persons for household")
         }
+
+
 
         val vehicleTypes = VehiclesAdjustment
           .getVehicleAdjustment(beamServices)
@@ -509,13 +533,13 @@ object BeamServices {
         //acc += (( houseHoldId, houseHold ))
       }
 
-      Unit
+        Unit
     }
   }
 
   def readBuildingsFile(
-    filePath: String
-  ): TrieMap[String, java.util.Map[String, String]] = {
+                         filePath: String
+                       ): TrieMap[String, java.util.Map[String, String]] = {
 
     readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
