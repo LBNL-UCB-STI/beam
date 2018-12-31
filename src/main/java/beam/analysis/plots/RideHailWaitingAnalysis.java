@@ -128,7 +128,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
-
+    //todo there is no ref to beam config in this static class , also this value is default and is overridden inside the constructor
     private static int numberOfTimeBins = 30;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
@@ -313,6 +313,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
+        //todo confirm whether these values correspond to seconds or minutes ?
+        listOfBounds.add(2.0);
         listOfBounds.add(5.0);
         listOfBounds.add(10.0);
         listOfBounds.add(20.0);
