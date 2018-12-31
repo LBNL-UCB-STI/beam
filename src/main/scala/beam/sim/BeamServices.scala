@@ -378,8 +378,8 @@ object BeamServices {
           else if (planElement.equalsIgnoreCase("activity")) {
             val coord =
               beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
-                case true => beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
-                case false => new Coord(lat.toDouble, lng.toDouble)
+                case true => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
+                case false => new Coord(lng.toDouble, lat.toDouble)
               }
 
             if(personId.equals("2059")){
@@ -453,8 +453,8 @@ object BeamServices {
                           val lat = parcelAttr.get("y")
 
                           beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
-                            case true => beamServices.geo.wgs2Utm(new Coord(lat.toDouble, lng.toDouble))
-                            case false => new Coord(lat.toDouble, lng.toDouble)
+                            case true => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
+                            case false => new Coord(lng.toDouble, lat.toDouble)
                           }
                         case None => new Coord(0, 0)
                       }
