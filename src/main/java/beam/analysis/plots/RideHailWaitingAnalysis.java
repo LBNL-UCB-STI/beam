@@ -135,7 +135,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
                                    BeamConfig beamConfig){
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
-        final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
+        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
