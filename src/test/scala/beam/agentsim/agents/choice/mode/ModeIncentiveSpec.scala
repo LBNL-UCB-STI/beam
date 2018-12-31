@@ -8,7 +8,7 @@ class ModeIncentiveSpec extends FlatSpec with BeforeAndAfterAll {
   var ms: ModeIncentive = _
 
   override def beforeAll(): Unit = {
-    ms = ModeIncentive(loadIncentives("test/input/beamville/subsidies.csv"))
+    ms = ModeIncentive(loadIncentives("test/input/beamville/incentives.csv"))
   }
 
   "Incentive for RIDE_HAIL under 10 years of age" should " be $7" in {

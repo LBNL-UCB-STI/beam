@@ -123,7 +123,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val incentive: Double = beamServices.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-      val incentivedCost =
+      val incentivizedCost =
         Math.max(0, totalCost.toDouble - incentive)
 
       if (totalCost < incentive)
@@ -161,7 +161,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       assert(numTransfers >= 0)
       ModeCostTimeTransfer(
         mode,
-        incentivedCost,
+        incentivizedCost,
         scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
         numTransfers,
         altAndIdx._2
