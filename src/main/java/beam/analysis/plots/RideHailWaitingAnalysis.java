@@ -1,10 +1,9 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.ReserveRideHailEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -157,12 +156,12 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     public void processStats(Event event) {
 
         Map<String, String> eventAttributes = event.getAttributes();
-        if (event instanceof ModeChoiceEvent) {
+        if (event instanceof ReserveRideHailEvent) {
             String mode = eventAttributes.get("mode");
             if (mode.equalsIgnoreCase("ride_hail")) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-                Id<Person> personId = modeChoiceEvent.getPersonId();
+                ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) event;
+                Id<Person> personId = reserveRideHailEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
         } else if (event instanceof PersonEntersVehicleEvent) {
@@ -175,16 +174,16 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
             // another occurrence of modeChoice event because of replanning event.
             if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(_personId);
-                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
-                processRideHailWaitingTimes(modeChoiceEvent, difference);
+                ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaiting.get(_personId);
+                double difference = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
+                processRideHailWaitingTimes(reserveRideHailEvent, difference);
 
                 // Building the RideHailWaitingIndividualStat List
                 String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
                 String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
 
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
-                rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
+                rideHailWaitingIndividualStat.time = reserveRideHailEvent.getTime();
                 rideHailWaitingIndividualStat.personId = __personId;
                 rideHailWaitingIndividualStat.vehicleId = __vehicleId;
                 rideHailWaitingIndividualStat.waitingTime = difference;
