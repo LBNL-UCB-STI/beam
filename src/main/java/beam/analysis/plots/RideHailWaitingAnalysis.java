@@ -1,6 +1,5 @@
 package beam.analysis.plots;
 
-import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReserveRideHailEvent;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.config.BeamConfig;
@@ -31,7 +30,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
         this.statComputation = statComputation;
     }
 
-   public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
+    public static class WaitingStatsComputation implements StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> {
 
         @Override
         public Tuple<Map<Integer, Map<Double, Integer>>, double[][]> compute(Tuple<List<Double>, Map<Integer, List<Double>>> stat) {
@@ -156,16 +155,16 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     public void processStats(Event event) {
 
         Map<String, String> eventAttributes = event.getAttributes();
+
+        /* When a person reserves a ride hail, push the person into the ride hail waiting queue and once the person
+        enters a vehicle , compute the difference between the times of occurrence for both the events as `waiting time`.*/
+
         if (event instanceof ReserveRideHailEvent) {
-            String mode = eventAttributes.get("mode");
-            if (mode.equalsIgnoreCase("ride_hail")) {
-
-                ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) event;
-                Id<Person> personId = reserveRideHailEvent.getPersonId();
-                rideHailWaiting.put(personId.toString(), event);
-            }
+            ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) event;
+            Id<Person> personId = reserveRideHailEvent.getPersonId();
+            //push person into the ride hail waiting queue
+            rideHailWaiting.put(personId.toString(), event);
         } else if (event instanceof PersonEntersVehicleEvent) {
-
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
@@ -174,6 +173,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
             // another occurrence of modeChoice event because of replanning event.
             if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
 
+                //process and add to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaiting.get(_personId);
                 double difference = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimes(reserveRideHailEvent, difference);
@@ -182,6 +182,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
                 String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
                 String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
 
+                //process the time spent by the current passenger on waiting for a ride hail
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
                 rideHailWaitingIndividualStat.time = reserveRideHailEvent.getTime();
                 rideHailWaitingIndividualStat.personId = __personId;
@@ -189,8 +190,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
                 rideHailWaitingIndividualStat.waitingTime = difference;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
-
-                // Remove the personId from the list of ModeChoiceEvent
+                // Remove the passenger from the waiting queue , as the passenger entered the vehicle.
                 rideHailWaiting.remove(_personId);
             }
         }
@@ -242,15 +242,17 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     }
 
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
+        //get the hour of occurrence of the event
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-
+        //convert the provided waiting time to minutes
         waitingTime = waitingTime/60;
-
+        //Add the waiting time entry to the hours map
         List<Double> timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
             timeList = new ArrayList<>();
         }
         timeList.add(waitingTime);
+        //Update the sum of waiting times and ride hail count
         this.waitTimeSum += waitingTime;
         this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
