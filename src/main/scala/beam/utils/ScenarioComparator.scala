@@ -3,7 +3,7 @@ import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.choice.mode.{PtFares}
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -143,6 +143,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+      override val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
