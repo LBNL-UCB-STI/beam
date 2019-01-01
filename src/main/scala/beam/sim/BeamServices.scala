@@ -7,8 +7,8 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
-import beam.agentsim.agents.choice.mode.ModeSubsidy._
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.choice.mode.ModeIncentive._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
@@ -71,7 +71,7 @@ trait BeamServices extends ActorInject {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
-  val modeSubsidies: ModeSubsidy
+  val modeIncentives: ModeIncentive
   val ptFares: PtFares
   var iterationNumber: Int = -1
 
@@ -131,7 +131,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  val modeSubsidies = ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
   val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
   def clearAll(): Unit = {

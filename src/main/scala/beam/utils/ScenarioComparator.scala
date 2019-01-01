@@ -3,7 +3,7 @@ import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.{PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -131,8 +131,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
         )
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
-      override val modeSubsidies: ModeSubsidy =
-        ModeSubsidy(ModeSubsidy.loadSubsidies(beamConfig.beam.agentsim.agents.modeSubsidy.file))
+
 
       override def startNewIteration(): Unit = throw new Exception("???")
 

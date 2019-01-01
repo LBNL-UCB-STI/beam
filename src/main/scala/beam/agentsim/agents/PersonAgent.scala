@@ -445,7 +445,7 @@ class PersonAgent(
             tick,
             id,
             mode.value,
-            0.0, // subsidy applies to a whole trip and is accounted for at Arrival
+            0.0, // incentive applies to a whole trip and is accounted for at Arrival
             0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
             currentLeg.cost
           )
@@ -725,16 +725,16 @@ class PersonAgent(
           eventsManager.processEvent(
             new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           )
-          val subsidy = beamServices.modeSubsidies.computeSubsidy(attributes, currentTrip.tripClassifier)
-          if (subsidy > 0.0)
+          val incentive = beamServices.modeIncentives.computeIncentive(attributes, currentTrip.tripClassifier)
+          if (incentive > 0.0)
             eventsManager.processEvent(
               new PersonCostEvent(
                 tick,
                 id,
                 currentTrip.tripClassifier.value,
-                subsidy,
+                incentive,
                 0.0,
-                0.0 // the cost as paid by person has already been accounted for, this event is just about the subsidy
+                0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
 
