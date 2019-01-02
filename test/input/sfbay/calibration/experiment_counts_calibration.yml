@@ -1,0 +1,70 @@
+---
+
+# Header
+
+header:
+    title: Production_Calibration_counts_4
+    author: BEAM Developers
+    beamTemplateConfPath: production/application-sfbay/fall18-calib-run11.conf
+    modeChoiceTemplate: production/application-sfbay/calibration/modeChoiceParameters.xml.tpl
+    numWorkers: 1
+    params:
+      ### ---- run template env variables ---####
+      EXPERIMENT_MAX_RAM: 16g
+      S3_OUTPUT_PATH_SUFFIX: "sf-light"
+      DROP_OUTPUT_ONCOMPLETE: "true"
+      IS_PARALLEL: "false"
+
+      runName: "Production_Calibration_counts_4"
+      beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
+      beamCommit: "7109bf4fc7f16b22feaa44f8454d624c42f2f8a4"
+      deployMode: "execute"
+      executeClass: "beam.calibration.RunCalibration"
+      beamBatch: "false"
+      shutdownWait: "15"
+      shutdownBehavior: "stop"
+      s3Backup: "true"
+      maxRAM: "140g"
+      region: "us-west-2"
+      instanceType: "c5.18xlarge"
+
+
+
+# Default Params
+
+defaultParams:
+    ### ---- template model params ---####
+
+
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.tuning.transitCapacity: 0.5
+    beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+
+# FactorsZ
+factors:
+  - title: flowCapacityFactor
+    levels:
+    - name: Low
+      params:
+        beam.physsim.flowCapacityFactor: 0.05
+    - name: High
+      params:
+        beam.physsim.flowCapacityFactor: 1.0
+
+  - title: storageCapacityFactor
+    levels:
+    - name: Low
+      params:
+        beam.physsim.storageCapacityFactor: 0.05
+    - name: High
+      params:
+        beam.physsim.storageCapacityFactor: 1.0
+
+  - title: countsFactor
+    levels:
+    - name: Low
+      params:
+        matsim.modules.counts.countsScaleFactor: 10.0
+    - name: High
+      params:
+        matsim.modules.counts.countsScaleFactor: 100.0
