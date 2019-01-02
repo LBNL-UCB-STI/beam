@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 public class StatsFactory {
     public enum StatsType {
         RideHailWaiting,
+        RideHailWaitingTaz,
         RideHailingWaitingSingle,
         ModeChosen,
         PersonVehicleTransition,
@@ -74,6 +75,8 @@ public class StatsFactory {
         switch (statsType) {
             case RideHailWaiting:
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
+            case RideHailWaitingTaz:
+                return new RideHailWaitingTazAnalysis(beamServices);
             case RideHailingWaitingSingle:
                 return new RideHailingWaitingSingleAnalysis(beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation());
             case ModeChosen:

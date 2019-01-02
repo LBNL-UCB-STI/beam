@@ -9,22 +9,19 @@ import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
+import org.matsim.core.utils.io.IOUtils;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
-    private static double numberOfTimeBins;
     private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
     private Map<Tuple<Integer,Id<TAZTreeMap.TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
     private BeamServices beamServices;
 
     public RideHailWaitingTazAnalysis(BeamServices beamServices) {
         this.beamServices = beamServices;
-        numberOfTimeBins = beamServices.beamConfig().beam().agentsim().timeBinSize();
     }
 
     /**
@@ -34,7 +31,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      */
     @Override
     public void createGraph(IterationEndsEvent iterationEndsEvent) throws IOException {
-
+        writeToCsv(iterationEndsEvent.getIteration(),binWaitingTimesMap);
     }
 
     /**
@@ -43,7 +40,6 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      */
     @Override
     public void processStats(Event event) {
-
         /* When a person reserves a ride hail, push the person into the ride hail waiting queue and once the person
         enters a vehicle , compute the difference between the times of occurrence for both the events as `waiting time`.*/
         if (event instanceof ReserveRideHailEvent) {
@@ -84,6 +80,39 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
         List<Double> timeList = binWaitingTimesMap.getOrDefault(tuple,new ArrayList<>());
         timeList.add(waitingTime);
         binWaitingTimesMap.put(tuple, timeList);
+    }
+
+    /**
+     * Write output to a csv file
+     * @param iterationNumber Current iteration number
+     * @param dataMap data to be written to the csv file
+     */
+    private void writeToCsv(int iterationNumber,Map<Tuple<Integer,Id<TAZTreeMap.TAZ>>, List<Double>> dataMap) {
+        String heading = "timeBin,TAZ,avgWait,medianWait,numberOfPickups,avgPoolingDelay,numberOfPooledPickups";
+        String fileBaseName = "rideHailWaitingStats";
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv");
+        BufferedWriter out = IOUtils.getBufferedWriter(csvFileName);
+        try {
+            out.write(heading);
+            out.newLine();
+            dataMap.forEach((k,v) -> {
+                DoubleSummaryStatistics stats = v.stream()
+                        .mapToDouble(x -> x)
+                        .summaryStatistics();
+                String line = k.getFirst() + "," + k.getSecond().toString() + "," + stats.getAverage() + "," +
+                        (stats.getMax() + stats.getMin())/2 + "," + 0 + "," + 0 + "," + 0;
+                try {
+                    out.write(line);
+                    out.newLine();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
