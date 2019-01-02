@@ -210,11 +210,16 @@ object BeamServices {
           val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
           val houseHoldIdString = line.get("houseHoldId")
-          val houseHoldId: Id[Household] = Id.create(houseHoldIdString, classOf[Household])
+
+          val houseHoldId: Option[Id[Household]] = if(houseHoldIdString == null) {
+            None
+          }else{
+            Some(Id.create(houseHoldIdString, classOf[Household]))
+          }
 
           val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, Some(houseHoldId))
+          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, houseHoldId)
           acc += ((vehicleId, beamVehicle))
           acc
       }
@@ -278,7 +283,6 @@ object BeamServices {
         )
         z += ((vehicleTypeId, bvt))
     }
-    println("vehicles types " + vehicleTypes)
     vehicleTypes
   }
 
@@ -382,9 +386,6 @@ object BeamServices {
                 case false => new Coord(lng.toDouble, lat.toDouble)
               }
 
-            if(personId.equals("2059")){
-              println("lat, lng, coord " + lat + ", " + lng + ", " + coord.toString)
-            }
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }
