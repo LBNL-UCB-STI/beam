@@ -45,9 +45,9 @@ class DelayMetricAnalysis @Inject()(
   private val fileName = "delayTotalByLinkCapacity"
   private val xAxisName = "Iteration(s)"
   private val yAxisName = "Total Delay (hour)"
-  private val graphTitle = "Delay Metric Analysis"
-  private val yAxisAverageGraphName = " Average Delay Intensity (sec/km)"
-  private val averageGraphTitle = "Delay Average per kilometer Analysis"
+  private val graphTitle = "Total Delay by Binned Link Capacity"
+  private val yAxisAverageGraphName = "Average Delay Intensity (sec/km)"
+  private val averageGraphTitle = "Average Delay per Kilometer"
   var totalTravelTime = 0.0
 
   /**
