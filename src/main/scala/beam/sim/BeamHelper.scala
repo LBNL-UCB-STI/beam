@@ -51,7 +51,7 @@ trait BeamHelper extends LazyLogging {
       .action(
         (value, args) =>
           args.copy(
-            config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
+            config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
             configLocation = Option(value)
         )
       )
@@ -244,7 +244,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "Beam config is a required, Please provide a valid configuration file."
+      "Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
 
