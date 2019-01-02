@@ -20,7 +20,7 @@ object AvailableModeUtils {
 
   class AllowAllModes extends PermissibleModesCalculator {
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.availableModes.map(_.toString))
+      JavaConverters.asJavaCollection(BeamMode.allBeamModes.map(_.toString))
     }
   }
 

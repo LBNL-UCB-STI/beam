@@ -242,7 +242,7 @@ class ChangeModeForTour(
     val availableModes: Seq[BeamMode] = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "available-modes")
-    ).fold(BeamMode.availableModes)(
+    ).fold(BeamMode.allBeamModes)(
       attr => availableModeParser(attr.toString)
     )
 

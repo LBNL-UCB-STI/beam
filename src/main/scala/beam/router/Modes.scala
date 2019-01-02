@@ -94,8 +94,6 @@ object Modes {
         TransportMode.transit_walk
       )
 
-    case object DRIVE extends BeamMode(value = "drive", Some(Left(LegMode.CAR)), TransportMode.other) // This is kind-of like a transit walk, but not really... best to make leg_switch its own type
-
     case object DRIVE_TRANSIT
       extends BeamMode(
         value = "drive_transit",
@@ -116,7 +114,7 @@ object Modes {
 
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
-    val availableModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
+    val allBeamModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
 
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 
@@ -126,6 +124,8 @@ object Modes {
     def fromString(stringMode: String): BeamMode = {
       if (stringMode.equals("")) {
         NO_MODE
+      } else if(stringMode.equalsIgnoreCase("drive")) {
+        CAR
       } else {
         BeamMode.withValue(stringMode)
       }

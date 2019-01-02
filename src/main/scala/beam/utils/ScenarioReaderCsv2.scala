@@ -1,6 +1,7 @@
 package beam.utils
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -15,9 +16,6 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
   extends LazyLogging {
 
   val scenarioFolder = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
-
-  private val defaultAvailableModes =
-    "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,drive"
 
   val buildingFilePath = scenarioFolder + "/buildings.csv"
   val personFilePath = scenarioFolder + "/persons.csv"
@@ -52,7 +50,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val buildings = BeamServices.readBuildingsFile(buildingFilePath)
 
     logger.info("Reading Persons...")
-    val houseHoldPersons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, defaultAvailableModes)
+    val houseHoldPersons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, BeamMode.allBeamModes.map(_.value).mkString(","))
 
     logger.info("Reading plans...")
     BeamServices.readPlansFile(planFilePath, scenario.getPopulation, beamServices)

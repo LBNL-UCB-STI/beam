@@ -53,7 +53,7 @@ trait BeamHelper extends LazyLogging {
       .action(
         (value, args) =>
           args.copy(
-            config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
+            config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
             configLocation = Option(value)
         )
       )
