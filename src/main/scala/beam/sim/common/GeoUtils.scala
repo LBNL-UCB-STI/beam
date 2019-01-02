@@ -147,12 +147,13 @@ object GeoUtils {
   case object SoftRight extends TurningDirection
   case object Right extends TurningDirection
   case object HardRight extends TurningDirection
+
   /**
-   * Get the desired direction to be taken , based on the angle between the coordinates
-   * @param source source coordinates
-   * @param destination destination coordinates
-   * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
-   */
+    * Get the desired direction to be taken , based on the angle between the coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
+    */
   def getDirection(source: Coord, destination: Coord): TurningDirection = {
     val radians = computeAngle(source, destination)
     radians match {
