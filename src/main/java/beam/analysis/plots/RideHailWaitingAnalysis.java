@@ -127,7 +127,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
     //todo there is no ref to beam config in this static class , also this value is default and is overridden inside the constructor
-    private static int numberOfTimeBins = 30;
+    private static int numberOfTimeBins;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                    BeamConfig beamConfig){
