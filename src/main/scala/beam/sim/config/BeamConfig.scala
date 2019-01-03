@@ -44,7 +44,7 @@ object BeamConfig {
     object Agentsim {
       case class Agents(
         modalBehaviors: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
-        modeSubsidy: BeamConfig.Beam.Agentsim.Agents.ModeSubsidy,
+        modeIncentive: BeamConfig.Beam.Agentsim.Agents.ModeIncentive,
         population: BeamConfig.Beam.Agentsim.Agents.Population,
         ptFare: BeamConfig.Beam.Agentsim.Agents.PtFare,
         rideHail: BeamConfig.Beam.Agentsim.Agents.RideHail,
@@ -149,14 +149,14 @@ object BeamConfig {
           }
         }
 
-        case class ModeSubsidy(
+        case class ModeIncentive(
           file: java.lang.String
         )
 
-        object ModeSubsidy {
+        object ModeIncentive {
 
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModeSubsidy = {
-            BeamConfig.Beam.Agentsim.Agents.ModeSubsidy(
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModeIncentive = {
+            BeamConfig.Beam.Agentsim.Agents.ModeIncentive(
               file = if (c.hasPathOrNull("file")) c.getString("file") else ""
             )
           }
@@ -488,9 +488,9 @@ object BeamConfig {
               if (c.hasPathOrNull("modalBehaviors")) c.getConfig("modalBehaviors")
               else com.typesafe.config.ConfigFactory.parseString("modalBehaviors{}")
             ),
-            modeSubsidy = BeamConfig.Beam.Agentsim.Agents.ModeSubsidy(
-              if (c.hasPathOrNull("modeSubsidy")) c.getConfig("modeSubsidy")
-              else com.typesafe.config.ConfigFactory.parseString("modeSubsidy{}")
+            modeIncentive = BeamConfig.Beam.Agentsim.Agents.ModeIncentive(
+              if (c.hasPathOrNull("modeIncentive")) c.getConfig("modeIncentive")
+              else com.typesafe.config.ConfigFactory.parseString("modeIncentive{}")
             ),
             population = BeamConfig.Beam.Agentsim.Agents.Population(
               if (c.hasPathOrNull("population")) c.getConfig("population")
