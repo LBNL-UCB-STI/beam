@@ -128,7 +128,6 @@ object RideHailManager {
   }
 
   case class RoutingResponses(
-    tick: Int,
     routingResponses: List[RoutingResponse]
   )
 
@@ -176,7 +175,7 @@ object RideHailManager {
 
   case object DebugRideHailManagerDuringExecution
 
-  case class ContinueBufferedRideHailRequests(tick: Int)
+  case object ContinueBufferedRideHailRequests
 
   /* Available means vehicle can be assigned to a new customer */
   case object Available extends RideHailServiceStatus
@@ -278,6 +277,7 @@ class RideHailManager(
   private val outOfServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
   private val inServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
+  private var numPendingRoutingRequestsForReservations = 0
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
 
@@ -434,20 +434,21 @@ class RideHailManager(
      * In the following case, we are calculating routes in batch for the allocation manager,
      * so we add these to the allocation buffer and then resume the allocation process.
      */
-    case RoutingResponses(tick, responses)
+    case RoutingResponses(responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
+      numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations - responses.size
       responses.foreach { routeResponse =>
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
       }
-      self ! ContinueBufferedRideHailRequests(tick)
+      self ! ContinueBufferedRideHailRequests
 
     /*
      * Routing Responses from a Ride Hail Inquiry
      * In this case we can treat the responses as if they apply to a single request
      * for a single occupant trip.
      */
-    case RoutingResponses(tick, responses)
+    case RoutingResponses(responses)
         if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
@@ -545,8 +546,12 @@ class RideHailManager(
           findAllocationsAndProcess(tick)
       }
 
-    case ContinueBufferedRideHailRequests(tick) =>
-      findAllocationsAndProcess(tick)
+    case ContinueBufferedRideHailRequests =>
+      currentlyProcessingTimeoutTrigger match {
+        case Some(triggerWithId) =>
+          findAllocationsAndProcess(triggerWithId.trigger.tick)
+        case None =>
+      }
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
 //      DebugRepositioning.produceRepositioningDebugImages(tick, this)
@@ -860,7 +865,7 @@ class RideHailManager(
           response.staticRequestId -> response
         }.toMap
         val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
-        self ! RoutingResponses(tick, orderedResponses)
+        self ! RoutingResponses(orderedResponses)
       }
   }
 
@@ -1059,8 +1064,11 @@ class RideHailManager(
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
     log.debug(
-      "Removing request: {}",
-      requestId
+      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferEmpty: {}",
+      requestId,
+      s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
+      numPendingRoutingRequestsForReservations,
+      rideHailResourceAllocationManager.isBufferEmpty
     )
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
@@ -1089,12 +1097,8 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if (processBufferedRequestsOnTimeout &&
-        pendingModifyPassengerScheduleAcks.isEmpty &&
-        rideHailResourceAllocationManager.isBufferEmpty) {
-      log.info("sendCompletionAndScheduleNewTimeout from 1095, reqId {}",requestId)
-      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
-      cleanUp
+    if (processBufferedRequestsOnTimeout){
+      self ! ContinueBufferedRideHailRequests
     }
   }
 
@@ -1117,6 +1121,7 @@ class RideHailManager(
    */
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
+    log.debug("findAllocationsAndProcess @ {}", tick)
 
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
       case VehicleAllocations(allocations) =>
@@ -1142,10 +1147,12 @@ class RideHailManager(
       case _ =>
     }
     if (!allRoutesRequired.isEmpty) {
+      log.debug("requesting {} routes at {}",allRoutesRequired.size,tick)
+      numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
-               rideHailResourceAllocationManager.isBufferEmpty) {
-      log.info("sendCompletionAndScheduleNewTimeout from 1147")
+               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations==0) {
+      log.debug("sendCompletionAndScheduleNewTimeout from 1147")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
       cleanUp
     }
@@ -1202,7 +1209,7 @@ class RideHailManager(
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
     if (repositionVehicles.isEmpty) {
-      log.info("sendCompletionAndScheduleNewTimeout from 1204")
+      log.debug("sendCompletionAndScheduleNewTimeout from 1204")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
       cleanUp
     } else {

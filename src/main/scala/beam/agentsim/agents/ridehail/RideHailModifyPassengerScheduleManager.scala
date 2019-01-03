@@ -221,7 +221,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
-    log.info("Starting wave at {}", tick)
+    log.debug("Starting wave at {}", tick)
     assert(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)
