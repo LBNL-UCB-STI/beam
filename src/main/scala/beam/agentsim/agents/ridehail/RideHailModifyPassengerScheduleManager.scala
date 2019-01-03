@@ -162,6 +162,7 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = triggersToSchedule ++ allTriggersInWave
 
     if (numberPendingModifyPassengerScheduleAcks == 0) {
+      log.info("sendCompletionAndScheduleNewTimeout 165")
       sendCompletionAndScheduleNewTimeout(Reposition)
     }
   }
@@ -179,32 +180,32 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType): Unit = {
-    val (currentTick, triggerId) = releaseTickAndTriggerId()
-    val timerTrigger = batchDispatchType match {
-      case BatchedReservation =>
-        BufferedRideHailRequestsTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
-        )
-      case Reposition =>
-        RideHailRepositioningTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
-        )
-      case _ =>
-        throw new RuntimeException("Should not attempt to send completion when doing single reservations")
-    }
-//    log.info("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
-    if (!allTriggersInWave.isEmpty) {
-      log.info(
-        "triggers from {} to {}",
-        allTriggersInWave.map(_.trigger.tick).min,
-        allTriggersInWave.map(_.trigger.tick).max
+      val (currentTick, triggerId) = releaseTickAndTriggerId()
+      val timerTrigger = batchDispatchType match {
+        case BatchedReservation =>
+          BufferedRideHailRequestsTrigger(
+            currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+          )
+        case Reposition =>
+          RideHailRepositioningTrigger(
+            currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+          )
+        case _ =>
+          throw new RuntimeException("Should not attempt to send completion when doing single reservations")
+      }
+      //    log.info("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
+//      if (!allTriggersInWave.isEmpty) {
+//        log.debug(
+//          "triggers from {} to {}",
+//          allTriggersInWave.map(_.trigger.tick).min,
+//          allTriggersInWave.map(_.trigger.tick).max
+//        )
+//      }
+      scheduler.tell(
+        CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager)),
+        rideHailManager
       )
-    }
-    scheduler.tell(
-      CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager)),
-      rideHailManager
-    )
-    allTriggersInWave = Vector()
+      allTriggersInWave = Vector()
   }
 
   def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger) = {
@@ -220,6 +221,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
+    log.info("Starting wave at {}", tick)
     assert(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)

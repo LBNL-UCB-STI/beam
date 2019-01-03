@@ -15,6 +15,9 @@ trait HasTickAndTrigger {
   }
 
   def releaseTickAndTriggerId(): (Int, Long) = {
+    if(_currentTick.isEmpty){
+      val i = 0
+    }
     val theTuple = (_currentTick.get, _currentTriggerId.get)
     _currentTick = None
     _currentTriggerId = None

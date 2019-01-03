@@ -1092,6 +1092,7 @@ class RideHailManager(
     if (processBufferedRequestsOnTimeout &&
         pendingModifyPassengerScheduleAcks.isEmpty &&
         rideHailResourceAllocationManager.isBufferEmpty) {
+      log.info("sendCompletionAndScheduleNewTimeout from 1095, reqId {}",requestId)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
       cleanUp
     }
@@ -1144,6 +1145,7 @@ class RideHailManager(
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
                rideHailResourceAllocationManager.isBufferEmpty) {
+      log.info("sendCompletionAndScheduleNewTimeout from 1147")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
       cleanUp
     }
@@ -1200,6 +1202,7 @@ class RideHailManager(
       rideHailResourceAllocationManager.repositionVehicles(tick)
 
     if (repositionVehicles.isEmpty) {
+      log.info("sendCompletionAndScheduleNewTimeout from 1204")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
       cleanUp
     } else {
