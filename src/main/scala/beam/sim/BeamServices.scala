@@ -386,7 +386,9 @@ object BeamServices {
               }
 
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-            if (endTime != null) act.setEndTime(endTime.toDouble)
+            if (endTime != null) {
+              act.setEndTime(endTime.toDouble * 60 * 60)
+            }
           }
         }
         Unit
