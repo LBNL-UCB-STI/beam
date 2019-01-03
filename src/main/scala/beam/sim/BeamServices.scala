@@ -349,7 +349,6 @@ object BeamServices {
         val _line = new java.util.TreeMap[String, String]()
         _line.put("x", line.get("x"))
         _line.put("y", line.get("y"))
-        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
         acc += ((line.get("primary_id"), _line))
     }
   }
@@ -389,29 +388,16 @@ object BeamServices {
             val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
             if (endTime != null) act.setEndTime(endTime.toDouble)
           }
-
-          /*val list = acc.get(_personId) match {
-            case Some(planList: ListBuffer[java.util.Map[String, String]]) =>
-              planList += line
-              planList
-            case None =>
-              ListBuffer[java.util.Map[String, String]](line)
-          }*/
-
-          //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
-
-          //acc += (( _personId, list ))
-
         }
         Unit
     }
   }
 
-  def readHouseHoldsFile(
+  def readHouseholdsFile(
                           filePath: String,
                           scenario: MutableScenario,
                           beamServices: BeamServices,
-                          houseHoldPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
+                          householdPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
                           units: ParTrieMap[String, java.util.Map[String, String]],
                           buildings: ParTrieMap[String, java.util.Map[String, String]],
                           parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
@@ -420,31 +406,30 @@ object BeamServices {
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
     val scenarioVehicles = beamServices.privateVehicles
-    var counter = 0
 
     readCsvFileByLine(filePath, Unit) {
 
       case (line, acc) => {
 
-        val _houseHoldId = line.get("household_id")
-        val houseHoldId = Id.create(_houseHoldId, classOf[Household])
+        val _householdId = line.get("household_id")
+        val householdId = Id.create(_householdId, classOf[Household])
 
         val numberOfVehicles = java.lang.Double.parseDouble(line.get("cars")).intValue()
-        //val numberOfPersons = java.lang.Double.parseDouble(line.get("persons")).intValue()
 
-        val objHouseHold = new HouseholdsFactoryImpl().createHousehold(houseHoldId)
+
+        val objHousehold = new HouseholdsFactoryImpl().createHousehold(householdId)
 
         // Setting the coordinates
-        val houseHoldCoord: Coord = {
+        val householdCoord: Coord = {
 
           if (line.keySet().contains("homecoordx") && line.keySet().contains("homecoordy")) {
             val x = line.get("homecoordx")
             val y = line.get("homecoordy")
             new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
           } else {
-            val houseHoldUnitId = line.get("unit_id")
-            if (houseHoldUnitId != null) {
-              units.get(houseHoldUnitId) match {
+            val householdUnitId = line.get("unit_id")
+            if (householdUnitId != null) {
+              units.get(householdUnitId) match {
                 case Some(unit) =>
                   buildings.get(unit.get("building_id")) match {
                     case Some(building) => {
@@ -477,17 +462,17 @@ object BeamServices {
           val _income = java.lang.Double.parseDouble(incomeStr)
           val income = new IncomeImpl(_income, Income.IncomePeriod.year)
           income.setCurrency("usd")
-          objHouseHold.setIncome(income)
+          objHousehold.setIncome(income)
         } catch {
           case e: Exception =>
             e.printStackTrace()
         }
 
-        val p: Option[ListBuffer[Id[Person]]] = houseHoldPersons.get(houseHoldId)
+        val p: Option[ListBuffer[Id[Person]]] = householdPersons.get(householdId)
 
         p match {
           case Some(p) => {
-            objHouseHold.setMemberIds(p.asJava)
+            objHousehold.setMemberIds(p.asJava)
           }
 
           case None =>
@@ -501,10 +486,10 @@ object BeamServices {
           .sampleVehicleTypesForHousehold(
             numberOfVehicles,
             VehicleCategory.Car,
-            objHouseHold.getIncome.getIncome,
-            objHouseHold.getMemberIds.size,
+            objHousehold.getIncome.getIncome,
+            objHousehold.getMemberIds.size,
             null,
-            houseHoldCoord
+            householdCoord
           )
 
         val vehicleIds = new util.ArrayList[Id[Vehicle]]
@@ -512,26 +497,19 @@ object BeamServices {
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.vehicleTypeId, classOf[VehicleType]))
           val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
           vehicleIds.add(v.getId)
-          val bv = BeamVehicleUtils.getBeamVehicle(v, objHouseHold, bvt)
+          val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt)
           scenarioVehicles.put(bv.getId, bv)
 
           vehicleCounter = vehicleCounter + 1
         }
 
-        objHouseHold.setVehicleIds(vehicleIds)
+        objHousehold.setVehicleIds(vehicleIds)
 
-        scenarioHouseholds.put(objHouseHold.getId, objHouseHold)
+        scenarioHouseholds.put(objHousehold.getId, objHousehold)
         scenarioHouseholdAttributes
-          .putAttribute(objHouseHold.getId.toString, "homecoordx", houseHoldCoord.getX)
+          .putAttribute(objHousehold.getId.toString, "homecoordx", householdCoord.getX)
         scenarioHouseholdAttributes
-          .putAttribute(objHouseHold.getId.toString, "homecoordy", houseHoldCoord.getY)
-
-        counter = counter + 1
-        if (counter % 50000 == 0) logger.info(counter.toString)
-
-        //if(acc.size % 500000 == 0) logger.info(acc.size.toString)
-
-        //acc += (( houseHoldId, houseHold ))
+          .putAttribute(objHousehold.getId.toString, "homecoordy", householdCoord.getY)
       }
 
         Unit

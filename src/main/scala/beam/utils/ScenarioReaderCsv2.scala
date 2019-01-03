@@ -32,10 +32,6 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     scenario.getHouseholds.getHouseholds.clear()
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
-    /*scenario.getVehicles.getVehicles.clear()
-     scenario.getVehicles.getVehicleAttributes.clear()
-     scenario.getTransitVehicles.getVehicles.clear()
-     scenario.getTransitVehicles.getVehicleAttributes.clear()*/
     beamServices.vehicles.clear()
     beamServices.privateVehicles.clear()
     /////
@@ -50,87 +46,64 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val buildings = BeamServices.readBuildingsFile(buildingFilePath)
 
     logger.info("Reading Persons...")
-    val houseHoldPersons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, BeamMode.allBeamModes.map(_.value).mkString(","))
+    val householdPersons = BeamServices.readPersonsFile(personFilePath, scenario.getPopulation, BeamMode.allBeamModes.map(_.value).mkString(","))
 
     logger.info("Reading plans...")
     BeamServices.readPlansFile(planFilePath, scenario.getPopulation, beamServices)
 
-    logger.info("In case a person is not having a corresponding plan entry, just adding a dummy empty plan")
+    logger.info("Total persons loaded {}", scenario.getPopulation.getPersons.size())
+    logger.info("Checking persons without selected plan...")
 
     val listOfPersonsWithoutPlan: ListBuffer[Id[Person]] = ListBuffer()
     scenario.getPopulation.getPersons.forEach {
-      case (pk: Id[Person], pv: Person) => {
-        if (pv.getSelectedPlan == null) {
-          /*val plan = PopulationUtils.createPlan(pv)
-          pv.addPlan(plan)
-          pv.setSelectedPlan(plan)*/
-          listOfPersonsWithoutPlan += pk
-        }
-      }
+      case (pk: Id[Person], pv: Person) if (pv.getSelectedPlan == null) => listOfPersonsWithoutPlan += pk
     }
 
-    println("Total persons " + scenario.getPopulation.getPersons.size())
-    println("Total Persons Persons without plan " + listOfPersonsWithoutPlan.size)
-    listOfPersonsWithoutPlan.take(5).map(p => println(p))
+    logger.info("Removing persons without plan {}", listOfPersonsWithoutPlan.size)
     listOfPersonsWithoutPlan.foreach { p =>
-    {
-
-      val _hId = scenario.getPopulation.getPersonAttributes.getAttribute(p.toString, "houseHoldId")
+      val _hId = scenario.getPopulation.getPersonAttributes.getAttribute(p.toString, "householdId")
 
       scenario.getPopulation.getPersonAttributes.removeAllAttributes(p.toString)
 
       scenario.getPopulation.removePerson(p)
 
       val hId = Id.create(_hId.toString, classOf[Household])
-      houseHoldPersons.get(hId) match {
+      householdPersons.get(hId) match {
         case Some(persons: ListBuffer[Id[Person]]) =>
           persons -= p
-        //houseHoldPersons.put(hId, persons)
         case None =>
       }
-
-    }
     }
 
     logger.info("Reading Households...")
-    BeamServices.readHouseHoldsFile(
+    BeamServices.readHouseholdsFile(
       householdFilePath,
       scenario,
       beamServices,
-      houseHoldPersons.par,
+      householdPersons.par,
       units.par,
       buildings.par,
       parcelAttrs.par
     )
 
-    val listOfHouseHoldsWithoutMembers: ListBuffer[Household] = ListBuffer()
+    logger.info("Total households loaded {}", scenario.getHouseholds.getHouseholds.size())
+    logger.info("Checking households without members...")
+    val listOfHouseholdsWithoutMembers: ListBuffer[Household] = ListBuffer()
     scenario.getHouseholds.getHouseholds.forEach {
-      case (hId: Id[Household], h: Household) => {
-        if (h.getMemberIds.size() == 0) {
-          listOfHouseHoldsWithoutMembers += h
-        }
-      }
+      case (hId: Id[Household], h: Household) if (h.getMemberIds.size() == 0) => listOfHouseholdsWithoutMembers += h
     }
-    logger.info("Removing households without members " + listOfHouseHoldsWithoutMembers.size)
-    listOfHouseHoldsWithoutMembers.take(5).map(l => println(l.getId))
-    listOfHouseHoldsWithoutMembers.foreach { h =>
-    {
 
-      removeHouseHoldVehicles(h)
-
+    logger.info("Removing households without members {}", listOfHouseholdsWithoutMembers.size)
+    listOfHouseholdsWithoutMembers.foreach { h =>
+      removeHouseholdVehicles(h)
       scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(h.getId.toString)
       scenario.getHouseholds.getHouseholds.remove(h.getId)
     }
-    }
 
-    println("The scenario loading is completed..")
-    /*val houseHolds = BeamServices.readHouseHoldsFile(householdFilePath, scenario, beamServices,
-      TrieMap[Id[Household], ListBuffer[Id[Person]]](),
-      TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]](), TrieMap[String, java.util.Map[String, String]]())*/
-
+    logger.info("The scenario loading is completed..")
   }
 
-  def removeHouseHoldVehicles(household: Household) = {
+  def removeHouseholdVehicles(household: Household) = {
     household.getVehicleIds.forEach(
       vehicleId => beamServices.privateVehicles.remove(Id.create(vehicleId.toString, classOf[BeamVehicle]))
     )
