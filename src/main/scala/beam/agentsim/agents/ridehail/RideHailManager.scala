@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import java.util
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
@@ -187,10 +187,6 @@ object RideHailManager {
 
 }
 
-// TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
-// TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
-// TODO: remove name variable, as not used currently in the code anywhere?
-
 class RideHailManager(
   val beamServices: BeamServices,
   val scheduler: ActorRef,
@@ -201,7 +197,8 @@ class RideHailManager(
   val tncIterationStats: Option[TNCIterationStats]
 ) extends VehicleManager
     with ActorLogging
-    with HasServices {
+    with HasServices
+    with Stash{
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -290,10 +287,14 @@ class RideHailManager(
   val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
   val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
 
+  // Are we in the middle of processing a batch?
+  var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
+
   //context.actorSelection("user/")
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
 
   DebugLib.emptyFunctionForSettingBreakPoint()
+
 
   override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
@@ -534,72 +535,27 @@ class RideHailManager(
     case DebugRideHailManagerDuringExecution =>
       modifyPassengerScheduleManager.printState()
 
-    case TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
-      modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-      findAllocationsAndProcess(tick)
+    case trigger @ TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
+      currentlyProcessingTimeoutTrigger match {
+        case Some(_) =>
+          stash()
+        case None =>
+          currentlyProcessingTimeoutTrigger = Some(trigger)
+          modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+          findAllocationsAndProcess(tick)
+      }
 
     case ContinueBufferedRideHailRequests(tick) =>
       findAllocationsAndProcess(tick)
 
-    case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
+    case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
 //      DebugRepositioning.produceRepositioningDebugImages(tick, this)
-
-      modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-
-      val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-        rideHailResourceAllocationManager.repositionVehicles(tick)
-
-      if (repositionVehicles.isEmpty) {
-        modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
-      } else {
-        modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
-      }
-
-      for ((vehicleId, destinationLocation) <- repositionVehicles) {
-        if (getIdleVehicles.contains(vehicleId)) {
-          val rideHailAgentLocation = getIdleVehicles(vehicleId)
-
-          val rideHailVehicleAtOrigin = StreetVehicle(
-            rideHailAgentLocation.vehicleId,
-            SpaceTime((rideHailAgentLocation.currentLocationUTM.loc, tick)),
-            CAR,
-            asDriver = false
-          )
-          val routingRequest = RoutingRequest(
-            originUTM = rideHailAgentLocation.currentLocationUTM.loc,
-            destinationUTM = destinationLocation,
-            departureTime = tick,
-            transitModes = Vector(),
-            streetVehicles = Vector(rideHailVehicleAtOrigin)
-          )
-          val futureRideHailAgent2CustomerResponse = router ? routingRequest
-
-          for {
-            rideHailAgent2CustomerResponse <- futureRideHailAgent2CustomerResponse
-              .mapTo[RoutingResponse]
-          } {
-            val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(
-              x => x.tripClassifier.equals(RIDE_HAIL)
-            )
-
-            if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
-                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
-              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
-
-              // TODO: extract creation of route to separate method?
-              val passengerSchedule = PassengerSchedule().addLegs(
-                rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
-              )
-              self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
-            } else {
-              self ! ReduceAwaitingRepositioningAckMessagesByOne
-            }
-          }
-
-        } else {
-          modifyPassengerScheduleManager.cancelRepositionAttempt()
-        }
+      currentlyProcessingTimeoutTrigger match {
+        case Some(_) =>
+          stash()
+        case None =>
+          currentlyProcessingTimeoutTrigger = Some(trigger)
+          startRepositioning(tick, triggerId)
       }
 
     case ReduceAwaitingRepositioningAckMessagesByOne =>
@@ -1137,6 +1093,7 @@ class RideHailManager(
         pendingModifyPassengerScheduleAcks.isEmpty &&
         rideHailResourceAllocationManager.isBufferEmpty) {
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
+      cleanUp
     }
   }
 
@@ -1188,6 +1145,7 @@ class RideHailManager(
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
                rideHailResourceAllocationManager.isBufferEmpty) {
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
+      cleanUp
     }
   }
 
@@ -1228,6 +1186,73 @@ class RideHailManager(
       request.customer.personRef.get ! theResponse
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+  }
+
+  def cleanUp = {
+    currentlyProcessingTimeoutTrigger = None
+    unstashAll()
+  }
+
+  def startRepositioning(tick: Int, triggerId: Long) = {
+    modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+
+    val repositionVehicles: Vector[(Id[Vehicle], Location)] =
+      rideHailResourceAllocationManager.repositionVehicles(tick)
+
+    if (repositionVehicles.isEmpty) {
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
+      cleanUp
+    } else {
+      modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+    }
+
+    for ((vehicleId, destinationLocation) <- repositionVehicles) {
+      if (getIdleVehicles.contains(vehicleId)) {
+        val rideHailAgentLocation = getIdleVehicles(vehicleId)
+
+        val rideHailVehicleAtOrigin = StreetVehicle(
+          rideHailAgentLocation.vehicleId,
+          SpaceTime((rideHailAgentLocation.currentLocationUTM.loc, tick)),
+          CAR,
+          asDriver = false
+        )
+        val routingRequest = RoutingRequest(
+          originUTM = rideHailAgentLocation.currentLocationUTM.loc,
+          destinationUTM = destinationLocation,
+          departureTime = tick,
+          transitModes = Vector(),
+          streetVehicles = Vector(rideHailVehicleAtOrigin)
+        )
+        val futureRideHailAgent2CustomerResponse = router ? routingRequest
+
+        for {
+          rideHailAgent2CustomerResponse <- futureRideHailAgent2CustomerResponse
+            .mapTo[RoutingResponse]
+        } {
+          val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(
+            x => x.tripClassifier.equals(RIDE_HAIL)
+          )
+
+          if (itins2Cust.nonEmpty) {
+            val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
+              itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
+            val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
+
+            // TODO: extract creation of route to separate method?
+            val passengerSchedule = PassengerSchedule().addLegs(
+              rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
+            )
+            self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
+          } else {
+            self ! ReduceAwaitingRepositioningAckMessagesByOne
+          }
+        }
+
+      } else {
+        modifyPassengerScheduleManager.cancelRepositionAttempt()
+      }
+    }
+
   }
 
 }
