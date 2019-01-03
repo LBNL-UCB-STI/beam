@@ -193,7 +193,7 @@ class RideHailModifyPassengerScheduleManager(
         case _ =>
           throw new RuntimeException("Should not attempt to send completion when doing single reservations")
       }
-      //    log.info("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
+      //    log.debug("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
 //      if (!allTriggersInWave.isEmpty) {
 //        log.debug(
 //          "triggers from {} to {}",
@@ -221,7 +221,6 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
-    log.debug("Starting wave at {}", tick)
     assert(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)

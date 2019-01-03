@@ -545,6 +545,7 @@ class RideHailManager(
           stash()
         case None =>
           currentlyProcessingTimeoutTrigger = Some(trigger)
+          log.debug("Starting wave of buffered at {}", tick)
           modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
           findAllocationsAndProcess(tick)
       }
@@ -651,7 +652,7 @@ class RideHailManager(
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case Finish =>
-      log.info("finish message received from BeamAgentScheduler")
+      log.debug("finish message received from BeamAgentScheduler")
 
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
@@ -1152,8 +1153,10 @@ class RideHailManager(
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
-               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations==0) {
-      log.debug("sendCompletionAndScheduleNewTimeout from 1147")
+               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations==0 &&
+      currentlyProcessingTimeoutTrigger.isDefined
+    ) {
+      log.debug("sendCompletionAndScheduleNewTimeout from 1156")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
       cleanUp
     }
@@ -1204,6 +1207,7 @@ class RideHailManager(
   }
 
   def startRepositioning(tick: Int, triggerId: Long) = {
+    log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
