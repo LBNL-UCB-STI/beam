@@ -108,7 +108,7 @@ class TransitInitializer(
                   (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
-                      Vector.empty, // for non-street based paths we don't have link ids so no travel times
+                      Vector((duration.toDouble / 2.0).round.toInt,(duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -139,7 +139,7 @@ class TransitInitializer(
               (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
-                  Vector.empty, // TODO FIXME
+                  Vector((duration.toDouble / 2.0).round.toInt,(duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
                   Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                   SpaceTime(
                     startEdge.getGeometry.getStartPoint.getX,
@@ -348,7 +348,6 @@ class TransitInitializer(
         }
       }
       .toVector
-      .distinct
     edgeIds
   }
 
