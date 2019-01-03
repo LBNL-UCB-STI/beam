@@ -1513,8 +1513,8 @@ object BeamConfig {
       case class Strategy(
         ModuleProbability_1: scala.Double,
         ModuleProbability_2: scala.Double,
-        ModuleProbability_3: scala.Int,
-        ModuleProbability_4: scala.Int,
+        ModuleProbability_3: scala.Double,
+        ModuleProbability_4: scala.Double,
         Module_1: java.lang.String,
         Module_2: java.lang.String,
         Module_3: java.lang.String,
@@ -1531,8 +1531,8 @@ object BeamConfig {
               if (c.hasPathOrNull("ModuleProbability_1")) c.getDouble("ModuleProbability_1") else 0.7,
             ModuleProbability_2 =
               if (c.hasPathOrNull("ModuleProbability_2")) c.getDouble("ModuleProbability_2") else 0.1,
-            ModuleProbability_3 = if (c.hasPathOrNull("ModuleProbability_3")) c.getInt("ModuleProbability_3") else 0,
-            ModuleProbability_4 = if (c.hasPathOrNull("ModuleProbability_4")) c.getInt("ModuleProbability_4") else 0,
+            ModuleProbability_3 = if (c.hasPathOrNull("ModuleProbability_3")) c.getDouble("ModuleProbability_3") else 0,
+            ModuleProbability_4 = if (c.hasPathOrNull("ModuleProbability_4")) c.getDouble("ModuleProbability_4") else 0,
             Module_1 = if (c.hasPathOrNull("Module_1")) c.getString("Module_1") else "SelectExpBeta",
             Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
             Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
