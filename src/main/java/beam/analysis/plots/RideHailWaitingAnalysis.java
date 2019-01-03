@@ -341,6 +341,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
+        listOfBounds.add(2.0);
         listOfBounds.add(5.0);
         listOfBounds.add(10.0);
         listOfBounds.add(20.0);
