@@ -57,6 +57,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val listOfPersonsWithoutPlan: ListBuffer[Id[Person]] = ListBuffer()
     scenario.getPopulation.getPersons.forEach {
       case (pk: Id[Person], pv: Person) if (pv.getSelectedPlan == null) => listOfPersonsWithoutPlan += pk
+      case _ =>
     }
 
     logger.info("Removing persons without plan {}", listOfPersonsWithoutPlan.size)
@@ -91,6 +92,7 @@ class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamSe
     val listOfHouseholdsWithoutMembers: ListBuffer[Household] = ListBuffer()
     scenario.getHouseholds.getHouseholds.forEach {
       case (hId: Id[Household], h: Household) if (h.getMemberIds.size() == 0) => listOfHouseholdsWithoutMembers += h
+      case _ =>
     }
 
     logger.info("Removing households without members {}", listOfHouseholdsWithoutMembers.size)
