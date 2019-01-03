@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
-import beam.agentsim.events.ReserveRideHailEvent;
+import beam.agentsim.events.ModeChoiceEvent;
+import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.config.BeamConfig;
 import org.jfree.chart.JFreeChart;
@@ -21,10 +22,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+import static java.lang.Integer.max;
+
 /**
  * @author abid
  */
-public class RideHailWaitingAnalysis implements GraphAnalysis {
+public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryAnalysis {
+
+    public static final String RIDE_HAIL = "ride_hail";
+    public static final String WALK_TRANSIT = "walk_transit";
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation) {
         this.statComputation = statComputation;
@@ -117,23 +123,26 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    static final String fileName = "rideHailWaitingHistogram";
+    static final String fileName = "rideHailWaitingStats";
     static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
+    private Map<String, Double> ptWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
+    private double totalPTWaitingTime = 0.0;
+    private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
-    //todo there is no ref to beam config in this static class , also this value is default and is overridden inside the constructor
-    private static int numberOfTimeBins;
+
+    private static int numberOfTimeBins = 30;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
-                                   BeamConfig beamConfig){
+                                   BeamConfig beamConfig) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
-        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
+        final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
@@ -145,7 +154,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     @Override
     public void resetStats() {
         waitTimeSum = 0;
+        numOfTrips = 0;
         rideHailCount = 0;
+        totalPTWaitingTime = 0.0;
         rideHailWaiting.clear();
         hoursTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
@@ -155,43 +166,53 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     public void processStats(Event event) {
 
         Map<String, String> eventAttributes = event.getAttributes();
+        if (event instanceof ModeChoiceEvent) {
+            String mode = eventAttributes.get("mode");
 
-        /* When a person reserves a ride hail, push the person into the ride hail waiting queue and once the person
-        enters a vehicle , compute the difference between the times of occurrence for both the events as `waiting time`.*/
+            if (mode.equalsIgnoreCase(RIDE_HAIL)) {
 
-        if (event instanceof ReserveRideHailEvent) {
-            ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) event;
-            Id<Person> personId = reserveRideHailEvent.getPersonId();
-            //push person into the ride hail waiting queue
-            rideHailWaiting.put(personId.toString(), event);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                Id<Person> personId = modeChoiceEvent.getPersonId();
+                rideHailWaiting.put(personId.toString(), event);
+            }
+            if (mode.equalsIgnoreCase(WALK_TRANSIT)) {
+
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                Id<Person> personId = modeChoiceEvent.getPersonId();
+                ptWaiting.put(personId.toString(), event.getTime());
+            }
+
         } else if (event instanceof PersonEntersVehicleEvent) {
+
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
-            String _personId = personId.toString();
+            String pId = personId.toString();
 
             // This rideHailVehicle check is put here again to remove the non rideHail vehicleId which were coming due the
             // another occurrence of modeChoice event because of replanning event.
             if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
 
-                //process and add to the total time spent by all the passengers on waiting for a ride hail
-                ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaiting.get(_personId);
-                double difference = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
-                processRideHailWaitingTimes(reserveRideHailEvent, difference);
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(pId);
+                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
+                processRideHailWaitingTimes(modeChoiceEvent, difference);
 
                 // Building the RideHailWaitingIndividualStat List
-                String __vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
-                String __personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-
-                //process the time spent by the current passenger on waiting for a ride hail
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
-                rideHailWaitingIndividualStat.time = reserveRideHailEvent.getTime();
-                rideHailWaitingIndividualStat.personId = __personId;
-                rideHailWaitingIndividualStat.vehicleId = __vehicleId;
+                rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
+                rideHailWaitingIndividualStat.personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+                rideHailWaitingIndividualStat.vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
                 rideHailWaitingIndividualStat.waitingTime = difference;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
-                // Remove the passenger from the waiting queue , as the passenger entered the vehicle.
-                rideHailWaiting.remove(_personId);
+
+                // Remove the personId from the list of ModeChoiceEvent
+                rideHailWaiting.remove(pId);
+            }
+            // added summary stats for totalPTWaitingTime
+            if (ptWaiting.containsKey(pId) && eventAttributes.get("vehicle").contains("body")) {
+                totalPTWaitingTime += event.getTime() - ptWaiting.get(pId);
+                numOfTrips++;
+                ptWaiting.remove(pId);
             }
         }
     }
@@ -213,6 +234,14 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
+    }
+
+    @Override
+    public Map<String, Double> getSummaryStats() {
+        return new HashMap<String, Double>() {{
+            put("averageRideHailWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
+            put("averagePTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
+        }};
     }
 
     private void writeRideHailWaitingIndividualStatCSV(int iteration) {
@@ -242,17 +271,15 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     }
 
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
-        //get the hour of occurrence of the event
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        //convert the provided waiting time to minutes
-        waitingTime = waitingTime/60;
-        //Add the waiting time entry to the hours map
+
+        waitingTime = waitingTime / 60;
+
         List<Double> timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
             timeList = new ArrayList<>();
         }
         timeList.add(waitingTime);
-        //Update the sum of waiting times and ride hail count
         this.waitTimeSum += waitingTime;
         this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
@@ -314,8 +341,6 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
-        //todo confirm whether these values correspond to seconds or minutes ?
-        listOfBounds.add(2.0);
         listOfBounds.add(5.0);
         listOfBounds.add(10.0);
         listOfBounds.add(20.0);
@@ -332,9 +357,9 @@ public class RideHailWaitingAnalysis implements GraphAnalysis {
         for (Double category : categories) {
 
             double legend = getRoundedCategoryUpperBound(category);
-            if(legend > 60 )
+            if (legend > 60)
                 legends.add("60+");
-            else{
+            else {
                 legends.add(category.intValue() + "min");
             }
 
