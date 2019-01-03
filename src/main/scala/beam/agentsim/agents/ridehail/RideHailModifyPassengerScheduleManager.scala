@@ -135,7 +135,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     numberPendingModifyPassengerScheduleAcks -= 1
     log.debug(
-      "new numberOfOutStandingmodifyPassengerScheduleAckForRepositioning=" + numberPendingModifyPassengerScheduleAcks
+      "numberPendingModifyPassengerScheduleAcks = {}",numberPendingModifyPassengerScheduleAcks
     )
     // Following is just error checking
     if (triggersToSchedule.nonEmpty) {
@@ -162,7 +162,7 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = triggersToSchedule ++ allTriggersInWave
 
     if (numberPendingModifyPassengerScheduleAcks == 0) {
-      log.info("sendCompletionAndScheduleNewTimeout 165")
+      log.debug("sendCompletionAndScheduleNewTimeout 165")
       sendCompletionAndScheduleNewTimeout(Reposition)
     }
   }
@@ -232,13 +232,13 @@ class RideHailModifyPassengerScheduleManager(
 
   def repositionVehicle(
     passengerSchedule: PassengerSchedule,
-    tick: Double,
+    tick: Int,
     vehicleId: Id[Vehicle],
     rideHailAgent: ActorRef
   ): Unit = {
     log.debug("RideHailModifyPassengerScheduleManager- repositionVehicle request: " + vehicleId)
     sendInterruptMessage(
-      ModifyPassengerSchedule(passengerSchedule),
+      ModifyPassengerSchedule(passengerSchedule, tick),
       tick,
       vehicleId,
       rideHailAgent,
@@ -249,13 +249,14 @@ class RideHailModifyPassengerScheduleManager(
   def reserveVehicle(
     passengerSchedule: PassengerSchedule,
     rideHailAgent: RideHailAgentLocation,
+    tick: Int,
     reservationRequestId: Option[Int]
   ): Unit = {
     log.debug(
       "RideHailModifyPassengerScheduleManager- reserveVehicle request: " + rideHailAgent.vehicleId
     )
     sendInterruptMessage(
-      ModifyPassengerSchedule(passengerSchedule, reservationRequestId),
+      ModifyPassengerSchedule(passengerSchedule, tick, reservationRequestId),
       passengerSchedule.schedule.head._1.startTime,
       rideHailAgent.vehicleId,
       rideHailAgent.rideHailAgent,
@@ -265,7 +266,7 @@ class RideHailModifyPassengerScheduleManager(
 
   private def sendInterruptMessage(
     modifyPassengerSchedule: ModifyPassengerSchedule,
-    tick: Double,
+    tick: Int,
     vehicleId: Id[Vehicle],
     rideHailAgent: ActorRef,
     interruptOrigin: InterruptOrigin
@@ -477,7 +478,7 @@ case class RideHailModifyPassengerScheduleStatus(
   vehicleId: Id[Vehicle],
   modifyPassengerSchedule: ModifyPassengerSchedule,
   interruptOrigin: InterruptOrigin,
-  tick: Double,
+  tick: Int,
   rideHailAgent: ActorRef,
   var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED
 )
