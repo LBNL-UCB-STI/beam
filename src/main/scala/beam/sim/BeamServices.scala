@@ -209,17 +209,17 @@ object BeamServices {
           val vehicleTypeIdString = line.get("vehicleTypeId")
           val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-          val houseHoldIdString = line.get("houseHoldId")
+          val householdIdString = line.get("householdId")
 
-          val houseHoldId: Option[Id[Household]] = if(houseHoldIdString == null) {
+          val householdId: Option[Id[Household]] = if (householdIdString == null) {
             None
           }else{
-            Some(Id.create(houseHoldIdString, classOf[Household]))
+            Some(Id.create(householdIdString, classOf[Household]))
           }
 
           val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, houseHoldId)
+          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
           acc += ((vehicleId, beamVehicle))
           acc
       }
@@ -314,22 +314,22 @@ object BeamServices {
         val node_id_walk: String = line.get("node_id_walk")
         val job_id: String = line.get("job_id")
 
-        population.getPersonAttributes.putAttribute(person.getId.toString, "houseHoldId", household_id)
+        population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
         population.getPersonAttributes.putAttribute(person.getId.toString, "available-modes", modes)
         population.addPerson(person)
 
-        val houseHoldId: Id[Household] = Id.create(household_id, classOf[Household])
+        val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 
-        val list: ListBuffer[Id[Person]] = acc.get(houseHoldId) match {
+        val list: ListBuffer[Id[Person]] = acc.get(householdId) match {
           case Some(personList: ListBuffer[Id[Person]]) =>
             personList += _personId
             personList
           case None =>
             ListBuffer[Id[Person]](_personId)
         }
-        acc += ((houseHoldId, list))
+        acc += ((householdId, list))
     }
   }
 
