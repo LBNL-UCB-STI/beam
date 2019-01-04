@@ -127,11 +127,11 @@ class RideHailModifyPassengerScheduleManager(
 
   // A wrapper method to make it more understandable what is happening
   def cancelRepositionAttempt(): Unit = {
-    modifyPassengerScheduleAckReceived(Vector())
+    modifyPassengerScheduleAckReceived(Vector(), 0)
   }
 
   def modifyPassengerScheduleAckReceived(
-    triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger]
+    triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger], tick: Int
   ): Unit = {
     numberPendingModifyPassengerScheduleAcks -= 1
     log.debug(
@@ -163,7 +163,7 @@ class RideHailModifyPassengerScheduleManager(
 
     if (numberPendingModifyPassengerScheduleAcks == 0) {
       log.debug("sendCompletionAndScheduleNewTimeout 165")
-      sendCompletionAndScheduleNewTimeout(Reposition)
+      sendCompletionAndScheduleNewTimeout(Reposition,tick)
     }
   }
 
@@ -179,8 +179,11 @@ class RideHailModifyPassengerScheduleManager(
     vehicleIdToModifyPassengerScheduleStatus(vehicleId)
   }
 
-  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType): Unit = {
+  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
       val (currentTick, triggerId) = releaseTickAndTriggerId()
+    if(tick != currentTick){
+      val i = 0
+    }
       val timerTrigger = batchDispatchType match {
         case BatchedReservation =>
           BufferedRideHailRequestsTrigger(
@@ -225,7 +228,7 @@ class RideHailModifyPassengerScheduleManager(
       vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)
     )
-    assert(numberPendingModifyPassengerScheduleAcks <= 0)
+//    assert(numberPendingModifyPassengerScheduleAcks <= 0)
     holdTickAndTriggerId(tick, triggerId)
   }
 
