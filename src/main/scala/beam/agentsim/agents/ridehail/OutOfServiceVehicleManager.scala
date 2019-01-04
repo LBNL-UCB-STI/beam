@@ -51,7 +51,8 @@ class OutOfServiceVehicleManager(
   }
 
   def handleInterruptReply(
-    vehicleId: Id[Vehicle], tick: Int
+    vehicleId: Id[Vehicle],
+    tick: Int
   ): Unit = {
 
     val rideHailAgent = rideHailManager
@@ -59,7 +60,7 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent.tell(
-      ModifyPassengerSchedule(passengerSchedules(vehicleId),tick),
+      ModifyPassengerSchedule(passengerSchedules(vehicleId), tick),
       rideHailManagerActor
     )
     rideHailAgent.tell(Resume(), rideHailManagerActor)

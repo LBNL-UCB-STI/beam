@@ -122,8 +122,7 @@ object RideHailAgent {
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
-      extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
 
   case object Idle extends BeamAgentState
 

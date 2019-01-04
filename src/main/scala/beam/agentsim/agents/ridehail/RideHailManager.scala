@@ -128,7 +128,7 @@ object RideHailManager {
   }
 
   case class RoutingResponses(
-                             tick: Int,
+    tick: Int,
     routingResponses: List[RoutingResponse]
   )
 
@@ -198,7 +198,7 @@ class RideHailManager(
 ) extends VehicleManager
     with ActorLogging
     with HasServices
-    with Stash{
+    with Stash {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -295,7 +295,6 @@ class RideHailManager(
   //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
 
   DebugLib.emptyFunctionForSettingBreakPoint()
-
 
   override def receive: Receive = LoggingReceive {
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
@@ -504,7 +503,7 @@ class RideHailManager(
           requestIdOpt,
           triggersToSchedule,
           vehicleId,
-    tick
+          tick
         ) =>
       pendingAgentsSentToPark.get(vehicleId) match {
         case Some(_) =>
@@ -526,7 +525,7 @@ class RideHailManager(
                   triggersToSchedule,
                   tick
                 )
-              if(modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks == 0)cleanUp
+              if (modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks == 0) cleanUp
             case Some(requestId) =>
               // Some here means this is part of a reservation / dispatch of vehicle to a customer
               log.info("modifyPassengerScheduleAck received, completing reservation {}", modifyPassengerScheduleAck)
@@ -552,7 +551,7 @@ class RideHailManager(
       }
 
     case ContinueBufferedRideHailRequests(tick) =>
-      if(tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(-1))
+      if (tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(-1))
         findAllocationsAndProcess(tick)
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
@@ -1101,7 +1100,7 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if (processBufferedRequestsOnTimeout){
+    if (processBufferedRequestsOnTimeout) {
       self ! ContinueBufferedRideHailRequests(tick)
     }
   }
@@ -1151,13 +1150,12 @@ class RideHailManager(
       case _ =>
     }
     if (!allRoutesRequired.isEmpty) {
-      log.debug("requesting {} routes at {}",allRoutesRequired.size,tick)
+      log.debug("requesting {} routes at {}", allRoutesRequired.size, tick)
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
-               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations==0 &&
-      currentlyProcessingTimeoutTrigger.isDefined
-    ) {
+               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations == 0 &&
+               currentlyProcessingTimeoutTrigger.isDefined) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1156")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
       cleanUp
