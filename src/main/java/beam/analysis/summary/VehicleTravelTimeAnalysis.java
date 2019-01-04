@@ -36,9 +36,11 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private int countOfHomeVehicle = 0;
     private int countOfWorkVehicle = 0;
     private int countOfSecondaryVehicle = 0;
+    private int numberOfPassengerTrip = 0;
     private double totalVehicleDelayWork = 0.0;
     private double totalVehicleDelayHome = 0.0;
     private double totalVehicleDelaySecondary = 0.0;
+    private double averageVehicleDelayPerPassengerTrip = 0.0;
     private Map<String, List<Double>> personIdDelays = new HashMap<>();
     private Map<String, List<String>> personsByVehicleIds = new HashMap<>();
 
@@ -85,12 +87,14 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
                     String vehicleID = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
                     double averageVehicleDelay = travelDurationInSec - freeFlowDuration;
+                    averageVehicleDelayPerPassengerTrip += averageVehicleDelay;
 
                     if(personsByVehicleIds.containsKey(vehicleID)) {
                         personsByVehicleIds.get(vehicleID).forEach(personId -> personIdDelays.merge(personId, Lists.newArrayList(averageVehicleDelay), ListUtils::union));
                     }
 
                     totalVehicleTrafficDelay += (travelDurationInSec - freeFlowDuration);
+                    numberOfPassengerTrip++;
                 }
             }
 
@@ -137,12 +141,14 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         numOfTimesBusTaken = 0;
         countOfHomeVehicle = 0;
         countOfWorkVehicle = 0;
+        numberOfPassengerTrip = 0;
         countOfSecondaryVehicle = 0;
         totalVehicleTrafficDelay = 0.0;
         busCrowding = 0.0;
         totalVehicleDelayWork = 0.0;
         totalVehicleDelayHome = 0.0;
         totalVehicleDelaySecondary = 0.0;
+        averageVehicleDelayPerPassengerTrip = 0.0;
         secondsTraveledByVehicleType.clear();
         personsByVehicleIds.clear();
         buses.clear();
@@ -160,6 +166,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_work", totalVehicleDelayWork / max(countOfWorkVehicle, 1));
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_home", totalVehicleDelayHome / max(countOfHomeVehicle, 1));
         summaryStats.put("averageVehicleDelayPerMotorizedLeg_secondary", totalVehicleDelaySecondary / max(countOfSecondaryVehicle, 1));
+        summaryStats.put("averageVehicleDelayPerPassengerTrip", averageVehicleDelayPerPassengerTrip/numberOfPassengerTrip);
         summaryStats.put("totalHoursOfVehicleTrafficDelay", totalVehicleTrafficDelay / 3600);
         summaryStats.put("busCrowding", busCrowding / max(numOfTimesBusTaken, 1));
         return summaryStats;
